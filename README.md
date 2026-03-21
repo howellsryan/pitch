@@ -6,56 +6,63 @@ Pick a club, set your tactics, wheel and deal in the transfer market, watch matc
 
 No install. No server. No framework. Just open `pitch.html`.
 
------
+---
 
 ## Play
 
-Open https://www.howellsryan.github.io/pitch or
-download [`pitch.html`](pitch.html) and open it in any modern browser.
+Download [`pitch.html`](pitch.html) and open it in any modern browser.
 
-That’s it.
+That's it.
 
------
+---
 
 ## Features
 
 ### 🏆 Full Season Simulation
-
 - 38-gameweek Premier League campaign with accurate 2025/26 squads
 - FA Cup, League Cup, and European competition (UCL / UEL / UECL)
 - Promotion, relegation, and prize money at the end of every season
 
 ### 🔴 Watch Matches Live
-
 - Real-time match engine with a 120-phase simulation
 - Live scoreboard, event feed, possession stats, and player fitness tracking
 - Make substitutions and change formation mid-match
 - Skip ahead or sim instantly — your call
 
 ### 💸 Transfers
-
 - Buy and sell players with a dynamic valuation system
 - Form affects prices — hot players cost more, cold players can be had cheap
 - AI clubs make inbound offers you can accept or reject
 
 ### 🧠 Tactics
-
 - Choose your formation and pin your preferred XI
 - The engine selects your best available lineup automatically when needed
 - Fitness is tracked across every match — rotate or pay the price
 
 ### 🌱 Youth Academy
-
 - Your club generates a youth cohort every pre-season
 - Tier depends on reputation: elite academies produce wonderkids
 - Promote standouts to the first team or release them
 
 ### 📊 20 Premier League Clubs
-
 - All 20 PL clubs with authentic squads including Liverpool (Isak, Wirtz), Chelsea (Sancho), and the rest
 - Championship, La Liga, Bundesliga, Serie A, and Ligue 1 clubs for transfers and European opposition
 
------
+---
+
+## Developing with AI
+
+PITCH is developed with Claude. The repo includes [`BRIEFING.md`](BRIEFING.md) — a compressed context document that replaces ~200k tokens of conversation history with ~3k tokens of precise, actionable context.
+
+**To start a new Claude session:**
+
+1. Paste `BRIEFING.md` as your first message
+2. Make your change, run `python3 build.py`, fix any failures
+3. Update the open issues list in `BRIEFING.md` at the end of the session
+
+Without `BRIEFING.md`, Claude has to rediscover the architecture, invariants, and anti-patterns from scratch — which is slow and error-prone given the codebase size.
+
+---
 
 ## Technical
 
@@ -88,36 +95,20 @@ node validate.js
 
 672 checks across fixture generation, match engine, cup scheduling, transfer logic, squad data integrity, youth academy, promotion/relegation, and more. Zero failures required before a build ships.
 
------
+---
 
 ## Leagues & Competitions
 
-|Competition             |Rounds                               |
-|------------------------|-------------------------------------|
-|Premier League          |38 gameweeks, 20 clubs               |
-|FA Cup                  |GWs 22, 25, 28, 31, 34, 37           |
-|League Cup              |GWs 3, 7, 12, 17, 20, 24             |
-|Champions League        |Group stage (8 matchdays) + knockouts|
-|Europa League           |GWs 6, 21, 25, 29, 33, 36            |
-|Europa Conference League|GWs 6, 22, 27, 31, 35                |
+| Competition | Rounds |
+|---|---|
+| Premier League | 38 gameweeks, 20 clubs |
+| FA Cup | GWs 22, 25, 28, 31, 34, 37 |
+| League Cup | GWs 3, 7, 12, 17, 20, 24 |
+| Champions League | Group stage (8 matchdays) + knockouts |
+| Europa League | GWs 6, 21, 25, 29, 33, 36 |
+| Europa Conference League | GWs 6, 22, 27, 31, 35 |
 
 **PL finish → European qualification:**
 Top 4 → UCL · 5th–6th → UEL · 7th → UECL · 18th–20th → relegated
 
------
-
-## Roadmap
-
-- [ ] Player morale system
-- [ ] Two-legged European knockout ties
-- [ ] Player injuries
-- [ ] News feed / transfer inbox
-- [ ] Manager reputation and difficulty settings
-- [ ] Watch Match: player ratings overlay
-- [ ] Tactical instructions (press high, sit deep)
-
------
-
-## Licence
-
-MIT
+---
