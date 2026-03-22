@@ -20,7 +20,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;-webkit-text-size-adjust:100%}
 body{background:var(--night);color:var(--tx);font-family:var(--fb);overflow:hidden;display:flex}
-body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:.4}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none;z-index:50;opacity:.4}
 
 /* ── NEW GAME ── */
 #ng{position:fixed;inset:0;z-index:1000;background:var(--night);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;overflow-y:auto;gap:0}
@@ -59,7 +59,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 /* ── BOTTOM NAV (mobile) ── */
 .bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--sur);border-top:1px solid var(--bdr);padding:6px 0 env(safe-area-inset-bottom,4px)}
 .bot-nav-inner{display:flex;justify-content:space-around}
-.bn{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 8px;color:var(--txd);transition:color .15s;background:none;border:none;-webkit-tap-highlight-color:transparent}
+.bn{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 4px;color:var(--txd);transition:color .15s;background:none;border:none;-webkit-tap-highlight-color:transparent}
 .bn.active{color:var(--acc)}
 .bn svg{width:20px;height:20px}
 .bn span{font-size:9px;font-family:var(--fm);letter-spacing:.5px}
@@ -351,7 +351,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .sh-detail{color:var(--tx2)}
 
 /* ── MODAL ── */
-.modal-bd{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .25s;padding:0}
+.modal-bd{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .25s;padding:0}
 .modal-bd.open{opacity:1}
 .modal{background:var(--sur);border:1px solid var(--bdr);border-radius:18px 18px 0 0;width:100%;max-width:560px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s var(--ease)}
 .modal-bd.open .modal{transform:translateY(0)}
@@ -839,6 +839,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 <div id="ng">
   <div class="ng-logo">PITCH</div>
   <div class="ng-sub">Football Career Simulator · 2025/26</div>
+  <div style="display:flex;justify-content:center;margin-bottom:12px">
+    <button class="btn btn-s" id="btn-import-ng" style="font-size:12px;padding:6px 16px;display:flex;align-items:center;gap:6px">📂 Import Save File</button>
+    <input type="file" id="import-save-ng" accept=".pitch" style="display:none">
+  </div>
   <div class="ng-label">Choose Your Club</div>
   <div class="ng-filters" id="ng-filters">
     <button class="ng-f on" data-league="all">All</button>
@@ -875,6 +879,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
     <button class="bn" data-nav="tactics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>Tactics</span></button>
     <button class="bn" data-nav="squad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Squad</span></button>
     <button class="bn" data-nav="academy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><span>Academy</span></button>
+    <button class="bn" data-nav="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
   </div>
 </nav>
 
@@ -998,7 +1003,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
     <div class="scroll-pad">
       <div class="ph"><div class="ph-left"><div class="pl">Configuration</div><div class="pt">Settings</div></div></div>
       <div class="set-layout">
-        <div class="set-nav"><div class="set-ni on">Game</div></div>
         <div class="set-content">
           <div class="set-title">Game Settings</div>
           <div class="set-grp">
@@ -1007,6 +1011,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
           </div>
           <div class="set-grp">
             <div class="set-glbl">Save Data</div>
+            <div class="set-row">
+              <div><div class="set-nm">Export Save</div><div class="set-desc">Download your career to a .pitch file</div></div>
+              <button class="btn btn-p" id="btn-export-save">💾 Export</button>
+            </div>
+            <div class="set-row">
+              <div><div class="set-nm">Import Save</div><div class="set-desc">Load a .pitch file to resume a career</div></div>
+              <button class="btn btn-s" id="btn-import-save">📂 Import</button>
+              <input type="file" id="import-save-input" accept=".pitch" style="display:none">
+            </div>
             <div class="set-row">
               <div><div class="set-nm">New Game</div><div class="set-desc">Reset all progress and choose a new team</div></div>
               <button class="btn btn-d" id="btn-reset">Reset Game</button>
@@ -3861,6 +3874,15 @@ const getPlayer          = (id)  => req2p(store('players').get(id));
 const getPlayersByTeam   = (tid) => req2p(store('players').index('by_team').getAll(tid));
 const putPlayer          = (p)   => req2p(store('players','readwrite').put(p));
 const putPlayersBulk     = (ps)  => bulkPut('players', ps);
+function deletePlayersBulk(ids) {
+  return new Promise((resolve, reject) => {
+    const tx = _db.transaction('players', 'readwrite');
+    const s  = tx.objectStore('players');
+    ids.forEach(id => s.delete(id));
+    tx.oncomplete = resolve;
+    tx.onerror    = () => reject(tx.error);
+  });
+}
 const getAllFixtures      = ()    => req2p(store('fixtures').getAll());
 const getFixture         = (id)  => req2p(store('fixtures').get(id));
 const getFixturesByGW    = (gw)  => req2p(store('fixtures').index('by_gameweek').getAll(gw));
@@ -3881,11 +3903,190 @@ const getAllSeasons       = ()    => req2p(store('seasons').getAll());
 const addSeason          = (s)   => req2p(store('seasons','readwrite').add(s));
 
 function deleteDB() {
+  if (_db) { try { _db.close(); } catch(e) {} }
   _db = null;
   return new Promise((res, rej) => {
     const r = indexedDB.deleteDatabase(DB_NAME);
-    r.onsuccess = res; r.onerror = rej;
+    r.onsuccess = res;
+    r.onerror = () => rej(r.error);
+    r.onblocked = () => res(); // If still blocked, just proceed — reload will clean up
   });
+}
+
+// ─── Save File Export / Import ────────────────────────────────
+// Exports all IndexedDB stores as a single compressed, obfuscated
+// .pitch file. Includes an integrity hash to detect tampering.
+const _PITCH_SALT = 'pitch_fc_v3_2025';
+const _PITCH_MAGIC = 'PITCH_SAVE_V1';
+
+// Simple hash for integrity checking (FNV-1a 32-bit, then hex)
+function _fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+async function exportSaveFile() {
+  const db = await openDB();
+  const storeNames = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
+  const snapshot = {};
+
+  for (const name of storeNames) {
+    const tx = db.transaction(name, 'readonly');
+    const s  = tx.objectStore(name);
+    snapshot[name] = await req2p(s.getAll());
+  }
+
+  // Build save metadata
+  const saveData = snapshot.save?.find(s => s.id === 'active');
+  const meta = {
+    version: _PITCH_MAGIC,
+    exportedAt: new Date().toISOString(),
+    teamId: saveData?.userTeamId ?? 'unknown',
+    season: saveData?.season ?? 1,
+    gameweek: saveData?.currentGameweek ?? 1,
+  };
+
+  const payload = JSON.stringify({ meta, snapshot });
+  const hash = _fnv1a(_PITCH_SALT + payload);
+  const envelope = JSON.stringify({ h: hash, d: payload });
+
+  // Base64 encode the envelope (universal, no compression dependency)
+  const saveCode = btoa(unescape(encodeURIComponent(envelope)));
+
+  // Build filename for display
+  const teamName = (saveData?.userTeamId ?? 'team').replace(/[^a-zA-Z0-9_]/g, '_');
+  const filename = `PITCH_${teamName}_S${meta.season}_GW${meta.gameweek}.pitch`;
+
+  // Try file download as a bonus (works on desktop, may fail in sandboxed iframe)
+  let fileDownloaded = false;
+  try {
+    const blob = new Blob([saveCode], { type: 'text/plain' });
+
+    // Try Web Share API first (mobile)
+    try {
+      const file = new File([blob], filename, { type: 'text/plain' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'PITCH Save', text: filename });
+        fileDownloaded = true;
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') fileDownloaded = true;
+    }
+
+    // Try anchor download (desktop)
+    if (!fileDownloaded) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+    }
+  } catch (e) { /* File download failed — saveCode modal is the fallback */ }
+
+  return { filename, size: saveCode.length, meta, saveCode };
+}
+
+async function importSaveFromCode(code) {
+  // Decode base64 save code
+  let envelopeStr;
+  try {
+    envelopeStr = decodeURIComponent(escape(atob(code.trim())));
+  } catch (e) {
+    throw new Error('Invalid save code — could not decode.');
+  }
+
+  return _restoreFromEnvelope(envelopeStr);
+}
+
+async function importSaveFile(file) {
+  // Read file as text — save files are now base64-encoded text
+  const text = await file.text();
+
+  // Try interpreting as raw base64 save code first
+  let envelopeStr;
+  try {
+    envelopeStr = decodeURIComponent(escape(atob(text.trim())));
+  } catch (e) {
+    // Maybe it's an older gzip-compressed file
+    try {
+      const buf = await file.arrayBuffer();
+      if (typeof DecompressionStream !== 'undefined') {
+        const ds = new DecompressionStream('gzip');
+        const writer = ds.writable.getWriter();
+        writer.write(new Uint8Array(buf));
+        writer.close();
+        const decompressed = await new Response(ds.readable).arrayBuffer();
+        envelopeStr = new TextDecoder().decode(decompressed);
+      } else {
+        throw new Error('Cannot decompress');
+      }
+    } catch (e2) {
+      throw new Error('Invalid save file — could not decode.');
+    }
+  }
+
+  return _restoreFromEnvelope(envelopeStr);
+}
+
+async function _restoreFromEnvelope(envelopeStr) {
+  // Parse envelope
+  let envelope;
+  try {
+    envelope = JSON.parse(envelopeStr);
+  } catch (e) {
+    throw new Error('Invalid save data — corrupted format.');
+  }
+
+  if (!envelope.h || !envelope.d) {
+    throw new Error('Invalid save data — missing integrity check.');
+  }
+
+  // Verify integrity hash
+  const expectedHash = _fnv1a(_PITCH_SALT + envelope.d);
+  if (envelope.h !== expectedHash) {
+    throw new Error('Save data integrity check failed — data may have been modified.');
+  }
+
+  // Parse payload
+  let data;
+  try {
+    data = JSON.parse(envelope.d);
+  } catch (e) {
+    throw new Error('Invalid save data — corrupted payload.');
+  }
+
+  if (data.meta?.version !== _PITCH_MAGIC) {
+    throw new Error('Unsupported save version.');
+  }
+
+  const snapshot = data.snapshot;
+  if (!snapshot || !snapshot.save || !snapshot.teams || !snapshot.players) {
+    throw new Error('Invalid save data — missing game data.');
+  }
+
+  // Wipe current DB and restore all stores
+  if (_db) { _db.close(); _db = null; }
+  await new Promise((res, rej) => {
+    const r = indexedDB.deleteDatabase(DB_NAME);
+    r.onsuccess = res; r.onerror = () => rej(r.error);
+  });
+
+  await openDB();
+
+  const storeNames = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
+  for (const name of storeNames) {
+    const items = snapshot[name];
+    if (items && items.length > 0) {
+      await bulkPut(name, items);
+    }
+  }
+
+  return data.meta;
 }
 
 
@@ -4021,6 +4222,15 @@ function teamStrength(eleven) {
     goalkeeping: avg(gk, 'goalkeeping'),
     eleven,
   };
+}
+
+// ─── Age-based fitness drain multiplier ──────────────────────
+// Older players tire faster during matches
+function ageDrain(age) {
+  if (age >= 36) return 1.35;
+  if (age >= 33) return 1.20;
+  if (age >= 30) return 1.10;
+  return 1.00;
 }
 
 // ─── Fitness degradation ──────────────────────────────────────
@@ -4240,9 +4450,9 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
     const attFitMap  = isHome ? hFitness : aFitness;
     const defFitMap  = isHome ? aFitness : hFitness;
 
-    // Fitness degrades each phase
-    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.22));
-    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.15));
+    // Fitness degrades each phase — older players tire faster
+    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.22 * ageDrain(p.age ?? 24)));
+    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.15 * ageDrain(p.age ?? 24)));
 
     // Average fitness of attacking outfield players
     const attOutfield = attActive.filter(p => p.position !== 'GK');
@@ -4375,8 +4585,8 @@ function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhas
     const attFitMap = isHome ? hFitness   : aFitness;
     const defFitMap = isHome ? aFitness   : hFitness;
 
-    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.22));
-    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.15));
+    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.22 * ageDrain(p.age ?? 24)));
+    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.15 * ageDrain(p.age ?? 24)));
 
     const attOutfield = attActive.filter(p => p.position !== 'GK');
     const avgAttFit = attOutfield.reduce((s,p) => s+(attFitMap.get(p.id)??90),0) / Math.max(1,attOutfield.length);
@@ -5071,11 +5281,62 @@ async function getCupFixtures(cupId) {
 /** modules/transfers.js — buyPlayer, sellPlayer, generateAIOffers, formAdjustedValue */
 
 // ─── Form-adjusted value ──────────────────────────────────────
+// Computes a realistic market value factoring in: base value, current form,
+// age, and potential. Higher-value players get smaller % boosts from form
+// to prevent £100M players becoming £250M. Young high-potential players
+// in form get outsized premiums (the "wonderkid tax").
 function formAdjustedValue(player) {
-  const base  = player.value ?? 10_000_000;
-  const score = 50 + (player.goals ?? 0) * 8 + (player.assists ?? 0) * 5 + (player.cleanSheets ?? 0) * 6;
-  const mult  = score >= 80 ? 1.35 : score >= 65 ? 1.18 : score >= 50 ? 1.0 : score >= 35 ? 0.88 : 0.75;
-  return Math.round(base * mult);
+  const base  = Number(player.value) || 10_000_000;
+  const age   = player.age ?? 24;
+  const pot   = player.potentialRating ?? 70;
+  const cur   = _fav_primaryRating(player);
+  const headroom = Math.max(0, pot - cur);
+
+  // ── Form score: 50 = average, 80+ = hot ──
+  const formScore = 50 + (player.goals ?? 0) * 8 + (player.assists ?? 0) * 5 + (player.cleanSheets ?? 0) * 6;
+  const cappedForm = Math.min(99, formScore);
+
+  // ── Form multiplier: scales DOWN for expensive players ──
+  // Base form effect: hot form = up to +50%, cold = down to -25%
+  let formMult;
+  if (cappedForm >= 80)      formMult = 1.25 + (cappedForm - 80) * 0.013; // 80→1.25, 99→1.50
+  else if (cappedForm >= 65) formMult = 1.08 + (cappedForm - 65) * 0.011; // 65→1.08, 79→1.24
+  else if (cappedForm >= 50) formMult = 1.0;                               // average
+  else if (cappedForm >= 35) formMult = 0.92 - (50 - cappedForm) * 0.004;  // 35→0.86
+  else                       formMult = 0.75;
+
+  // Dampen form effect for high-value players (diminishing returns)
+  // A £100M player at 1.50× form mult → dampened to ~1.30× (not £150M)
+  // A £10M player at 1.50× form mult → stays closer to 1.45× (£14.5M)
+  const valueTier = Math.min(1, base / 80_000_000); // 0-1 scale, 1 at £80M+
+  const dampening = 1 - valueTier * 0.4;            // 1.0 for cheap, 0.6 for expensive
+  const dampenedFormMult = 1 + (formMult - 1) * dampening;
+
+  // ── Youth/potential premium ──
+  // Young players with high potential command outsized premiums when in form
+  let potentialMult = 1.0;
+  if (age <= 23 && headroom > 10) {
+    // Big potential gap + young = "wonderkid tax"
+    const potPremium = Math.min(0.8, headroom * 0.03); // up to +80% for 27+ headroom
+    // But only fully applies when in form — cold wonderkid doesn't get premium
+    const formFactor = Math.max(0, (cappedForm - 50) / 40); // 0 at avg, 1 at 90 form
+    potentialMult = 1 + potPremium * (0.3 + 0.7 * formFactor);
+  } else if (age <= 26 && headroom > 5) {
+    potentialMult = 1 + Math.min(0.25, headroom * 0.015);
+  }
+
+  // ── Age discount for older players ──
+  const ageMult = age >= 33 ? 0.80 : age >= 31 ? 0.90 : age >= 29 ? 0.95 : 1.0;
+
+  return Math.max(500_000, Math.round(base * dampenedFormMult * potentialMult * ageMult));
+}
+
+function _fav_primaryRating(p) {
+  const pos = p.position;
+  if (['ST','CF','RW','LW','CAM'].includes(pos)) return p.attack;
+  if (['CM','CDM','RM','LM'].includes(pos))       return p.midfield;
+  if (['CB','RB','LB'].includes(pos))             return p.defence;
+  return p.goalkeeping;
 }
 
 function minimumOffer(player) {
@@ -5301,36 +5562,56 @@ function calcPeakAge(p) {
 // ─── Apply development after each gameweek ───────────────────
 /**
  * Called after each match is simulated.
- * Players who performed (scored, assisted, kept clean sheet) earn
- * growthPoints. Enough points triggers an attribute upgrade.
+ * ALL players who participated earn growthPoints — just playing grows you.
+ * Goals, assists, clean sheets accelerate growth.
+ * Uses fitnessUpdates from match results to identify actual participants.
  */
 async function applyDevelopment(matchResults) {
   const allPlayers = await getAllPlayers();
   const cache      = new Map(allPlayers.map(p => [p.id, { ...p }]));
   const changed    = [];
 
-  // Collect this GW's goal/assist/CS events
-  const gwStats = new Map(); // playerId → { goals, assists, cleanSheets, played }
+  // Collect this GW's performance stats for every participant
+  const gwStats = new Map(); // playerId → { goals, assists, cleanSheets, played, cleanSheetDef }
+
   for (const result of matchResults) {
+    // 1. Register ALL match participants via fitnessUpdates (contains every starter)
+    for (const fu of (result.fitnessUpdates ?? [])) {
+      if (!gwStats.has(fu.id)) {
+        gwStats.set(fu.id, { goals:0, assists:0, cleanSheets:0, played:1, cleanSheetDef:0 });
+      }
+    }
+
+    // 2. Credit goals and assists
     const allScorers = [...(result.homeScorers ?? []), ...(result.awayScorers ?? [])];
     for (const s of allScorers) {
-      const e = gwStats.get(s.playerId) ?? { goals:0, assists:0, cleanSheets:0, played:1 };
+      const e = gwStats.get(s.playerId) ?? { goals:0, assists:0, cleanSheets:0, played:1, cleanSheetDef:0 };
       e.goals++; gwStats.set(s.playerId, e);
       if (s.assistId) {
-        const ae = gwStats.get(s.assistId) ?? { goals:0, assists:0, cleanSheets:0, played:1 };
+        const ae = gwStats.get(s.assistId) ?? { goals:0, assists:0, cleanSheets:0, played:1, cleanSheetDef:0 };
         ae.assists++; gwStats.set(s.assistId, ae);
       }
     }
-    // Clean sheet for starting GK
+
+    // 3. Clean sheets — use fitnessUpdates to find the actual starting GK per team
     const csTeams = [];
     if (result.awayGoals === 0) csTeams.push(result.homeTeamId);
     if (result.homeGoals === 0) csTeams.push(result.awayTeamId);
     for (const tid of csTeams) {
-      for (const p of cache.values()) {
-        if (p.teamId === tid && p.position === 'GK' && p.inSquad !== false) {
-          const e = gwStats.get(p.id) ?? { goals:0, assists:0, cleanSheets:0, played:1 };
-          e.cleanSheets++; gwStats.set(p.id, e);
-          break;
+      // Find the GK who actually played (listed in fitnessUpdates for this team)
+      const participantIds = new Set((result.fitnessUpdates ?? []).filter(fu => fu.teamId === tid).map(fu => fu.id));
+      const startingGK = allPlayers.find(p => p.teamId === tid && p.position === 'GK' && participantIds.has(p.id));
+      if (startingGK) {
+        const e = gwStats.get(startingGK.id) ?? { goals:0, assists:0, cleanSheets:0, played:1, cleanSheetDef:0 };
+        e.cleanSheets++; gwStats.set(startingGK.id, e);
+      }
+      // Defenders also benefit from clean sheets (smaller bonus)
+      for (const fu of (result.fitnessUpdates ?? [])) {
+        if (fu.teamId !== tid) continue;
+        const pl = cache.get(fu.id);
+        if (pl && ['CB','RB','LB','CDM'].includes(pl.position)) {
+          const e = gwStats.get(fu.id) ?? { goals:0, assists:0, cleanSheets:0, played:1, cleanSheetDef:0 };
+          e.cleanSheetDef++; gwStats.set(fu.id, e);
         }
       }
     }
@@ -5354,8 +5635,9 @@ async function applyDevelopment(matchResults) {
     let gp = 0;
     gp += stats.goals * 3;
     gp += stats.assists * 2;
-    gp += stats.cleanSheets * 2;
-    gp += 1; // Just for playing
+    gp += stats.cleanSheets * 3;       // GK clean sheet (boosted from 2)
+    gp += (stats.cleanSheetDef ?? 0);   // Defenders get 1pt per CS
+    gp += 1; // Base points just for playing
 
     // Young players get a bonus
     const youthMult = age <= 20 ? 2.5 : age <= 23 ? 1.8 : age <= 26 ? 1.2 : 1.0;
@@ -5449,7 +5731,8 @@ function updatedValue(p) {
     age <= 33 ? 0.70 : 0.50;
 
   // Exponential value curve: rating 60=£5m, 75=£25m, 85=£70m, 90=£120m, 95=£200m
-  const baseVal = Math.pow((rating - 50) / 49, 2.2) * 220_000_000;
+  const norm = Math.max(0, (rating - 50) / 49);
+  const baseVal = Math.pow(norm, 2.2) * 220_000_000;
   return Math.max(500_000, Math.round(baseVal * ageMult));
 }
 
@@ -5479,7 +5762,7 @@ function getPotentialLabel(player) {
 
 // ─── End-of-season aging with potential awareness ────────────
 function agingValueAdjust(player) {
-  const age = player.age ?? 24;
+  const age = (player.age ?? 24) + 1; // +1 because this runs before age increment
   const pot = player.potentialRating ?? _primaryRating(player);
   const cur = _primaryRating(player);
   const headroom = pot - cur;
@@ -5487,14 +5770,75 @@ function agingValueAdjust(player) {
   // Young players with high potential get value boost even before peak
   const potBonus = age <= 23 && headroom > 10 ? 1.15 : 1.0;
 
+  // Smoother depreciation — less aggressive than before
   const m =
     age < 20 ? 1.12 :
     age < 24 ? 1.06 :
     age < 28 ? 1.02 :
-    age < 32 ? 0.94 :
-    age < 35 ? 0.82 : 0.65;
+    age < 30 ? 0.97 :
+    age < 32 ? 0.92 :
+    age < 34 ? 0.85 :
+    age < 36 ? 0.75 : 0.60;
 
-  return Math.round((player.value ?? 10_000_000) * m * potBonus);
+  return Math.max(500_000, Math.round((Number(player.value) || 10_000_000) * m * potBonus));
+}
+
+// ─── End-of-season stat decline for aging players ────────────
+// Returns a copy of the player with reduced stats if past peak age.
+// Decline is gradual: small chance per stat per year, increasing with age.
+function applyAgingDecline(player) {
+  const p   = { ...player };
+  const age = p.age ?? 24;
+  const peak = p.peakAge ?? 28;
+
+  // No decline before peak age + 1 grace year
+  if (age <= peak + 1) return p;
+
+  // Decline probability increases with years past peak
+  const yearsPast = age - peak - 1;
+  const declineChance =
+    yearsPast <= 1 ? 0.15 :  // 1 year past peak: 15% per stat
+    yearsPast <= 3 ? 0.30 :  // 2-3 years: 30%
+    yearsPast <= 5 ? 0.50 :  // 4-5 years: 50%
+    yearsPast <= 7 ? 0.70 :  // 6-7 years: 70%
+                     0.85;    // 8+ years: 85%
+
+  // Decline amount increases slightly with age
+  const maxDrop = yearsPast <= 2 ? 1 : yearsPast <= 5 ? 2 : 3;
+
+  // Physical stats decline faster (attack for forwards, defence for defenders)
+  const primary = _primaryRating(p);
+  const pos = p.position;
+
+  // Apply decline to each stat independently
+  if (Math.random() < declineChance) {
+    const drop = 1 + Math.floor(Math.random() * maxDrop);
+    if (['ST','CF','RW','LW','CAM'].includes(pos)) {
+      p.attack = Math.max(30, p.attack - drop);
+    } else if (['CM','CDM','RM','LM'].includes(pos)) {
+      p.midfield = Math.max(30, p.midfield - drop);
+    } else if (['CB','RB','LB'].includes(pos)) {
+      p.defence = Math.max(30, p.defence - drop);
+    } else if (pos === 'GK') {
+      p.goalkeeping = Math.max(30, p.goalkeeping - drop);
+    }
+  }
+
+  // Secondary stats also decline but at lower rate
+  if (Math.random() < declineChance * 0.5) {
+    if (['ST','CF','RW','LW','CAM'].includes(pos)) {
+      p.midfield = Math.max(20, p.midfield - 1);
+    } else if (['CM','CDM','RM','LM'].includes(pos)) {
+      if (Math.random() < 0.5) p.attack = Math.max(20, p.attack - 1);
+      else p.defence = Math.max(20, p.defence - 1);
+    } else if (['CB','RB','LB'].includes(pos)) {
+      p.midfield = Math.max(20, p.midfield - 1);
+    }
+  }
+
+  // Recalculate value after stat decline
+  p.value = updatedValue(p);
+  return p;
 }
 
 
@@ -5631,11 +5975,11 @@ function randName() {
 
 // ─── Academy quality tier by reputation ───────────────────────
 function academyTier(reputation) {
-  if (reputation >= 93) return 'elite';      // Man City, Real Madrid level
-  if (reputation >= 85) return 'top';        // Top half PL / big clubs
-  if (reputation >= 75) return 'good';       // Mid-table PL / solid clubs
-  if (reputation >= 65) return 'average';    // Lower-league / smaller clubs
-  return 'poor';
+  if (reputation >= 90) return 'elite';      // Real Madrid, Barca, Bayern, Man City, Liverpool
+  if (reputation >= 80) return 'top';        // Top PL, Juve, Inter, Dortmund, PSG, Atletico
+  if (reputation >= 68) return 'good';       // Mid PL, top Championship, decent European clubs
+  if (reputation >= 55) return 'average';    // Lower PL, Championship, League One, small European
+  return 'poor';                             // League Two, bottom League One
 }
 
 // ─── Generate a single youth prospect ─────────────────────────
@@ -5754,10 +6098,18 @@ function calcYouthPeakAge(pos) {
 }
 
 function youthValue(base, age, potential) {
-  // Youth value is low now but reflects potential ceiling
-  const potFactor = Math.pow((potential - 50) / 49, 1.8) * 0.25; // fraction of future value
+  // Youth value reflects potential ceiling + age proximity to first team
+  // Low-potential youth still have training/homegrown value
   const ageFactor = age <= 16 ? 0.6 : age <= 17 ? 0.7 : age <= 18 ? 0.8 : 0.9;
-  return Math.max(100_000, Math.round(potFactor * 40_000_000 * ageFactor));
+
+  if (potential < 55) {
+    // Low potential: £250K-£800K based on age
+    return Math.round((250_000 + Math.max(0, potential - 30) * 20_000) * ageFactor);
+  }
+  // Normal+ potential: exponential curve from £500K up to ~£10M for wonderkids
+  const potNorm = (potential - 55) / 44; // 0 at pot=55, 1 at pot=99
+  const baseVal = 500_000 + Math.pow(potNorm, 1.8) * 9_500_000;
+  return Math.round(baseVal * ageFactor);
 }
 
 // ─── Generate a full cohort for one team ──────────────────────
@@ -5819,7 +6171,7 @@ async function runYouthIntake(save, allTeams) {
         isYouth: false,
         teamId:  team.id,
         inSquad: true,
-        wage:    Math.round(p.value * 0.05 / 52), // ~5% value/yr weekly
+        wage:    Math.max(1_000, Math.round((Number(p.value) || 500_000) * 0.05 / 52)),
       }));
       await putPlayersBulk(promoted);
     }
@@ -5845,7 +6197,7 @@ async function promoteYouthPlayer(playerId) {
   if (!team) throw new Error('Team not found');
 
   // Weekly wage: 5% of value / 52 weeks, min £1k/week
-  const weeklyWage = Math.max(1_000, Math.round(youth.value * 0.05 / 52));
+  const weeklyWage = Math.max(1_000, Math.round((Number(youth.value) || 500_000) * 0.05 / 52));
 
   const promoted = {
     ...youth,
@@ -6116,17 +6468,40 @@ async function processEndOfSeason() {
   }
 
   // ── Age all players ───────────────────────────────────────
-  const agedPlayers = players.map(p => ({
-    ...p,
-    age:         (p.age ?? 22) + 1,
-    value:       agingValueAdjust(p),
-    goals:       0,
-    assists:     0,
-    cleanSheets: 0,
-    form:        50,
-    fitness:     100,
-  }));
+  const agedPlayers = players.map(p => {
+    // Apply stat decline for aging players before bumping age
+    const declined = applyAgingDecline(p);
+    return {
+      ...declined,
+      age:         (declined.age ?? 22) + 1,
+      value:       agingValueAdjust(declined),
+      goals:       0,
+      assists:     0,
+      cleanSheets: 0,
+      form:        50,
+      fitness:     100,
+    };
+  });
   await putPlayersBulk(agedPlayers);
+
+  // ── Retire players aged 36+ ─────────────────────────────────
+  // Players who have turned 36 after aging retire from the game.
+  // A small chance (15%) lets legendary players (rating 80+) hang on one more year.
+  const retirees = agedPlayers.filter(p => {
+    if (p.age < 36) return false;
+    // Elite veterans can delay retirement by 1 year
+    const rating = _retirePrimaryRating(p);
+    if (p.age === 36 && rating >= 80 && Math.random() < 0.15) return false;
+    if (p.age === 36 && rating >= 75 && Math.random() < 0.08) return false;
+    return true;
+  });
+  const retireIds = retirees.map(p => p.id);
+  if (retireIds.length > 0) {
+    await deletePlayersBulk(retireIds);
+  }
+  // Track retirements for user's team
+  const userRetirees = retirees.filter(p => p.teamId === save.userTeamId);
+  summary.retirements = userRetirees.map(p => ({ name: p.name, age: p.age, position: p.position }));
 
   // ── Youth academy intake ───────────────────────────────────
   const allTeamsForAcademy = await getAllTeams();
@@ -6180,6 +6555,16 @@ async function processEndOfSeason() {
 }
 
 // agingValueAdjust is provided by potential.js (imported as agingValueAdjust)
+// applyAgingDecline is provided by potential.js (imported as applyAgingDecline)
+
+// ─── Inline primary rating for retirement check ──────────────
+function _retirePrimaryRating(p) {
+  const pos = p.position;
+  if (['ST','CF','RW','LW','CAM'].includes(pos)) return p.attack;
+  if (['CM','CDM','RM','LM'].includes(pos))       return p.midfield;
+  if (['CB','RB','LB'].includes(pos))             return p.defence;
+  return p.goalkeeping;
+}
 
 function buildSeasonSummary(save, sorted, players, userPosition) {
   return {
@@ -6683,9 +7068,13 @@ async function updateCache(allPlayers, results) {
   const cache = new Map(allPlayers.map(p => [p.id, { ...p }]));
   updatePlayerStats(cache, results);
   applyFitnessUpdates(cache, results);
-  // Between-match fitness recovery: played players recover +15, non-played +20 (simulates ~7 days rest)
+  // Between-match fitness recovery: played players recover +15, non-played +20
+  // Older players recover slower: -2 at 30+, -4 at 33+, -6 at 36+
   for (const p of cache.values()) {
-    const recovery = p._played ? 15 : 20;
+    const baseRecovery = p._played ? 15 : 20;
+    const age = p.age ?? 24;
+    const agePenalty = age >= 36 ? 6 : age >= 33 ? 4 : age >= 30 ? 2 : 0;
+    const recovery = Math.max(5, baseRecovery - agePenalty);
     p.fitness = Math.min(100, (p.fitness ?? 80) + recovery);
     delete p._played;
   }
@@ -6730,8 +7119,8 @@ const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 const fmt = {
   date:      (d) => { const dt = new Date(d); return `${DAYS[dt.getDay()]} ${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`; },
   dateShort: (d) => { const dt = new Date(d); return `${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]}`; },
-  money:     (v) => v >= 1e9 ? `£${(v/1e9).toFixed(1)}B` : v >= 1e6 ? `£${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `£${(v/1e3).toFixed(0)}K` : `£${v}`,
-  wage:      (v) => v >= 1000 ? `£${(v/1000).toFixed(0)}K/w` : `£${v}/w`,
+  money:     (v) => { v = Number(v) || 0; return v <= 0 ? 'Free' : v >= 1e9 ? `£${(v/1e9).toFixed(1)}B` : v >= 1e6 ? `£${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `£${(v/1e3).toFixed(0)}K` : `£${v}`; },
+  wage:      (v) => { v = Number(v) || 0; return v <= 0 ? 'Free' : v >= 1000 ? `£${(v/1000).toFixed(0)}K/w` : `£${v}/w`; },
 };
 
 // ─── Position helpers ────────────────────────────────────────
@@ -6814,7 +7203,7 @@ function showModal(title, bodyHTML, actions = [], opts = {}) {
   }
   bd.querySelectorAll('[data-aid]').forEach(btn => {
     const a = actions.find(x => x.id === btn.dataset.aid);
-    if (a?.handler) btn.addEventListener('click', () => { a.handler(); close(); });
+    if (a?.handler) btn.addEventListener('click', async () => { const result = await a.handler(); if (result !== false) close(); });
     else btn.addEventListener('click', close);
   });
   return { close };
@@ -7130,6 +7519,10 @@ async function handleEndOfSeason(){
     showModal('Season Complete! 🎉',`<div>${tHtml}
       <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
       ${prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">💰 Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
+      ${summary.retirements&&summary.retirements.length?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--acc3);margin-bottom:4px">👋 Retirements</div>
+        ${summary.retirements.map(r=>`<div style="font-size:12px;color:var(--tx2)">${r.name} (${r.position}, ${r.age}) has retired</div>`).join('')}
+      </div>`:''}
       <div style="font-size:12px;color:var(--tx2)">All players aged +1 year. New season fixtures generated.</div>
     </div>`,
     [{id:'ok',label:'Start Next Season →',cls:'btn-p',handler:async()=>{await renderHome();}}]);
@@ -7551,24 +7944,53 @@ function renderPlayerDetail(player,byId){
             const counter=typeof generateBuyCounter==='function'?generateBuyCounter(player,offer):null;
             if(counter){
               const userTeam=await getTeam((await getSave()).userTeamId);
-              const canAfford=userTeam&&userTeam.budget>=counter.fee;
+              const budget=userTeam?.budget??0;
+              const cMin=Math.floor(offer);
+              const cMax=Math.min(budget,Math.floor(counter.fee*1.3));
+              const cDef=Math.min(budget,counter.fee);
               showModal(`💬 ${tn} Counter-Offer`,`
                 <div class="ctr">
                   <div class="ctr-pl"><strong>${player.name}</strong><span class="pos ${g}">${player.position}</span></div>
                   <div class="ctr-row"><span>Your Offer</span><strong style="color:var(--acc3)">${fmt.money(offer)}</strong></div>
                   <div class="ctr-row"><span>They Want</span><strong style="color:var(--acc2)">${fmt.money(counter.fee)}</strong></div>
                   <div class="ctr-row"><span>Form Value</span><strong>${fmt.money(fv)}</strong></div>
-                  ${!canAfford?`<div class="ctr-warn">⚠️ Exceeds your budget (${fmt.money(userTeam?.budget??0)})</div>`:''}
+                  <div class="ctr-row"><span>Budget</span><strong>${fmt.money(budget)}</strong></div>
+                  ${budget<counter.fee?`<div class="ctr-warn">⚠️ Their asking price exceeds your budget</div>`:''}
+                  <div style="margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--tx)">Your Revised Offer</div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <input type="range" id="buy-counter-slider" min="${cMin}" max="${cMax}" value="${cDef}" step="500000" style="flex:1">
+                    <div id="buy-counter-val" style="font-family:var(--fd);font-size:18px;color:var(--acc2);min-width:80px;text-align:right">${fmt.money(cDef)}</div>
+                  </div>
+                  <div id="buy-counter-hint" style="font-size:11px;margin-top:5px"></div>
                 </div>`,
-                [...(canAfford?[{id:'acc',label:`Accept ${fmt.money(counter.fee)}`,cls:'btn-p',handler:async()=>{
+                [{id:'acc',label:'Send Revised Offer',cls:'btn-p',handler:async()=>{
+                  const revOffer=Number(document.getElementById('buy-counter-slider')?.value||cDef);
                   try{
-                    await buyPlayer(player.id,counter.fee);
-                    toast(`✅ ${player.name} signed for ${fmt.money(counter.fee)}!`,'success',5000);
+                    await buyPlayer(player.id,revOffer);
+                    toast(`✅ ${player.name} signed for ${fmt.money(revOffer)}!`,'success',5000);
                     _selPid=null; document.getElementById('tr-layout')?.classList.remove('dp-open');
                     await renderTransfers();
-                  }catch(e2){toast(`❌ ${e2.message}`,'error',4000);}
-                }}]:[]),{id:'x',label:'Walk Away',cls:'btn-s'}]
+                  }catch(e2){
+                    if(e2.message==='OFFER_REJECTED') toast(`❌ ${tn} still not satisfied — deal collapsed`,'error',4000);
+                    else toast(`❌ ${e2.message}`,'error',4000);
+                  }
+                }},{id:'x',label:'Walk Away',cls:'btn-s'}]
               );
+              // Wire slider
+              const bsl=document.getElementById('buy-counter-slider'),bvl=document.getElementById('buy-counter-val'),bhn=document.getElementById('buy-counter-hint');
+              if(bsl){
+                const updateBuyHint=()=>{
+                  const v=Number(bsl.value);
+                  if(bvl) bvl.textContent=fmt.money(v);
+                  if(bhn){
+                    if(v>=counter.fee){ bhn.textContent='🤝 Meets their asking price'; bhn.style.color='var(--acc)'; }
+                    else if(v>=counter.fee*0.95){ bhn.textContent='✓ Very close — likely accepted'; bhn.style.color='var(--acc)'; }
+                    else if(v>=counter.fee*0.85){ bhn.textContent='⚠️ Below asking — they may accept'; bhn.style.color='var(--acc2)'; }
+                    else{ bhn.textContent='✕ Too low — will probably be rejected'; bhn.style.color='var(--acc3)'; }
+                  }
+                };
+                bsl.oninput=updateBuyHint; updateBuyHint();
+              }
             } else {
               toast(`❌ ${tn} rejected and won't negotiate further`,'error',5000);
             }
@@ -7626,6 +8048,19 @@ async function renderSellList(userTeamId){
 // ────────────────────────────────────────────────────────
 // RENDERERS
 // ────────────────────────────────────────────────────────
+// ── Full-screen overlay for blocking operations ─────────────
+function _showFullOverlay(msg) {
+  _removeFullOverlay();
+  const ov = document.createElement('div');
+  ov.id = 'pitch-full-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:10001;background:var(--night,#0a0e14);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px';
+  ov.innerHTML = '<div class="loader-spin"></div><div style="color:var(--tx,#fff);font-family:var(--fd,sans-serif);font-size:18px;letter-spacing:1px">' + (msg || 'Loading…') + '</div>';
+  document.body.appendChild(ov);
+}
+function _removeFullOverlay() {
+  document.getElementById('pitch-full-overlay')?.remove();
+}
+
 // ── COMPETITIONS ─────────────────────────────────────────────
 async function renderCompetitions(){
   const save=await getSave();
@@ -7838,6 +8273,46 @@ function renderNewGame(){
       toast(err.message,'error');
     }
   };
+
+  // ── Import save from new game screen ──────────────────────
+  const ngImportBtn = document.getElementById('btn-import-ng');
+  const ngImportInput = document.getElementById('import-save-ng');
+  ngImportBtn?.addEventListener('click', () => {
+    showModal('Import Save', `
+      <p style="color:var(--tx2);line-height:1.7;margin-bottom:10px">Paste a save code to resume a previous career.</p>
+      <textarea id="ng-save-code-input" placeholder="Paste save code here…" style="width:100%;height:90px;background:var(--sur);color:var(--tx);border:1px solid var(--bdr);border-radius:8px;padding:10px;font-family:monospace;font-size:10px;resize:none;word-break:break-all"></textarea>
+    `, [
+      { id:'ng-import-code', label:'📋 Load from Code', cls:'btn-p', handler: async () => {
+        const code = document.getElementById('ng-save-code-input')?.value?.trim();
+        if (!code) { toast('Paste a save code first', 'error'); return false; }
+        _showFullOverlay('Loading save…');
+        try {
+          await importSaveFromCode(code);
+          location.reload();
+        } catch (err) {
+          _removeFullOverlay();
+          toast('Import failed: ' + err.message, 'error');
+          return false;
+        }
+      }},
+      { id:'ng-import-file', label:'📂 Load from File', cls:'btn-s', handler: () => { ngImportInput?.click(); return false; } },
+      { id:'cancel', label:'Cancel', cls:'btn-s' }
+    ]);
+  });
+  ngImportInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    _showFullOverlay('Loading save…');
+    try {
+      await importSaveFile(file);
+      location.reload();
+    } catch (err) {
+      _removeFullOverlay();
+      toast('Import failed: ' + err.message, 'error');
+    } finally {
+      ngImportInput.value = '';
+    }
+  });
 }
 
 // ── INIT UI ────────────────────────────────────────────────────
@@ -7859,9 +8334,68 @@ function initUI(){
   document.getElementById('btn-reset')?.addEventListener('click',()=>{
     showModal('Reset Game?',
       '<p style="color:var(--tx2);line-height:1.7">Delete all progress and return to team selection. Cannot be undone.</p>',
-      [{id:'reset',label:'Reset',cls:'btn-d',handler:async()=>{await deleteDB();location.reload();}},
+      [{id:'reset',label:'Reset',cls:'btn-d',handler:async()=>{
+        _showFullOverlay('Resetting…');
+        try { await deleteDB(); } catch(e) { console.error(e); }
+        location.reload();
+      }},
        {id:'cancel',label:'Cancel',cls:'btn-s'}]
     );
+  });
+
+  // ── Shared save/load handlers ────────────────────────────────
+  function _handleExportClick() {
+    (async () => {
+      try {
+        const result = await exportSaveFile();
+        showModal('Save Exported', `
+          <p style="color:var(--tx2);line-height:1.7;margin-bottom:10px">Your save code is below. <strong>Copy it</strong> and paste it somewhere safe to restore later.</p>
+          <p style="color:var(--txd);font-size:11px;margin-bottom:8px">Season ${result.meta.season} · GW ${result.meta.gameweek} · ${result.meta.teamId}</p>
+          <textarea id="save-code-output" readonly style="width:100%;height:90px;background:var(--sur);color:var(--tx);border:1px solid var(--bdr);border-radius:8px;padding:10px;font-family:monospace;font-size:10px;resize:none;word-break:break-all">${result.saveCode}</textarea>
+        `, [
+          { id:'copy-code', label:'📋 Copy Save Code', cls:'btn-p', handler: async () => {
+            const ta = document.getElementById('save-code-output');
+            try { await navigator.clipboard.writeText(ta.value); toast('Save code copied to clipboard!'); }
+            catch(e) { ta.select(); document.execCommand('copy'); toast('Save code copied!'); }
+            return false;
+          }},
+          { id:'done', label:'Done', cls:'btn-s' }
+        ]);
+      } catch (err) { toast('Export failed: ' + err.message, 'error'); }
+    })();
+  }
+
+  function _handleImportClick(fileInputId) {
+    const fileInput = document.getElementById(fileInputId);
+    showModal('Import Save', `
+      <p style="color:var(--tx2);line-height:1.7;margin-bottom:10px">This will <strong>replace</strong> your current career. Paste a save code below, or choose a .pitch file.</p>
+      <textarea id="save-code-input" placeholder="Paste save code here…" style="width:100%;height:90px;background:var(--sur);color:var(--tx);border:1px solid var(--bdr);border-radius:8px;padding:10px;font-family:monospace;font-size:10px;resize:none;word-break:break-all"></textarea>
+    `, [
+      { id:'import-code', label:'📋 Load from Code', cls:'btn-p', handler: async () => {
+        const code = document.getElementById('save-code-input')?.value?.trim();
+        if (!code) { toast('Paste a save code first', 'error'); return false; }
+        _showFullOverlay('Loading save…');
+        try { await importSaveFromCode(code); location.reload(); }
+        catch (err) { _removeFullOverlay(); toast('Import failed: ' + err.message, 'error'); return false; }
+      }},
+      { id:'import-file', label:'📂 Load from File', cls:'btn-s', handler: () => { fileInput?.click(); return false; } },
+      { id:'cancel', label:'Cancel', cls:'btn-s' }
+    ]);
+  }
+
+  // ── Settings Export Save ───────────────────────────────────
+  document.getElementById('btn-export-save')?.addEventListener('click', _handleExportClick);
+
+  // ── Settings Import Save ───────────────────────────────────
+  document.getElementById('btn-import-save')?.addEventListener('click', () => _handleImportClick('import-save-input'));
+  const importInput = document.getElementById('import-save-input');
+  importInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    _showFullOverlay('Loading save…');
+    try { await importSaveFile(file); location.reload(); }
+    catch (err) { _removeFullOverlay(); toast('Import failed: ' + err.message, 'error'); }
+    finally { importInput.value = ''; }
   });
 }
 
@@ -8469,8 +9003,8 @@ async function showOffersModal() {
             </div>
             <div class="offer-btns">
               <button class="btn btn-p" data-offer-accept="${pl.id}">✅ Accept ${fmt.money(offer.fee)}</button>
-              <button class="btn btn-s" data-offer-counter="${pl.id}" data-offer-ask="${Math.round(fav * (isListed ? 1.0 : 1.1))}">
-                💬 Counter ${fmt.money(Math.round(fav * (isListed ? 1.0 : 1.1)))}
+              <button class="btn btn-s" data-offer-counter="${pl.id}" data-offer-fee="${offer.fee}" data-offer-fav="${fav}" data-offer-listed="${isListed?1:0}" data-offer-name="${pl.name}" data-offer-club="${offer.clubName}">
+                💬 Counter
               </button>
               <button class="btn btn-d" data-offer-reject="${pl.id}">✕ Reject</button>
             </div>
@@ -8543,33 +9077,74 @@ async function showOffersModal() {
   });
   bd.querySelectorAll('[data-offer-counter]').forEach(btn => {
     btn.onclick = async () => {
-      const ask = parseInt(btn.dataset.offerAsk);
       const pid = btn.dataset.offerCounter;
-      const result = await counterOffer(pid, ask);
-      const card = btn.closest('.offer-card-v2');
+      const theirFee = parseInt(btn.dataset.offerFee);
+      const fav = parseInt(btn.dataset.offerFav);
+      const isListed = btn.dataset.offerListed === '1';
+      const pName = btn.dataset.offerName;
+      const clubName = btn.dataset.offerClub;
 
-      if (result.outcome === 'accepted') {
-        // AI accepted — update the card to show accepted fee, let user confirm
-        toast(`✅ ${result.clubName} agreed to ${fmt.money(result.fee)}!`, 'success', 4000);
-        // Auto-close and reopen the modal to show the updated offer
-        modal.close();
-        await showOffersModal();
-      } else if (result.outcome === 'counter') {
-        // AI came back with a revised offer
-        toast(`💬 ${result.clubName} counter: ${fmt.money(result.fee)} (was ${fmt.money(result.originalFee)})`, 'info', 5000);
-        modal.close();
-        await showOffersModal();
-      } else {
-        // Rejected — they walked away
-        if (card) card.remove();
-        toast(`❌ ${result.clubName ?? 'Club'} withdrew their interest`, 'error', 4000);
-        _updateOffersBadge();
-        const remaining = bd.querySelectorAll('.offer-card-v2');
-        if (!remaining.length) {
-          modal.close();
-          await showOffersModal();
+      // Counter slider range: from their offer up to 2× form value
+      const minAsk = theirFee;
+      const maxAsk = Math.round(fav * 2.0);
+      const defaultAsk = Math.round(fav * (isListed ? 1.05 : 1.15));
+
+      const likelihoodText = (v) => {
+        const ratio = v / theirFee;
+        if (ratio <= 1.05) return { text: '🤝 Almost certain — close to their offer', color: 'var(--acc)' };
+        if (ratio <= 1.20) return { text: '✓ Good chance — reasonable ask', color: 'var(--acc)' };
+        if (ratio <= 1.40) return { text: '⚠️ May negotiate — they\'ll try to meet halfway', color: 'var(--acc2)' };
+        if (ratio <= 1.70) return { text: '🔥 Ambitious — they might walk away', color: 'var(--acc3)' };
+        return { text: '✕ Very unlikely — too far from their offer', color: 'var(--acc3)' };
+      };
+
+      showModal(`💬 Counter ${clubName}`, `
+        <div class="ctr">
+          <div class="ctr-pl"><strong>${pName}</strong></div>
+          <div class="ctr-row"><span>Their Offer</span><strong style="color:var(--tx2)">${fmt.money(theirFee)}</strong></div>
+          <div class="ctr-row"><span>Form Value</span><strong>${fmt.money(fav)}</strong></div>
+          <div style="margin:16px 0 8px;font-size:12px;font-weight:600;color:var(--tx)">Your Asking Price</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="range" id="counter-slider" min="${minAsk}" max="${maxAsk}" value="${defaultAsk}" step="500000" style="flex:1">
+            <div id="counter-val" style="font-family:var(--fd);font-size:18px;color:var(--acc2);min-width:80px;text-align:right">${fmt.money(defaultAsk)}</div>
+          </div>
+          <div id="counter-likelihood" style="font-size:11px;margin-top:6px;color:var(--acc)"></div>
+        </div>`,
+        [{id:'send',label:'Send Counter',cls:'btn-p',handler:async()=>{
+          const askVal = Number(document.getElementById('counter-slider')?.value || defaultAsk);
+          const result = await counterOffer(pid, askVal);
+
+          if (result.outcome === 'accepted') {
+            toast(`✅ ${result.clubName} agreed to ${fmt.money(result.fee)}!`, 'success', 4000);
+            modal.close();
+            await showOffersModal();
+          } else if (result.outcome === 'counter') {
+            toast(`💬 ${result.clubName} counter: ${fmt.money(result.fee)} (was ${fmt.money(result.originalFee)})`, 'info', 5000);
+            modal.close();
+            await showOffersModal();
+          } else {
+            toast(`❌ ${result.clubName ?? 'Club'} withdrew their interest`, 'error', 4000);
+            _updateOffersBadge();
+            modal.close();
+            await showOffersModal();
+          }
+        }},{id:'x',label:'Cancel',cls:'btn-s'}]
+      );
+
+      // Wire up the slider live update
+      const csl = document.getElementById('counter-slider');
+      const cvl = document.getElementById('counter-val');
+      const clh = document.getElementById('counter-likelihood');
+      const updateCounterHint = () => {
+        const v = Number(csl?.value || defaultAsk);
+        if (cvl) cvl.textContent = fmt.money(v);
+        if (clh) {
+          const lk = likelihoodText(v);
+          clh.textContent = lk.text;
+          clh.style.color = lk.color;
         }
-      }
+      };
+      if (csl) { csl.oninput = updateCounterHint; updateCounterHint(); }
     };
   });
 }
