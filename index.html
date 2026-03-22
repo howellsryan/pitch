@@ -3392,6 +3392,8 @@ const LEAGUE_TWO_TEAMS = [
 /**
  * data/plTeams.js — 2025/26 Premier League squads
  * Accurate as of March 2026, including:
+ *   - Relegated: Leicester City, Ipswich Town, Southampton (to Championship)
+ *   - Promoted: Leeds United (champions), Burnley (runners-up), Sunderland (play-offs)
  *   - Alexander Isak → Liverpool (£125m, Sep 2025)
  *   - Hugo Ekitike → Liverpool (£79m, summer 2025)
  *   - Florian Wirtz → Liverpool (£116m, summer 2025)
@@ -3590,41 +3592,47 @@ const PL_TEAMS = [
   p('ful_adama',   'Adama Traoré',        'RW',  29,79,61,47,10,20, 80),
   p('ful_cairney', 'T. Cairney',          'CM',  33,64,78,58,10, 8, 60),
 ]},
-// ── IPSWICH TOWN ─────────────────────────────────────────────
-{ id:'ipswich', name:'Ipswich Town', shortName:'IPS', crest:'🔵',
-  league:'Premier League', stadium:'Portman Road', stadiumCapacity:29870,
-  budget:35_000_000, reputation:65, primaryColor:'#3A64A3', players:[
-  p('ips_muric',      'A. Muric',          'GK',  26,10,10,12,78,12, 25),
-  p('ips_walton',     'C. Walton',         'GK',  31,10,10,12,74, 5, 18),
-  p('ips_johnson',    'K. Johnson',        'RB',  24,63,59,73,10,12, 28),
-  p('ips_omobamidele','A. Omobamidele',    'CB',  22,41,47,76,10,10, 25),
-  p('ips_woolfenden', 'L. Woolfenden',     'CB',  25,40,44,74,10, 8, 22),
-  p('ips_davis',      'L. Davis',          'LB',  23,60,57,73,10, 8, 22),
-  p('ips_morsy',      'S. Morsy',          'CDM', 33,52,73,64,10, 5, 25),
-  p('ips_hutchinson', 'O. Hutchinson',     'CM',  22,65,69,55,10,12, 25),
-  p('ips_szmodics',   'S. Szmodics',       'CAM', 29,75,73,53,10,20, 38),
-  p('ips_chaplin',    'C. Chaplin',        'CAM', 28,72,70,52,10, 9, 28),
-  p('ips_delap',      'L. Delap',          'ST',  22,78,57,39,10,30, 35),
-  p('ips_broadhead',  'N. Broadhead',      'ST',  26,73,59,41,10,15, 32),
-  p('ips_philogene',  'J. Philogene',      'RW',  23,74,64,47,10,20, 35),
+// ── LEEDS UNITED ──────────────────────────────────────────────
+// Promoted as Championship champions 2024/25 (100 pts)
+// Key signings: Bijol, Longstaff, Stach, Perri, Okafor, Calvert-Lewin, Gudmundsson, Nmecha
+{ id:'leeds', name:'Leeds United', shortName:'LEE', crest:'⚪',
+  league:'Premier League', stadium:'Elland Road', stadiumCapacity:37645,
+  budget:55_000_000, reputation:72, primaryColor:'#FFFFFF', players:[
+  p('lee_perri',       'L. Perri',           'GK',  28,10,10,14,79,12, 35),
+  p('lee_meslier',     'I. Meslier',         'GK',  25,10,10,12,76, 8, 25),
+  p('lee_bogle',       'J. Bogle',           'RB',  25,65,60,76,10,14, 38),
+  p('lee_struijk',     'P. Struijk',         'CB',  26,48,52,80,10,22, 52),
+  p('lee_rodon',       'J. Rodon',           'CB',  27,44,50,79,10,18, 48),
+  p('lee_bijol',       'J. Bijol',           'CB',  26,46,53,81,10,25, 55),
+  p('lee_gudmundsson', 'G. Gudmundsson',     'LB',  25,64,62,76,10,14, 38),
+  p('lee_ampadu',      'E. Ampadu',          'CDM', 25,58,76,73,10,18, 52),
+  p('lee_stach',       'A. Stach',           'CM',  26,62,78,68,10,15, 42),
+  p('lee_gruev',       'I. Gruev',           'CM',  24,60,75,66,10,12, 32),
+  p('lee_aaronson',    'B. Aaronson',        'CAM', 25,76,77,55,10,20, 55),
+  p('lee_gnonto',      'W. Gnonto',          'RW',  22,78,70,48,10,22, 52),
+  p('lee_calvert_lewin','D. Calvert-Lewin',  'ST',  28,81,60,42,10,30, 72),
+  p('lee_okafor',      'N. Okafor',          'LW',  25,79,66,44,10,22, 48),
 ]},
-// ── LEICESTER CITY ───────────────────────────────────────────
-{ id:'leicester', name:'Leicester City', shortName:'LEI', crest:'🦊',
-  league:'Premier League', stadium:'King Power Stadium', stadiumCapacity:32312,
-  budget:32_000_000, reputation:68, primaryColor:'#003090', players:[
-  p('lei_hermansen',  'M. Hermansen',      'GK',  24,10,10,14,76,12, 28),
-  p('lei_ward',       'T. Ward',           'GK',  29,10,10,12,72, 5, 18),
-  p('lei_justin',     'J. Justin',         'RB',  27,65,62,74,10,14, 42),
-  p('lei_faes',       'W. Faes',           'CB',  25,43,49,78,10,15, 38),
-  p('lei_vestergaard','J. Vestergaard',    'CB',  33,44,50,78,10, 8, 42),
-  p('lei_kristiansen','V. Kristiansen',    'LB',  24,63,59,73,10,12, 35),
-  p('lei_ndidi',      'W. Ndidi',          'CDM', 28,57,78,72,10,22, 78),
-  p('lei_soumare',    'B. Soumaré',       'CM',  25,59,76,64,10,15, 45),
-  p('lei_dewsbury-hall','K. Dewsbury-Hall','CM',  26,68,77,62,10,35, 62),
-  p('lei_vardy',      'J. Vardy',          'ST',  39,76,55,38,10, 5, 62),
-  p('lei_daka',       'P. Daka',           'ST',  23,77,59,41,10,25, 55),
-  p('lei_mavididi',   'S. Mavididi',       'LW',  25,72,63,49,10,12, 38),
-  p('lei_thomas',     'L. Thomas',         'LW',  23,70,63,48,10,10, 32),
+// ── BURNLEY ───────────────────────────────────────────────────
+// Promoted as Championship runners-up 2024/25
+// Key signings: Ward-Prowse, Florentino, Broja, Ugochukwu, Dubravka, K.Walker, Tchaouna, Flemming
+{ id:'burnley', name:'Burnley', shortName:'BUR', crest:'🟤',
+  league:'Premier League', stadium:'Turf Moor', stadiumCapacity:22546,
+  budget:42_000_000, reputation:68, primaryColor:'#6C1D45', players:[
+  p('bur_dubravka',    'M. Dubravka',       'GK',  36,10,10,14,79, 5, 28),
+  p('bur_weiss',       'M. Weiß',           'GK',  22,10,10,12,74, 4, 15),
+  p('bur_walker',      'K. Walker',         'RB',  36,66,64,80,10, 8, 55),
+  p('bur_esteve',      'M. Estève',         'CB',  22,42,48,78,10,14, 32),
+  p('bur_beyer',       'J. Beyer',          'CB',  25,44,50,77,10,12, 28),
+  p('bur_hartman',     'Q. Hartman',        'LB',  23,66,63,76,10,12, 32),
+  p('bur_florentino',  'Florentino',        'CDM', 26,55,78,72,10,22, 52),
+  p('bur_ward_prowse', 'J. Ward-Prowse',    'CM',  31,72,82,62,10,14, 65),
+  p('bur_cullen',      'J. Cullen',         'CM',  29,58,75,66,10, 8, 28),
+  p('bur_ugochukwu',   'L. Ugochukwu',      'CM',  22,63,74,65,10,18, 38),
+  p('bur_anthony',     'J. Anthony',        'RW',  26,76,68,48,10,12, 35),
+  p('bur_flemming',    'Z. Flemming',       'CAM', 27,75,73,50,10,14, 38),
+  p('bur_broja',       'A. Broja',          'ST',  24,77,56,38,10,20, 42),
+  p('bur_foster',      'L. Foster',         'ST',  25,74,55,37,10,12, 28),
 ]},
 // ── LIVERPOOL ─────────────────────────────────────────────────
 // Key changes: +Wirtz(7), +Frimpong(30), +Kerkez(6), +Ekitike(22), +Isak(9)
@@ -3728,23 +3736,26 @@ const PL_TEAMS = [
   p('nfo_wood',       'C. Wood',            'ST',  33,79,53,37,10,10, 62),
   p('nfo_awoniyi',    'T. Awoniyi',         'ST',  27,80,57,39,10,28, 65),
 ]},
-// ── SOUTHAMPTON ──────────────────────────────────────────────
-{ id:'southampton', name:'Southampton', shortName:'SOU', crest:'🔴',
-  league:'Premier League', stadium:"St Mary's Stadium", stadiumCapacity:32384,
-  budget:28_000_000, reputation:64, primaryColor:'#D71920', players:[
-  p('sou_ramsdale',    'A. Ramsdale',       'GK',  27,12,14,16,81,22, 55),
-  p('sou_bazunu',      'G. Bazunu',         'GK',  24,10,10,12,76, 8, 25),
-  p('sou_walker-peters','K. Walker-Peters', 'RB',  28,65,62,74,10,14, 45),
-  p('sou_harwood-bellis','T. Harwood-Bellis','CB', 23,41,48,76,10,12, 35),
-  p('sou_bednarek',    'J. Bednarek',       'CB',  29,43,50,78,10,12, 42),
-  p('sou_manning',     'R. Manning',        'LB',  28,62,59,73,10, 8, 28),
-  p('sou_ugochukwu',   'L. Ugochukwu',      'CDM', 20,57,73,63,10,18, 32),
-  p('sou_smallbone',   'W. Smallbone',      'CM',  25,65,73,60,10,12, 38),
-  p('sou_dibling',     'T. Dibling',        'CAM', 19,73,71,52,10,25, 45),
-  p('sou_sulemana',    'C. Sulemana',       'RW',  23,73,64,48,10,15, 38),
-  p('sou_armstrong',   'A. Armstrong',      'ST',  28,76,60,42,10,14, 58),
-  p('sou_onuachu',     'P. Onuachu',        'ST',  31,74,52,36,10, 8, 45),
-  p('sou_bree',        'J. Bree',           'RB',  29,61,57,71,10, 7, 28),
+// ── SUNDERLAND ────────────────────────────────────────────────
+// Promoted via Championship play-offs 2024/25 (beat Sheffield United 2-1)
+// Key signings: Xhaka, Le Fée, Mukiele, Geertruida(loan), Brobbey, Traore, Mepham
+{ id:'sunderland', name:'Sunderland', shortName:'SUN', crest:'🔴⚪',
+  league:'Premier League', stadium:'Stadium of Light', stadiumCapacity:48707,
+  budget:48_000_000, reputation:70, primaryColor:'#FF0000', players:[
+  p('sun_patterson',  'A. Patterson',       'GK',  26,10,10,14,78,12, 32),
+  p('sun_moore',      'S. Moore',           'GK',  35,10,10,12,72, 2, 10),
+  p('sun_hume',       'T. Hume',            'RB',  23,63,60,76,10,12, 28),
+  p('sun_ballard',    'D. Ballard',         'CB',  26,42,48,78,10,14, 35),
+  p('sun_mepham',     'C. Mepham',          'CB',  27,40,47,76,10, 8, 22),
+  p('sun_cirkin',     'D. Cirkin',          'LB',  23,62,60,76,10,10, 25),
+  p('sun_mukiele',    'N. Mukiele',         'RB',  27,60,62,80,10,18, 48),
+  p('sun_xhaka',      'G. Xhaka',          'CM',  33,66,84,72,10,18, 82),
+  p('sun_le_fee',     'E. Le Fée',          'CM',  25,65,78,64,10,18, 42),
+  p('sun_rigg',       'C. Rigg',            'CAM', 18,72,74,55,10,22, 45),
+  p('sun_mundle',     'R. Mundle',          'RW',  23,76,67,46,10,15, 35),
+  p('sun_roberts',    'P. Roberts',         'LW',  29,75,72,48,10, 8, 28),
+  p('sun_isidor',     'W. Isidor',          'ST',  25,79,60,38,10,22, 48),
+  p('sun_brobbey',    'B. Brobbey',         'ST',  23,78,55,36,10,25, 42),
 ]},
 // ── TOTTENHAM HOTSPUR ────────────────────────────────────────
 { id:'tottenham', name:'Tottenham Hotspur', shortName:'TOT', crest:'🐓',
