@@ -848,7 +848,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
         <div class="tr-panel">
           <div class="tr-tabs"><div class="tr-tab on" id="tt-buy">Buy</div><div class="tr-tab" id="tt-sell">Sell</div></div>
           <div class="tr-pnl on" id="tp-buy">
-            <div class="pnl-hdr"><div class="pnl-title">Player Search</div><div class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input type="text" id="tr-search" placeholder="Search…"></div></div>
+            <div class="pnl-hdr"><div class="pnl-title">Player Search <span id="tr-count" style="font-family:var(--fm);font-size:10px;color:var(--tx2);font-weight:400;margin-left:6px"></span></div><div class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input type="text" id="tr-search" placeholder="Search name or club…"></div></div>
             <div class="ftabs" id="tr-filters"><div class="ftab on" data-f="ALL">All</div><div class="ftab" data-f="ATT">Att</div><div class="ftab" data-f="MID">Mid</div><div class="ftab" data-f="DEF">Def</div><div class="ftab" data-f="GK">GK</div></div>
             <div class="pl-list" id="buy-list"></div>
           </div>
@@ -3056,11 +3056,12 @@ const UCL_CLUBS = [
 
 // ─── Cup metadata with fixed per-round GW schedules ──────────
 const CUP_META = {
+  // ── English ──────────────────────────────────────────────
   fa_cup: {
     id:'fa_cup', name:'FA Cup', shortName:'FA Cup', icon:'🏆', color:'#f5c842',
     description:"The world's oldest cup competition",
     rounds:    ['R3','R4','R5','QF','SF','Final'],
-    roundGWs:  [22,  25,  28,  31,  34,  37],   // Fixed GW for each round
+    roundGWs:  [22,  25,  28,  31,  34,  37],
   },
   league_cup: {
     id:'league_cup', name:'Carabao Cup', shortName:'League Cup', icon:'🥛', color:'#c084fc',
@@ -3068,14 +3069,67 @@ const CUP_META = {
     rounds:    ['R2','R3','QF','SF (1st leg)','SF (2nd leg)','Final'],
     roundGWs:  [3,   7,   12,  17,            20,            24],
   },
+  // ── Spanish ──────────────────────────────────────────────
+  copa_del_rey: {
+    id:'copa_del_rey', name:'Copa del Rey', shortName:'Copa del Rey', icon:'👑', color:'#c8102e',
+    description:"Spain's prestigious knockout cup",
+    rounds:    ['R32','R16','QF','SF (1st leg)','SF (2nd leg)','Final'],
+    roundGWs:  [8,    14,   22,  28,            32,            37],
+  },
+  supercopa: {
+    id:'supercopa', name:'Supercopa de España', shortName:'Supercopa', icon:'🔴', color:'#f5c842',
+    description:'Spanish Super Cup — top four clubs',
+    rounds:    ['SF','Final'],
+    roundGWs:  [4,   5],
+  },
+  // ── German ───────────────────────────────────────────────
+  dfb_pokal: {
+    id:'dfb_pokal', name:'DFB-Pokal', shortName:'DFB-Pokal', icon:'🏆', color:'#000000',
+    description:"Germany's premier knockout cup",
+    rounds:    ['R1','R2','R3','QF','SF','Final'],
+    roundGWs:  [3,   8,   16,  24,  30,  37],
+  },
+  dfb_supercup: {
+    id:'dfb_supercup', name:'DFL-Supercup', shortName:'Supercup', icon:'⚡', color:'#d4a017',
+    description:'German Super Cup — league champion vs cup winner',
+    rounds:    ['Final'],
+    roundGWs:  [2],
+  },
+  // ── Italian ──────────────────────────────────────────────
+  coppa_italia: {
+    id:'coppa_italia', name:'Coppa Italia', shortName:'Coppa Italia', icon:'🏆', color:'#009246',
+    description:"Italy's national cup competition",
+    rounds:    ['R32','R16','QF','SF (1st leg)','SF (2nd leg)','Final'],
+    roundGWs:  [5,    12,   22,  27,            31,            36],
+  },
+  supercoppa: {
+    id:'supercoppa', name:'Supercoppa Italiana', shortName:'Supercoppa', icon:'🔵', color:'#009246',
+    description:'Italian Super Cup',
+    rounds:    ['Final'],
+    roundGWs:  [3],
+  },
+  // ── French ───────────────────────────────────────────────
+  coupe_de_france: {
+    id:'coupe_de_france', name:'Coupe de France', shortName:'Coupe de France', icon:'🏆', color:'#003189',
+    description:"France's national cup — open to all clubs",
+    rounds:    ['R6','R5','R4','R3','QF','SF','Final'],
+    roundGWs:  [5,   10,  16,  22,  27,  33, 37],
+  },
+  trophee_des_champions: {
+    id:'trophee_des_champions', name:'Trophée des Champions', shortName:'Trophée', icon:'🔵', color:'#e8151b',
+    description:'French Super Cup',
+    rounds:    ['Final'],
+    roundGWs:  [2],
+  },
+  // ── European ─────────────────────────────────────────────
   ucl: {
     id:'ucl', name:'Champions League', shortName:'UCL', icon:'⭐', color:'#3b82f6',
     description:"Europe's premier club competition — League Phase + Knockouts",
     rounds:    ['R16','QF','SF','Final'],
-    roundGWs:  [22,  27,  31,  35],            // Knockout rounds only
+    roundGWs:  [22,  27,  31,  35],
     isGroupStage:  true,
-    groupStageGWs: [5,7,9,11,13,15,17,19],    // 8 matchdays
-    knockoutStartRoundIndex: 0,                 // roundIndex 0 = R16 after phase ends
+    groupStageGWs: [5,7,9,11,13,15,17,19],
+    knockoutStartRoundIndex: 0,
   },
   uel: {
     id:'uel', name:'Europa League', shortName:'UEL', icon:'🟠', color:'#f97316',
@@ -3091,13 +3145,42 @@ const CUP_META = {
   },
 };
 
-// ─── Assign cups based on league position and reputation ──────
+// ─── Domestic cup IDs per league ─────────────────────────────
+// Only open knockout cups that every team enters.
+// Super cups (DFL-Supercup, Supercopa, Supercoppa, Trophée des Champions,
+// Carabao/League Cup) are invitation-only — NOT assigned here.
+// They are only shown in the UI if the team has actually played in them.
+const LEAGUE_DOMESTIC_CUPS = {
+  'Premier League': ['fa_cup',          'league_cup'],
+  'Championship':   ['fa_cup',          'league_cup'],
+  'La Liga':        ['copa_del_rey'],
+  'Bundesliga':     ['dfb_pokal'],
+  'Serie A':        ['coppa_italia'],
+  'Ligue 1':        ['coupe_de_france'],
+};
+
+// Cups that require a specific qualifier (champion / cup winner) to enter.
+// These are stored in save.cups when earned, never assigned blindly.
+const INVITATION_ONLY_CUPS = new Set([
+  'dfb_supercup', 'supercopa', 'supercoppa', 'trophee_des_champions',
+]);
+
+function getDomesticCups(league) {
+  return LEAGUE_DOMESTIC_CUPS[league] ?? ['fa_cup', 'league_cup'];
+}
+
+// ─── Assign cups based on league + reputation ─────────────────
+// Super cups and European cups are only assigned to genuinely qualifying clubs.
 function assignCups(userTeam) {
-  const cups = ['fa_cup', 'league_cup'];
-  const rep  = userTeam.reputation ?? 70;
-  if      (rep >= 85) cups.push('ucl');
-  else if (rep >= 76) cups.push('uel');
-  else                cups.push('uecl');
+  const league = userTeam.league ?? 'Premier League';
+  const cups   = [...getDomesticCups(league)];
+  const rep    = userTeam.reputation ?? 70;
+  // Only elite clubs start with European competition
+  if      (rep >= 90) cups.push('ucl');
+  else if (rep >= 82) cups.push('uel');
+  else if (rep >= 76) cups.push('uecl');
+  // Super cups: only truly dominant clubs (league champions / cup winners)
+  // would realistically start with one — leave them out; they're earned.
   return cups;
 }
 
@@ -3696,16 +3779,10 @@ async function processLeagueChanges(plStandings, champStandings, userTeamId) {
 
 // ─── Get user's European cup for next season ─────────────────
 function assignCupsFromPosition(position, userLeague, cupState) {
-  const cups = [];
+  const domestic = LEAGUE_DOMESTIC_CUPS[userLeague] ?? ['fa_cup', 'league_cup'];
+  const cups = [...domestic];
 
-  if (userLeague === 'Championship') {
-    // No European football in the Championship
-    cups.push('fa_cup', 'league_cup');
-    return cups;
-  }
-
-  // PL cups
-  cups.push('fa_cup', 'league_cup');
+  if (userLeague === 'Championship') return cups; // no European football
 
   if      (position <= 4) cups.push('ucl');
   else if (position <= 6) cups.push('uel');
@@ -4132,15 +4209,47 @@ async function patchSave(patch) {
 
 // ─── Real-life trophy tallies (as of 2025) ───────────────────
 const REAL_LIFE_HONORS = {
+  // English
   fa_cup:         { arsenal:14, man_utd:12, chelsea:8, tottenham:8, liverpool:8, man_city:7, aston_villa:7, newcastle:6 },
   league_cup:     { man_city:8, liverpool:10, aston_villa:5, chelsea:5, man_utd:6, tottenham:4, arsenal:2 },
   premier_league: { man_city:10, man_utd:13, chelsea:5, arsenal:3, liverpool:1 },
-  ucl:            { real_madrid:15, barcelona:5, ac_milan:7, liverpool:6, man_utd:3, inter:3, chelsea:2, man_city:1 },
-  uel:            { sevilla:7, inter:3, chelsea:2, atletico:3, liverpool:3, man_utd:1 },
-  uecl:           { roma:1, west_ham:1, chelsea:1 },
+  // Spanish
+  copa_del_rey:   { barcelona:31, athletic_bilbao:23, real_madrid:20, atletico:10, real_sociedad:3, valencia:8 },
+  supercopa:      { real_madrid:12, barcelona:14, atletico:2 },
+  // German
+  dfb_pokal:      { bayern:20, bvb:5, bayer_leverkusen:1, frankfurt:5, werder_bremen:6 },
+  dfb_supercup:   { bayern:9, bvb:6, bayer_leverkusen:1 },
+  // Italian
+  coppa_italia:   { juventus:15, inter:9, roma:9, lazio:7, napoli:7, ac_milan:5, fiorentina:6, atalanta:1 },
+  supercoppa:     { juventus:9, inter:8, ac_milan:7, lazio:5, roma:2, napoli:2 },
+  // French
+  coupe_de_france:{ psg:15, marseille:10, lyon:5, monaco:5, lille:6, rennes:2 },
+  trophee_des_champions: { psg:11, lyon:5, marseille:3, monaco:3, lille:2 },
+  // European
+  ucl:            { real_madrid:15, barcelona:5, ac_milan:7, liverpool:6, man_utd:3, inter:3, chelsea:2, man_city:1, bvb:1, juventus:2, ajax:4, benfica:2, porto:2 },
+  uel:            { sevilla:7, inter:3, chelsea:2, atletico:3, liverpool:3, man_utd:1, juventus:3, ajax:1, porto:2, fiorentina:1 },
+  uecl:           { roma:1, west_ham:1, chelsea:1, fiorentina:0, atalanta:1 },
 };
 
 // ─── Prize money ─────────────────────────────────────────────
+// Domestic cup winners mapped to approximate prize equivalent
+const CUP_WIN_PRIZE = {
+  ucl:50_000_000, uel:20_000_000, uecl:10_000_000,
+  fa_cup:3_600_000, league_cup:2_000_000,
+  copa_del_rey:3_000_000, supercopa:1_500_000,
+  dfb_pokal:3_000_000, dfb_supercup:500_000,
+  coppa_italia:3_000_000, supercoppa:500_000,
+  coupe_de_france:2_800_000, trophee_des_champions:500_000,
+};
+const CUP_RUN_PRIZE = {
+  ucl:15_000_000, uel:6_000_000, uecl:2_000_000,
+  fa_cup:900_000, league_cup:400_000,
+  copa_del_rey:700_000, supercopa:200_000,
+  dfb_pokal:700_000, dfb_supercup:0,
+  coppa_italia:700_000, supercoppa:0,
+  coupe_de_france:700_000, trophee_des_champions:0,
+};
+
 function calculatePrizeMoney(leaguePosition, cupState) {
   // ~£2m per position from bottom + merit tiers
   const plPrize = 2_000_000 * (21 - leaguePosition);
@@ -4154,9 +4263,9 @@ function calculatePrizeMoney(leaguePosition, cupState) {
   if (cupState) {
     for (const [cupId, state] of Object.entries(cupState)) {
       if (state.status === 'winner') {
-        cupPrize += { ucl:50_000_000, uel:20_000_000, uecl:10_000_000, fa_cup:3_600_000, league_cup:2_000_000 }[cupId] ?? 0;
+        cupPrize += CUP_WIN_PRIZE[cupId] ?? 0;
       } else if ((state.roundIndex ?? 0) >= 3) {
-        cupPrize += { ucl:15_000_000, uel:6_000_000, uecl:2_000_000, fa_cup:900_000, league_cup:400_000 }[cupId] ?? 0;
+        cupPrize += CUP_RUN_PRIZE[cupId] ?? 0;
       }
     }
   }
@@ -4246,10 +4355,10 @@ async function processEndOfSeason() {
   await replaceAllFixtures(newFixtures);
   await replaceAllStandings(newStandings);
 
-  // Determine cups based on new league position
+  // Determine cups from correct national competition for new league + position
   const userPosForCups = sorted.findIndex(r => r.teamId === save.userTeamId) + 1;
-  const newCupIds    = assignCupsFromPosition(userPosForCups, userNewLeague, save.cups ?? {});
-  const { buildInitialCupState } = { buildInitialCupState: typeof buildInitialCupState !== 'undefined' ? buildInitialCupState : resetCups };
+  const newCupIds      = assignCupsFromPosition(userPosForCups, userNewLeague, save.cups ?? {});
+  const newCups        = buildInitialCupState(newCupIds, save.userTeamId);
 
   const newSave = {
     ...save,
@@ -4258,7 +4367,7 @@ async function processEndOfSeason() {
     currentDate:     new Date(nextYear, 7, 9).toISOString(),
     season:          nextSeason,
     userLeague:      userNewLeague,
-    cups:            resetCups(save.cups ?? {}),
+    cups:            newCups,
     lineup:          save.lineup ?? null,
     formation:       save.formation ?? '4-3-3',
     youthCohort:     newYouthCohort,
@@ -5218,46 +5327,255 @@ async function handleEndOfSeason(){
 }
 
 // ── TRANSFERS
-let _buyTargets=[],_buyFilter='ALL',_selPid=null;
+let _buyTargets=[],_selPid=null;
+// Active filter state
+const _trFilters = {
+  pos:'ALL', league:'ALL', sort:'rating',
+  minAge:15, maxAge:40, minRat:40, maxRat:99,
+  maxPrice:0, // 0 = no limit
+  minPot:1,   // 1-5 stars
+  query:'',
+  affordable: false,
+};
+
 async function renderTransfers(){
   const save=await getSave(), team=await getTeam(save.userTeamId);
   const allTeams=await getAllTeams(), byId=new Map(allTeams.map(t=>[t.id,t]));
   const bh=document.getElementById('tr-budget-hdr');
   if(bh&&team) bh.innerHTML=`<span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2)">Budget</span><span style="font-family:var(--fd);font-size:20px;color:var(--acc)">${fmt.money(team.budget)}</span></span>`;
+
   const allPl=await getAllPlayers();
-  _buyTargets=allPl.filter(p=>p.teamId!==save.userTeamId&&p.teamId!=='free_agents').sort((a,b)=>primaryRating(b)-primaryRating(a));
-  renderBuyList(byId);
+  _buyTargets=allPl.filter(p=>p.teamId!==save.userTeamId&&p.teamId!=='free_agents');
+  // Reset price ceiling to budget on first load
+  _trFilters.maxPrice = team?.budget || 0;
+
+  // Gather unique leagues from buy targets
+  const leagueSet = [...new Set(allTeams.map(t=>t.league||'Premier League'))].sort();
+
+  _renderAdvancedFilters(byId, team, leagueSet);
+  _applyAndRenderBuyList(byId, team);
   await renderSellList(save.userTeamId);
+
   const tbBuy=document.getElementById('tt-buy'),tbSell=document.getElementById('tt-sell');
   const pBuy=document.getElementById('tp-buy'),pSell=document.getElementById('tp-sell');
   if(tbBuy) tbBuy.onclick=()=>{tbBuy.classList.add('on');tbSell.classList.remove('on');pBuy.classList.add('on');pSell.classList.remove('on')};
   if(tbSell) tbSell.onclick=()=>{tbSell.classList.add('on');tbBuy.classList.remove('on');pSell.classList.add('on');pBuy.classList.remove('on')};
-  document.querySelectorAll('#tr-filters .ftab').forEach(tab=>{
-    tab.onclick=()=>{document.querySelectorAll('#tr-filters .ftab').forEach(t=>t.classList.remove('on'));tab.classList.add('on');_buyFilter=tab.dataset.f||'ALL';renderBuyList(byId);};
-  });
-  const si=document.getElementById('tr-search');
-  if(si){si.value='';si.oninput=()=>renderBuyList(byId,si.value.toLowerCase());}
 }
-function renderBuyList(byId,query=''){
+
+function _renderAdvancedFilters(byId, team, leagueSet){
+  // Position tabs
+  document.querySelectorAll('#tr-filters .ftab').forEach(tab=>{
+    tab.onclick=()=>{
+      document.querySelectorAll('#tr-filters .ftab').forEach(t=>t.classList.remove('on'));
+      tab.classList.add('on');
+      _trFilters.pos=tab.dataset.f||'ALL';
+      _applyAndRenderBuyList(byId, team);
+    };
+  });
+
+  // Search
+  const si=document.getElementById('tr-search');
+  if(si){ si.oninput=()=>{ _trFilters.query=si.value.toLowerCase(); _applyAndRenderBuyList(byId, team); }; }
+
+  // Build the advanced filter bar if not already built
+  const buyPnl=document.getElementById('tp-buy');
+  if(!buyPnl||buyPnl.querySelector('#tr-adv-bar')) return;
+
+  const budget=team?.budget||200_000_000;
+  const bar=document.createElement('div');
+  bar.id='tr-adv-bar';
+  bar.style.cssText='padding:8px 14px 10px;border-bottom:1px solid var(--bdr);display:flex;flex-direction:column;gap:7px;background:var(--sur2);flex-shrink:0';
+
+  // Row 1: sort + affordable toggle + league
+  const leagueOpts=['ALL',...leagueSet].map(l=>`<option value="${l}">${l==='ALL'?'All Leagues':l}</option>`).join('');
+  const sortOpts=[
+    ['rating','⭐ Rating'],['value','💰 Value'],['age','🎂 Age'],
+    ['potential','✨ Potential'],['goals','⚽ Goals'],['assists','🎯 Assists'],
+  ].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+
+  bar.innerHTML=`
+    <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:10px;color:var(--tx2);font-family:var(--fm);letter-spacing:.5px;white-space:nowrap">SORT</label>
+      <select id="tr-sort" style="background:var(--sur3);border:1px solid var(--bdr);color:var(--tx);border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer;flex:1;min-width:100px">${sortOpts}</select>
+      <select id="tr-league" style="background:var(--sur3);border:1px solid var(--bdr);color:var(--tx);border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer;flex:1;min-width:90px">${leagueOpts}</select>
+      <button id="tr-affordable" class="ftab" style="padding:3px 10px;font-size:10px;white-space:nowrap" title="Only show players you can afford">💰 Affordable</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);font-family:var(--fm);margin-bottom:3px">
+          <span>AGE</span><span id="tr-age-lbl">${_trFilters.minAge}–${_trFilters.maxAge}</span>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <input type="range" id="tr-age-min" min="15" max="40" value="${_trFilters.minAge}" style="flex:1">
+          <input type="range" id="tr-age-max" min="15" max="40" value="${_trFilters.maxAge}" style="flex:1">
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);font-family:var(--fm);margin-bottom:3px">
+          <span>RATING</span><span id="tr-rat-lbl">${_trFilters.minRat}–${_trFilters.maxRat}</span>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <input type="range" id="tr-rat-min" min="40" max="99" value="${_trFilters.minRat}" style="flex:1">
+          <input type="range" id="tr-rat-max" min="40" max="99" value="${_trFilters.maxRat}" style="flex:1">
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);font-family:var(--fm);margin-bottom:3px">
+        <span>MAX PRICE</span><span id="tr-price-lbl">${_trFilters.maxPrice>0?fmt.money(_trFilters.maxPrice):'No limit'}</span>
+      </div>
+      <input type="range" id="tr-price" min="0" max="${Math.round(budget*1.5/1e6)*1e6}" step="1000000" value="${Math.min(_trFilters.maxPrice||budget,Math.round(budget*1.5/1e6)*1e6)}" style="width:100%">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:10px;color:var(--tx2);font-family:var(--fm);letter-spacing:.5px">MIN POTENTIAL</span>
+      <div style="display:flex;gap:4px" id="tr-pot-stars">
+        ${[1,2,3,4,5].map(n=>`<button class="ftab ${n<=_trFilters.minPot?'on':''}" data-pot="${n}" style="padding:2px 7px;font-size:11px" title="${['Average','Good','Great','World Class','Legendary'][n-1]}">${'★'.repeat(n)}</button>`).join('')}
+      </div>
+      <button id="tr-reset" class="ftab" style="margin-left:auto;padding:3px 9px;font-size:10px;color:var(--acc3);border-color:rgba(232,72,85,.3)">↺ Reset</button>
+    </div>`;
+
+  // Insert before buy-list
+  const buyList=buyPnl.querySelector('.pl-list');
+  if(buyList) buyPnl.insertBefore(bar, buyList);
+
+  // Wire controls
+  const $ = id => document.getElementById(id);
+
+  $('tr-sort').value=_trFilters.sort;
+  $('tr-sort').onchange=()=>{ _trFilters.sort=$('tr-sort').value; _applyAndRenderBuyList(byId,team); };
+
+  $('tr-league').onchange=()=>{ _trFilters.league=$('tr-league').value; _applyAndRenderBuyList(byId,team); };
+
+  $('tr-affordable').onclick=()=>{
+    _trFilters.affordable=!_trFilters.affordable;
+    $('tr-affordable').classList.toggle('on',_trFilters.affordable);
+    _applyAndRenderBuyList(byId,team);
+  };
+
+  const syncAge=()=>{
+    let mn=parseInt($('tr-age-min').value), mx=parseInt($('tr-age-max').value);
+    if(mn>mx){ const t=mn; mn=mx; mx=t; }
+    _trFilters.minAge=mn; _trFilters.maxAge=mx;
+    $('tr-age-lbl').textContent=`${mn}–${mx}`;
+    _applyAndRenderBuyList(byId,team);
+  };
+  $('tr-age-min').oninput=$('tr-age-max').oninput=syncAge;
+
+  const syncRat=()=>{
+    let mn=parseInt($('tr-rat-min').value), mx=parseInt($('tr-rat-max').value);
+    if(mn>mx){ const t=mn; mn=mx; mx=t; }
+    _trFilters.minRat=mn; _trFilters.maxRat=mx;
+    $('tr-rat-lbl').textContent=`${mn}–${mx}`;
+    _applyAndRenderBuyList(byId,team);
+  };
+  $('tr-rat-min').oninput=$('tr-rat-max').oninput=syncRat;
+
+  $('tr-price').oninput=()=>{
+    const v=parseInt($('tr-price').value);
+    _trFilters.maxPrice=v;
+    $('tr-price-lbl').textContent=v>0?fmt.money(v):'No limit';
+    _applyAndRenderBuyList(byId,team);
+  };
+
+  document.querySelectorAll('#tr-pot-stars [data-pot]').forEach(btn=>{
+    btn.onclick=()=>{
+      const n=parseInt(btn.dataset.pot);
+      _trFilters.minPot=n;
+      document.querySelectorAll('#tr-pot-stars [data-pot]').forEach(b=>b.classList.toggle('on',parseInt(b.dataset.pot)<=n));
+      _applyAndRenderBuyList(byId,team);
+    };
+  });
+
+  $('tr-reset').onclick=()=>{
+    Object.assign(_trFilters,{pos:'ALL',league:'ALL',sort:'rating',minAge:15,maxAge:40,minRat:40,maxRat:99,maxPrice:budget,minPot:1,query:'',affordable:false});
+    // Reset all controls
+    $('tr-sort').value='rating';
+    $('tr-league').value='ALL';
+    $('tr-affordable').classList.remove('on');
+    $('tr-age-min').value=15; $('tr-age-max').value=40; $('tr-age-lbl').textContent='15–40';
+    $('tr-rat-min').value=40; $('tr-rat-max').value=99; $('tr-rat-lbl').textContent='40–99';
+    $('tr-price').value=budget; $('tr-price-lbl').textContent=fmt.money(budget);
+    document.querySelectorAll('#tr-filters .ftab').forEach(t=>t.classList.remove('on'));
+    document.querySelector('#tr-filters .ftab')?.classList.add('on');
+    document.querySelectorAll('#tr-pot-stars [data-pot]').forEach(b=>b.classList.toggle('on',parseInt(b.dataset.pot)<=1));
+    const si=document.getElementById('tr-search'); if(si) si.value='';
+    _applyAndRenderBuyList(byId,team);
+  };
+}
+
+function _applyAndRenderBuyList(byId, team){
+  const f=_trFilters;
+  const allTeams=Array.from(byId.values());
+  const leagueByTeam=new Map(allTeams.map(t=>[t.id, t.league||'Premier League']));
+  const budget=team?.budget||0;
+
+  let fil=[..._buyTargets];
+
+  // Position filter
+  if(f.pos!=='ALL') fil=fil.filter(p=>posGroup(p.position)===f.pos);
+  // League filter
+  if(f.league!=='ALL') fil=fil.filter(p=>leagueByTeam.get(p.teamId)===f.league);
+  // Age filter
+  fil=fil.filter(p=>(p.age||25)>=f.minAge&&(p.age||25)<=f.maxAge);
+  // Rating filter
+  fil=fil.filter(p=>primaryRating(p)>=f.minRat&&primaryRating(p)<=f.maxRat);
+  // Price filter
+  if(f.maxPrice>0) fil=fil.filter(p=>(formAdjustedValue?formAdjustedValue(p):p.value)<=f.maxPrice);
+  // Affordable filter
+  if(f.affordable) fil=fil.filter(p=>(formAdjustedValue?formAdjustedValue(p):p.value)*0.88<=budget);
+  // Potential filter (stars >= minPot)
+  if(f.minPot>1) fil=fil.filter(p=>getPotentialStars(p)>=f.minPot);
+  // Text search
+  if(f.query) fil=fil.filter(p=>p.name.toLowerCase().includes(f.query)||(byId.get(p.teamId)?.name||'').toLowerCase().includes(f.query));
+
+  // Sort
+  const sortFns={
+    rating:(a,b)=>primaryRating(b)-primaryRating(a),
+    value:(a,b)=>(formAdjustedValue?formAdjustedValue(b):b.value)-(formAdjustedValue?formAdjustedValue(a):a.value),
+    age:(a,b)=>(a.age||25)-(b.age||25),
+    potential:(a,b)=>getPotentialStars(b)-getPotentialStars(a),
+    goals:(a,b)=>(b.goals||0)-(a.goals||0),
+    assists:(a,b)=>(b.assists||0)-(a.assists||0),
+  };
+  fil.sort(sortFns[f.sort]||sortFns.rating);
+
+  // Count badge
+  const countEl=document.getElementById('tr-count');
+  if(countEl) countEl.textContent=`${fil.length} player${fil.length!==1?'s':''}`;
+
+  renderBuyList(byId, fil);
+}
+
+function renderBuyList(byId, filteredPlayers){
   const el=document.getElementById('buy-list');
   if(!el) return;
-  let fil=_buyFilter==='ALL'?_buyTargets:_buyTargets.filter(p=>posGroup(p.position)===_buyFilter);
-  if(query) fil=fil.filter(p=>p.name.toLowerCase().includes(query));
-  if(!fil.length){el.innerHTML=`<div class="no-data">No players found.</div>`;return;}
-  el.innerHTML=fil.slice(0,80).map(p=>{
+  if(!filteredPlayers.length){el.innerHTML=`<div class="no-data" style="padding:24px;text-align:center"><div style="font-size:24px;margin-bottom:8px">🔍</div>No players match your filters.<br><span style="font-size:11px;color:var(--txd)">Try adjusting the sliders above.</span></div>`;return;}
+  el.innerHTML=filteredPlayers.slice(0,100).map(p=>{
     const g=posGroup(p.position),r=primaryRating(p),tn=byId.get(p.teamId)?.name||'Unknown';
-    const fv=typeof formAdjustedValue==='function'?formAdjustedValue(p):p.value;
+    const fv=formAdjustedValue?formAdjustedValue(p):p.value;
+    const potStars=getPotentialStars?getPotentialStars(p):0;
+    const potColor=['','#8a9ab0','#22c55e','#3b82f6','#f5c842','#e84855'][potStars]??'#8a9ab0';
+    const potDisp=potStars?'★'.repeat(potStars):'';
+    const league=byId.get(p.teamId)?.league||'';
+    const leagueIcon={'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿'}[league]||'🌐';
     return`<div class="pl-row ${p.id===_selPid?'sel':''}" data-pid="${p.id}">
       <div class="pl-av">${flagEmoji(p.name)}</div>
-      <div class="pl-info"><div class="pl-name">${p.name}</div><div class="pl-meta"><span class="pos ${g}">${p.position}</span><span>${tn}</span><span>Age ${p.age}</span></div></div>
-      <div class="pl-val">${fmt.money(fv)}</div><div class="pl-rat">${r}</div></div>`;
+      <div class="pl-info">
+        <div class="pl-name">${p.name}</div>
+        <div class="pl-meta"><span class="pos ${g}">${p.position}</span><span>${leagueIcon} ${tn}</span><span>Age ${p.age}</span>${potDisp?`<span style="color:${potColor};font-size:10px">${potDisp}</span>`:''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0">
+        <div class="pl-val">${fmt.money(fv)}</div>
+        <div class="pl-rat" style="font-size:12px;background:none;color:var(--acc2)">${r}</div>
+      </div>
+    </div>`;
   }).join('');
   el.querySelectorAll('.pl-row').forEach(row=>{
     row.onclick=()=>{
       _selPid=row.dataset.pid;
       el.querySelectorAll('.pl-row').forEach(r=>r.classList.remove('sel'));
       row.classList.add('sel');
-      const player=fil.find(p=>p.id===_selPid);
+      const player=filteredPlayers.find(p=>p.id===_selPid);
       if(player) renderPlayerDetail(player,byId);
       document.getElementById('tr-layout')?.classList.add('dp-open');
     };
@@ -5266,58 +5584,143 @@ function renderBuyList(byId,query=''){
 function renderPlayerDetail(player,byId){
   const el=document.getElementById('det-panel');
   if(!el) return;
-  const tn=byId.get(player.teamId)?.name||'Unknown';
+  const teamRec=byId.get(player.teamId);
+  const tn=teamRec?.name||'Unknown';
+  const league=teamRec?.league||'';
+  const leagueIcon={'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿'}[league]||'🌐';
   const g=posGroup(player.position),r=primaryRating(player);
-  const fv=typeof formAdjustedValue==='function'?formAdjustedValue(player):player.value;
+  const fv=formAdjustedValue?formAdjustedValue(player):player.value;
   const minOff=Math.floor(fv*0.88), initOff=Math.floor(fv*0.95);
   const fl=formLabel(player);
-  const abar=(lbl,val,pri)=>{const pct=Math.round((val/99)*100);const col=pri?'linear-gradient(90deg,var(--acc),#7fff9a)':'linear-gradient(90deg,#4a6fa5,#6b8ccc)';return`<div><div class="attr-n" style="${pri?'color:var(--acc)':''}">${lbl}</div><div class="attr-bw"><div class="attr-b" style="width:${pct}%;background:${col}"></div></div><div class="attr-v">${val}</div></div>`;};
+  const potStars=getPotentialStars?getPotentialStars(player):0;
+  const potLabel=getPotentialLabel?getPotentialLabel(player):'';
+  const potColor=['','#8a9ab0','#22c55e','#3b82f6','#f5c842','#e84855'][potStars]??'#8a9ab0';
+  const potDisp=potStars?'★'.repeat(potStars)+'☆'.repeat(5-potStars):'';
+  const isWonderkid=player.isWonderkid===true;
+  const fitnessColor=(player.fitness??100)>=75?'var(--acc)':(player.fitness??100)>=50?'var(--acc2)':'var(--acc3)';
+
+  const abar=(lbl,val,pri)=>{
+    const pct=Math.round((val/99)*100);
+    const col=pri?'linear-gradient(90deg,var(--acc),#7fff9a)':'linear-gradient(90deg,#4a6fa5,#6b8ccc)';
+    return`<div>
+      <div class="attr-n" style="${pri?'color:var(--acc)':''};">${lbl}</div>
+      <div class="attr-bw"><div class="attr-b" style="width:${pct}%;background:${col}"></div></div>
+      <div class="attr-v" style="${pri?'color:var(--acc)':''}">${val}</div>
+    </div>`;
+  };
+
+  // Value comparison bar: form value vs base value
+  const baseVal=player.value||fv;
+  const valChange=fv-baseVal;
+  const valPct=Math.round(Math.min(100,(fv/Math.max(fv,baseVal))*100));
+
   el.innerHTML=`
     <div class="det-hero">
-      <div class="det-rat">${r}</div><div class="det-av">${flagEmoji(player.name)}</div>
+      <div class="det-rat">${r}</div>
+      <div class="det-av">${flagEmoji(player.name)}</div>
       <div class="det-name">${player.name}</div>
-      <div class="det-info"><span>⚽</span><span>${tn}</span><span class="pos ${g}">${player.position}</span><span>Age ${player.age}</span></div>
-      <div style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">
+      ${isWonderkid?`<div style="background:linear-gradient(135deg,#f5c842,#f97316);color:#000;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:1.5px;font-family:var(--fm);margin:4px auto 0;display:inline-block">WONDERKID ⚡</div>`:''}
+      <div class="det-info" style="margin-top:6px"><span>${leagueIcon}</span><span>${tn}</span><span class="pos ${g}">${player.position}</span><span>Age ${player.age}</span></div>
+      <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">
         <span class="fb ${fl.cls}">${fl.text}</span>
-        ${(player.goals||0)>0?`<span style="font-size:11px;color:var(--tx2)">⚽${player.goals}</span>`:''}
-        ${(player.assists||0)>0?`<span style="font-size:11px;color:var(--tx2)">🎯${player.assists}</span>`:''}
+        <span style="color:${fitnessColor};font-size:11px;font-family:var(--fm)">🏃 ${Math.round(player.fitness??100)}%</span>
+        ${(player.goals||0)>0?`<span style="font-size:11px;color:var(--tx2)">⚽ ${player.goals}</span>`:''}
+        ${(player.assists||0)>0?`<span style="font-size:11px;color:var(--tx2)">🎯 ${player.assists}</span>`:''}
+        ${(player.cleanSheets||0)>0?`<span style="font-size:11px;color:var(--tx2)">🧤 ${player.cleanSheets}</span>`:''}
       </div>
     </div>
-    <div class="vrow"><span class="vlbl">Form Value</span><span class="vamt">${fmt.money(fv)}</span></div>
-    <div class="vrow" style="border-top:none;padding-top:0"><span class="vlbl">Wage</span><span class="vamt" style="font-size:14px;color:var(--tx2)">${fmt.wage(player.wage)}</span></div>
-    <div class="attr-grid">${abar('Attack',player.attack,g==='ATT')}${abar('Midfield',player.midfield,g==='MID')}${abar('Defence',player.defence,g==='DEF')}${abar('GK',player.goalkeeping,g==='GK')}</div>
+
+    <!-- Potential -->
+    <div class="vrow" style="flex-direction:column;align-items:flex-start;gap:5px">
+      <div style="display:flex;justify-content:space-between;width:100%">
+        <span class="vlbl">✨ Potential</span>
+        <span style="color:${potColor};font-family:var(--fm);font-size:12px;font-weight:700">${potLabel}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <div style="color:${potColor};font-size:18px;letter-spacing:2px">${potDisp}</div>
+        <div style="flex:1;height:4px;background:var(--sur3);border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${(potStars/5)*100}%;background:${potColor};border-radius:2px;transition:width .4s"></div>
+        </div>
+        <span style="font-family:var(--fm);font-size:10px;color:var(--txd)">${player.potentialRating??r}/99</span>
+      </div>
+    </div>
+
+    <!-- Value -->
+    <div class="vrow">
+      <span class="vlbl">Form Value</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <span class="vamt">${fmt.money(fv)}</span>
+        ${valChange!==0?`<span style="font-size:10px;color:${valChange>0?'var(--acc)':'var(--acc3)'};font-family:var(--fm)">${valChange>0?'+':''}${fmt.money(valChange)} vs base</span>`:''}
+      </div>
+    </div>
+    <div class="vrow" style="border-top:none;padding-top:0">
+      <span class="vlbl">Weekly Wage</span>
+      <span class="vamt" style="font-size:14px;color:var(--tx2)">${fmt.wage(player.wage)}</span>
+    </div>
+    <div class="vrow" style="border-top:none;padding-top:0">
+      <span class="vlbl">Annual Wage</span>
+      <span style="font-size:12px;color:var(--txd);font-family:var(--fm)">${fmt.money((player.wage||0)*52)}/yr</span>
+    </div>
+
+    <!-- Attributes -->
+    <div class="attr-grid">
+      ${abar('Attack',player.attack,g==='ATT')}
+      ${abar('Midfield',player.midfield,g==='MID')}
+      ${abar('Defence',player.defence,g==='DEF')}
+      ${abar('GK',player.goalkeeping,g==='GK')}
+    </div>
+
+    <!-- Offer -->
     <div class="offer-sec">
-      <div class="offer-lbl">Your Offer</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <div class="offer-lbl">Your Offer</div>
+        <div style="font-size:10px;color:var(--txd);font-family:var(--fm)">Min ~${fmt.money(minOff)}</div>
+      </div>
       <div class="offer-row">
-        <input type="range" id="offer-slider" min="${Math.floor(minOff*0.7)}" max="${Math.floor(fv*1.5)}" value="${initOff}" step="500000">
+        <input type="range" id="offer-slider" min="${Math.floor(minOff*0.7)}" max="${Math.floor(fv*1.6)}" value="${initOff}" step="500000">
         <div id="offer-val" class="offer-v">${fmt.money(initOff)}</div>
       </div>
-      <div class="offer-hint">Min accepted: ~${fmt.money(minOff)}</div>
+      <div id="offer-likelihood" class="offer-hint" style="margin-top:5px;color:var(--acc)">Likely accepted ✓</div>
     </div>
     <div class="tr-acts">
       <button class="btn btn-p" id="btn-offer">Make Offer</button>
       <button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button>
     </div>`;
+
   const back=el.querySelector('#btn-det-back');
   if(back&&window.innerWidth<=768){back.style.display='block';back.onclick=()=>document.getElementById('tr-layout')?.classList.remove('dp-open');}
-  const sl=document.getElementById('offer-slider'),dv=document.getElementById('offer-val');
-  if(sl) sl.oninput=()=>{if(dv) dv.textContent=fmt.money(Number(sl.value));};
+
+  const sl=document.getElementById('offer-slider'),dv=document.getElementById('offer-val'),lh=document.getElementById('offer-likelihood');
+  const updateOfferHint=()=>{
+    const v=Number(sl?.value||fv);
+    if(dv) dv.textContent=fmt.money(v);
+    if(!lh) return;
+    if(v>=fv)          { lh.textContent='🤑 Over value — very likely accepted'; lh.style.color='var(--acc)'; }
+    else if(v>=minOff) { lh.textContent='✓ Likely accepted'; lh.style.color='var(--acc)'; }
+    else if(v>=minOff*0.88){ lh.textContent='⚠️ May be rejected'; lh.style.color='var(--acc2)'; }
+    else               { lh.textContent='✕ Will be rejected'; lh.style.color='var(--acc3)'; }
+  };
+  if(sl){ sl.oninput=updateOfferHint; updateOfferHint(); }
+
   const ob=document.getElementById('btn-offer');
   if(ob) ob.onclick=()=>{
     const offer=Number(sl?.value||fv);
     showModal('Confirm Offer',`
       <div class="ctr">
         <div class="ctr-pl"><strong>${player.name}</strong><span class="pos ${g}">${player.position}</span></div>
-        <div class="ctr-row"><span>From</span><strong>${tn}</strong></div>
+        <div class="ctr-row"><span>From</span><strong>${leagueIcon} ${tn}</strong></div>
+        <div class="ctr-row"><span>Age</span><strong>${player.age}</strong></div>
+        <div class="ctr-row"><span>Rating</span><strong>${r}</strong></div>
+        <div class="ctr-row"><span>Potential</span><strong style="color:${potColor}">${potLabel} ${potDisp}</strong></div>
         <div class="ctr-row"><span>Offer</span><strong style="color:var(--acc2)">${fmt.money(offer)}</strong></div>
         <div class="ctr-row"><span>Form Value</span><strong>${fmt.money(fv)}</strong></div>
-        ${offer<minOff?`<div class="ctr-warn">⚠️ Below ~${fmt.money(minOff)} — likely rejected</div>`:''}
+        <div class="ctr-row"><span>Weekly Wage</span><strong>${fmt.wage(player.wage)}</strong></div>
+        ${offer<minOff?`<div class="ctr-warn">⚠️ Below min ~${fmt.money(minOff)} — likely rejected</div>`:''}
       </div>`,
       [{id:'c',label:'Send Offer',cls:'btn-p',handler:async()=>{
         try{
-          // Optimistically remove card from list immediately
-          const cardEl = document.querySelector(`[data-pid="${player.id}"]`);
-          if (cardEl) cardEl.closest('.pl-item,.pl-row')?.remove();
+          const cardEl=document.querySelector(`[data-pid="${player.id}"]`);
+          if(cardEl) cardEl.closest('.pl-item,.pl-row')?.remove();
           await buyPlayer(player.id,offer);
           toast(`✅ ${player.name} signed for ${fmt.money(offer)}!`,'success',5000);
           _selPid=null; document.getElementById('tr-layout')?.classList.remove('dp-open');
@@ -5438,14 +5841,46 @@ async function renderHonours(){
   const {combined,earned}=await getHonorsForTeam(save.userTeamId);
   const el=document.getElementById('honours-grid');
   if(!el) return;
+  const team=await getTeam(save.userTeamId);
+  const league=team?.league??save.userLeague??'Premier League';
+
+  // League title key: derive from save.userLeague
+  const leagueTitleKey = {
+    'Premier League':'premier_league',
+    'Championship':'championship',
+    'La Liga':'la_liga',
+    'Bundesliga':'bundesliga',
+    'Serie A':'serie_a',
+    'Ligue 1':'ligue_1',
+  }[league] ?? 'premier_league';
+
+  const leagueTitleName = {
+    'Premier League':'Premier League',
+    'Championship':'Championship',
+    'La Liga':'La Liga',
+    'Bundesliga':'Bundesliga',
+    'Serie A':'Serie A',
+    'Ligue 1':'Ligue 1',
+  }[league] ?? 'League Title';
+
+  // Domestic cups for this nation
+  const domesticCupDefs = {
+    'Premier League':  [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
+    'Championship':    [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
+    'La Liga':         [{key:'copa_del_rey',name:'Copa del Rey',icon:'👑',color:'#c8102e'},{key:'supercopa',name:'Supercopa de España',icon:'🔴',color:'#f5c842'}],
+    'Bundesliga':      [{key:'dfb_pokal',name:'DFB-Pokal',icon:'🏆',color:'#000000'},{key:'dfb_supercup',name:'DFL-Supercup',icon:'⚡',color:'#d4a017'}],
+    'Serie A':         [{key:'coppa_italia',name:'Coppa Italia',icon:'🏆',color:'#009246'},{key:'supercoppa',name:'Supercoppa Italiana',icon:'🔵',color:'#009246'}],
+    'Ligue 1':         [{key:'coupe_de_france',name:'Coupe de France',icon:'🏆',color:'#003189'},{key:'trophee_des_champions',name:"Trophée des Champions",icon:'🔵',color:'#e8151b'}],
+  }[league] ?? [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'League Cup',icon:'🥛',color:'#c084fc'}];
+
   const trophies=[
-    {key:'premier_league',name:'League Title',icon:'🏆',color:'#3b82f6'},
-    {key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},
-    {key:'league_cup',name:'League Cup',icon:'🥛',color:'#c084fc'},
-    {key:'ucl',name:'Champions League',icon:'⭐',color:'#3b82f6'},
-    {key:'uel',name:'Europa League',icon:'🟠',color:'#f97316'},
-    {key:'uecl',name:'Conference Lge',icon:'🟢',color:'#22c55e'},
+    {key:leagueTitleKey, name:leagueTitleName, icon:'🏆', color:'#3b82f6'},
+    ...domesticCupDefs,
+    {key:'ucl',  name:'Champions League', icon:'⭐', color:'#3b82f6'},
+    {key:'uel',  name:'Europa League',    icon:'🟠', color:'#f97316'},
+    {key:'uecl', name:'Conference Lge',   icon:'🟢', color:'#22c55e'},
   ];
+
   el.innerHTML=trophies.map(t=>{
     const total=combined[t.key]||0;
     const myEarned=earned.filter(h=>h.trophy===t.key);
@@ -6138,7 +6573,21 @@ async function renderCups() {
   if (!el) return;
 
   const cups   = save.cups ?? {};
-  const cupIds = Object.keys(cups);
+  // Cups that are only shown if the team has actually participated.
+  // European cups + invitation-only super cups require real activity.
+  const ACTIVITY_GATED = new Set(['ucl','uel','uecl',
+    'dfb_supercup','supercopa','supercoppa','trophee_des_champions']);
+  const cupIds = Object.keys(cups).filter(cupId => {
+    const meta = CUP_META[cupId];
+    if (!meta) return false; // unknown cup, skip
+    if (!ACTIVITY_GATED.has(cupId)) return true; // open cups always shown
+    const st = cups[cupId];
+    if (!st) return false;
+    const hasPlayed   = (st.results ?? []).length > 0;
+    const hasProgress = (st.roundIndex ?? 0) > 0;
+    const hasMatchdays = (st.leaguePhase?.matchday ?? 0) > 0;
+    return hasPlayed || hasProgress || hasMatchdays;
+  });
 
   if (!cupIds.length) {
     el.innerHTML = `<div class="no-data" style="grid-column:1/-1;padding:40px">No cup competitions. Start a new game to get cups.</div>`;
