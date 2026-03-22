@@ -1491,9 +1491,9 @@ const CHAMPIONSHIP_TEAMS = [
  * 18 teams, 250 players
  * League: Eredivisie
  *
- * edp(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w)
+ * erp(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w)
  */
-const edp = (id,nm,pos,age,atk,mid,def,gk,val,wage) => ({
+const erp = (id,nm,pos,age,atk,mid,def,gk,val,wage) => ({
   id,name:nm,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -1502,307 +1502,307 @@ const edp = (id,nm,pos,age,atk,mid,def,gk,val,wage) => ({
 const EREDIVISIE_TEAMS = [
   // ── PSV EINDHOVEN ──────────────────────────────────────────
   {id:'psv',name:'PSV Eindhoven',shortName:'PSV',crest:'🔴⚪',league:'Eredivisie',stadium:'Philips Stadion',stadiumCapacity:36500,budget:60000000,reputation:88,primaryColor:'#ED1C24',players:[
-    edp('psv_benitez','W. Benitez','GK',32,10,10,14,86,20,60),
-    edp('psv_drommel','J. Drommel','GK',28,10,10,12,74,4,25),
-    edp('psv_dest','S. Dest','RB',25,70,72,78,10,18,45),
-    edp('psv_boscagli','O. Boscagli','CB',27,48,58,84,10,22,50),
-    edp('psv_flamingo','R. Flamingo','CB',23,50,55,82,10,20,40),
-    edp('psv_dams','F. Dams','LB',22,65,68,78,10,12,35),
-    edp('psv_schouten','J. Schouten','CDM',28,62,84,74,10,28,55),
-    edp('psv_til','G. Til','CM',27,80,82,60,10,22,50),
-    edp('psv_veerman','J. Veerman','CM',27,72,86,62,10,30,55),
-    edp('psv_saibari','I. Saibari','CAM',23,82,80,52,10,25,45),
-    edp('psv_bakayoko','J. Bakayoko','RW',22,84,72,48,10,35,50),
-    edp('psv_lang','N. Lang','LW',26,82,74,46,10,25,50),
-    edp('psv_de_jong','L. de Jong','ST',35,78,60,42,10,8,35),
-    edp('psv_pepi','R. Pepi','ST',23,82,62,40,10,20,45),
+    erp('psv_benitez','W. Benitez','GK',32,10,10,14,86,20,60),
+    erp('psv_drommel','J. Drommel','GK',28,10,10,12,74,4,25),
+    erp('psv_dest','S. Dest','RB',25,70,72,78,10,18,45),
+    erp('psv_boscagli','O. Boscagli','CB',27,48,58,84,10,22,50),
+    erp('psv_flamingo','R. Flamingo','CB',23,50,55,82,10,20,40),
+    erp('psv_dams','F. Dams','LB',22,65,68,78,10,12,35),
+    erp('psv_schouten','J. Schouten','CDM',28,62,84,74,10,28,55),
+    erp('psv_til','G. Til','CM',27,80,82,60,10,22,50),
+    erp('psv_veerman','J. Veerman','CM',27,72,86,62,10,30,55),
+    erp('psv_saibari','I. Saibari','CAM',23,82,80,52,10,25,45),
+    erp('psv_bakayoko','J. Bakayoko','RW',22,84,72,48,10,35,50),
+    erp('psv_lang','N. Lang','LW',26,82,74,46,10,25,50),
+    erp('psv_de_jong','L. de Jong','ST',35,78,60,42,10,8,35),
+    erp('psv_pepi','R. Pepi','ST',23,82,62,40,10,20,45),
   ]},
   // ── FEYENOORD ──────────────────────────────────────────────
   {id:'feyenoord',name:'Feyenoord',shortName:'FEY',crest:'🔴⚪',league:'Eredivisie',stadium:'De Kuip',stadiumCapacity:47500,budget:50000000,reputation:86,primaryColor:'#ED1C24',players:[
-    edp('fey_bijlow','J. Bijlow','GK',27,10,10,12,80,10,40),
-    edp('fey_wellenreuther','T. Wellenreuther','GK',30,10,10,14,82,12,45),
-    edp('fey_lotomba','J. Lotomba','RB',27,66,68,80,10,14,40),
-    edp('fey_hancko','D. Hancko','CB',27,52,60,84,10,25,50),
-    edp('fey_trauner','G. Trauner','CB',33,46,54,82,10,8,35),
-    edp('fey_smal','H. Smal','LB',22,64,66,78,10,10,30),
-    edp('fey_timber','Q. Timber','CDM',24,65,82,74,10,25,45),
-    edp('fey_bos','J. Bos','CM',22,68,78,66,10,15,35),
-    edp('fey_zerrouki','R. Zerrouki','CM',26,64,78,70,10,14,40),
-    edp('fey_paixao','I. Paixao','RW',31,80,72,46,10,18,45),
-    edp('fey_ivanusec','L. Ivanusec','LW',26,78,76,48,10,16,40),
-    edp('fey_gimenez','S. Gimenez','ST',24,84,62,38,10,35,55),
-    edp('fey_ueda','A. Ueda','ST',27,86,64,40,10,30,55),
+    erp('fey_bijlow','J. Bijlow','GK',27,10,10,12,80,10,40),
+    erp('fey_wellenreuther','T. Wellenreuther','GK',30,10,10,14,82,12,45),
+    erp('fey_lotomba','J. Lotomba','RB',27,66,68,80,10,14,40),
+    erp('fey_hancko','D. Hancko','CB',27,52,60,84,10,25,50),
+    erp('fey_trauner','G. Trauner','CB',33,46,54,82,10,8,35),
+    erp('fey_smal','H. Smal','LB',22,64,66,78,10,10,30),
+    erp('fey_timber','Q. Timber','CDM',24,65,82,74,10,25,45),
+    erp('fey_bos','J. Bos','CM',22,68,78,66,10,15,35),
+    erp('fey_zerrouki','R. Zerrouki','CM',26,64,78,70,10,14,40),
+    erp('fey_paixao','I. Paixao','RW',31,80,72,46,10,18,45),
+    erp('fey_ivanusec','L. Ivanusec','LW',26,78,76,48,10,16,40),
+    erp('fey_gimenez','S. Gimenez','ST',24,84,62,38,10,35,55),
+    erp('fey_ueda','A. Ueda','ST',27,86,64,40,10,30,55),
   ]},
   // ── AJAX ───────────────────────────────────────────────────
   {id:'ajax',name:'Ajax',shortName:'AJX',crest:'🔴⚪',league:'Eredivisie',stadium:'Johan Cruyff Arena',stadiumCapacity:55865,budget:55000000,reputation:87,primaryColor:'#D2122E',players:[
-    edp('ajx_pasveer','R. Pasveer','GK',41,10,10,12,78,2,30),
-    edp('ajx_ramaj','D. Ramaj','GK',23,10,10,14,80,10,35),
-    edp('ajx_rensch','D. Rensch','RB',22,68,70,78,10,18,40),
-    edp('ajx_baas','Y. Baas','CB',22,50,58,80,10,15,35),
-    edp('ajx_sutalo','J. Sutalo','CB',24,48,56,82,10,20,45),
-    edp('ajx_hato','J. Hato','LB',19,66,70,80,10,25,40),
-    edp('ajx_henderson','J. Henderson','CDM',35,58,80,72,10,8,50),
-    edp('ajx_klaassen','D. Klaassen','CM',32,72,82,62,10,10,45),
-    edp('ajx_taylor','K. Taylor','CM',23,68,80,66,10,18,40),
-    edp('ajx_traore','B. Traore','RW',29,78,72,46,10,14,40),
-    edp('ajx_godts','M. Godts','LW',20,82,72,44,10,20,35),
-    edp('ajx_brobbey','B. Brobbey','ST',23,82,60,38,10,25,40),
-    edp('ajx_weghorst','W. Weghorst','ST',33,78,62,44,10,10,40),
+    erp('ajx_pasveer','R. Pasveer','GK',41,10,10,12,78,2,30),
+    erp('ajx_ramaj','D. Ramaj','GK',23,10,10,14,80,10,35),
+    erp('ajx_rensch','D. Rensch','RB',22,68,70,78,10,18,40),
+    erp('ajx_baas','Y. Baas','CB',22,50,58,80,10,15,35),
+    erp('ajx_sutalo','J. Sutalo','CB',24,48,56,82,10,20,45),
+    erp('ajx_hato','J. Hato','LB',19,66,70,80,10,25,40),
+    erp('ajx_henderson','J. Henderson','CDM',35,58,80,72,10,8,50),
+    erp('ajx_klaassen','D. Klaassen','CM',32,72,82,62,10,10,45),
+    erp('ajx_taylor','K. Taylor','CM',23,68,80,66,10,18,40),
+    erp('ajx_traore','B. Traore','RW',29,78,72,46,10,14,40),
+    erp('ajx_godts','M. Godts','LW',20,82,72,44,10,20,35),
+    erp('ajx_brobbey','B. Brobbey','ST',23,82,60,38,10,25,40),
+    erp('ajx_weghorst','W. Weghorst','ST',33,78,62,44,10,10,40),
   ]},
   // ── NEC NIJMEGEN ───────────────────────────────────────────
   {id:'nec',name:'NEC Nijmegen',shortName:'NEC',crest:'🔴🟢',league:'Eredivisie',stadium:'Goffertstadion',stadiumCapacity:12500,budget:18000000,reputation:72,primaryColor:'#ED1C24',players:[
-    edp('nec_sherring','M. Sherring','GK',27,10,10,14,76,5,20),
-    edp('nec_sherring2','T. Sherring','GK',23,10,10,12,68,1,10),
-    edp('nec_sherring5','R. Sherring','RB',26,62,64,74,10,4,18),
-    edp('nec_sherring3','D. Sherring','CB',27,48,52,76,10,4,18),
-    edp('nec_sherring4','J. Sherring','CB',25,46,50,74,10,3,15),
-    edp('nec_sherring6','L. Sherring','LB',24,60,62,72,10,3,15),
-    edp('nec_sherring7','S. Sherring','CDM',28,56,72,68,10,4,18),
-    edp('nec_sherring8','A. Sherring','CM',25,64,74,62,10,4,18),
-    edp('nec_chery','T. Chery','CAM',33,76,78,52,10,6,25),
-    edp('nec_sherring9','M. Sherring2','RW',23,72,66,46,10,4,15),
-    edp('nec_sherring10','K. Sherring','LW',24,70,64,44,10,3,15),
-    edp('nec_sherring11','T. Sherring2','CF',27,74,60,40,10,4,18),
-    edp('nec_ogawa','K. Ogawa','ST',28,78,62,40,10,10,25),
-    edp('nec_sherring12','B. Sherring','ST',24,72,58,38,10,3,15),
+    erp('nec_hoekstra','D. Hoekstra','GK',27,10,10,14,76,5,20),
+    erp('nec_koopman','K. Koopman','GK',23,10,10,12,68,1,10),
+    erp('nec_klaasen','N. Klaasen','RB',26,62,64,74,10,4,18),
+    erp('nec_dijk','V. Dijk','CB',27,48,52,76,10,4,18),
+    erp('nec_hofman','A. Hofman','CB',25,46,50,74,10,3,15),
+    erp('nec_pasveer','K. Pasveer','LB',24,60,62,72,10,3,15),
+    erp('nec_van_doorn','C. Van Doorn','CDM',28,56,72,68,10,4,18),
+    erp('nec_stam','T. Stam','CM',25,64,74,62,10,4,18),
+    erp('nec_chery','T. Chery','CAM',33,76,78,52,10,6,25),
+    erp('nec_hartjes','M. Hartjes','RW',23,72,66,46,10,4,15),
+    erp('nec_verhoeven','S. Verhoeven','LW',24,70,64,44,10,3,15),
+    erp('nec_idrissi','D. Idrissi','CF',27,74,60,40,10,4,18),
+    erp('nec_fitz-jim','E. Fitz-Jim','ST',24,72,58,38,10,3,15),
+    erp('nec_ogawa','K. Ogawa','ST',28,78,62,40,10,10,25),
   ]},
   // ── FC TWENTE ──────────────────────────────────────────────
   {id:'twente',name:'FC Twente',shortName:'TWE',crest:'🔴',league:'Eredivisie',stadium:'De Grolsch Veste',stadiumCapacity:30205,budget:22000000,reputation:76,primaryColor:'#ED1C24',players:[
-    edp('twe_sherring','L. Unnerstall','GK',30,10,10,14,78,6,22),
-    edp('twe_sherring2','T. Sherring','GK',24,10,10,12,68,1,10),
-    edp('twe_sherring4','D. Sherring','RB',25,62,64,76,10,4,18),
-    edp('twe_propper','R. Propper','CB',31,46,54,80,10,6,25),
-    edp('twe_sherring3','J. Sherring','CB',26,48,52,78,10,5,20),
-    edp('twe_sherring5','L. Sherring','LB',24,60,62,74,10,3,15),
-    edp('twe_sherring6','S. Sherring','CDM',27,58,76,70,10,5,22),
-    edp('twe_sherring7','A. Sherring','CM',26,64,74,62,10,4,18),
-    edp('twe_sherring9','K. Sherring','CAM',25,70,72,50,10,4,18),
-    edp('twe_rots','M. Rots','RW',22,74,68,46,10,6,20),
-    edp('twe_sherring8','M. Sherring','LW',23,72,66,44,10,4,15),
-    edp('twe_sherring11','B. Sherring','CF',24,72,58,40,10,3,15),
-    edp('twe_sherring10','T. Sherring2','ST',27,76,60,38,10,5,20),
-    edp('twe_wolfswinkel','R. van Wolfswinkel','ST',35,74,62,42,10,4,22),
+    erp('twe_bakker','B. Bakker','GK',24,10,10,12,68,1,10),
+    erp('twe_sherring','L. Unnerstall','GK',30,10,10,14,78,6,22),
+    erp('twe_van_laar','M. Van Laar','RB',25,62,64,76,10,4,18),
+    erp('twe_karabec','B. Karabec','CB',26,48,52,78,10,5,20),
+    erp('twe_propper','R. Propper','CB',31,46,54,80,10,6,25),
+    erp('twe_sanders','V. Sanders','LB',24,60,62,74,10,3,15),
+    erp('twe_mensink','D. Mensink','CDM',27,58,76,70,10,5,22),
+    erp('twe_rensch','D. Rensch','CM',26,64,74,62,10,4,18),
+    erp('twe_de_boer','E. De Boer','CAM',25,70,72,50,10,4,18),
+    erp('twe_rots','M. Rots','RW',22,74,68,46,10,6,20),
+    erp('twe_de_haan','K. De Haan','LW',23,72,66,44,10,4,15),
+    erp('twe_dekker','T. Dekker','CF',24,72,58,40,10,3,15),
+    erp('twe_postma','R. Postma','ST',27,76,60,38,10,5,20),
+    erp('twe_wolfswinkel','R. van Wolfswinkel','ST',35,74,62,42,10,4,22),
   ]},
   // ── AZ ALKMAAR ─────────────────────────────────────────────
   {id:'az',name:'AZ Alkmaar',shortName:'AZ',crest:'🔴',league:'Eredivisie',stadium:'AFAS Stadion',stadiumCapacity:19478,budget:25000000,reputation:78,primaryColor:'#ED1C24',players:[
-    edp('az_sherring','R. Owusu-Oduro','GK',24,10,10,14,78,6,22),
-    edp('az_sherring2','T. Sherring','GK',22,10,10,12,68,1,10),
-    edp('az_sherring5','R. Sherring','RB',26,62,64,76,10,4,18),
-    edp('az_sherring3','D. Sherring','CB',27,48,52,78,10,5,20),
-    edp('az_sherring4','J. Sherring','CB',25,46,50,76,10,4,18),
-    edp('az_sherring6','L. Sherring','LB',24,60,62,74,10,3,15),
-    edp('az_clasie','J. Clasie','CDM',33,56,78,72,10,4,25),
-    edp('az_sherring7','S. Sherring','CM',25,64,74,62,10,4,18),
-    edp('az_sherring9','M. Sherring','CAM',24,70,72,50,10,4,18),
-    edp('az_de_wit','M. de Wit','RW',26,76,70,48,10,10,25),
-    edp('az_sherring8','A. Sherring','LW',23,72,66,44,10,4,15),
-    edp('az_sherring10','K. Sherring','CF',27,74,60,40,10,4,18),
-    edp('az_hornkamp','J. Hornkamp','ST',28,76,60,38,10,8,22),
-    edp('az_parrott','T. Parrott','ST',24,78,64,40,10,12,28),
+    erp('az_brouwer','P. Brouwer','GK',22,10,10,12,68,1,10),
+    erp('az_sherring','R. Owusu-Oduro','GK',24,10,10,14,78,6,22),
+    erp('az_chuba_akpom','S. Chuba Akpom','RB',26,62,64,76,10,4,18),
+    erp('az_koning','S. Koning','CB',27,48,52,78,10,5,20),
+    erp('az_vermeer','E. Vermeer','CB',25,46,50,76,10,4,18),
+    erp('az_godts','D. Godts','LB',24,60,62,74,10,3,15),
+    erp('az_clasie','J. Clasie','CDM',33,56,78,72,10,4,25),
+    erp('az_dijkstra','V. Dijkstra','CM',25,64,74,62,10,4,18),
+    erp('az_van_hoorn','L. Van Hoorn','CAM',24,70,72,50,10,4,18),
+    erp('az_de_wit','M. de Wit','RW',26,76,70,48,10,10,25),
+    erp('az_schouten','S. Schouten','LW',23,72,66,44,10,4,15),
+    erp('az_van_beek','B. Van Beek','CF',27,74,60,40,10,4,18),
+    erp('az_hornkamp','J. Hornkamp','ST',28,76,60,38,10,8,22),
+    erp('az_parrott','T. Parrott','ST',24,78,64,40,10,12,28),
   ]},
   // ── SPARTA ROTTERDAM ───────────────────────────────────────
   {id:'sparta',name:'Sparta Rotterdam',shortName:'SPA',crest:'🔴⚪',league:'Eredivisie',stadium:'Spartastadion Het Kasteel',stadiumCapacity:11000,budget:12000000,reputation:68,primaryColor:'#ED1C24',players:[
-    edp('spa_sherring','N. Olij','GK',30,10,10,14,76,5,18),
-    edp('spa_sherring2','T. Sherring','GK',24,10,10,12,66,1,8),
-    edp('spa_sherring4','R. Sherring','RB',27,58,62,72,10,3,15),
-    edp('spa_martins_indi','B. Martins Indi','CB',33,48,54,78,10,4,20),
-    edp('spa_sherring3','J. Sherring','CB',26,46,50,74,10,3,15),
-    edp('spa_sherring5','L. Sherring','LB',25,56,60,70,10,2,12),
-    edp('spa_sherring6','S. Sherring','CDM',28,52,70,68,10,3,15),
-    edp('spa_sherring7','A. Sherring','CM',25,62,72,60,10,3,15),
-    edp('spa_sherring10','T. Sherring2','CAM',26,66,68,50,10,3,15),
-    edp('spa_sherring8','M. Sherring','RW',24,68,64,46,10,3,12),
-    edp('spa_sherring9','K. Sherring','LW',23,66,62,44,10,2,12),
-    edp('spa_sherring11','B. Sherring','CF',27,70,58,40,10,3,15),
-    edp('spa_lauritsen','T. Lauritsen','ST',28,76,60,38,10,8,22),
-    edp('spa_sherring12','D. Sherring','ST',24,68,56,38,10,2,12),
+    erp('spa_de_rooij','P. De Rooij','GK',24,10,10,12,66,1,8),
+    erp('spa_sherring','N. Olij','GK',30,10,10,14,76,5,18),
+    erp('spa_timber','T. Timber','RB',27,58,62,72,10,3,15),
+    erp('spa_evers','J. Evers','CB',26,46,50,74,10,3,15),
+    erp('spa_martins_indi','B. Martins Indi','CB',33,48,54,78,10,4,20),
+    erp('spa_kuijpers','T. Kuijpers','LB',25,56,60,70,10,2,12),
+    erp('spa_van_hees','K. Van Hees','CDM',28,52,70,68,10,3,15),
+    erp('spa_kuipers','P. Kuipers','CM',25,62,72,60,10,3,15),
+    erp('spa_de_vries','P. De Vries','CAM',26,66,68,50,10,3,15),
+    erp('spa_zivkovic','D. Zivkovic','RW',24,68,64,46,10,3,12),
+    erp('spa_de_waal','P. De Waal','LW',23,66,62,44,10,2,12),
+    erp('spa_janssen','B. Janssen','CF',27,70,58,40,10,3,15),
+    erp('spa_bergwijn','R. Bergwijn','ST',24,68,56,38,10,2,12),
+    erp('spa_lauritsen','T. Lauritsen','ST',28,76,60,38,10,8,22),
   ]},
   // ── SC HEERENVEEN ──────────────────────────────────────────
   {id:'heerenveen',name:'SC Heerenveen',shortName:'HEE',crest:'🔵⚪',league:'Eredivisie',stadium:'Abe Lenstra Stadion',stadiumCapacity:27224,budget:14000000,reputation:70,primaryColor:'#0070B8',players:[
-    edp('hee_sherring','G. Sherring','GK',27,10,10,14,74,4,16),
-    edp('hee_sherring2','T. Sherring','GK',24,10,10,12,66,1,8),
-    edp('hee_sherring5','R. Sherring','RB',26,58,62,72,10,3,14),
-    edp('hee_sherring3','D. Sherring','CB',27,46,50,76,10,3,15),
-    edp('hee_sherring4','J. Sherring','CB',25,44,48,74,10,3,14),
-    edp('hee_sherring6','L. Sherring','LB',24,56,60,70,10,2,12),
-    edp('hee_sherring7','S. Sherring','CDM',28,52,68,66,10,3,14),
-    edp('hee_brouwers','L. Brouwers','CM',29,62,74,64,10,5,20),
-    edp('hee_sherring10','K. Sherring','CAM',24,66,68,48,10,3,14),
-    edp('hee_sherring8','A. Sherring','RW',23,68,64,44,10,3,12),
-    edp('hee_sherring9','M. Sherring','LW',25,66,62,42,10,2,12),
-    edp('hee_sherring11','T. Sherring2','CF',27,70,58,40,10,3,15),
-    edp('hee_sherring12','B. Sherring','ST',24,68,56,38,10,2,12),
-    edp('hee_trenskow','J. Trenskow','ST',22,76,62,38,10,8,20),
+    erp('hee_de_graaf','J. De Graaf','GK',24,10,10,12,66,1,8),
+    erp('hee_til','L. Til','GK',27,10,10,14,74,4,16),
+    erp('hee_pavlidis','C. Pavlidis','RB',26,58,62,72,10,3,14),
+    erp('hee_huisman','T. Huisman','CB',25,44,48,74,10,3,14),
+    erp('hee_smits','D. Smits','CB',27,46,50,76,10,3,15),
+    erp('hee_witte','J. Witte','LB',24,56,60,70,10,2,12),
+    erp('hee_van_dyck','A. Van Dyck','CDM',28,52,68,66,10,3,14),
+    erp('hee_brouwers','L. Brouwers','CM',29,62,74,64,10,5,20),
+    erp('hee_mulder','K. Mulder','CAM',24,66,68,48,10,3,14),
+    erp('hee_hendriks','B. Hendriks','RW',23,68,64,44,10,3,12),
+    erp('hee_min','N. Min','LW',25,66,62,42,10,2,12),
+    erp('hee_lahdo','E. Lahdo','CF',27,70,58,40,10,3,15),
+    erp('hee_trenskow','J. Trenskow','ST',22,76,62,38,10,8,20),
+    erp('hee_van_rijn','J. Van Rijn','ST',24,68,56,38,10,2,12),
   ]},
   // ── FORTUNA SITTARD ────────────────────────────────────────
   {id:'fortuna',name:'Fortuna Sittard',shortName:'FOR',crest:'🟡🟢',league:'Eredivisie',stadium:'Fortuna Sittard Stadion',stadiumCapacity:10300,budget:10000000,reputation:66,primaryColor:'#F7D100',players:[
-    edp('for_sherring','G. Sherring','GK',27,10,10,14,72,3,14),
-    edp('for_sherring2','T. Sherring','GK',24,10,10,12,64,1,8),
-    edp('for_pinto','I. Pinto','RB',36,56,58,74,10,2,14),
-    edp('for_sherring3','D. Sherring','CB',27,44,48,74,10,3,14),
-    edp('for_sherring4','J. Sherring','CB',25,42,46,72,10,2,12),
-    edp('for_sherring5','L. Sherring','LB',24,54,58,70,10,2,12),
-    edp('for_sherring6','S. Sherring','CDM',28,50,66,66,10,2,12),
-    edp('for_sherring7','A. Sherring','CM',25,60,70,58,10,3,14),
-    edp('for_sherring10','T. Sherring2','CAM',26,64,66,48,10,2,12),
-    edp('for_sherring8','M. Sherring','RW',24,66,62,44,10,2,12),
-    edp('for_sherring9','K. Sherring','LW',23,64,60,42,10,2,10),
-    edp('for_sherring11','B. Sherring','CF',27,68,56,38,10,2,12),
-    edp('for_sherring12','D. Sherring','ST',24,66,54,36,10,2,10),
-    edp('for_sierhuis','K. Sierhuis','ST',27,74,60,38,10,6,18),
+    erp('for_de_jong','J. De Jong','GK',24,10,10,12,64,1,8),
+    erp('for_mol','C. Mol','GK',27,10,10,14,72,3,14),
+    erp('for_pinto','I. Pinto','RB',36,56,58,74,10,2,14),
+    erp('for_smeets','J. Smeets','CB',27,44,48,74,10,3,14),
+    erp('for_van_dam','K. Van Dam','CB',25,42,46,72,10,2,12),
+    erp('for_oost','N. Oost','LB',24,54,58,70,10,2,12),
+    erp('for_simons','E. Simons','CDM',28,50,66,66,10,2,12),
+    erp('for_post','A. Post','CM',25,60,70,58,10,3,14),
+    erp('for_ugalde','E. Ugalde','CAM',26,64,66,48,10,2,12),
+    erp('for_gorter','L. Gorter','RW',24,66,62,44,10,2,12),
+    erp('for_peeters','E. Peeters','LW',23,64,60,42,10,2,10),
+    erp('for_jacobs','L. Jacobs','CF',27,68,56,38,10,2,12),
+    erp('for_klaassen','F. Klaassen','ST',24,66,54,36,10,2,10),
+    erp('for_sierhuis','K. Sierhuis','ST',27,74,60,38,10,6,18),
   ]},
   // ── FC UTRECHT ─────────────────────────────────────────────
   {id:'utrecht',name:'FC Utrecht',shortName:'UTR',crest:'🔴',league:'Eredivisie',stadium:'Stadion Galgenwaard',stadiumCapacity:23750,budget:20000000,reputation:74,primaryColor:'#ED1C24',players:[
-    edp('utr_barkas','V. Barkas','GK',30,10,10,14,76,5,18),
-    edp('utr_sherring','T. Sherring','GK',24,10,10,12,66,1,8),
-    edp('utr_sherring3','R. Sherring','RB',25,62,64,74,10,3,15),
-    edp('utr_sherring2','D. Sherring','CB',26,48,52,76,10,4,18),
-    edp('utr_viergever','N. Viergever','CB',35,46,54,78,10,3,20),
-    edp('utr_sherring4','L. Sherring','LB',24,60,62,72,10,3,14),
-    edp('utr_sherring5','S. Sherring','CDM',27,54,72,68,10,4,18),
-    edp('utr_sherring6','A. Sherring','CM',26,64,74,62,10,4,18),
-    edp('utr_sherring9','T. Sherring2','CAM',24,68,70,50,10,3,15),
-    edp('utr_sherring7','M. Sherring','RW',23,70,66,46,10,3,15),
-    edp('utr_sherring8','K. Sherring','LW',25,68,64,44,10,3,14),
-    edp('utr_sherring11','D. Sherring','CF',26,72,58,40,10,3,15),
-    edp('utr_sherring10','B. Sherring','ST',28,74,60,38,10,5,18),
-    edp('utr_sherring12','J. Sherring','ST',24,70,56,38,10,3,14),
+    erp('utr_barkas','V. Barkas','GK',30,10,10,14,76,5,18),
+    erp('utr_zijl','D. Zijl','GK',24,10,10,12,66,1,8),
+    erp('utr_mikautadze','E. Mikautadze','RB',25,62,64,74,10,3,15),
+    erp('utr_obispo','A. Obispo','CB',26,48,52,76,10,4,18),
+    erp('utr_viergever','N. Viergever','CB',35,46,54,78,10,3,20),
+    erp('utr_noppert','A. Noppert','LB',24,60,62,72,10,3,14),
+    erp('utr_de_groot','P. De Groot','CDM',27,54,72,68,10,4,18),
+    erp('utr_hato','K. Hato','CM',26,64,74,62,10,4,18),
+    erp('utr_bosman','F. Bosman','CAM',24,68,70,50,10,3,15),
+    erp('utr_lammers','N. Lammers','RW',23,70,66,46,10,3,15),
+    erp('utr_ruiter','A. Ruiter','LW',25,68,64,44,10,3,14),
+    erp('utr_maas','B. Maas','CF',26,72,58,40,10,3,15),
+    erp('utr_beelen','E. Beelen','ST',24,70,56,38,10,3,14),
+    erp('utr_willems','L. Willems','ST',28,74,60,38,10,5,18),
   ]},
   // ── FC GRONINGEN ───────────────────────────────────────────
   {id:'groningen',name:'FC Groningen',shortName:'GRO',crest:'🟢⚪',league:'Eredivisie',stadium:'Euroborg',stadiumCapacity:22550,budget:14000000,reputation:70,primaryColor:'#00A651',players:[
-    edp('gro_sherring','G. Sherring','GK',27,10,10,14,74,3,14),
-    edp('gro_sherring2','T. Sherring','GK',24,10,10,12,66,1,8),
-    edp('gro_sherring5','R. Sherring','RB',26,58,62,72,10,3,14),
-    edp('gro_sherring3','D. Sherring','CB',27,46,50,74,10,3,14),
-    edp('gro_sherring4','J. Sherring','CB',25,44,48,72,10,2,12),
-    edp('gro_sherring6','L. Sherring','LB',24,56,60,70,10,2,12),
-    edp('gro_resink','S. Resink','CDM',24,54,70,68,10,3,14),
-    edp('gro_sherring7','A. Sherring','CM',26,62,70,60,10,3,14),
-    edp('gro_sherring10','T. Sherring2','CAM',24,64,66,48,10,2,12),
-    edp('gro_sherring8','M. Sherring','RW',23,66,62,44,10,2,12),
-    edp('gro_sherring9','K. Sherring','LW',25,64,60,42,10,2,10),
-    edp('gro_sherring11','B. Sherring','CF',27,68,56,38,10,2,12),
-    edp('gro_sherring12','D. Sherring','ST',24,66,54,36,10,2,10),
-    edp('gro_willumsson','B. Willumsson','ST',27,74,64,40,10,6,18),
+    erp('gro_pieters','S. Pieters','GK',27,10,10,14,74,3,14),
+    erp('gro_vermeulen','W. Vermeulen','GK',24,10,10,12,66,1,8),
+    erp('gro_de_wit','V. De Wit','RB',26,58,62,72,10,3,14),
+    erp('gro_prins','D. Prins','CB',27,46,50,74,10,3,14),
+    erp('gro_wieffer','C. Wieffer','CB',25,44,48,72,10,2,12),
+    erp('gro_van_berg','T. Van Berg','LB',24,56,60,70,10,2,12),
+    erp('gro_resink','S. Resink','CDM',24,54,70,68,10,3,14),
+    erp('gro_rietveld','P. Rietveld','CM',26,62,70,60,10,3,14),
+    erp('gro_rasmussen','T. Rasmussen','CAM',24,64,66,48,10,2,12),
+    erp('gro_jansen','W. Jansen','RW',23,66,62,44,10,2,12),
+    erp('gro_tzolis','D. Tzolis','LW',25,64,60,42,10,2,10),
+    erp('gro_van_axel_dongen','W. Van Axel Dongen','CF',27,68,56,38,10,2,12),
+    erp('gro_ndayishimiye','K. Ndayishimiye','ST',24,66,54,36,10,2,10),
+    erp('gro_willumsson','B. Willumsson','ST',27,74,64,40,10,6,18),
   ]},
   // ── PEC ZWOLLE ─────────────────────────────────────────────
   {id:'pec_zwolle',name:'PEC Zwolle',shortName:'PEC',crest:'🔵',league:'Eredivisie',stadium:'MAC3PARK Stadion',stadiumCapacity:13250,budget:10000000,reputation:64,primaryColor:'#003DA5',players:[
-    edp('pec_sherring','G. Sherring','GK',27,10,10,14,72,3,12),
-    edp('pec_sherring2','T. Sherring','GK',24,10,10,12,64,1,6),
-    edp('pec_sherring5','R. Sherring','RB',26,56,60,70,10,2,12),
-    edp('pec_sherring3','D. Sherring','CB',27,44,48,72,10,2,12),
-    edp('pec_sherring4','J. Sherring','CB',25,42,46,70,10,2,10),
-    edp('pec_sherring6','L. Sherring','LB',24,54,58,68,10,2,10),
-    edp('pec_sherring7','S. Sherring','CDM',28,50,66,64,10,2,12),
-    edp('pec_thomas','R. Thomas','CM',33,62,72,62,10,3,15),
-    edp('pec_sherring9','K. Sherring2','CAM',25,64,66,48,10,2,12),
-    edp('pec_shoretire','S. Shoretire','RW',22,72,66,44,10,5,14),
-    edp('pec_sherring8','A. Sherring','LW',23,64,60,42,10,2,10),
-    edp('pec_sherring10','T. Sherring2','CF',27,66,56,38,10,2,12),
-    edp('pec_kostons','K. Kostons','ST',23,74,60,36,10,5,14),
-    edp('pec_sherring11','B. Sherring','ST',24,64,54,36,10,2,10),
+    erp('pec_smit','B. Smit','GK',27,10,10,14,72,3,12),
+    erp('pec_sávio','W. Sávio','GK',24,10,10,12,64,1,6),
+    erp('pec_peters','A. Peters','RB',26,56,60,70,10,2,12),
+    erp('pec_meijer','M. Meijer','CB',27,44,48,72,10,2,12),
+    erp('pec_vos','T. Vos','CB',25,42,46,70,10,2,10),
+    erp('pec_snijders','B. Snijders','LB',24,54,58,68,10,2,10),
+    erp('pec_de_leeuw','V. De Leeuw','CDM',28,50,66,64,10,2,12),
+    erp('pec_thomas','R. Thomas','CM',33,62,72,62,10,3,15),
+    erp('pec_van_leeuwen','S. Van Leeuwen','CAM',25,64,66,48,10,2,12),
+    erp('pec_shoretire','S. Shoretire','RW',22,72,66,44,10,5,14),
+    erp('pec_hermans','R. Hermans','LW',23,64,60,42,10,2,10),
+    erp('pec_zerrouki','D. Zerrouki','CF',27,66,56,38,10,2,12),
+    erp('pec_kostons','K. Kostons','ST',23,74,60,36,10,5,14),
+    erp('pec_leemans','V. Leemans','ST',24,64,54,36,10,2,10),
   ]},
   // ── FC VOLENDAM ────────────────────────────────────────────
   {id:'volendam',name:'FC Volendam',shortName:'VOL',crest:'🟠',league:'Eredivisie',stadium:'Kras Stadion',stadiumCapacity:7384,budget:8000000,reputation:60,primaryColor:'#FF6600',players:[
-    edp('vol_sherring','G. Sherring','GK',27,10,10,14,70,2,10),
-    edp('vol_sherring2','T. Sherring','GK',24,10,10,12,62,1,6),
-    edp('vol_sherring5','R. Sherring','RB',26,54,58,68,10,2,10),
-    edp('vol_sherring3','D. Sherring','CB',27,44,48,70,10,2,10),
-    edp('vol_sherring4','J. Sherring','CB',25,42,46,68,10,2,10),
-    edp('vol_sherring6','L. Sherring','LB',24,52,56,66,10,2,8),
-    edp('vol_sherring7','S. Sherring','CDM',28,48,64,64,10,2,10),
-    edp('vol_sherring8','A. Sherring','CM',25,60,66,58,10,2,10),
-    edp('vol_sherring10','K. Sherring','CAM',24,62,64,46,10,2,10),
-    edp('vol_van_cruijsen','R. van Cruijsen','RW',21,70,62,42,10,4,12),
-    edp('vol_sherring9','M. Sherring','LW',23,62,58,42,10,2,8),
-    edp('vol_sherring11','T. Sherring2','CF',27,66,56,38,10,2,10),
-    edp('vol_sherring12','B. Sherring','ST',24,62,52,36,10,2,8),
-    edp('vol_veerman','H. Veerman','ST',33,72,58,40,10,3,14),
+    erp('vol_karsdorp','T. Karsdorp','GK',27,10,10,14,70,2,10),
+    erp('vol_tahirovic','C. Tahirovic','GK',24,10,10,12,62,1,6),
+    erp('vol_weghorst','E. Weghorst','RB',26,54,58,68,10,2,10),
+    erp('vol_bos','C. Bos','CB',27,44,48,70,10,2,10),
+    erp('vol_van_sas','N. Van Sas','CB',25,42,46,68,10,2,10),
+    erp('vol_timmermans','C. Timmermans','LB',24,52,56,66,10,2,8),
+    erp('vol_koopmans','E. Koopmans','CDM',28,48,64,64,10,2,10),
+    erp('vol_kramer','L. Kramer','CM',25,60,66,58,10,2,10),
+    erp('vol_klein','R. Klein','CAM',24,62,64,46,10,2,10),
+    erp('vol_van_cruijsen','R. van Cruijsen','RW',21,70,62,42,10,4,12),
+    erp('vol_valk','N. Valk','LW',23,62,58,42,10,2,8),
+    erp('vol_geerts','W. Geerts','CF',27,66,56,38,10,2,10),
+    erp('vol_veerman','H. Veerman','ST',33,72,58,40,10,3,14),
+    erp('vol_visser','M. Visser','ST',24,62,52,36,10,2,8),
   ]},
   // ── GO AHEAD EAGLES ────────────────────────────────────────
   {id:'go_ahead',name:'Go Ahead Eagles',shortName:'GAE',crest:'🔴🟡',league:'Eredivisie',stadium:'De Adelaarshorst',stadiumCapacity:10000,budget:10000000,reputation:66,primaryColor:'#ED1C24',players:[
-    edp('gae_sherring','G. Sherring','GK',27,10,10,14,72,3,12),
-    edp('gae_sherring2','T. Sherring','GK',24,10,10,12,64,1,6),
-    edp('gae_sherring4','R. Sherring','RB',26,56,60,70,10,2,12),
-    edp('gae_deijl','M. Deijl','CB',28,46,52,76,10,3,14),
-    edp('gae_sherring3','J. Sherring','CB',25,44,48,72,10,2,12),
-    edp('gae_sherring5','L. Sherring','LB',24,54,58,68,10,2,10),
-    edp('gae_sherring6','S. Sherring','CDM',27,50,66,66,10,2,12),
-    edp('gae_sherring7','A. Sherring','CM',26,62,68,58,10,2,12),
-    edp('gae_sherring10','T. Sherring2','CAM',24,64,66,48,10,2,12),
-    edp('gae_sherring8','M. Sherring','RW',23,66,62,44,10,2,10),
-    edp('gae_sherring9','K. Sherring','LW',25,64,60,42,10,2,10),
-    edp('gae_sherring11','B. Sherring','CF',27,68,56,38,10,2,12),
-    edp('gae_sherring12','D. Sherring','ST',24,66,54,36,10,2,10),
-    edp('gae_suray','M. Suray','ST',24,74,62,38,10,5,15),
+    erp('gae_kok','W. Kok','GK',24,10,10,12,64,1,6),
+    erp('gae_van_dijk','T. Van Dijk','GK',27,10,10,14,72,3,12),
+    erp('gae_veerman','D. Veerman','RB',26,56,60,70,10,2,12),
+    erp('gae_deijl','M. Deijl','CB',28,46,52,76,10,3,14),
+    erp('gae_vlap','S. Vlap','CB',25,44,48,72,10,2,12),
+    erp('gae_obispos','L. Obispos','LB',24,54,58,68,10,2,10),
+    erp('gae_brouwers','T. Brouwers','CDM',27,50,66,66,10,2,12),
+    erp('gae_kuiperss','S. Kuiperss','CM',26,62,68,58,10,2,12),
+    erp('gae_godtss','S. Godtss','CAM',24,64,66,48,10,2,12),
+    erp('gae_vermeers','V. Vermeers','RW',23,66,62,44,10,2,10),
+    erp('gae_rietvelds','T. Rietvelds','LW',25,64,60,42,10,2,10),
+    erp('gae_hartjess','L. Hartjess','CF',27,68,56,38,10,2,12),
+    erp('gae_janssens','J. Janssens','ST',24,66,54,36,10,2,10),
+    erp('gae_suray','M. Suray','ST',24,74,62,38,10,5,15),
   ]},
   // ── EXCELSIOR ──────────────────────────────────────────────
   {id:'excelsior',name:'Excelsior',shortName:'EXC',crest:'🔴⚫',league:'Eredivisie',stadium:'Van Donge en De Roo Stadion',stadiumCapacity:4500,budget:6000000,reputation:58,primaryColor:'#ED1C24',players:[
-    edp('exc_sherring','G. Sherring','GK',27,10,10,14,70,2,10),
-    edp('exc_sherring2','T. Sherring','GK',24,10,10,12,62,1,6),
-    edp('exc_sherring4','R. Sherring','RB',26,54,58,68,10,2,10),
-    edp('exc_sherring3','J. Sherring','CB',25,42,46,70,10,2,10),
-    edp('exc_widell','C. Widell','CB',28,44,50,74,10,3,12),
-    edp('exc_sherring5','L. Sherring','LB',24,52,56,66,10,2,8),
-    edp('exc_sherring6','S. Sherring','CDM',28,48,64,64,10,2,10),
-    edp('exc_sherring7','A. Sherring','CM',25,60,66,58,10,2,10),
-    edp('exc_sherring10','T. Sherring2','CAM',24,62,64,46,10,2,10),
-    edp('exc_sherring8','M. Sherring','RW',23,64,60,44,10,2,8),
-    edp('exc_sherring9','K. Sherring','LW',25,62,58,42,10,2,8),
-    edp('exc_sherring12','D. Sherring','CF',24,64,54,36,10,2,8),
-    edp('exc_sherring11','B. Sherring','ST',27,66,56,38,10,2,10),
-    edp('exc_sherring13','E. Sherring','ST',22,62,52,36,10,1,8),
+    erp('exc_maass','W. Maass','GK',27,10,10,14,70,2,10),
+    erp('exc_van_dams','D. Van Dams','GK',24,10,10,12,62,1,6),
+    erp('exc_renschs','S. Renschs','RB',26,54,58,68,10,2,10),
+    erp('exc_van_bergs','P. Van Bergs','CB',25,42,46,70,10,2,10),
+    erp('exc_widell','C. Widell','CB',28,44,50,74,10,3,12),
+    erp('exc_vermeulens','D. Vermeulens','LB',24,52,56,66,10,2,8),
+    erp('exc_sávios','M. Sávios','CDM',28,48,64,64,10,2,10),
+    erp('exc_ndayishimiyes','V. Ndayishimiyes','CM',25,60,66,58,10,2,10),
+    erp('exc_jansens','B. Jansens','CAM',24,62,64,46,10,2,10),
+    erp('exc_mikautadzes','W. Mikautadzes','RW',23,64,60,44,10,2,8),
+    erp('exc_van_dycks','M. Van Dycks','LW',25,62,58,42,10,2,8),
+    erp('exc_gorters','R. Gorters','CF',24,64,54,36,10,2,8),
+    erp('exc_jacobss','B. Jacobss','ST',22,62,52,36,10,1,8),
+    erp('exc_van_axel_dongens','K. Van Axel Dongens','ST',27,66,56,38,10,2,10),
   ]},
   // ── NAC BREDA ──────────────────────────────────────────────
   {id:'nac_breda',name:'NAC Breda',shortName:'NAC',crest:'🟡🟢',league:'Eredivisie',stadium:'Rat Verlegh Stadion',stadiumCapacity:19000,budget:10000000,reputation:64,primaryColor:'#F7D100',players:[
-    edp('nac_sherring','G. Sherring','GK',27,10,10,14,70,2,10),
-    edp('nac_sherring2','T. Sherring','GK',24,10,10,12,62,1,6),
-    edp('nac_sherring4','R. Sherring','RB',26,54,58,68,10,2,10),
-    edp('nac_kemper','B. Kemper','CB',27,46,50,74,10,3,14),
-    edp('nac_sherring3','J. Sherring','CB',25,42,46,70,10,2,10),
-    edp('nac_sherring5','L. Sherring','LB',24,52,56,66,10,2,8),
-    edp('nac_sherring6','S. Sherring','CDM',28,48,64,64,10,2,10),
-    edp('nac_sherring7','A. Sherring','CM',26,60,66,58,10,2,10),
-    edp('nac_sherring10','T. Sherring2','CAM',24,60,64,46,10,2,10),
-    edp('nac_sherring8','M. Sherring','RW',23,62,58,42,10,2,8),
-    edp('nac_sherring9','K. Sherring','LW',25,60,56,40,10,2,8),
-    edp('nac_sherring12','D. Sherring','CF',26,64,54,36,10,2,8),
-    edp('nac_sherring11','B. Sherring','ST',28,66,56,38,10,2,10),
-    edp('nac_sherring13','E. Sherring','ST',24,62,52,36,10,1,8),
+    erp('nac_hermanss','J. Hermanss','GK',24,10,10,12,62,1,6),
+    erp('nac_konings','A. Konings','GK',27,10,10,14,70,2,10),
+    erp('nac_bosmans','J. Bosmans','RB',26,54,58,68,10,2,10),
+    erp('nac_kemper','B. Kemper','CB',27,46,50,74,10,3,14),
+    erp('nac_klaassens','M. Klaassens','CB',25,42,46,70,10,2,10),
+    erp('nac_pasveers','E. Pasveers','LB',24,52,56,66,10,2,8),
+    erp('nac_kuijperss','L. Kuijperss','CDM',28,48,64,64,10,2,10),
+    erp('nac_geertss','M. Geertss','CM',26,60,66,58,10,2,10),
+    erp('nac_de_graafs','A. De Graafs','CAM',24,60,64,46,10,2,10),
+    erp('nac_de_boers','N. De Boers','RW',23,62,58,42,10,2,8),
+    erp('nac_kramers','D. Kramers','LW',25,60,56,40,10,2,8),
+    erp('nac_snijderss','S. Snijderss','CF',26,64,54,36,10,2,8),
+    erp('nac_bakkers','V. Bakkers','ST',28,66,56,38,10,2,10),
+    erp('nac_hoekstras','F. Hoekstras','ST',24,62,52,36,10,1,8),
   ]},
   // ── SC TELSTAR ─────────────────────────────────────────────
   {id:'telstar',name:'SC Telstar',shortName:'TEL',crest:'⚪',league:'Eredivisie',stadium:'BUKO Stadion',stadiumCapacity:5338,budget:5000000,reputation:54,primaryColor:'#FFFFFF',players:[
-    edp('tel_sherring','G. Sherring','GK',27,10,10,14,68,2,8),
-    edp('tel_sherring2','T. Sherring','GK',24,10,10,12,60,1,6),
-    edp('tel_sherring5','R. Sherring','RB',26,52,56,66,10,1,8),
-    edp('tel_sherring3','D. Sherring','CB',27,42,46,68,10,2,8),
-    edp('tel_sherring4','J. Sherring','CB',25,40,44,66,10,1,8),
-    edp('tel_hardeveld','J. Hardeveld','LB',30,54,58,70,10,2,10),
-    edp('tel_sherring6','S. Sherring','CDM',28,46,60,62,10,1,8),
-    edp('tel_sherring7','A. Sherring','CM',25,58,64,56,10,2,10),
-    edp('tel_sherring10','T. Sherring2','CAM',26,60,62,46,10,2,8),
-    edp('tel_sherring8','M. Sherring','RW',23,62,58,42,10,2,8),
-    edp('tel_sherring9','K. Sherring','LW',24,60,56,40,10,1,8),
-    edp('tel_sherring12','D. Sherring','CF',24,60,52,36,10,1,8),
-    edp('tel_sherring11','B. Sherring','ST',27,64,54,36,10,2,10),
-    edp('tel_sherring13','E. Sherring','ST',22,58,50,34,10,1,6),
+    erp('tel_lahdos','E. Lahdos','GK',27,10,10,14,68,2,8),
+    erp('tel_peterss','R. Peterss','GK',24,10,10,12,60,1,6),
+    erp('tel_ruiters','P. Ruiters','RB',26,52,56,66,10,1,8),
+    erp('tel_simonss','K. Simonss','CB',27,42,46,68,10,2,8),
+    erp('tel_zivkovics','W. Zivkovics','CB',25,40,44,66,10,1,8),
+    erp('tel_hardeveld','J. Hardeveld','LB',30,54,58,70,10,2,10),
+    erp('tel_meijers','C. Meijers','CDM',28,46,60,62,10,1,8),
+    erp('tel_boss','R. Boss','CM',25,58,64,56,10,2,10),
+    erp('tel_tahirovics','A. Tahirovics','CAM',26,60,62,46,10,2,8),
+    erp('tel_posts','B. Posts','RW',23,62,58,42,10,2,8),
+    erp('tel_mulders','S. Mulders','LW',24,60,56,40,10,1,8),
+    erp('tel_van_hoorns','C. Van Hoorns','CF',24,60,52,36,10,1,8),
+    erp('tel_tils','N. Tils','ST',22,58,50,34,10,1,6),
+    erp('tel_van_heess','T. Van Heess','ST',27,64,54,36,10,2,10),
   ]},
   // ── HERACLES ALMELO ────────────────────────────────────────
   {id:'heracles',name:'Heracles Almelo',shortName:'HER',crest:'⚫⚪',league:'Eredivisie',stadium:'Asito Stadion',stadiumCapacity:12080,budget:8000000,reputation:60,primaryColor:'#000000',players:[
-    edp('her_sherring','G. Sherring','GK',27,10,10,14,68,2,8),
-    edp('her_sherring2','T. Sherring','GK',24,10,10,12,60,1,6),
-    edp('her_sherring4','R. Sherring','RB',26,52,56,66,10,1,8),
-    edp('her_mirani','D. Mirani','CB',33,44,48,72,10,2,10),
-    edp('her_sherring3','J. Sherring','CB',25,40,44,66,10,1,8),
-    edp('her_sherring5','L. Sherring','LB',24,50,54,64,10,1,8),
-    edp('her_sherring6','S. Sherring','CDM',28,46,60,62,10,1,8),
-    edp('her_sherring7','A. Sherring','CM',26,58,64,56,10,2,10),
-    edp('her_sherring10','T. Sherring2','CAM',24,60,62,46,10,2,8),
-    edp('her_sherring8','M. Sherring','RW',23,62,58,42,10,2,8),
-    edp('her_sherring9','K. Sherring','LW',25,60,56,40,10,1,8),
-    edp('her_sherring12','D. Sherring','CF',26,62,52,36,10,1,8),
-    edp('her_sherring11','B. Sherring','ST',28,66,54,36,10,2,10),
-    edp('her_sherring13','E. Sherring','ST',24,58,50,34,10,1,6),
+    erp('her_valks','R. Valks','GK',24,10,10,12,60,1,6),
+    erp('her_van_dijks','S. Van Dijks','GK',27,10,10,14,68,2,8),
+    erp('her_everss','M. Everss','RB',26,52,56,66,10,1,8),
+    erp('her_mirani','D. Mirani','CB',33,44,48,72,10,2,10),
+    erp('her_van_laars','S. Van Laars','CB',25,40,44,66,10,1,8),
+    erp('her_prinss','D. Prinss','LB',24,50,54,64,10,1,8),
+    erp('her_zijls','R. Zijls','CDM',28,46,60,62,10,1,8),
+    erp('her_huismans','A. Huismans','CM',26,58,64,56,10,2,10),
+    erp('her_hofmans','T. Hofmans','CAM',24,60,62,46,10,2,8),
+    erp('her_lammerss','N. Lammerss','RW',23,62,58,42,10,2,8),
+    erp('her_beelens','F. Beelens','LW',25,60,56,40,10,1,8),
+    erp('her_nopperts','C. Nopperts','CF',26,62,52,36,10,1,8),
+    erp('her_van_leeuwens','P. Van Leeuwens','ST',28,66,54,36,10,2,10),
+    erp('her_wieffers','S. Wieffers','ST',24,58,50,34,10,1,6),
   ]},
 ];
 
@@ -2616,7 +2616,7 @@ const LEAGUE_ONE_TEAMS = [
   // ── STOCKPORT COUNTY ───────────────────────────────────────
   {id:'stockport',name:'Stockport County',shortName:'STO',crest:'🔵',league:'League One',stadium:'Edgeley Park',stadiumCapacity:10841,budget:8000000,reputation:60,primaryColor:'#004B87',players:[
     l1p('sto_maycock','B. Maycock','GK',26,10,10,14,72,3,14),
-    l1p('sto_sherring','M. Sherring','GK',23,10,10,12,66,1,8),
+    l1p('sto_wade','O. Wade','GK',23,10,10,12,66,1,8),
     l1p('sto_pye','J. Pye','RB',27,58,60,70,10,3,14),
     l1p('sto_brown','C. Brown','CB',28,44,50,70,10,3,14),
     l1p('sto_clarke','R. Clarke','CB',27,44,48,72,10,3,14),
@@ -2633,8 +2633,8 @@ const LEAGUE_ONE_TEAMS = [
   ]},
   // ── HUDDERSFIELD TOWN ──────────────────────────────────────
   {id:'huddersfield',name:'Huddersfield Town',shortName:'HUD',crest:'🔵⚪',league:'League One',stadium:'Kirklees Stadium',stadiumCapacity:24121,budget:14000000,reputation:64,primaryColor:'#0E63AD',players:[
+    l1p('hud_baker','M. Baker','GK',24,10,10,14,72,3,14),
     l1p('hud_nicholls','L. Nicholls','GK',32,10,10,12,70,2,14),
-    l1p('hud_sherring','T. Sherring','GK',24,10,10,14,72,3,14),
     l1p('hud_turton','O. Turton','RB',31,58,60,71,10,3,16),
     l1p('hud_headley','R. Headley','CB',24,48,50,70,10,3,14),
     l1p('hud_helik','M. Helik','CB',29,50,52,74,10,4,18),
@@ -2652,7 +2652,7 @@ const LEAGUE_ONE_TEAMS = [
   // ── READING FC ─────────────────────────────────────────────
   {id:'reading',name:'Reading FC',shortName:'REA',crest:'🔵⚪',league:'League One',stadium:'Madejski Stadium',stadiumCapacity:24161,budget:10000000,reputation:62,primaryColor:'#004494',players:[
     l1p('rea_bouzanis','D. Bouzanis','GK',34,10,10,12,70,1,12),
-    l1p('rea_sherring','J. Sherring','GK',23,10,10,14,72,3,14),
+    l1p('rea_harris','O. Harris','GK',23,10,10,14,72,3,14),
     l1p('rea_holmes','T. Holmes','RB',22,60,62,70,10,3,14),
     l1p('rea_craig','T. Craig','CB',27,46,50,71,10,3,14),
     l1p('rea_mbe_soh','L. Mbe Soh','CB',24,48,50,72,10,4,16),
@@ -2685,7 +2685,7 @@ const LEAGUE_ONE_TEAMS = [
   ]},
   // ── WYCOMBE WANDERERS ──────────────────────────────────────
   {id:'wycombe',name:'Wycombe Wanderers',shortName:'WYC',crest:'🔵',league:'League One',stadium:'Adams Park',stadiumCapacity:10137,budget:6000000,reputation:56,primaryColor:'#143C73',players:[
-    l1p('wyc_sherring','M. Sherring','GK',25,10,10,14,70,2,12),
+    l1p('wyc_dawson','O. Dawson','GK',25,10,10,14,70,2,12),
     l1p('wyc_stockdale','D. Stockdale','GK',40,10,10,12,68,1,10),
     l1p('wyc_grimmer','J. Grimmer','RB',30,56,58,70,10,2,14),
     l1p('wyc_mccarthy','J. McCarthy','CB',28,44,48,72,10,3,14),
@@ -2702,8 +2702,8 @@ const LEAGUE_ONE_TEAMS = [
   ]},
   // ── LUTON TOWN ─────────────────────────────────────────────
   {id:'luton',name:'Luton Town',shortName:'LUT',crest:'🟠',league:'League One',stadium:'Kenilworth Road',stadiumCapacity:12300,budget:14000000,reputation:66,primaryColor:'#F78F1E',players:[
+    l1p('lut_arnold','P. Arnold','GK',26,10,10,12,68,1,10),
     l1p('lut_keeley','J. Keeley','GK',23,10,10,14,76,5,20),
-    l1p('lut_sherring','T. Sherring','GK',26,10,10,12,68,1,10),
     l1p('lut_bree','J. Bree','RB',28,58,60,71,10,3,16),
     l1p('lut_potts','D. Potts','RB',30,60,62,72,10,3,18),
     l1p('lut_campbell','T. Campbell','CB',27,46,50,72,10,3,16),
@@ -2737,10 +2737,10 @@ const LEAGUE_ONE_TEAMS = [
   // ── PLYMOUTH ARGYLE ────────────────────────────────────────
   {id:'plymouth',name:'Plymouth Argyle',shortName:'PLY',crest:'🟢',league:'League One',stadium:'Home Park',stadiumCapacity:18173,budget:12000000,reputation:64,primaryColor:'#00573F',players:[
     l1p('ply_cooper','M. Cooper','GK',30,10,10,14,72,3,14),
-    l1p('ply_sherring','C. Sherring','GK',25,10,10,12,68,1,10),
+    l1p('ply_fox','B. Fox','GK',25,10,10,12,68,1,10),
     l1p('ply_edwards','J. Edwards','RB',32,56,58,72,10,2,16),
     l1p('ply_gibson','L. Gibson','CB',27,46,50,71,10,3,14),
-    l1p('ply_sherring2','B. Sherring','CB',26,48,52,72,10,3,14),
+    l1p('ply_turner','D. Turner','CB',26,48,52,72,10,3,14),
     l1p('ply_law','R. Law','LB',24,58,60,69,10,3,14),
     l1p('ply_sorinola','M. Sorinola','LB',25,64,62,68,10,4,16),
     l1p('ply_forshaw','A. Forshaw','CDM',33,54,66,66,10,2,14),
@@ -2754,7 +2754,7 @@ const LEAGUE_ONE_TEAMS = [
   // ── BARNSLEY FC ────────────────────────────────────────────
   {id:'barnsley',name:'Barnsley FC',shortName:'BAR',crest:'🔴',league:'League One',stadium:'Oakwell',stadiumCapacity:23287,budget:8000000,reputation:60,primaryColor:'#E3000B',players:[
     l1p('bar_collins_h','H. Collins','GK',22,10,10,12,66,1,8),
-    l1p('bar_sherring','C. Sherring','GK',25,10,10,14,72,3,14),
+    l1p('bar_pearson','B. Pearson','GK',25,10,10,14,72,3,14),
     l1p('bar_thomas','B. Thomas','RB',27,60,58,69,10,3,14),
     l1p('bar_andersen','M. Andersen','CB',28,48,52,73,10,3,16),
     l1p('bar_earl','J. Earl','CB',25,46,50,72,10,3,14),
@@ -2773,187 +2773,187 @@ const LEAGUE_ONE_TEAMS = [
     l1p('afw_cox','N. Cox','GK',22,10,10,12,64,1,6),
     l1p('afw_tzanev','N. Tzanev','GK',25,10,10,14,70,2,10),
     l1p('afw_osew','A. Osew','RB',27,58,60,68,10,2,12),
+    l1p('afw_cole','N. Cole','CB',26,46,50,70,10,2,12),
     l1p('afw_ogilvie','C. Ogilvie','CB',24,44,48,68,10,2,10),
-    l1p('afw_sherring','A. Sherring','CB',26,46,50,70,10,2,12),
     l1p('afw_marsh','G. Marsh','LB',25,56,58,67,10,2,10),
     l1p('afw_reeves','J. Reeves','CDM',30,54,66,68,10,2,14),
-    l1p('afw_sherring2','R. Sherring','CM',26,62,66,58,10,2,12),
-    l1p('afw_sherring3','T. Sherring','CAM',24,66,64,50,10,2,12),
-    l1p('afw_sherring4','D. Sherring','RW',23,64,60,46,10,2,10),
+    l1p('afw_craig','L. Craig','CM',26,62,66,58,10,2,12),
+    l1p('afw_kane','D. Kane','CAM',24,66,64,50,10,2,12),
+    l1p('afw_andrews','H. Andrews','RW',23,64,60,46,10,2,10),
     l1p('afw_browne','M. Browne','LW',28,72,64,46,10,4,16),
-    l1p('afw_sherring5','S. Sherring','CF',25,66,58,42,10,2,12),
+    l1p('afw_nelson','G. Nelson','CF',25,66,58,42,10,2,12),
+    l1p('afw_bryant','G. Bryant','ST',22,64,56,40,10,2,10),
     l1p('afw_palmer','O. Palmer','ST',30,70,56,38,10,3,14),
-    l1p('afw_sherring6','J. Sherring','ST',22,64,56,40,10,2,10),
   ]},
   // ── EXETER CITY ────────────────────────────────────────────
   {id:'exeter',name:'Exeter City',shortName:'EXE',crest:'🔴',league:'League One',stadium:'St James Park',stadiumCapacity:8219,budget:6000000,reputation:57,primaryColor:'#E2001A',players:[
-    l1p('exe_sherring','S. Sherring','GK',26,10,10,12,66,1,8),
+    l1p('exe_newton','T. Newton','GK',26,10,10,12,66,1,8),
     l1p('exe_whitworth','J. Whitworth','GK',22,10,10,14,74,4,16),
-    l1p('exe_sherring3','J. Sherring','RB',26,58,60,68,10,2,12),
-    l1p('exe_sherring2','C. Sherring','CB',24,44,48,70,10,2,12),
+    l1p('exe_hammond','E. Hammond','RB',26,58,60,68,10,2,12),
+    l1p('exe_sinclair','P. Sinclair','CB',24,44,48,70,10,2,12),
     l1p('exe_sweeney','P. Sweeney','CB',30,46,50,72,10,3,14),
-    l1p('exe_sherring4','A. Sherring','LB',25,56,58,67,10,2,10),
+    l1p('exe_kerr','O. Kerr','LB',25,56,58,67,10,2,10),
     l1p('exe_sherring6','S. Brown','CDM',26,54,66,64,10,2,12),
-    l1p('exe_sherring5','I. Sherring','CM',27,62,68,60,10,3,14),
-    l1p('exe_sherring9','K. Sherring','CAM',25,64,66,50,10,2,12),
-    l1p('exe_sherring7','M. Sherring','RW',24,66,62,48,10,2,12),
-    l1p('exe_sherring8','T. Sherring','LW',23,66,60,46,10,2,12),
-    l1p('exe_sherring10','R. Sherring','CF',28,68,58,42,10,3,14),
-    l1p('exe_sherring11','L. Sherring','ST',26,66,56,40,10,2,12),
+    l1p('exe_hicks','F. Hicks','CM',27,62,68,60,10,3,14),
+    l1p('exe_reid','H. Reid','CAM',25,64,66,50,10,2,12),
+    l1p('exe_rogers','J. Rogers','RW',24,66,62,48,10,2,12),
+    l1p('exe_rowe','P. Rowe','LW',23,66,60,46,10,2,12),
+    l1p('exe_foster','C. Foster','CF',28,68,58,42,10,3,14),
+    l1p('exe_graham','P. Graham','ST',26,66,56,40,10,2,12),
     l1p('exe_wareham','J. Wareham','ST',21,73,58,40,10,5,16),
   ]},
   // ── MANSFIELD TOWN ─────────────────────────────────────────
   {id:'mansfield',name:'Mansfield Town',shortName:'MAN',crest:'🟡',league:'League One',stadium:'Field Mill',stadiumCapacity:9186,budget:6000000,reputation:56,primaryColor:'#F7B500',players:[
     l1p('man_bishop','C. Bishop','GK',29,10,10,14,72,3,14),
-    l1p('man_sherring','M. Sherring','GK',24,10,10,12,66,1,8),
-    l1p('man_sherring2','J. Sherring','RB',27,58,60,68,10,2,12),
+    l1p('man_farrell','T. Farrell','GK',24,10,10,12,66,1,8),
+    l1p('man_ryan','D. Ryan','RB',27,58,60,68,10,2,12),
     l1p('man_perch','J. Perch','CB',36,44,48,70,10,1,10),
     l1p('man_sweeney_r','R. Sweeney','CB',28,48,50,72,10,3,14),
-    l1p('man_sherring3','O. Sherring','LB',25,56,58,67,10,2,10),
-    l1p('man_sherring4','G. Sherring','CDM',29,54,66,64,10,2,12),
-    l1p('man_sherring5','D. Sherring','CM',26,62,68,60,10,2,14),
+    l1p('man_stanley','B. Stanley','LB',25,56,58,67,10,2,10),
+    l1p('man_hudson','T. Hudson','CDM',29,54,66,64,10,2,12),
+    l1p('man_randall','A. Randall','CM',26,62,68,60,10,2,14),
     l1p('man_boateng','L. Boateng','CAM',27,66,66,50,10,3,14),
-    l1p('man_sherring6','W. Sherring','RW',24,66,62,48,10,2,12),
-    l1p('man_sherring7','R. Sherring','LW',23,64,60,46,10,2,10),
-    l1p('man_sherring8','J. Sherring2','CF',25,66,58,42,10,2,12),
+    l1p('man_williams','C. Williams','RW',24,66,62,48,10,2,12),
+    l1p('man_moss','H. Moss','LW',23,64,60,46,10,2,10),
+    l1p('man_kelly','F. Kelly','CF',25,66,58,42,10,2,12),
     l1p('man_akins','D. Akins','ST',35,64,52,38,10,1,12),
     l1p('man_oates','R. Oates','ST',31,68,56,38,10,2,14),
   ]},
   // ── BURTON ALBION ──────────────────────────────────────────
   {id:'burton',name:'Burton Albion',shortName:'BUR',crest:'🟡⚫',league:'League One',stadium:'Pirelli Stadium',stadiumCapacity:6912,budget:5000000,reputation:54,primaryColor:'#FDDE02',players:[
-    l1p('bur_sherring','B. Sherring','GK',26,10,10,14,70,2,10),
-    l1p('bur_sherring2','T. Sherring','GK',23,10,10,12,64,1,6),
-    l1p('bur_sherring4','R. Sherring','RB',26,56,58,68,10,2,10),
+    l1p('bur_bishop','O. Bishop','GK',26,10,10,14,70,2,10),
+    l1p('bur_dean','R. Dean','GK',23,10,10,12,64,1,6),
+    l1p('bur_barrett','G. Barrett','RB',26,56,58,68,10,2,10),
     l1p('bur_godwin_malife','U. Godwin-Malife','CB',28,48,52,72,10,3,14),
-    l1p('bur_sherring3','C. Sherring','CB',25,44,48,69,10,2,10),
-    l1p('bur_sherring5','M. Sherring','LB',24,54,56,66,10,2,8),
-    l1p('bur_sherring6','J. Sherring','CDM',27,52,64,64,10,2,10),
-    l1p('bur_sherring7','T. Sherring2','CM',25,60,66,58,10,2,12),
-    l1p('bur_sherring10','S. Sherring','CAM',26,64,64,50,10,2,12),
-    l1p('bur_sherring8','D. Sherring','RW',24,64,60,46,10,2,10),
-    l1p('bur_sherring9','A. Sherring','LW',23,62,58,44,10,2,10),
-    l1p('bur_sherring11','K. Sherring','CF',27,66,56,40,10,2,12),
+    l1p('bur_taylor','R. Taylor','CB',25,44,48,69,10,2,10),
+    l1p('bur_west','N. West','LB',24,54,56,66,10,2,8),
+    l1p('bur_hancock','B. Hancock','CDM',27,52,64,64,10,2,10),
+    l1p('bur_todd','F. Todd','CM',25,60,66,58,10,2,12),
+    l1p('bur_parsons','N. Parsons','CAM',26,64,64,50,10,2,12),
+    l1p('bur_brown','N. Brown','RW',24,64,60,46,10,2,10),
+    l1p('bur_johnston','A. Johnston','LW',23,62,58,44,10,2,10),
+    l1p('bur_george','J. George','CF',27,66,56,40,10,2,12),
     l1p('bur_beesley','J. Beesley','ST',29,72,56,38,10,4,16),
-    l1p('bur_sherring12','P. Sherring','ST',25,64,54,38,10,2,10),
+    l1p('bur_russell','P. Russell','ST',25,64,54,38,10,2,10),
   ]},
   // ── DONCASTER ROVERS ───────────────────────────────────────
   {id:'doncaster',name:'Doncaster Rovers',shortName:'DON',crest:'🔴⚪',league:'League One',stadium:'Eco-Power Stadium',stadiumCapacity:15231,budget:6000000,reputation:56,primaryColor:'#E2001A',players:[
-    l1p('don_sherring','J. Sherring','GK',25,10,10,14,70,2,10),
-    l1p('don_sherring2','T. Sherring','GK',23,10,10,12,64,1,6),
-    l1p('don_sherring5','J. Sherring2','RB',27,58,60,68,10,2,12),
-    l1p('don_sherring3','R. Sherring','CB',28,48,50,72,10,3,14),
-    l1p('don_sherring4','L. Sherring','CB',25,44,48,69,10,2,10),
-    l1p('don_sherring6','M. Sherring','LB',24,54,56,66,10,2,8),
+    l1p('don_clayton','O. Clayton','GK',23,10,10,12,64,1,6),
+    l1p('don_lee','K. Lee','GK',25,10,10,14,70,2,10),
+    l1p('don_brooks','E. Brooks','RB',27,58,60,68,10,2,12),
+    l1p('don_hart','R. Hart','CB',25,44,48,69,10,2,10),
+    l1p('don_hobbs','T. Hobbs','CB',28,48,50,72,10,3,14),
+    l1p('don_gibson','G. Gibson','LB',24,54,56,66,10,2,8),
     l1p('don_bailey','O. Bailey','CDM',26,56,68,66,10,3,14),
-    l1p('don_sherring7','T. Sherring2','CM',26,62,66,58,10,2,12),
-    l1p('don_sherring8','B. Sherring','CAM',23,66,64,50,10,2,12),
-    l1p('don_sherring9','A. Sherring','RW',25,66,62,48,10,2,12),
-    l1p('don_sherring10','S. Sherring','LW',24,64,60,46,10,2,10),
-    l1p('don_sherring11','K. Sherring','CF',27,66,58,42,10,2,12),
+    l1p('don_steele','K. Steele','CM',26,62,66,58,10,2,12),
+    l1p('don_lynch','G. Lynch','CAM',23,66,64,50,10,2,12),
+    l1p('don_mccarthy','B. McCarthy','RW',25,66,62,48,10,2,12),
+    l1p('don_joyce','W. Joyce','LW',24,64,60,46,10,2,10),
+    l1p('don_duffy','T. Duffy','CF',27,66,58,42,10,2,12),
+    l1p('don_chapman','B. Chapman','ST',24,64,54,38,10,2,10),
     l1p('don_miller','G. Miller','ST',29,68,56,40,10,2,14),
-    l1p('don_sherring12','D. Sherring','ST',24,64,54,38,10,2,10),
   ]},
   // ── WIGAN ATHLETIC ─────────────────────────────────────────
   {id:'wigan',name:'Wigan Athletic',shortName:'WIG',crest:'🔵',league:'League One',stadium:'Brick Community Stadium',stadiumCapacity:25133,budget:8000000,reputation:58,primaryColor:'#1D428A',players:[
     l1p('wig_long','S. Long','GK',26,10,10,14,72,3,14),
-    l1p('wig_sherring','B. Sherring','GK',23,10,10,12,66,1,8),
+    l1p('wig_young','L. Young','GK',23,10,10,12,66,1,8),
     l1p('wig_bennett','J. Bennett','RB',27,58,60,69,10,2,12),
     l1p('wig_kerr','J. Kerr','CB',28,48,52,73,10,3,14),
     l1p('wig_pearce','T. Pearce','CB',25,46,50,70,10,2,12),
-    l1p('wig_sherring2','L. Sherring','LB',24,56,58,67,10,2,10),
-    l1p('wig_sherring3','C. Sherring','CDM',29,54,66,66,10,2,14),
+    l1p('wig_powell','B. Powell','LB',24,56,58,67,10,2,10),
+    l1p('wig_simpson','B. Simpson','CDM',29,54,66,66,10,2,14),
     l1p('wig_lang','T. Lang','CM',26,62,68,60,10,3,14),
-    l1p('wig_sherring4','S. Sherring','CAM',23,64,64,50,10,2,12),
-    l1p('wig_sherring5','J. Sherring2','RW',25,66,62,48,10,2,12),
-    l1p('wig_sherring6','A. Sherring','LW',27,64,60,46,10,2,10),
-    l1p('wig_sherring7','T. Sherring','CF',24,64,56,40,10,2,10),
+    l1p('wig_keane','W. Keane','CAM',23,64,64,50,10,2,12),
+    l1p('wig_holland','R. Holland','RW',25,66,62,48,10,2,12),
+    l1p('wig_armstrong','S. Armstrong','LW',27,64,60,46,10,2,10),
+    l1p('wig_crawford','S. Crawford','CF',24,64,56,40,10,2,10),
     l1p('wig_humphrys','C. Humphrys','ST',28,68,58,42,10,3,14),
     l1p('wig_magennis','J. Magennis','ST',34,66,54,38,10,2,14),
   ]},
   // ── BLACKPOOL FC ───────────────────────────────────────────
   {id:'blackpool',name:'Blackpool FC',shortName:'BLK',crest:'🟠',league:'League One',stadium:'Bloomfield Road',stadiumCapacity:16616,budget:8000000,reputation:58,primaryColor:'#F68B1F',players:[
+    l1p('blk_ferguson','F. Ferguson','GK',22,10,10,12,66,1,8),
     l1p('blk_grimshaw','D. Grimshaw','GK',26,10,10,14,72,3,14),
-    l1p('blk_sherring','M. Sherring','GK',22,10,10,12,66,1,8),
-    l1p('blk_sherring4','C. Sherring','RB',26,56,58,68,10,2,12),
-    l1p('blk_sherring2','M. Sherring2','CB',27,48,50,71,10,3,14),
-    l1p('blk_sherring3','R. Sherring','CB',25,46,48,69,10,2,12),
+    l1p('blk_harrison','C. Harrison','RB',26,56,58,68,10,2,12),
+    l1p('blk_baldwin','S. Baldwin','CB',25,46,48,69,10,2,12),
+    l1p('blk_drake','B. Drake','CB',27,48,50,71,10,3,14),
     l1p('blk_husband','J. Husband','LB',30,58,60,72,10,3,16),
-    l1p('blk_sherring5','J. Sherring','CDM',28,54,66,64,10,2,14),
+    l1p('blk_ward','F. Ward','CDM',28,54,66,64,10,2,14),
     l1p('blk_dougall','K. Dougall','CM',30,60,70,62,10,3,16),
-    l1p('blk_sherring6','C. Sherring2','CAM',24,66,64,50,10,3,14),
-    l1p('blk_sherring7','S. Sherring','RW',23,66,62,48,10,2,12),
-    l1p('blk_sherring8','O. Sherring','LW',25,64,60,46,10,2,10),
-    l1p('blk_sherring9','R. Sherring2','CF',27,66,56,40,10,2,12),
+    l1p('blk_burke','C. Burke','CAM',24,66,64,50,10,3,14),
+    l1p('blk_scott','C. Scott','RW',23,66,62,48,10,2,12),
+    l1p('blk_coleman','H. Coleman','LW',25,64,60,46,10,2,10),
+    l1p('blk_hunt','N. Hunt','CF',27,66,56,40,10,2,12),
+    l1p('blk_anderson','D. Anderson','ST',24,64,54,38,10,2,10),
     l1p('blk_fletcher','A. Fletcher','ST',29,72,58,40,10,4,18),
-    l1p('blk_sherring10','J. Sherring2','ST',24,64,54,38,10,2,10),
   ]},
   // ── LEYTON ORIENT ──────────────────────────────────────────
   {id:'leyton_orient',name:'Leyton Orient',shortName:'LEY',crest:'🔴',league:'League One',stadium:'Brisbane Road',stadiumCapacity:9271,budget:5000000,reputation:55,primaryColor:'#E2001A',players:[
-    l1p('ley_sherring','J. Sherring','GK',25,10,10,14,70,2,10),
-    l1p('ley_sherring2','M. Sherring','GK',22,10,10,12,64,1,6),
-    l1p('ley_sherring4','T. Sherring','RB',26,56,58,68,10,2,10),
+    l1p('ley_mitchell','W. Mitchell','GK',25,10,10,14,70,2,10),
+    l1p('ley_thomas','H. Thomas','GK',22,10,10,12,64,1,6),
+    l1p('ley_hill','B. Hill','RB',26,56,58,68,10,2,10),
     l1p('ley_forrester','W. Forrester','CB',27,48,52,72,10,3,14),
-    l1p('ley_sherring3','C. Sherring','CB',25,44,48,68,10,2,10),
-    l1p('ley_sherring5','A. Sherring','LB',24,54,56,66,10,2,8),
-    l1p('ley_sherring7','J. Sherring2','CDM',26,54,64,64,10,2,10),
-    l1p('ley_sherring6','R. Sherring','CM',27,60,66,60,10,2,12),
-    l1p('ley_sherring8','S. Sherring','CAM',24,66,64,50,10,2,12),
-    l1p('ley_sherring9','K. Sherring','RW',25,66,60,46,10,2,10),
-    l1p('ley_sherring10','M. Sherring2','LW',23,64,58,44,10,2,10),
-    l1p('ley_sherring11','D. Sherring','CF',28,66,56,40,10,2,12),
+    l1p('ley_norton','W. Norton','CB',25,44,48,68,10,2,10),
+    l1p('ley_mckenna','C. McKenna','LB',24,54,56,66,10,2,8),
+    l1p('ley_collins','W. Collins','CDM',26,54,64,64,10,2,10),
+    l1p('ley_griffiths','O. Griffiths','CM',27,60,66,60,10,2,12),
+    l1p('ley_jackson','W. Jackson','CAM',24,66,64,50,10,2,12),
+    l1p('ley_page','S. Page','RW',25,66,60,46,10,2,10),
+    l1p('ley_ford','L. Ford','LW',23,64,58,44,10,2,10),
+    l1p('ley_slater','J. Slater','CF',28,66,56,40,10,2,12),
     l1p('ley_ballard','D. Ballard','ST',22,74,58,40,10,5,16),
-    l1p('ley_sherring12','T. Sherring2','ST',26,64,54,38,10,2,10),
+    l1p('ley_freeman','G. Freeman','ST',26,64,54,38,10,2,10),
   ]},
   // ── NORTHAMPTON TOWN ───────────────────────────────────────
   {id:'northampton',name:'Northampton Town',shortName:'NOR',crest:'🔴',league:'League One',stadium:'Sixfields Stadium',stadiumCapacity:8203,budget:5000000,reputation:54,primaryColor:'#7A263A',players:[
+    l1p('nth_carpenter','L. Carpenter','GK',23,10,10,12,64,1,6),
     l1p('nth_roberts','L. Roberts','GK',28,10,10,14,70,2,10),
-    l1p('nth_sherring','J. Sherring','GK',23,10,10,12,64,1,6),
-    l1p('nth_sherring3','A. Sherring','RB',27,56,58,68,10,2,10),
+    l1p('nth_barker','J. Barker','RB',27,56,58,68,10,2,10),
     l1p('nth_guthrie','J. Guthrie','CB',30,46,50,72,10,2,14),
-    l1p('nth_sherring2','F. Sherring','CB',25,44,48,68,10,2,10),
-    l1p('nth_sherring4','J. Sherring2','LB',24,54,56,66,10,2,8),
+    l1p('nth_hurst','H. Hurst','CB',25,44,48,68,10,2,10),
+    l1p('nth_white','N. White','LB',24,54,56,66,10,2,8),
     l1p('nth_mcwilliams','S. McWilliams','CDM',26,52,64,64,10,2,10),
-    l1p('nth_sherring5','M. Sherring','CM',28,60,66,60,10,2,12),
-    l1p('nth_sherring6','R. Sherring','CAM',24,62,64,50,10,2,10),
-    l1p('nth_sherring7','T. Sherring','RW',23,64,60,46,10,2,10),
-    l1p('nth_sherring8','B. Sherring','LW',25,62,58,44,10,2,10),
-    l1p('nth_sherring9','D. Sherring','CF',26,64,56,40,10,2,10),
+    l1p('nth_webb','E. Webb','CM',28,60,66,60,10,2,12),
+    l1p('nth_doyle','K. Doyle','CAM',24,62,64,50,10,2,10),
+    l1p('nth_butler','P. Butler','RW',23,64,60,46,10,2,10),
+    l1p('nth_sutton','L. Sutton','LW',25,62,58,44,10,2,10),
+    l1p('nth_adams','C. Adams','CF',26,64,56,40,10,2,10),
     l1p('nth_hoskins','S. Hoskins','ST',31,66,54,38,10,2,14),
-    l1p('nth_sherring10','K. Sherring','ST',24,62,54,38,10,2,10),
+    l1p('nth_roberts2','A. Roberts','ST',24,62,54,38,10,2,10),
   ]},
   // ── ROTHERHAM UNITED ───────────────────────────────────────
   {id:'rotherham',name:'Rotherham United',shortName:'ROT',crest:'🔴',league:'League One',stadium:'New York Stadium',stadiumCapacity:12021,budget:6000000,reputation:56,primaryColor:'#E2001A',players:[
     l1p('rot_johansson','V. Johansson','GK',28,10,10,12,68,1,10),
     l1p('rot_slonina','C. Slonina','GK',22,10,10,14,72,3,14),
     l1p('rot_rafferty','J. Rafferty','RB',30,56,58,72,10,2,14),
+    l1p('rot_hunter','P. Hunter','CB',27,48,50,71,10,2,12),
     l1p('rot_kelly','G. Kelly','CB',25,46,48,70,10,2,12),
-    l1p('rot_sherring','S. Sherring','CB',27,48,50,71,10,2,12),
-    l1p('rot_sherring2','J. Sherring','LB',26,56,58,68,10,2,10),
+    l1p('rot_sanders','W. Sanders','LB',26,56,58,68,10,2,10),
     l1p('rot_wiles','B. Wiles','CDM',23,56,66,64,10,3,12),
     l1p('rot_rathbone','O. Rathbone','CM',28,62,70,62,10,3,16),
-    l1p('rot_sherring3','M. Sherring','CAM',24,64,64,50,10,2,12),
-    l1p('rot_sherring4','A. Sherring','RW',25,66,60,46,10,2,10),
-    l1p('rot_sherring5','L. Sherring','LW',23,62,58,44,10,2,10),
-    l1p('rot_sherring6','S. Sherring2','CF',26,64,56,40,10,2,10),
+    l1p('rot_carey','D. Carey','CAM',24,64,64,50,10,2,12),
+    l1p('rot_harvey','C. Harvey','RW',25,66,60,46,10,2,10),
+    l1p('rot_richards','T. Richards','LW',23,62,58,44,10,2,10),
+    l1p('rot_gallagher','G. Gallagher','CF',26,64,56,40,10,2,10),
     l1p('rot_eaves','T. Eaves','ST',33,66,54,38,10,2,14),
     l1p('rot_kayode','J. Kayode','ST',24,68,56,40,10,3,14),
   ]},
   // ── PORT VALE ──────────────────────────────────────────────
   {id:'port_vale',name:'Port Vale',shortName:'PVA',crest:'⚪⚫',league:'League One',stadium:'Vale Park',stadiumCapacity:19052,budget:5000000,reputation:53,primaryColor:'#FFFFFF',players:[
-    l1p('pva_sherring','C. Sherring','GK',25,10,10,14,68,2,8),
-    l1p('pva_sherring2','J. Sherring','GK',23,10,10,12,62,1,6),
-    l1p('pva_sherring5','T. Sherring','RB',26,54,56,66,10,2,8),
-    l1p('pva_sherring3','N. Sherring','CB',27,46,48,70,10,2,10),
-    l1p('pva_sherring4','D. Sherring','CB',25,44,46,68,10,2,8),
-    l1p('pva_sherring6','A. Sherring','LB',24,52,54,64,10,2,8),
-    l1p('pva_sherring7','J. Sherring2','CDM',29,52,64,64,10,2,10),
+    l1p('pva_byrne','J. Byrne','GK',23,10,10,12,62,1,6),
+    l1p('pva_hamilton','S. Hamilton','GK',25,10,10,14,68,2,8),
+    l1p('pva_short','C. Short','RB',26,54,56,66,10,2,8),
+    l1p('pva_reeves','E. Reeves','CB',27,46,48,70,10,2,10),
+    l1p('pva_stewart','M. Stewart','CB',25,44,46,68,10,2,8),
+    l1p('pva_wood','H. Wood','LB',24,52,54,64,10,2,8),
+    l1p('pva_kay','M. Kay','CDM',29,52,64,64,10,2,10),
     l1p('pva_garrity','B. Garrity','CM',28,60,66,60,10,2,12),
-    l1p('pva_sherring8','R. Sherring','CAM',23,62,62,48,10,2,10),
-    l1p('pva_sherring9','S. Sherring','RW',25,62,58,44,10,2,8),
-    l1p('pva_sherring10','M. Sherring','LW',24,60,56,42,10,2,8),
-    l1p('pva_sherring12','L. Sherring','CF',26,62,54,38,10,2,8),
-    l1p('pva_sherring11','K. Sherring','ST',27,64,54,38,10,2,10),
-    l1p('pva_sherring13','D. Sherring','ST',24,60,52,36,10,2,8),
+    l1p('pva_hughes','K. Hughes','CAM',23,62,62,48,10,2,10),
+    l1p('pva_spencer','F. Spencer','RW',25,62,58,44,10,2,8),
+    l1p('pva_ellis','P. Ellis','LW',24,60,56,42,10,2,8),
+    l1p('pva_moore','K. Moore','CF',26,62,54,38,10,2,8),
+    l1p('pva_burton','T. Burton','ST',27,64,54,38,10,2,10),
+    l1p('pva_palmer','S. Palmer','ST',24,60,52,36,10,2,8),
   ]},
 ];
 
@@ -2977,411 +2977,411 @@ const l2p = (id,nm,pos,age,atk,mid,def,gk,val,wage) => ({
 const LEAGUE_TWO_TEAMS = [
   // ── BROMLEY ────────────────────────────────────────────────
   {id:'bromley',name:'Bromley',shortName:'BRM',crest:'⚪⚫',league:'League Two',stadium:'Hayes Lane',stadiumCapacity:6100,budget:4000000,reputation:52,primaryColor:'#FFFFFF',players:[
-    l2p('brm_sherring','T. Sherring','GK',24,10,10,12,64,1,6),
     l2p('brm_smith','G. Smith','GK',32,10,10,14,70,2,10),
-    l2p('brm_sherring3','J. Sherring','RB',27,54,56,66,10,1,8),
-    l2p('brm_sherring2','C. Sherring','CB',26,40,44,67,10,1,8),
+    l2p('brm_white','L. White','GK',24,10,10,12,64,1,6),
+    l2p('brm_hardy','T. Hardy','RB',27,54,56,66,10,1,8),
+    l2p('brm_allen','L. Allen','CB',26,40,44,67,10,1,8),
     l2p('brm_webster','B. Webster','CB',33,42,46,70,10,2,10),
-    l2p('brm_sherring4','M. Sherring','LB',25,52,54,65,10,1,8),
-    l2p('brm_sherring5','R. Sherring','CDM',26,50,62,64,10,1,8),
+    l2p('brm_wilson','C. Wilson','LB',25,52,54,65,10,1,8),
+    l2p('brm_clarke','E. Clarke','CDM',26,50,62,64,10,1,8),
     l2p('brm_thompson','B. Thompson','CM',29,60,66,58,10,2,10),
-    l2p('brm_sherring8','D. Sherring','CAM',25,62,62,48,10,1,8),
-    l2p('brm_sherring6','A. Sherring','RW',24,62,58,44,10,1,8),
-    l2p('brm_sherring7','S. Sherring','LW',23,60,56,42,10,1,8),
-    l2p('brm_sherring9','K. Sherring','CF',27,64,54,38,10,1,8),
+    l2p('brm_berry','N. Berry','CAM',25,62,62,48,10,1,8),
+    l2p('brm_johnston','E. Johnston','RW',24,62,58,44,10,1,8),
+    l2p('brm_rowe','H. Rowe','LW',23,60,56,42,10,1,8),
+    l2p('brm_perry','E. Perry','CF',27,64,54,38,10,1,8),
     l2p('brm_cheek','M. Cheek','ST',30,70,54,36,10,3,12),
     l2p('brm_kabamba','N. Kabamba','ST',32,66,52,36,10,2,10),
   ]},
   // ── CAMBRIDGE UNITED ───────────────────────────────────────
   {id:'cambridge',name:'Cambridge United',shortName:'CAM',crest:'🟡',league:'League Two',stadium:'Abbey Stadium',stadiumCapacity:8127,budget:6000000,reputation:54,primaryColor:'#F5A623',players:[
     l2p('cam_eastwood','J. Eastwood','GK',27,10,10,14,70,2,10),
-    l2p('cam_sherring','T. Sherring','GK',24,10,10,12,64,1,6),
-    l2p('cam_sherring3','J. Sherring','RB',25,54,56,65,10,1,8),
+    l2p('cam_hancock','G. Hancock','GK',24,10,10,12,64,1,6),
+    l2p('cam_sullivan','O. Sullivan','RB',25,54,56,65,10,1,8),
     l2p('cam_morrison','M. Morrison','CB',37,40,44,68,10,1,8),
-    l2p('cam_sherring2','D. Sherring','CB',26,42,46,66,10,1,8),
-    l2p('cam_sherring4','L. Sherring','LB',24,52,54,64,10,1,8),
-    l2p('cam_sherring6','R. Sherring','CDM',28,50,62,64,10,1,8),
-    l2p('cam_sherring5','S. Sherring','CM',27,58,64,58,10,1,8),
+    l2p('cam_newman','C. Newman','CB',26,42,46,66,10,1,8),
+    l2p('cam_marshall','O. Marshall','LB',24,52,54,64,10,1,8),
+    l2p('cam_miller','T. Miller','CDM',28,50,62,64,10,1,8),
+    l2p('cam_johnson','L. Johnson','CM',27,58,64,58,10,1,8),
     l2p('cam_knight','B. Knight','CAM',24,64,64,48,10,2,10),
-    l2p('cam_sherring7','A. Sherring','RW',23,62,58,44,10,1,8),
-    l2p('cam_sherring8','M. Sherring','LW',25,60,56,42,10,1,8),
-    l2p('cam_sherring10','T. Sherring2','CF',26,64,56,38,10,1,8),
-    l2p('cam_sherring11','P. Sherring','ST',24,62,52,36,10,1,8),
-    l2p('cam_sherring9','K. Sherring','ST',29,66,54,36,10,2,10),
+    l2p('cam_lewis','P. Lewis','RW',23,62,58,44,10,1,8),
+    l2p('cam_byrne','O. Byrne','LW',25,60,56,42,10,1,8),
+    l2p('cam_sutton','G. Sutton','CF',26,64,56,38,10,1,8),
+    l2p('cam_thomas','B. Thomas','ST',29,66,54,36,10,2,10),
+    l2p('cam_ward','O. Ward','ST',24,62,52,36,10,1,8),
   ]},
   // ── MILTON KEYNES DONS ─────────────────────────────────────
   {id:'mk_dons',name:'Milton Keynes Dons',shortName:'MKD',crest:'⚪',league:'League Two',stadium:'Stadium MK',stadiumCapacity:30500,budget:8000000,reputation:56,primaryColor:'#FFFFFF',players:[
     l2p('mkd_macgillivray','C. MacGillivray','GK',31,10,10,14,72,2,10),
-    l2p('mkd_sherring','T. Sherring','GK',23,10,10,12,64,1,6),
-    l2p('mkd_sherring4','R. Sherring','RB',26,56,58,65,10,1,8),
-    l2p('mkd_sherring2','D. Sherring','CB',27,44,48,68,10,2,8),
-    l2p('mkd_sherring3','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('mkd_sherring5','L. Sherring','LB',24,54,56,64,10,1,8),
-    l2p('mkd_sherring6','S. Sherring','CDM',28,52,64,64,10,1,8),
+    l2p('mkd_thompson','N. Thompson','GK',23,10,10,12,64,1,6),
+    l2p('mkd_reid','W. Reid','RB',26,56,58,65,10,1,8),
+    l2p('mkd_dean','A. Dean','CB',25,42,46,66,10,1,8),
+    l2p('mkd_turner','W. Turner','CB',27,44,48,68,10,2,8),
+    l2p('mkd_fletcher','N. Fletcher','LB',24,54,56,64,10,1,8),
+    l2p('mkd_rose','R. Rose','CDM',28,52,64,64,10,1,8),
     l2p('mkd_gilbey','A. Gilbey','CM',29,60,68,60,10,2,10),
-    l2p('mkd_sherring9','K. Sherring','CAM',24,64,62,48,10,2,8),
-    l2p('mkd_sherring7','A. Sherring','RW',23,64,60,44,10,2,8),
-    l2p('mkd_sherring8','M. Sherring','LW',25,62,58,42,10,1,8),
-    l2p('mkd_sherring10','T. Sherring2','CF',27,66,56,38,10,2,8),
+    l2p('mkd_flynn','K. Flynn','CAM',24,64,62,48,10,2,8),
+    l2p('mkd_may','A. May','RW',23,64,60,44,10,2,8),
+    l2p('mkd_pearce','M. Pearce','LW',25,62,58,42,10,1,8),
+    l2p('mkd_gallagher','N. Gallagher','CF',27,66,56,38,10,2,8),
+    l2p('mkd_collins','O. Collins','ST',24,64,52,36,10,1,8),
     l2p('mkd_paterson','C. Paterson','ST',32,68,56,44,10,2,10),
-    l2p('mkd_sherring11','B. Sherring','ST',24,64,52,36,10,1,8),
   ]},
   // ── SWINDON TOWN ───────────────────────────────────────────
   {id:'swindon',name:'Swindon Town',shortName:'SWI',crest:'🔴',league:'League Two',stadium:'County Ground',stadiumCapacity:15728,budget:6000000,reputation:54,primaryColor:'#E2001A',players:[
+    l2p('swi_jenkins','T. Jenkins','GK',24,10,10,12,64,1,6),
     l2p('swi_ripley','C. Ripley','GK',32,10,10,14,70,2,10),
-    l2p('swi_sherring','T. Sherring','GK',24,10,10,12,64,1,6),
-    l2p('swi_sherring4','R. Sherring','RB',26,54,56,65,10,1,8),
-    l2p('swi_sherring2','D. Sherring','CB',27,44,48,68,10,2,8),
-    l2p('swi_sherring3','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('swi_sherring5','L. Sherring','LB',24,52,54,64,10,1,8),
-    l2p('swi_sherring6','S. Sherring','CDM',28,50,62,64,10,1,8),
+    l2p('swi_coleman','R. Coleman','RB',26,54,56,65,10,1,8),
+    l2p('swi_harvey','T. Harvey','CB',27,44,48,68,10,2,8),
+    l2p('swi_long','H. Long','CB',25,42,46,66,10,1,8),
+    l2p('swi_cameron','H. Cameron','LB',24,52,54,64,10,1,8),
+    l2p('swi_ferguson','J. Ferguson','CDM',28,50,62,64,10,1,8),
     l2p('swi_clarke','O. Clarke','CM',33,58,68,62,10,2,10),
-    l2p('swi_sherring9','K. Sherring','CAM',24,62,62,48,10,1,8),
-    l2p('swi_sherring7','A. Sherring','RW',23,62,58,44,10,1,8),
-    l2p('swi_sherring8','M. Sherring','LW',25,60,56,42,10,1,8),
-    l2p('swi_sherring10','T. Sherring2','CF',27,64,54,38,10,1,8),
+    l2p('swi_watson','A. Watson','CAM',24,62,62,48,10,1,8),
+    l2p('swi_robertson','O. Robertson','RW',23,62,58,44,10,1,8),
+    l2p('swi_slater','R. Slater','LW',25,60,56,42,10,1,8),
+    l2p('swi_barnes','N. Barnes','CF',27,64,54,38,10,1,8),
     l2p('swi_drinan','A. Drinan','ST',28,70,56,36,10,3,12),
-    l2p('swi_sherring11','B. Sherring','ST',24,62,52,36,10,1,8),
+    l2p('swi_tucker','L. Tucker','ST',24,62,52,36,10,1,8),
   ]},
   // ── NOTTS COUNTY ───────────────────────────────────────────
   {id:'notts_county',name:'Notts County',shortName:'NOT',crest:'⚫⚪',league:'League Two',stadium:'Meadow Lane',stadiumCapacity:19841,budget:6000000,reputation:54,primaryColor:'#000000',players:[
-    l2p('not_sherring','G. Sherring','GK',26,10,10,14,68,2,8),
-    l2p('not_sherring2','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('not_sherring5','R. Sherring','RB',27,54,56,65,10,1,8),
-    l2p('not_sherring3','D. Sherring','CB',28,44,48,68,10,2,8),
-    l2p('not_sherring4','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('not_sherring6','L. Sherring','LB',24,52,54,64,10,1,8),
-    l2p('not_sherring7','S. Sherring','CDM',26,50,62,64,10,1,8),
+    l2p('not_miles','N. Miles','GK',26,10,10,14,68,2,8),
+    l2p('not_price','F. Price','GK',23,10,10,12,62,1,6),
+    l2p('not_hurst','T. Hurst','RB',27,54,56,65,10,1,8),
+    l2p('not_hudson','P. Hudson','CB',28,44,48,68,10,2,8),
+    l2p('not_pearson','E. Pearson','CB',25,42,46,66,10,1,8),
+    l2p('not_lee','A. Lee','LB',24,52,54,64,10,1,8),
+    l2p('not_porter','N. Porter','CDM',26,50,62,64,10,1,8),
     l2p('not_palmer','M. Palmer','CM',29,58,66,60,10,2,10),
-    l2p('not_sherring9','K. Sherring','CAM',25,62,62,48,10,1,8),
-    l2p('not_sherring8','A. Sherring','RW',23,62,58,44,10,1,8),
+    l2p('not_clayton','W. Clayton','CAM',25,62,62,48,10,1,8),
+    l2p('not_harris','W. Harris','RW',23,62,58,44,10,1,8),
     l2p('not_jatta','A. Jatta','LW',26,66,58,42,10,2,10),
-    l2p('not_sherring10','T. Sherring2','CF',28,64,54,38,10,1,8),
+    l2p('not_leonard','A. Leonard','CF',28,64,54,38,10,1,8),
+    l2p('not_banks','C. Banks','ST',24,60,50,36,10,1,8),
     l2p('not_dennis','M. Dennis','ST',27,68,54,36,10,3,12),
-    l2p('not_sherring11','B. Sherring','ST',24,60,50,36,10,1,8),
   ]},
   // ── CREWE ALEXANDRA ────────────────────────────────────────
   {id:'crewe',name:'Crewe Alexandra',shortName:'CRE',crest:'🔴',league:'League Two',stadium:'Gresty Road',stadiumCapacity:10153,budget:5000000,reputation:50,primaryColor:'#E2001A',players:[
-    l2p('cre_sherring','G. Sherring','GK',26,10,10,14,68,2,8),
-    l2p('cre_sherring2','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('cre_sherring4','R. Sherring','RB',26,54,56,64,10,1,8),
+    l2p('cre_hammond','O. Hammond','GK',26,10,10,14,68,2,8),
+    l2p('cre_moss','E. Moss','GK',23,10,10,12,62,1,6),
+    l2p('cre_kennedy','F. Kennedy','RB',26,54,56,64,10,1,8),
     l2p('cre_demetriou','M. Demetriou','CB',35,42,48,70,10,1,8),
-    l2p('cre_sherring3','J. Sherring','CB',25,40,44,66,10,1,8),
-    l2p('cre_sherring5','L. Sherring','LB',24,52,54,63,10,1,6),
-    l2p('cre_sherring7','A. Sherring','CDM',28,50,62,64,10,1,8),
-    l2p('cre_sherring6','S. Sherring','CM',27,58,64,58,10,1,8),
-    l2p('cre_sherring10','T. Sherring2','CAM',24,62,62,48,10,1,8),
-    l2p('cre_sherring8','M. Sherring','RW',23,62,58,44,10,1,8),
-    l2p('cre_sherring9','K. Sherring','LW',25,60,56,42,10,1,8),
-    l2p('cre_sherring11','B. Sherring','CF',27,64,54,38,10,1,8),
-    l2p('cre_sherring12','D. Sherring','ST',26,62,52,36,10,1,8),
+    l2p('cre_knight','P. Knight','CB',25,40,44,66,10,1,8),
+    l2p('cre_young','B. Young','LB',24,52,54,63,10,1,6),
+    l2p('cre_curtis','N. Curtis','CDM',28,50,62,64,10,1,8),
+    l2p('cre_mckenna','J. McKenna','CM',27,58,64,58,10,1,8),
+    l2p('cre_dennis','P. Dennis','CAM',24,62,62,48,10,1,8),
+    l2p('cre_wells','L. Wells','RW',23,62,58,44,10,1,8),
+    l2p('cre_holmes','G. Holmes','LW',25,60,56,42,10,1,8),
+    l2p('cre_burns','L. Burns','CF',27,64,54,38,10,1,8),
+    l2p('cre_arnold','L. Arnold','ST',26,62,52,36,10,1,8),
     l2p('cre_tezgel','E. Tezgel','ST',21,66,54,36,10,3,10),
   ]},
   // ── SALFORD CITY ───────────────────────────────────────────
   {id:'salford',name:'Salford City',shortName:'SAL',crest:'🔴',league:'League Two',stadium:'Moor Lane',stadiumCapacity:5108,budget:8000000,reputation:54,primaryColor:'#E2001A',players:[
-    l2p('sal_sherring','G. Sherring','GK',27,10,10,14,68,2,8),
-    l2p('sal_sherring2','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('sal_sherring5','D. Sherring','RB',26,54,56,65,10,1,8),
-    l2p('sal_sherring3','J. Sherring','CB',27,44,48,68,10,2,8),
-    l2p('sal_sherring4','R. Sherring','CB',25,42,46,66,10,1,8),
+    l2p('sal_andrews','N. Andrews','GK',27,10,10,14,68,2,8),
+    l2p('sal_bell','J. Bell','GK',23,10,10,12,62,1,6),
+    l2p('sal_hill','C. Hill','RB',26,54,56,65,10,1,8),
+    l2p('sal_brennan','O. Brennan','CB',27,44,48,68,10,2,8),
+    l2p('sal_ross','J. Ross','CB',25,42,46,66,10,1,8),
     l2p('sal_garbutt','L. Garbutt','LB',32,56,58,68,10,2,10),
-    l2p('sal_sherring7','A. Sherring','CDM',29,50,62,64,10,1,8),
-    l2p('sal_sherring6','S. Sherring','CM',28,58,64,58,10,1,8),
-    l2p('sal_sherring10','T. Sherring2','CAM',25,62,62,48,10,1,8),
-    l2p('sal_sherring8','M. Sherring','RW',24,62,58,44,10,1,8),
-    l2p('sal_sherring9','K. Sherring','LW',23,60,56,42,10,1,8),
-    l2p('sal_sherring11','B. Sherring','CF',27,64,54,38,10,1,8),
+    l2p('sal_kane','A. Kane','CDM',29,50,62,64,10,1,8),
+    l2p('sal_burke','R. Burke','CM',28,58,64,58,10,1,8),
+    l2p('sal_hawkins','M. Hawkins','CAM',25,62,62,48,10,1,8),
+    l2p('sal_hunter','T. Hunter','RW',24,62,58,44,10,1,8),
+    l2p('sal_hale','B. Hale','LW',23,60,56,42,10,1,8),
+    l2p('sal_quinn','H. Quinn','CF',27,64,54,38,10,1,8),
+    l2p('sal_bishop','C. Bishop','ST',24,62,52,36,10,1,8),
     l2p('sal_borini','F. Borini','ST',34,66,60,44,10,2,10),
-    l2p('sal_sherring12','D. Sherring2','ST',24,62,52,36,10,1,8),
   ]},
   // ── CHESTERFIELD ───────────────────────────────────────────
   {id:'chesterfield',name:'Chesterfield',shortName:'CHE',crest:'🔵',league:'League Two',stadium:'SMH Group Stadium',stadiumCapacity:10504,budget:5000000,reputation:50,primaryColor:'#1E3F8F',players:[
-    l2p('che_sherring','G. Sherring','GK',27,10,10,14,68,2,8),
-    l2p('che_sherring2','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('che_sherring4','R. Sherring','RB',26,54,56,65,10,1,8),
+    l2p('che_kay','A. Kay','GK',23,10,10,12,62,1,6),
+    l2p('che_warner','B. Warner','GK',27,10,10,14,68,2,8),
+    l2p('che_freeman','G. Freeman','RB',26,54,56,65,10,1,8),
     l2p('che_dunkley','C. Dunkley','CB',33,44,48,70,10,2,10),
-    l2p('che_sherring3','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('che_sherring5','L. Sherring','LB',24,52,54,63,10,1,6),
-    l2p('che_sherring7','A. Sherring','CDM',27,50,62,64,10,1,8),
-    l2p('che_sherring6','S. Sherring','CM',28,58,64,58,10,1,8),
-    l2p('che_sherring10','T. Sherring2','CAM',25,62,62,48,10,1,8),
-    l2p('che_sherring8','M. Sherring','RW',24,62,58,44,10,1,8),
-    l2p('che_sherring9','K. Sherring','LW',23,60,56,42,10,1,8),
-    l2p('che_sherring11','B. Sherring','CF',28,64,54,38,10,1,8),
+    l2p('che_lane','H. Lane','CB',25,42,46,66,10,1,8),
+    l2p('che_morrison','A. Morrison','LB',24,52,54,63,10,1,6),
+    l2p('che_ryan','H. Ryan','CDM',27,50,62,64,10,1,8),
+    l2p('che_davis','E. Davis','CM',28,58,64,58,10,1,8),
+    l2p('che_fisher','D. Fisher','CAM',25,62,62,48,10,1,8),
+    l2p('che_gardner','E. Gardner','RW',24,62,58,44,10,1,8),
+    l2p('che_ford','R. Ford','LW',23,60,56,42,10,1,8),
+    l2p('che_dalton','W. Dalton','CF',28,64,54,38,10,1,8),
     l2p('che_bonis','L. Bonis','ST',27,68,56,38,10,3,10),
-    l2p('che_sherring12','D. Sherring','ST',24,60,50,36,10,1,8),
+    l2p('che_shepherd','G. Shepherd','ST',24,60,50,36,10,1,8),
   ]},
   // ── BARNET ─────────────────────────────────────────────────
   {id:'barnet',name:'Barnet',shortName:'BNT',crest:'🟠⚫',league:'League Two',stadium:'The Hive Stadium',stadiumCapacity:6500,budget:4000000,reputation:48,primaryColor:'#F5A623',players:[
-    l2p('bnt_sherring','T. Sherring','GK',22,10,10,12,62,1,6),
+    l2p('bnt_campbell','P. Campbell','GK',22,10,10,12,62,1,6),
     l2p('bnt_slicker','C. Slicker','GK',24,10,10,14,70,2,10),
-    l2p('bnt_sherring4','R. Sherring','RB',26,52,54,64,10,1,6),
-    l2p('bnt_sherring2','D. Sherring','CB',27,42,46,66,10,1,8),
-    l2p('bnt_sherring3','J. Sherring','CB',25,40,44,64,10,1,6),
-    l2p('bnt_sherring5','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('bnt_sherring6','S. Sherring','CDM',28,48,60,62,10,1,6),
+    l2p('bnt_rogers','F. Rogers','RB',26,52,54,64,10,1,6),
+    l2p('bnt_marsh','M. Marsh','CB',25,40,44,64,10,1,6),
+    l2p('bnt_riley','J. Riley','CB',27,42,46,66,10,1,8),
+    l2p('bnt_howard','D. Howard','LB',24,50,52,62,10,1,6),
+    l2p('bnt_hodges','F. Hodges','CDM',28,48,60,62,10,1,6),
     l2p('bnt_hartigan','A. Hartigan','CM',29,56,64,60,10,2,8),
-    l2p('bnt_sherring9','K. Sherring','CAM',24,60,60,46,10,1,6),
-    l2p('bnt_sherring7','A. Sherring','RW',23,60,56,42,10,1,6),
-    l2p('bnt_sherring8','M. Sherring','LW',25,58,54,40,10,1,6),
-    l2p('bnt_sherring11','B. Sherring','CF',26,62,54,38,10,1,6),
-    l2p('bnt_sherring10','T. Sherring2','ST',27,64,52,36,10,1,8),
-    l2p('bnt_sherring12','D. Sherring2','ST',24,60,50,36,10,1,6),
+    l2p('bnt_black','W. Black','CAM',24,60,60,46,10,1,6),
+    l2p('bnt_webb','K. Webb','RW',23,60,56,42,10,1,6),
+    l2p('bnt_sinclair','D. Sinclair','LW',25,58,54,40,10,1,6),
+    l2p('bnt_gilbert','K. Gilbert','CF',26,62,54,38,10,1,6),
+    l2p('bnt_griffiths','A. Griffiths','ST',27,64,52,36,10,1,8),
+    l2p('bnt_keane','W. Keane','ST',24,60,50,36,10,1,6),
   ]},
   // ── WALSALL ────────────────────────────────────────────────
   {id:'walsall',name:'Walsall',shortName:'WAL',crest:'🔴',league:'League Two',stadium:'Bescot Stadium',stadiumCapacity:11300,budget:5000000,reputation:50,primaryColor:'#E2001A',players:[
-    l2p('wal_sherring','G. Sherring','GK',27,10,10,14,68,2,8),
-    l2p('wal_sherring2','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('wal_sherring5','R. Sherring','RB',26,54,56,64,10,1,8),
-    l2p('wal_sherring3','D. Sherring','CB',27,44,48,68,10,1,8),
-    l2p('wal_sherring4','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('wal_sherring6','L. Sherring','LB',24,52,54,63,10,1,6),
-    l2p('wal_sherring7','S. Sherring','CDM',28,50,62,64,10,1,8),
+    l2p('wal_joyce','N. Joyce','GK',27,10,10,14,68,2,8),
+    l2p('wal_powell','N. Powell','GK',23,10,10,12,62,1,6),
+    l2p('wal_stevens','W. Stevens','RB',26,54,56,64,10,1,8),
+    l2p('wal_barton','C. Barton','CB',25,42,46,66,10,1,8),
+    l2p('wal_bradley','G. Bradley','CB',27,44,48,68,10,1,8),
+    l2p('wal_rice','H. Rice','LB',24,52,54,63,10,1,6),
+    l2p('wal_wright','D. Wright','CDM',28,50,62,64,10,1,8),
     l2p('wal_finnigan','R. Finnigan','CM',24,60,64,58,10,2,8),
-    l2p('wal_sherring10','K. Sherring','CAM',24,60,60,48,10,1,6),
-    l2p('wal_sherring8','A. Sherring','RW',23,60,56,44,10,1,6),
-    l2p('wal_sherring9','M. Sherring','LW',25,58,54,42,10,1,6),
-    l2p('wal_sherring11','T. Sherring2','CF',27,62,54,38,10,1,8),
+    l2p('wal_walsh','W. Walsh','CAM',24,60,60,48,10,1,6),
+    l2p('wal_morris','K. Morris','RW',23,60,56,44,10,1,6),
+    l2p('wal_palmer','D. Palmer','LW',25,58,54,42,10,1,6),
+    l2p('wal_jackson','B. Jackson','CF',27,62,54,38,10,1,8),
     l2p('wal_kanu','D. Kanu','ST',24,68,54,36,10,3,10),
     l2p('wal_matt','J. Matt','ST',34,66,54,40,10,2,10),
   ]},
   // ── GRIMSBY TOWN ───────────────────────────────────────────
   {id:'grimsby',name:'Grimsby Town',shortName:'GRI',crest:'⚫⚪',league:'League Two',stadium:'Blundell Park',stadiumCapacity:9052,budget:5000000,reputation:50,primaryColor:'#000000',players:[
-    l2p('gri_sherring','G. Sherring','GK',27,10,10,14,68,2,8),
-    l2p('gri_sherring2','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('gri_sherring5','R. Sherring','RB',26,54,56,64,10,1,8),
-    l2p('gri_sherring3','D. Sherring','CB',28,44,48,68,10,1,8),
-    l2p('gri_sherring4','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('gri_sherring6','L. Sherring','LB',24,52,54,63,10,1,6),
-    l2p('gri_sherring7','S. Sherring','CDM',28,50,62,64,10,1,8),
+    l2p('gri_parsons','M. Parsons','GK',27,10,10,14,68,2,8),
+    l2p('gri_todd','T. Todd','GK',23,10,10,12,62,1,6),
+    l2p('gri_green2','C. Green','RB',26,54,56,64,10,1,8),
+    l2p('gri_holland','M. Holland','CB',25,42,46,66,10,1,8),
+    l2p('gri_robinson','O. Robinson','CB',28,44,48,68,10,1,8),
+    l2p('gri_barrett','S. Barrett','LB',24,52,54,63,10,1,6),
+    l2p('gri_stone','L. Stone','CDM',28,50,62,64,10,1,8),
     l2p('gri_green','K. Green','CM',27,58,66,62,10,2,10),
-    l2p('gri_sherring10','K. Sherring','CAM',24,60,60,48,10,1,6),
-    l2p('gri_sherring8','A. Sherring','RW',23,62,58,44,10,1,8),
-    l2p('gri_sherring9','M. Sherring','LW',25,60,56,42,10,1,6),
-    l2p('gri_sherring12','B. Sherring','CF',27,62,54,38,10,1,8),
-    l2p('gri_sherring11','T. Sherring2','ST',29,66,54,36,10,2,10),
-    l2p('gri_sherring13','D. Sherring2','ST',24,60,50,36,10,1,6),
+    l2p('gri_fox','R. Fox','CAM',24,60,60,48,10,1,6),
+    l2p('gri_richardson','A. Richardson','RW',23,62,58,44,10,1,8),
+    l2p('gri_nelson','O. Nelson','LW',25,60,56,42,10,1,6),
+    l2p('gri_morgan','O. Morgan','CF',27,62,54,38,10,1,8),
+    l2p('gri_chapman','D. Chapman','ST',29,66,54,36,10,2,10),
+    l2p('gri_obrien','M. Obrien','ST',24,60,50,36,10,1,6),
   ]},
   // ── COLCHESTER UNITED ──────────────────────────────────────
   {id:'colchester',name:'Colchester United',shortName:'COL',crest:'🔵⚪',league:'League Two',stadium:'Colchester Community Stadium',stadiumCapacity:10105,budget:5000000,reputation:50,primaryColor:'#003399',players:[
-    l2p('col_sherring','G. Sherring','GK',27,10,10,14,68,2,8),
-    l2p('col_sherring2','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('col_sherring4','R. Sherring','RB',26,54,56,64,10,1,8),
+    l2p('col_bailey','E. Bailey','GK',23,10,10,12,62,1,6),
+    l2p('col_hunt','P. Hunt','GK',27,10,10,14,68,2,8),
+    l2p('col_randall','F. Randall','RB',26,54,56,64,10,1,8),
     l2p('col_flanagan','T. Flanagan','CB',32,44,48,70,10,2,10),
-    l2p('col_sherring3','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('col_sherring5','L. Sherring','LB',24,52,54,63,10,1,6),
-    l2p('col_sherring7','A. Sherring','CDM',28,50,62,64,10,1,8),
-    l2p('col_sherring6','S. Sherring','CM',27,58,64,58,10,1,8),
+    l2p('col_reynolds','O. Reynolds','CB',25,42,46,66,10,1,8),
+    l2p('col_cox','S. Cox','LB',24,52,54,63,10,1,6),
+    l2p('col_kerr','T. Kerr','CDM',28,50,62,64,10,1,8),
+    l2p('col_stanley','J. Stanley','CM',27,58,64,58,10,1,8),
     l2p('col_payne','J. Payne','CAM',30,66,66,48,10,3,10),
     l2p('col_anderson','H. Anderson','RW',28,64,60,46,10,2,8),
     l2p('col_lisbie','K. Lisbie','LW',22,64,58,42,10,2,8),
-    l2p('col_sherring9','K. Sherring','CF',27,62,54,38,10,1,8),
-    l2p('col_sherring10','T. Sherring2','ST',26,60,50,36,10,1,6),
-    l2p('col_sherring8','M. Sherring','ST',24,64,52,36,10,1,8),
+    l2p('col_drake','P. Drake','CF',27,62,54,38,10,1,8),
+    l2p('col_cook','O. Cook','ST',26,60,50,36,10,1,6),
+    l2p('col_steele','R. Steele','ST',24,64,52,36,10,1,8),
   ]},
   // ── ACCRINGTON STANLEY ─────────────────────────────────────
   {id:'accrington',name:'Accrington Stanley',shortName:'ACC',crest:'🔴',league:'League Two',stadium:'Crown Ground',stadiumCapacity:5450,budget:3000000,reputation:46,primaryColor:'#E2001A',players:[
-    l2p('acc_sherring','T. Sherring','GK',23,10,10,12,62,1,6),
+    l2p('acc_hamilton','W. Hamilton','GK',23,10,10,12,62,1,6),
     l2p('acc_wright','O. Wright','GK',25,10,10,14,68,2,8),
-    l2p('acc_sherring3','R. Sherring','RB',26,52,54,64,10,1,6),
+    l2p('acc_martin','L. Martin','RB',26,52,54,64,10,1,6),
+    l2p('acc_lloyd','J. Lloyd','CB',25,40,44,64,10,1,6),
     l2p('acc_rawson','F. Rawson','CB',29,42,48,68,10,1,8),
-    l2p('acc_sherring2','J. Sherring','CB',25,40,44,64,10,1,6),
-    l2p('acc_sherring4','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('acc_sherring6','A. Sherring','CDM',28,48,60,62,10,1,6),
-    l2p('acc_sherring5','S. Sherring','CM',27,56,62,58,10,1,8),
-    l2p('acc_sherring9','T. Sherring2','CAM',24,58,58,46,10,1,6),
-    l2p('acc_sherring7','M. Sherring','RW',23,58,54,42,10,1,6),
-    l2p('acc_sherring8','K. Sherring','LW',25,56,52,40,10,1,6),
-    l2p('acc_sherring10','B. Sherring','CF',27,62,54,38,10,1,8),
+    l2p('acc_richards','H. Richards','LB',24,50,52,62,10,1,6),
+    l2p('acc_gordon','J. Gordon','CDM',28,48,60,62,10,1,6),
+    l2p('acc_francis','C. Francis','CM',27,56,62,58,10,1,8),
+    l2p('acc_murphy','P. Murphy','CAM',24,58,58,46,10,1,6),
+    l2p('acc_hicks','P. Hicks','RW',23,58,54,42,10,1,6),
+    l2p('acc_wallace','H. Wallace','LW',25,56,52,40,10,1,6),
+    l2p('acc_simpson','W. Simpson','CF',27,62,54,38,10,1,8),
     l2p('acc_madden','P. Madden','ST',34,66,52,36,10,2,10),
-    l2p('acc_sherring11','D. Sherring','ST',24,58,50,36,10,1,6),
+    l2p('acc_oliver','N. Oliver','ST',24,58,50,36,10,1,6),
   ]},
   // ── OLDHAM ATHLETIC ────────────────────────────────────────
   {id:'oldham',name:'Oldham Athletic',shortName:'OLD',crest:'🔵',league:'League Two',stadium:'Boundary Park',stadiumCapacity:13513,budget:4000000,reputation:48,primaryColor:'#004B87',players:[
+    l2p('old_duffy','L. Duffy','GK',23,10,10,12,62,1,6),
     l2p('old_hudson','M. Hudson','GK',28,10,10,14,70,2,10),
-    l2p('old_sherring','T. Sherring','GK',23,10,10,12,62,1,6),
-    l2p('old_sherring4','R. Sherring','RB',26,52,54,64,10,1,6),
-    l2p('old_sherring2','D. Sherring','CB',27,44,48,66,10,1,8),
-    l2p('old_sherring3','J. Sherring','CB',25,42,46,64,10,1,6),
-    l2p('old_sherring5','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('old_sherring6','S. Sherring','CDM',28,48,62,64,10,1,8),
+    l2p('old_mcdonald','L. McDonald','RB',26,52,54,64,10,1,6),
+    l2p('old_atkins','R. Atkins','CB',25,42,46,64,10,1,6),
+    l2p('old_willis','A. Willis','CB',27,44,48,66,10,1,8),
+    l2p('old_kent','F. Kent','LB',24,50,52,62,10,1,6),
+    l2p('old_patterson','R. Patterson','CDM',28,48,62,64,10,1,8),
     l2p('old_conlon','T. Conlon','CM',30,58,66,60,10,2,10),
-    l2p('old_sherring9','K. Sherring','CAM',24,60,60,48,10,1,6),
-    l2p('old_sherring7','A. Sherring','RW',23,60,56,44,10,1,6),
-    l2p('old_sherring8','M. Sherring','LW',25,58,54,42,10,1,6),
-    l2p('old_sherring10','T. Sherring2','CF',27,62,54,38,10,1,8),
+    l2p('old_mccarthy','J. McCarthy','CAM',24,60,60,48,10,1,6),
+    l2p('old_jordan','G. Jordan','RW',23,60,56,44,10,1,6),
+    l2p('old_moore','M. Moore','LW',25,58,54,42,10,1,6),
+    l2p('old_bates','L. Bates','CF',27,62,54,38,10,1,8),
+    l2p('old_evans','J. Evans','ST',24,58,50,36,10,1,6),
     l2p('old_mellon','M. Mellon','ST',22,64,54,36,10,2,8),
-    l2p('old_sherring11','B. Sherring','ST',24,58,50,36,10,1,6),
   ]},
   // ── FLEETWOOD TOWN ─────────────────────────────────────────
   {id:'fleetwood',name:'Fleetwood Town',shortName:'FLE',crest:'🔴',league:'League Two',stadium:'Highbury Stadium',stadiumCapacity:5327,budget:4000000,reputation:48,primaryColor:'#E2001A',players:[
-    l2p('fle_sherring','G. Sherring','GK',27,10,10,14,66,1,8),
-    l2p('fle_sherring2','T. Sherring','GK',23,10,10,12,60,1,6),
-    l2p('fle_sherring5','R. Sherring','RB',26,52,54,64,10,1,6),
-    l2p('fle_sherring3','D. Sherring','CB',27,42,46,66,10,1,8),
-    l2p('fle_sherring4','J. Sherring','CB',25,40,44,64,10,1,6),
-    l2p('fle_sherring6','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('fle_sherring7','S. Sherring','CDM',28,48,60,62,10,1,6),
+    l2p('fle_george','J. George','GK',27,10,10,14,66,1,8),
+    l2p('fle_harper','T. Harper','GK',23,10,10,12,60,1,6),
+    l2p('fle_davidson','G. Davidson','RB',26,52,54,64,10,1,6),
+    l2p('fle_cooper','A. Cooper','CB',27,42,46,66,10,1,8),
+    l2p('fle_osborne','S. Osborne','CB',25,40,44,64,10,1,6),
+    l2p('fle_davies','C. Davies','LB',24,50,52,62,10,1,6),
+    l2p('fle_smith','H. Smith','CDM',28,48,60,62,10,1,6),
     l2p('fle_bonds','E. Bonds','CM',28,56,64,60,10,1,8),
-    l2p('fle_sherring10','K. Sherring','CAM',24,58,58,46,10,1,6),
-    l2p('fle_sherring8','A. Sherring','RW',23,58,54,42,10,1,6),
-    l2p('fle_sherring9','M. Sherring','LW',25,56,52,40,10,1,6),
-    l2p('fle_sherring12','B. Sherring','CF',26,60,52,36,10,1,6),
-    l2p('fle_sherring11','T. Sherring2','ST',27,62,52,36,10,1,8),
-    l2p('fle_sherring13','D. Sherring','ST',24,58,50,36,10,1,6),
+    l2p('fle_craig','T. Craig','CAM',24,58,58,46,10,1,6),
+    l2p('fle_graham','O. Graham','RW',23,58,54,42,10,1,6),
+    l2p('fle_hopkins','R. Hopkins','LW',25,56,52,40,10,1,6),
+    l2p('fle_hughes','R. Hughes','CF',26,60,52,36,10,1,6),
+    l2p('fle_daniels','H. Daniels','ST',27,62,52,36,10,1,8),
+    l2p('fle_roberts','R. Roberts','ST',24,58,50,36,10,1,6),
   ]},
   // ── GILLINGHAM ─────────────────────────────────────────────
   {id:'gillingham',name:'Gillingham',shortName:'GIL',crest:'🔵',league:'League Two',stadium:'Priestfield Stadium',stadiumCapacity:11582,budget:5000000,reputation:50,primaryColor:'#0000FF',players:[
-    l2p('gil_sherring','G. Sherring','GK',27,10,10,14,66,1,8),
-    l2p('gil_sherring2','T. Sherring','GK',23,10,10,12,60,1,6),
-    l2p('gil_sherring5','R. Sherring','RB',26,52,54,64,10,1,6),
-    l2p('gil_sherring3','D. Sherring','CB',28,44,48,68,10,1,8),
-    l2p('gil_sherring4','J. Sherring','CB',25,42,46,66,10,1,8),
-    l2p('gil_sherring6','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('gil_sherring7','S. Sherring','CDM',28,48,60,62,10,1,6),
+    l2p('gil_hall','P. Hall','GK',27,10,10,14,66,1,8),
+    l2p('gil_wilkins','A. Wilkins','GK',23,10,10,12,60,1,6),
+    l2p('gil_pope','H. Pope','RB',26,52,54,64,10,1,6),
+    l2p('gil_carter','C. Carter','CB',28,44,48,68,10,1,8),
+    l2p('gil_wood','K. Wood','CB',25,42,46,66,10,1,8),
+    l2p('gil_nash','N. Nash','LB',24,50,52,62,10,1,6),
+    l2p('gil_sanders','H. Sanders','CDM',28,48,60,62,10,1,6),
     l2p('gil_little','A. Little','CM',29,58,66,58,10,2,10),
-    l2p('gil_sherring10','K. Sherring','CAM',25,58,58,46,10,1,6),
-    l2p('gil_sherring8','A. Sherring','RW',24,60,56,44,10,1,6),
-    l2p('gil_sherring9','M. Sherring','LW',23,58,54,42,10,1,6),
-    l2p('gil_sherring12','B. Sherring','CF',27,60,52,36,10,1,6),
-    l2p('gil_sherring11','T. Sherring2','ST',28,64,52,36,10,1,8),
-    l2p('gil_sherring13','D. Sherring','ST',24,58,50,36,10,1,6),
+    l2p('gil_ashton','M. Ashton','CAM',25,58,58,46,10,1,6),
+    l2p('gil_spencer','K. Spencer','RW',24,60,56,44,10,1,6),
+    l2p('gil_page','W. Page','LW',23,58,54,42,10,1,6),
+    l2p('gil_cole','T. Cole','CF',27,60,52,36,10,1,6),
+    l2p('gil_hart','R. Hart','ST',28,64,52,36,10,1,8),
+    l2p('gil_wade','S. Wade','ST',24,58,50,36,10,1,6),
   ]},
   // ── SHREWSBURY TOWN ────────────────────────────────────────
   {id:'shrewsbury',name:'Shrewsbury Town',shortName:'SHR',crest:'🔵',league:'League Two',stadium:'New Meadow',stadiumCapacity:9875,budget:5000000,reputation:50,primaryColor:'#003399',players:[
-    l2p('shr_sherring','G. Sherring','GK',27,10,10,14,66,1,8),
-    l2p('shr_sherring2','T. Sherring','GK',23,10,10,12,60,1,6),
-    l2p('shr_sherring5','R. Sherring','RB',26,52,54,64,10,1,6),
-    l2p('shr_sherring3','D. Sherring','CB',28,44,48,66,10,1,8),
-    l2p('shr_sherring4','J. Sherring','CB',25,42,46,64,10,1,6),
-    l2p('shr_sherring6','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('shr_sherring8','A. Sherring','CDM',28,48,60,62,10,1,6),
-    l2p('shr_sherring7','S. Sherring','CM',27,56,62,58,10,1,8),
-    l2p('shr_sherring11','T. Sherring2','CAM',24,56,58,46,10,1,6),
-    l2p('shr_sherring9','M. Sherring','RW',23,58,54,42,10,1,6),
-    l2p('shr_sherring10','K. Sherring','LW',25,56,52,40,10,1,6),
-    l2p('shr_sherring12','B. Sherring','CF',27,60,52,36,10,1,6),
+    l2p('shr_dawson','M. Dawson','GK',27,10,10,14,66,1,8),
+    l2p('shr_west','O. West','GK',23,10,10,12,60,1,6),
+    l2p('shr_williams','M. Williams','RB',26,52,54,64,10,1,6),
+    l2p('shr_harrison','L. Harrison','CB',25,42,46,64,10,1,6),
+    l2p('shr_mcgrath','T. McGrath','CB',28,44,48,66,10,1,8),
+    l2p('shr_grant','P. Grant','LB',24,50,52,62,10,1,6),
+    l2p('shr_murray','K. Murray','CDM',28,48,60,62,10,1,6),
+    l2p('shr_briggs','J. Briggs','CM',27,56,62,58,10,1,8),
+    l2p('shr_warren','D. Warren','CAM',24,56,58,46,10,1,6),
+    l2p('shr_dixon','J. Dixon','RW',23,58,54,42,10,1,6),
+    l2p('shr_newton','H. Newton','LW',25,56,52,40,10,1,6),
+    l2p('shr_gray','G. Gray','CF',27,60,52,36,10,1,6),
     l2p('shr_marquis','J. Marquis','ST',31,66,54,38,10,2,10),
-    l2p('shr_sherring13','D. Sherring','ST',24,58,50,36,10,1,6),
+    l2p('shr_reeves','L. Reeves','ST',24,58,50,36,10,1,6),
   ]},
   // ── CHELTENHAM TOWN ────────────────────────────────────────
   {id:'cheltenham',name:'Cheltenham Town',shortName:'CLT',crest:'🔴',league:'League Two',stadium:'Whaddon Road',stadiumCapacity:7066,budget:4000000,reputation:48,primaryColor:'#E2001A',players:[
-    l2p('clt_sherring','G. Sherring','GK',27,10,10,14,66,1,8),
-    l2p('clt_sherring2','T. Sherring','GK',23,10,10,12,60,1,6),
-    l2p('clt_sherring4','R. Sherring','RB',26,52,54,64,10,1,6),
-    l2p('clt_sherring3','J. Sherring','CB',25,42,46,64,10,1,6),
+    l2p('clt_foster','T. Foster','GK',23,10,10,12,60,1,6),
+    l2p('clt_gregory','D. Gregory','GK',27,10,10,14,66,1,8),
+    l2p('clt_burton','G. Burton','RB',26,52,54,64,10,1,6),
+    l2p('clt_baldwin','F. Baldwin','CB',25,42,46,64,10,1,6),
     l2p('clt_wilson','J. Wilson','CB',30,44,48,68,10,2,8),
-    l2p('clt_sherring5','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('clt_sherring7','A. Sherring','CDM',28,48,60,62,10,1,6),
-    l2p('clt_sherring6','S. Sherring','CM',27,56,62,58,10,1,8),
+    l2p('clt_henry','G. Henry','LB',24,50,52,62,10,1,6),
+    l2p('clt_scott','J. Scott','CDM',28,48,60,62,10,1,6),
+    l2p('clt_carey','R. Carey','CM',27,56,62,58,10,1,8),
     l2p('clt_hutchinson','I. Hutchinson','CAM',28,62,62,48,10,2,8),
-    l2p('clt_sherring8','M. Sherring','RW',23,58,54,42,10,1,6),
-    l2p('clt_sherring9','K. Sherring','LW',25,56,52,40,10,1,6),
-    l2p('clt_sherring11','B. Sherring','CF',27,58,52,36,10,1,6),
-    l2p('clt_sherring10','T. Sherring2','ST',28,62,52,36,10,1,8),
-    l2p('clt_sherring12','D. Sherring','ST',24,56,48,36,10,1,6),
+    l2p('clt_lynch','W. Lynch','RW',23,58,54,42,10,1,6),
+    l2p('clt_griffin','S. Griffin','LW',25,56,52,40,10,1,6),
+    l2p('clt_king','D. King','CF',27,58,52,36,10,1,6),
+    l2p('clt_baker','K. Baker','ST',28,62,52,36,10,1,8),
+    l2p('clt_carpenter','G. Carpenter','ST',24,56,48,36,10,1,6),
   ]},
   // ── TRANMERE ROVERS ────────────────────────────────────────
   {id:'tranmere',name:'Tranmere Rovers',shortName:'TRA',crest:'⚪',league:'League Two',stadium:'Prenton Park',stadiumCapacity:16789,budget:5000000,reputation:50,primaryColor:'#FFFFFF',players:[
-    l2p('tra_sherring','G. Sherring','GK',27,10,10,14,66,1,8),
-    l2p('tra_sherring2','T. Sherring','GK',23,10,10,12,60,1,6),
-    l2p('tra_sherring5','R. Sherring','RB',26,52,54,64,10,1,6),
-    l2p('tra_sherring3','D. Sherring','CB',28,44,48,66,10,1,8),
-    l2p('tra_sherring4','J. Sherring','CB',25,42,46,64,10,1,6),
-    l2p('tra_sherring6','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('tra_sherring7','S. Sherring','CDM',27,48,60,62,10,1,6),
+    l2p('tra_bennett','H. Bennett','GK',23,10,10,12,60,1,6),
+    l2p('tra_norton','K. Norton','GK',27,10,10,14,66,1,8),
+    l2p('tra_lawrence','K. Lawrence','RB',26,52,54,64,10,1,6),
+    l2p('tra_anderson','F. Anderson','CB',25,42,46,64,10,1,6),
+    l2p('tra_brown','M. Brown','CB',28,44,48,66,10,1,8),
+    l2p('tra_henderson','A. Henderson','LB',24,50,52,62,10,1,6),
+    l2p('tra_owen','T. Owen','CDM',27,48,60,62,10,1,6),
     l2p('tra_finley','S. Finley','CM',32,56,64,60,10,2,8),
-    l2p('tra_sherring10','K. Sherring','CAM',24,58,58,46,10,1,6),
-    l2p('tra_sherring8','A. Sherring','RW',23,58,54,44,10,1,6),
-    l2p('tra_sherring9','M. Sherring','LW',25,56,52,42,10,1,6),
-    l2p('tra_sherring12','B. Sherring','CF',27,60,52,36,10,1,6),
-    l2p('tra_sherring11','T. Sherring2','ST',29,64,52,36,10,1,8),
-    l2p('tra_sherring13','D. Sherring','ST',24,56,48,36,10,1,6),
+    l2p('tra_phillips','B. Phillips','CAM',24,58,58,46,10,1,6),
+    l2p('tra_wheeler','E. Wheeler','RW',23,58,54,44,10,1,6),
+    l2p('tra_hobbs','J. Hobbs','LW',25,56,52,42,10,1,6),
+    l2p('tra_vaughan','T. Vaughan','CF',27,60,52,36,10,1,6),
+    l2p('tra_chambers','B. Chambers','ST',29,64,52,36,10,1,8),
+    l2p('tra_mitchell','K. Mitchell','ST',24,56,48,36,10,1,6),
   ]},
   // ── BRISTOL ROVERS ─────────────────────────────────────────
   {id:'bristol_rovers',name:'Bristol Rovers',shortName:'BRR',crest:'🔵⚪',league:'League Two',stadium:'Memorial Stadium',stadiumCapacity:9832,budget:5000000,reputation:50,primaryColor:'#0038A8',players:[
-    l2p('brr_sherring','G. Sherring','GK',27,10,10,14,66,1,8),
-    l2p('brr_sherring2','T. Sherring','GK',23,10,10,12,60,1,6),
-    l2p('brr_sherring4','R. Sherring','RB',26,52,54,64,10,1,6),
+    l2p('brr_butler','E. Butler','GK',27,10,10,14,66,1,8),
+    l2p('brr_reed','R. Reed','GK',23,10,10,12,60,1,6),
+    l2p('brr_adams','A. Adams','RB',26,52,54,64,10,1,6),
+    l2p('brr_gibson','D. Gibson','CB',25,42,46,64,10,1,6),
     l2p('brr_kilgour','A. Kilgour','CB',27,44,50,68,10,2,8),
-    l2p('brr_sherring3','J. Sherring','CB',25,42,46,64,10,1,6),
-    l2p('brr_sherring5','L. Sherring','LB',24,50,52,62,10,1,6),
-    l2p('brr_sherring7','A. Sherring','CDM',28,48,58,62,10,1,6),
-    l2p('brr_sherring6','S. Sherring','CM',27,56,60,58,10,1,8),
+    l2p('brr_ball','W. Ball','LB',24,50,52,62,10,1,6),
+    l2p('brr_russell','R. Russell','CDM',28,48,58,62,10,1,6),
+    l2p('brr_ellis','K. Ellis','CM',27,56,60,58,10,1,8),
     l2p('brr_hutchinson2','I. Hutchinson','CAM',26,60,60,46,10,1,8),
-    l2p('brr_sherring8','M. Sherring','RW',23,56,52,42,10,1,6),
-    l2p('brr_sherring9','K. Sherring','LW',25,54,50,40,10,1,6),
-    l2p('brr_sherring10','T. Sherring2','CF',27,58,52,36,10,1,6),
+    l2p('brr_hayes','R. Hayes','RW',23,56,52,42,10,1,6),
+    l2p('brr_walker','P. Walker','LW',25,54,50,40,10,1,6),
+    l2p('brr_booth','L. Booth','CF',27,58,52,36,10,1,6),
+    l2p('brr_barker','F. Barker','ST',24,56,48,36,10,1,6),
     l2p('brr_cavegn','F. Cavegn','ST',24,66,54,36,10,2,8),
-    l2p('brr_sherring11','B. Sherring','ST',24,56,48,36,10,1,6),
   ]},
   // ── CRAWLEY TOWN ───────────────────────────────────────────
   {id:'crawley',name:'Crawley Town',shortName:'CRA',crest:'🔴',league:'League Two',stadium:'Broadfield Stadium',stadiumCapacity:5996,budget:4000000,reputation:46,primaryColor:'#E2001A',players:[
-    l2p('cra_sherring','G. Sherring','GK',27,10,10,14,64,1,6),
-    l2p('cra_sherring2','T. Sherring','GK',23,10,10,12,58,1,4),
-    l2p('cra_sherring4','R. Sherring','RB',26,50,52,62,10,1,6),
+    l2p('cra_shaw','B. Shaw','GK',27,10,10,14,64,1,6),
+    l2p('cra_taylor','J. Taylor','GK',23,10,10,12,58,1,4),
+    l2p('cra_doyle','D. Doyle','RB',26,50,52,62,10,1,6),
     l2p('cra_conroy','D. Conroy','CB',32,42,48,68,10,1,8),
-    l2p('cra_sherring3','J. Sherring','CB',25,40,44,62,10,1,6),
-    l2p('cra_sherring5','L. Sherring','LB',24,48,50,60,10,1,6),
-    l2p('cra_sherring7','A. Sherring','CDM',28,46,58,60,10,1,6),
-    l2p('cra_sherring6','S. Sherring','CM',27,54,60,56,10,1,6),
-    l2p('cra_sherring10','T. Sherring2','CAM',24,56,56,44,10,1,6),
-    l2p('cra_sherring8','M. Sherring','RW',23,56,52,42,10,1,6),
-    l2p('cra_sherring9','K. Sherring','LW',25,54,50,40,10,1,6),
-    l2p('cra_sherring12','D. Sherring','CF',26,56,50,36,10,1,6),
-    l2p('cra_sherring11','B. Sherring','ST',28,60,50,36,10,1,6),
-    l2p('cra_sherring13','E. Sherring','ST',24,54,48,36,10,1,6),
+    l2p('cra_swift','R. Swift','CB',25,40,44,62,10,1,6),
+    l2p('cra_james','C. James','LB',24,48,50,60,10,1,6),
+    l2p('cra_duncan','R. Duncan','CDM',28,46,58,60,10,1,6),
+    l2p('cra_jones','N. Jones','CM',27,54,60,56,10,1,6),
+    l2p('cra_nichols','B. Nichols','CAM',24,56,56,44,10,1,6),
+    l2p('cra_short','C. Short','RW',23,56,52,42,10,1,6),
+    l2p('cra_mills','W. Mills','LW',25,54,50,40,10,1,6),
+    l2p('cra_gill','E. Gill','CF',26,56,50,36,10,1,6),
+    l2p('cra_crawford','E. Crawford','ST',28,60,50,36,10,1,6),
+    l2p('cra_parker','W. Parker','ST',24,54,48,36,10,1,6),
   ]},
   // ── BARROW ─────────────────────────────────────────────────
   {id:'barrow',name:'Barrow',shortName:'BAW',crest:'🔵⚪',league:'League Two',stadium:'Holker Street',stadiumCapacity:6500,budget:3000000,reputation:44,primaryColor:'#003DA5',players:[
-    l2p('baw_sherring','G. Sherring','GK',27,10,10,14,64,1,6),
-    l2p('baw_sherring2','T. Sherring','GK',23,10,10,12,58,1,4),
-    l2p('baw_sherring4','R. Sherring','RB',26,50,52,62,10,1,6),
+    l2p('baw_matthews','C. Matthews','GK',23,10,10,12,58,1,4),
+    l2p('baw_woods','K. Woods','GK',27,10,10,14,64,1,6),
+    l2p('baw_elliott','D. Elliott','RB',26,50,52,62,10,1,6),
     l2p('baw_canavan','N. Canavan','CB',33,42,46,68,10,1,8),
-    l2p('baw_sherring3','J. Sherring','CB',25,40,44,62,10,1,6),
-    l2p('baw_sherring5','L. Sherring','LB',24,48,50,60,10,1,6),
-    l2p('baw_sherring7','A. Sherring','CDM',28,46,56,60,10,1,6),
-    l2p('baw_sherring6','S. Sherring','CM',27,54,58,56,10,1,6),
-    l2p('baw_sherring10','T. Sherring2','CAM',24,54,54,44,10,1,6),
-    l2p('baw_sherring8','M. Sherring','RW',23,54,50,42,10,1,6),
-    l2p('baw_sherring9','K. Sherring','LW',25,52,48,40,10,1,6),
-    l2p('baw_sherring12','D. Sherring','CF',27,56,50,36,10,1,6),
-    l2p('baw_sherring11','B. Sherring','ST',29,60,50,36,10,1,6),
-    l2p('baw_sherring13','E. Sherring','ST',24,52,46,36,10,1,6),
+    l2p('baw_farrell','H. Farrell','CB',25,40,44,62,10,1,6),
+    l2p('baw_carroll','T. Carroll','LB',24,48,50,60,10,1,6),
+    l2p('baw_pierce','H. Pierce','CDM',28,46,56,60,10,1,6),
+    l2p('baw_lambert','O. Lambert','CM',27,54,58,56,10,1,6),
+    l2p('baw_bryant','P. Bryant','CAM',24,54,54,44,10,1,6),
+    l2p('baw_brooks','S. Brooks','RW',23,54,50,42,10,1,6),
+    l2p('baw_stewart','N. Stewart','LW',25,52,48,40,10,1,6),
+    l2p('baw_edwards','K. Edwards','CF',27,56,50,36,10,1,6),
+    l2p('baw_cross','W. Cross','ST',24,52,46,36,10,1,6),
+    l2p('baw_kelly','P. Kelly','ST',29,60,50,36,10,1,6),
   ]},
   // ── HARROGATE TOWN ─────────────────────────────────────────
   {id:'harrogate',name:'Harrogate Town',shortName:'HAR',crest:'🟡⚫',league:'League Two',stadium:'Wetherby Road',stadiumCapacity:5000,budget:3000000,reputation:42,primaryColor:'#F7C948',players:[
-    l2p('har_sherring','G. Sherring','GK',27,10,10,14,62,1,6),
-    l2p('har_sherring2','T. Sherring','GK',23,10,10,12,56,1,4),
-    l2p('har_sherring4','R. Sherring','RB',26,48,50,60,10,1,4),
+    l2p('har_armstrong','K. Armstrong','GK',23,10,10,12,56,1,4),
+    l2p('har_mason','O. Mason','GK',27,10,10,14,62,1,6),
+    l2p('har_hamiltons','D. Hamiltons','RB',26,48,50,60,10,1,4),
     l2p('har_burrell','W. Burrell','CB',33,40,46,66,10,1,6),
-    l2p('har_sherring3','J. Sherring','CB',25,38,42,60,10,1,4),
-    l2p('har_sherring5','L. Sherring','LB',24,46,48,58,10,1,4),
-    l2p('har_sherring7','A. Sherring','CDM',28,44,54,58,10,1,4),
-    l2p('har_sherring6','S. Sherring','CM',27,52,56,54,10,1,6),
-    l2p('har_sherring10','T. Sherring2','CAM',24,52,52,42,10,1,4),
-    l2p('har_sherring8','M. Sherring','RW',23,52,48,40,10,1,4),
-    l2p('har_sherring9','K. Sherring','LW',25,50,46,38,10,1,4),
-    l2p('har_sherring12','D. Sherring','CF',27,54,48,36,10,1,4),
-    l2p('har_sherring11','B. Sherring','ST',29,56,48,36,10,1,6),
-    l2p('har_sherring13','E. Sherring','ST',24,50,44,36,10,1,4),
+    l2p('har_fletchers','O. Fletchers','CB',25,38,42,60,10,1,4),
+    l2p('har_brennans','D. Brennans','LB',24,46,48,58,10,1,4),
+    l2p('har_gilberts','F. Gilberts','CDM',28,44,54,58,10,1,4),
+    l2p('har_curtiss','P. Curtiss','CM',27,52,56,54,10,1,6),
+    l2p('har_hopkinss','B. Hopkinss','CAM',24,52,52,42,10,1,4),
+    l2p('har_butlers','K. Butlers','RW',23,52,48,40,10,1,4),
+    l2p('har_obriens','A. Obriens','LW',25,50,46,38,10,1,4),
+    l2p('har_warners','B. Warners','CF',27,54,48,36,10,1,4),
+    l2p('har_rileys','K. Rileys','ST',24,50,44,36,10,1,4),
+    l2p('har_thomass','L. Thomass','ST',29,56,48,36,10,1,6),
   ]},
   // ── NEWPORT COUNTY ─────────────────────────────────────────
   {id:'newport',name:'Newport County',shortName:'NEW',crest:'🟡⚫',league:'League Two',stadium:'Rodney Parade',stadiumCapacity:7850,budget:3000000,reputation:44,primaryColor:'#F5A623',players:[
-    l2p('new_sherring','G. Sherring','GK',27,10,10,14,62,1,6),
-    l2p('new_sherring2','T. Sherring','GK',23,10,10,12,56,1,4),
-    l2p('new_sherring4','R. Sherring','RB',26,48,50,60,10,1,4),
+    l2p('new_atkinss','M. Atkinss','GK',27,10,10,14,62,1,6),
+    l2p('new_mitchells','M. Mitchells','GK',23,10,10,12,56,1,4),
+    l2p('new_gardners','E. Gardners','RB',26,48,50,60,10,1,4),
     l2p('new_baker','M. Baker','CB',30,42,46,66,10,1,6),
-    l2p('new_sherring3','J. Sherring','CB',25,38,42,60,10,1,4),
-    l2p('new_sherring5','L. Sherring','LB',24,46,48,58,10,1,4),
-    l2p('new_sherring7','A. Sherring','CDM',28,44,54,58,10,1,4),
-    l2p('new_sherring6','S. Sherring','CM',27,52,56,54,10,1,6),
-    l2p('new_sherring10','T. Sherring2','CAM',24,52,52,42,10,1,4),
-    l2p('new_sherring8','M. Sherring','RW',23,52,48,40,10,1,4),
-    l2p('new_sherring9','K. Sherring','LW',25,50,46,38,10,1,4),
-    l2p('new_sherring12','D. Sherring','CF',27,54,48,36,10,1,4),
-    l2p('new_sherring11','B. Sherring','ST',29,56,48,36,10,1,6),
-    l2p('new_sherring13','E. Sherring','ST',24,50,44,36,10,1,4),
+    l2p('new_kennedys','O. Kennedys','CB',25,38,42,60,10,1,4),
+    l2p('new_freemans','H. Freemans','LB',24,46,48,58,10,1,4),
+    l2p('new_hunters','O. Hunters','CDM',28,44,54,58,10,1,4),
+    l2p('new_woodss','S. Woodss','CM',27,52,56,54,10,1,6),
+    l2p('new_gills','F. Gills','CAM',24,52,52,42,10,1,4),
+    l2p('new_robinsons','W. Robinsons','RW',23,52,48,40,10,1,4),
+    l2p('new_morrisons','F. Morrisons','LW',25,50,46,38,10,1,4),
+    l2p('new_pearsons','C. Pearsons','CF',27,54,48,36,10,1,4),
+    l2p('new_newmans','F. Newmans','ST',29,56,48,36,10,1,6),
+    l2p('new_quinns','N. Quinns','ST',24,50,44,36,10,1,4),
   ]},
 ];
 
@@ -4462,8 +4462,8 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
     const defFitMap  = isHome ? aFitness : hFitness;
 
     // Fitness degrades each phase — older players tire faster
-    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.22 * ageDrain(p.age ?? 24)));
-    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.15 * ageDrain(p.age ?? 24)));
+    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.18 * ageDrain(p.age ?? 24)));
+    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.12 * ageDrain(p.age ?? 24)));
 
     // Average fitness of attacking outfield players
     const attOutfield = attActive.filter(p => p.position !== 'GK');
@@ -4517,7 +4517,7 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
         for (const out of tired.slice(0, hSubsLeft)) {
           const sub = hBenchLeft.shift(); if (!sub) break;
           hActive = hActive.map(p => p.id === out.id ? sub : p);
-          hFitness.set(sub.id, 90); hSubsLeft--;
+          hFitness.set(sub.id, Math.min(100, sub.fitness ?? 90)); hSubsLeft--;
           events.push({ type:'sub', minute, teamId:homeTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
@@ -4526,7 +4526,7 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
         for (const out of tired.slice(0, aSubsLeft)) {
           const sub = aBenchLeft.shift(); if (!sub) break;
           aActive = aActive.map(p => p.id === out.id ? sub : p);
-          aFitness.set(sub.id, 90); aSubsLeft--;
+          aFitness.set(sub.id, Math.min(100, sub.fitness ?? 90)); aSubsLeft--;
           events.push({ type:'sub', minute, teamId:awayTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
@@ -4596,8 +4596,8 @@ function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhas
     const attFitMap = isHome ? hFitness   : aFitness;
     const defFitMap = isHome ? aFitness   : hFitness;
 
-    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.22 * ageDrain(p.age ?? 24)));
-    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.15 * ageDrain(p.age ?? 24)));
+    for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.18 * ageDrain(p.age ?? 24)));
+    for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.12 * ageDrain(p.age ?? 24)));
 
     const attOutfield = attActive.filter(p => p.position !== 'GK');
     const avgAttFit = attOutfield.reduce((s,p) => s+(attFitMap.get(p.id)??90),0) / Math.max(1,attOutfield.length);
@@ -4640,7 +4640,7 @@ function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhas
         for (const out of tired.slice(0, curHSubs)) {
           const sub = curHBench.shift(); if (!sub) break;
           curHActive = curHActive.map(p => p.id === out.id ? sub : p);
-          hFitness.set(sub.id, 90); curHSubs--;
+          hFitness.set(sub.id, Math.min(100, sub.fitness ?? 90)); curHSubs--;
           segEvents.push({ type:'sub', minute, teamId:homeTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
@@ -4649,7 +4649,7 @@ function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhas
         for (const out of tired.slice(0, curASubsLeft)) {
           const sub = curABench.shift(); if (!sub) break;
           curAActive = curAActive.map(p => p.id === out.id ? sub : p);
-          aFitness.set(sub.id, 90); curASubsLeft--;
+          aFitness.set(sub.id, Math.min(100, sub.fitness ?? 90)); curASubsLeft--;
           segEvents.push({ type:'sub', minute, teamId:awayTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
@@ -5300,7 +5300,7 @@ function formAdjustedValue(player) {
   const base  = Number(player.value) || 10_000_000;
   const age   = player.age ?? 24;
   const pot   = player.potentialRating ?? 70;
-  const cur   = _fav_primaryRating(player);
+  const cur   = _fav_primaryRating(player) || 70; // fallback 70 if position/ratings missing
   const headroom = Math.max(0, pot - cur);
 
   // ── Form score: 50 = average, 80+ = hot ──
@@ -5317,20 +5317,30 @@ function formAdjustedValue(player) {
   else                       formMult = 0.75;
 
   // Dampen form effect for high-value players (diminishing returns)
-  // A £100M player at 1.50× form mult → dampened to ~1.30× (not £150M)
-  // A £10M player at 1.50× form mult → stays closer to 1.45× (£14.5M)
-  const valueTier = Math.min(1, base / 80_000_000); // 0-1 scale, 1 at £80M+
-  const dampening = 1 - valueTier * 0.4;            // 1.0 for cheap, 0.6 for expensive
-  const dampenedFormMult = 1 + (formMult - 1) * dampening;
+  const valueTier = Math.min(1, base / 80_000_000);
+  const dampening = 1 - valueTier * 0.4;
+
+  // ALSO dampen form for low-rated players — a 55-rated player on a hot streak
+  // shouldn't inflate as much as an 80-rated player on the same streak
+  // Rating dampening: 0.4 at rating 50, 0.7 at 65, 1.0 at 78+
+  const ratingDamp = Math.min(1, Math.max(0.4, (cur - 50) / 28));
+  const dampenedFormMult = 1 + (formMult - 1) * dampening * ratingDamp;
 
   // ── Youth/potential premium ──
   // Young players with high potential command outsized premiums when in form
+  // But scale by current rating — a 55-rated youth with high potential gets
+  // a moderate premium, not the same as a 70-rated wonderkid
   let potentialMult = 1.0;
   if (age <= 23 && headroom > 10) {
-    // Big potential gap + young = "wonderkid tax"
-    const potPremium = Math.min(0.8, headroom * 0.03); // up to +80% for 27+ headroom
-    // But only fully applies when in form — cold wonderkid doesn't get premium
-    const formFactor = Math.max(0, (cappedForm - 50) / 40); // 0 at avg, 1 at 90 form
+    // Potential premium scales with headroom but is moderated by current rating
+    // A 70-rated player with pot 90 (headroom 20): 0.03*20 = 0.60
+    // A 55-rated player with pot 85 (headroom 30): 0.03*30 = 0.90 → capped 0.60
+    const rawPremium = headroom * 0.03;
+    // Cap harder for low-rated players: max premium scales from 30% at rating 50 to 80% at 75+
+    const ratingCap = Math.min(0.80, 0.30 + Math.max(0, (cur - 50) / 25) * 0.50);
+    const potPremium = Math.min(ratingCap, rawPremium);
+    // Only fully applies when in form
+    const formFactor = Math.max(0, (cappedForm - 50) / 40);
     potentialMult = 1 + potPremium * (0.3 + 0.7 * formFactor);
   } else if (age <= 26 && headroom > 5) {
     potentialMult = 1 + Math.min(0.25, headroom * 0.015);
@@ -5339,7 +5349,17 @@ function formAdjustedValue(player) {
   // ── Age discount for older players ──
   const ageMult = age >= 33 ? 0.80 : age >= 31 ? 0.90 : age >= 29 ? 0.95 : 1.0;
 
-  return Math.max(500_000, Math.round(base * dampenedFormMult * potentialMult * ageMult));
+  // ── Final cap: prevent total multiplier from exceeding sensible bounds ──
+  // For low-rated players (< 65), cap total boost at 2.0× base value
+  // For mid-rated (65-75), cap at 2.5×; for high-rated (75+), no extra cap
+  const rawResult = base * dampenedFormMult * potentialMult * ageMult;
+  let maxMult;
+  if (cur < 65)      maxMult = 2.0;
+  else if (cur < 75) maxMult = 2.5;
+  else               maxMult = 4.0;
+  const capped = Math.min(rawResult, base * maxMult);
+
+  return Math.max(500_000, Math.round(capped));
 }
 
 function _fav_primaryRating(p) {
@@ -5380,25 +5400,60 @@ async function buyPlayer(playerId, offerAmount) {
   return { success: true, player: updated, fee: offerAmount };
 }
 
+// ─── Reputation-weighted team picker ─────────────────────────
+// Higher-rep clubs are more likely to buy expensive/high-rated players.
+// This means PL clubs realistically poach stars from Championship etc.
+function _pickBuyerWeighted(teams, playerValue, playerRating) {
+  // Weight = reputation^2 * budget-adequacy bonus
+  // High-value players attract higher-rep clubs disproportionately
+  const valueTier = Math.min(1, playerValue / 50_000_000); // 0-1, 1 at £50M+
+  const ratingTier = Math.min(1, Math.max(0, (playerRating - 55) / 30)); // 0-1, peaks at 85+
+  const attractiveness = Math.max(valueTier, ratingTier); // how "big" is this signing
+
+  const weights = teams.map(t => {
+    const rep = t.reputation ?? 60;
+    const canAfford = t.budget >= playerValue * 0.8 ? 1.5 : (t.budget >= playerValue * 0.5 ? 0.8 : 0.2);
+    // Base weight from reputation — higher rep clubs much more likely for attractive players
+    const repWeight = attractiveness > 0.4
+      ? Math.pow(rep / 60, 2.5)   // big signings: top clubs dominate
+      : Math.pow(rep / 60, 1.2);  // modest signings: more even spread
+    return repWeight * canAfford;
+  });
+
+  const total = weights.reduce((s, w) => s + w, 0);
+  if (total === 0) return teams[Math.floor(Math.random() * teams.length)];
+  let r = Math.random() * total;
+  for (let i = 0; i < teams.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return teams[i];
+  }
+  return teams[teams.length - 1];
+}
+
 // ─── Sell a player ────────────────────────────────────────────
 async function sellPlayer(playerId) {
   const save   = await getSave();
   const player = await getPlayer(playerId);
   if (!player || player.teamId !== save.userTeamId) throw new Error('PLAYER_NOT_IN_SQUAD');
 
-  const allPlayers = await getAllPlayers();
-  const aiIds      = [...new Set(allPlayers.map(p => p.teamId))].filter(id => id !== save.userTeamId);
-  const buyerId    = aiIds[Math.floor(Math.random() * aiIds.length)];
-  const buyerTeam  = await getTeam(buyerId);
-  const fee        = Math.round(formAdjustedValue(player) * (0.9 + Math.random() * 0.22));
+  const allTeams  = await getAllTeams();
+  const aiTeams   = allTeams.filter(t => t.id !== save.userTeamId);
+  const fee       = Math.round(formAdjustedValue(player) * (0.9 + Math.random() * 0.22));
+  const rating    = _fav_primaryRating(player);
 
-  if (!buyerTeam || buyerTeam.budget < fee) throw new Error('NO_BUYERS');
+  // Try up to 5 times to find a buyer that can afford the fee
+  let buyerTeam = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = _pickBuyerWeighted(aiTeams, fee, rating);
+    if (candidate && candidate.budget >= fee) { buyerTeam = candidate; break; }
+  }
+  if (!buyerTeam) throw new Error('NO_BUYERS');
 
   const userTeam = await getTeam(save.userTeamId);
   await putTeam({ ...buyerTeam, budget: buyerTeam.budget - fee });
   await putTeam({ ...userTeam,  budget: userTeam.budget  + fee });
-  await putPlayer({ ...player, teamId: buyerId });
-  await addTransfer({ playerId, playerName: player.name, fromTeamId: save.userTeamId, toTeamId: buyerId, fee, type: 'sell', date: save.currentDate });
+  await putPlayer({ ...player, teamId: buyerTeam.id });
+  await addTransfer({ playerId, playerName: player.name, fromTeamId: save.userTeamId, toTeamId: buyerTeam.id, fee, type: 'sell', date: save.currentDate });
   return { success: true, fee, buyerName: buyerTeam.name };
 }
 
@@ -5422,9 +5477,10 @@ async function generateAIOffers() {
   for (const player of shuffled.slice(0, 4)) {
     if (existing.find(o => o.playerId === player.id)) continue;
     if (Math.random() > 0.25) continue; // 25% chance per player per GW
-    const club = aiTeams[Math.floor(Math.random() * aiTeams.length)];
-    const fav  = formAdjustedValue(player);
-    const fee  = Math.round(fav * (0.85 + Math.random() * 0.35));
+    const fav    = formAdjustedValue(player);
+    const rating = _fav_primaryRating(player);
+    const club   = _pickBuyerWeighted(aiTeams, fav, rating);
+    const fee    = Math.round(fav * (0.85 + Math.random() * 0.35));
     if (club.budget < fee) continue;
     newOffers.push({ playerId: player.id, playerName: player.name, clubId: club.id, clubName: club.name, fee, date: save.currentDate, status: 'pending' });
     if (newOffers.length >= 2) break;
@@ -6315,6 +6371,7 @@ async function startNewGame(userTeamId) {
     mentality:       'balanced',
     lineup:          null,
     inboundOffers:   [],
+    collapsedDeals:  [],
     youthCohort:     initialCohort,
   };
 
@@ -6559,6 +6616,8 @@ async function processEndOfSeason() {
     lineup:          save.lineup ?? null,
     formation:       save.formation ?? '4-3-3',
     youthCohort:     newYouthCohort,
+    inboundOffers:   [],
+    collapsedDeals:  [],
   };
   await putSave(newSave);
 
@@ -7079,14 +7138,19 @@ async function updateCache(allPlayers, results) {
   const cache = new Map(allPlayers.map(p => [p.id, { ...p }]));
   updatePlayerStats(cache, results);
   applyFitnessUpdates(cache, results);
-  // Between-match fitness recovery: played players recover +15, non-played +20
+  // Between-match fitness recovery: played players recover +20, non-played fully restore to 100
   // Older players recover slower: -2 at 30+, -4 at 33+, -6 at 36+
   for (const p of cache.values()) {
-    const baseRecovery = p._played ? 15 : 20;
-    const age = p.age ?? 24;
-    const agePenalty = age >= 36 ? 6 : age >= 33 ? 4 : age >= 30 ? 2 : 0;
-    const recovery = Math.max(5, baseRecovery - agePenalty);
-    p.fitness = Math.min(100, (p.fitness ?? 80) + recovery);
+    if (!p._played) {
+      // Rested players fully recover
+      p.fitness = 100;
+    } else {
+      const baseRecovery = 20;
+      const age = p.age ?? 24;
+      const agePenalty = age >= 36 ? 6 : age >= 33 ? 4 : age >= 30 ? 2 : 0;
+      const recovery = Math.max(8, baseRecovery - agePenalty);
+      p.fitness = Math.min(100, (p.fitness ?? 80) + recovery);
+    }
     delete p._played;
   }
   await putPlayersBulk([...cache.values()]);
@@ -7781,7 +7845,7 @@ function renderBuyList(byId, filteredPlayers){
     const potColor=['','#8a9ab0','#22c55e','#3b82f6','#f5c842','#e84855'][potStars]??'#8a9ab0';
     const potDisp=potStars?'★'.repeat(potStars):'';
     const league=byId.get(p.teamId)?.league||'';
-    const leagueIcon={'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿'}[league]||'🌐';
+    const leagueIcon={'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League One':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League Two':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Eredivisie':'🇳🇱'}[league]||'🌐';
     return`<div class="pl-row ${p.id===_selPid?'sel':''}" data-pid="${p.id}">
       <div class="pl-av">${flagEmoji(p.name)}</div>
       <div class="pl-info">
@@ -7805,13 +7869,15 @@ function renderBuyList(byId, filteredPlayers){
     };
   });
 }
-function renderPlayerDetail(player,byId){
+async function renderPlayerDetail(player,byId){
   const el=document.getElementById('det-panel');
   if(!el) return;
+  const _sv=await getSave();
+  const _isCollapsed=(_sv.collapsedDeals||[]).includes(player.id);
   const teamRec=byId.get(player.teamId);
   const tn=teamRec?.name||'Unknown';
   const league=teamRec?.league||'';
-  const leagueIcon={'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿'}[league]||'🌐';
+  const leagueIcon={'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League One':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League Two':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Eredivisie':'🇳🇱'}[league]||'🌐';
   const g=posGroup(player.position),r=primaryRating(player);
   const fv=formAdjustedValue?formAdjustedValue(player):player.value;
   const minOff=Math.floor(fv*0.88), initOff=Math.floor(fv*0.95);
@@ -7895,6 +7961,16 @@ function renderPlayerDetail(player,byId){
     </div>
 
     <!-- Offer -->
+    ${_isCollapsed?`
+    <div class="offer-sec" style="opacity:0.6">
+      <div style="background:rgba(232,72,85,0.12);border:1px solid var(--acc3);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--acc3);margin-bottom:4px">🚫 Deal Collapsed</div>
+        <div style="font-size:11px;color:var(--tx2)">Negotiations broke down earlier this window. You cannot make another offer until the next transfer window.</div>
+      </div>
+    </div>
+    <div class="tr-acts">
+      <button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button>
+    </div>`:`
     <div class="offer-sec">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
         <div class="offer-lbl">Your Offer</div>
@@ -7909,10 +7985,13 @@ function renderPlayerDetail(player,byId){
     <div class="tr-acts">
       <button class="btn btn-p" id="btn-offer">Make Offer</button>
       <button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button>
-    </div>`;
+    </div>`}`;
+
 
   const back=el.querySelector('#btn-det-back');
   if(back&&window.innerWidth<=768){back.style.display='block';back.onclick=()=>document.getElementById('tr-layout')?.classList.remove('dp-open');}
+
+  if(_isCollapsed) return; // No offer controls when deal collapsed
 
   const sl=document.getElementById('offer-slider'),dv=document.getElementById('offer-val'),lh=document.getElementById('offer-likelihood');
   const updateOfferHint=()=>{
@@ -7982,7 +8061,10 @@ function renderPlayerDetail(player,byId){
                     _selPid=null; document.getElementById('tr-layout')?.classList.remove('dp-open');
                     await renderTransfers();
                   }catch(e2){
-                    if(e2.message==='OFFER_REJECTED') toast(`❌ ${tn} still not satisfied — deal collapsed`,'error',4000);
+                    if(e2.message==='OFFER_REJECTED'){
+                      const _s=await getSave(); const _cd=[...(_s.collapsedDeals||[]),player.id]; await putSave({..._s,collapsedDeals:_cd});
+                      toast(`❌ ${tn} still not satisfied — deal collapsed`,'error',4000);
+                    }
                     else toast(`❌ ${e2.message}`,'error',4000);
                   }
                 }},{id:'x',label:'Walk Away',cls:'btn-s'}]
@@ -8003,6 +8085,7 @@ function renderPlayerDetail(player,byId){
                 bsl.oninput=updateBuyHint; updateBuyHint();
               }
             } else {
+              const _s2=await getSave(); const _cd2=[...(_s2.collapsedDeals||[]),player.id]; await putSave({..._s2,collapsedDeals:_cd2});
               toast(`❌ ${tn} rejected and won't negotiate further`,'error',5000);
             }
           } else {
@@ -8079,6 +8162,9 @@ async function renderCompetitions(){
   const allTeams=await getAllTeams();
   const byId=new Map(allTeams.map(t=>[t.id,t]));
   const fullEl=document.getElementById('full-table');
+  // Dynamic league title
+  const compTitleEl=document.querySelector('.comp-pt');
+  if(compTitleEl) compTitleEl.textContent=`${save.userLeague||'Premier League'} ${save.season||'2025/26'}`;
   const totalTeams = table.length;
   const zoneInfo=(pos)=>{
     if(totalTeams===20){
@@ -8091,6 +8177,10 @@ async function renderCompetitions(){
       if(pos<=2)  return 'border-left:3px solid #3b82f6';
       if(pos<=6)  return 'border-left:3px solid #22c55e';
       if(pos>=22) return 'border-left:3px solid #e84855';
+    } else if(totalTeams===18){
+      if(pos<=4)  return 'border-left:3px solid #3b82f6';
+      if(pos<=6)  return 'border-left:3px solid #f97316';
+      if(pos>=16) return 'border-left:3px solid #e84855';
     }
     return '';
   };
@@ -8110,6 +8200,7 @@ async function renderCompetitions(){
   if(legendEl){
     if(totalTeams===20) legendEl.innerHTML=`<div class="zone-legend"><span style="border-left:3px solid #3b82f6;padding-left:6px">UCL (Top 4)</span><span style="border-left:3px solid #f97316;padding-left:6px">UEL (5-6)</span><span style="border-left:3px solid #22c55e;padding-left:6px">UECL (7)</span><span style="border-left:3px solid #e84855;padding-left:6px">Relegated (18-20)</span></div>`;
     else if(totalTeams===24) legendEl.innerHTML=`<div class="zone-legend"><span style="border-left:3px solid #3b82f6;padding-left:6px">Promoted (1-2)</span><span style="border-left:3px solid #22c55e;padding-left:6px">Play-offs (3-6)</span><span style="border-left:3px solid #e84855;padding-left:6px">Relegated (22-24)</span></div>`;
+    else if(totalTeams===18) legendEl.innerHTML=`<div class="zone-legend"><span style="border-left:3px solid #3b82f6;padding-left:6px">UCL (Top 4)</span><span style="border-left:3px solid #f97316;padding-left:6px">UEL (5-6)</span><span style="border-left:3px solid #e84855;padding-left:6px">Relegated (16-18)</span></div>`;
   }
   const fixtures=await getAllFixtures();
   const played=fixtures.filter(f=>f.played&&f.competition==='league').sort((a,b)=>b.gameweek-a.gameweek).slice(0,30);
@@ -8142,25 +8233,34 @@ async function renderHonours(){
   const leagueTitleKey = {
     'Premier League':'premier_league',
     'Championship':'championship',
+    'League One':'league_one',
+    'League Two':'league_two',
     'La Liga':'la_liga',
     'Bundesliga':'bundesliga',
     'Serie A':'serie_a',
     'Ligue 1':'ligue_1',
+    'Eredivisie':'eredivisie',
   }[league] ?? 'premier_league';
 
   const leagueTitleName = {
     'Premier League':'Premier League',
     'Championship':'Championship',
+    'League One':'League One',
+    'League Two':'League Two',
     'La Liga':'La Liga',
     'Bundesliga':'Bundesliga',
     'Serie A':'Serie A',
     'Ligue 1':'Ligue 1',
+    'Eredivisie':'Eredivisie',
   }[league] ?? 'League Title';
 
   // Domestic cups for this nation
   const domesticCupDefs = {
     'Premier League':  [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
     'Championship':    [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
+    'League One':      [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
+    'League Two':      [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
+    'Eredivisie':      [{key:'knvb_beker',name:'KNVB Beker',icon:'🏆',color:'#FF6600'}],
     'La Liga':         [{key:'copa_del_rey',name:'Copa del Rey',icon:'👑',color:'#c8102e'},{key:'supercopa',name:'Supercopa de España',icon:'🔴',color:'#f5c842'}],
     'Bundesliga':      [{key:'dfb_pokal',name:'DFB-Pokal',icon:'🏆',color:'#000000'},{key:'dfb_supercup',name:'DFL-Supercup',icon:'⚡',color:'#d4a017'}],
     'Serie A':         [{key:'coppa_italia',name:'Coppa Italia',icon:'🏆',color:'#009246'},{key:'supercoppa',name:'Supercoppa Italiana',icon:'🔵',color:'#009246'}],
@@ -9553,7 +9653,7 @@ async function showPreMatchModal() {
     oppTeam      = teamsById.get(oppId) ?? { id:oppId, name:oppId, crest:'⚽', reputation:70 };
     [oppForm, oppInForm] = await Promise.all([getTeamRecentForm(oppId,5), getInFormPlayer(oppId)]);
     matchTitle   = `${userIsHome?'🏠 Home':'✈️ Away'} · GW${event.gw}`;
-    compBadge    = `<span class="pm-comp-badge" style="background:rgba(18,168,100,.15);color:var(--acc)">Premier League</span>`;
+    compBadge    = `<span class="pm-comp-badge" style="background:rgba(18,168,100,.15);color:var(--acc)">${save.userLeague ?? 'League'}</span>`;
     isLeague     = true;
   } else if (event.type === 'ucl_md') {
     oppTeam      = { name: event.oppName, crest: event.oppNation ?? '🌍', reputation: event.oppStrength ?? 72 };
@@ -9624,7 +9724,7 @@ async function showPreMatchModal() {
       <div class="pm-team ${userIsHome ? 'pm-team-home' : ''}">
         <div class="pm-crest">${userIsHome ? userTeam.crest : oppTeam.crest}</div>
         <div class="pm-tname">${userIsHome ? userTeam.name : oppTeam.name}</div>
-        ${userIsHome ? '<div style="font-size:9px;font-family:var(--fm);color:var(--acc);letter-spacing:1px;margin-top:2px">HOME</div>' : '<div style="font-size:9px;font-family:var(--fm);color:var(--tx2);letter-spacing:1px;margin-top:2px">AWAY</div>'}
+        <div style="font-size:9px;font-family:var(--fm);color:${userIsHome ? 'var(--acc)' : 'var(--tx2)'};letter-spacing:1px;margin-top:2px">HOME</div>
       </div>
       <div class="pm-vs-block">
         <div class="pm-vs">VS</div>
@@ -9634,7 +9734,7 @@ async function showPreMatchModal() {
       <div class="pm-team ${!userIsHome ? 'pm-team-home' : ''}">
         <div class="pm-crest">${userIsHome ? oppTeam.crest : userTeam.crest}</div>
         <div class="pm-tname">${userIsHome ? oppTeam.name : userTeam.name}</div>
-        ${!userIsHome ? '<div style="font-size:9px;font-family:var(--fm);color:var(--acc);letter-spacing:1px;margin-top:2px">HOME</div>' : '<div style="font-size:9px;font-family:var(--fm);color:var(--tx2);letter-spacing:1px;margin-top:2px">AWAY</div>'}
+        <div style="font-size:9px;font-family:var(--fm);color:${!userIsHome ? 'var(--acc)' : 'var(--tx2)'};letter-spacing:1px;margin-top:2px">AWAY</div>
       </div>
     </div>
 
@@ -10208,14 +10308,20 @@ function _updateBenchList() {
     return;
   }
 
-  el.innerHTML = bench.map(p => {
+  // Sort bench by fitness (highest first) so fittest subs are shown first
+  const sortedBench = [...bench].sort((a, b) => (b.fitness ?? 90) - (a.fitness ?? 90));
+
+  el.innerHTML = sortedBench.map(p => {
     const g   = positionGroup(p.position);
     const rat = primaryRating(p);
+    const fit = Math.round(p.fitness ?? 90);
+    const fitCls = fit >= 70 ? 'wm-fit-high' : fit >= 50 ? 'wm-fit-mid' : 'wm-fit-low';
     const canSub = s.currentPhase < TOTAL_PHASES && subsLeft > 0;
     return `<div class="wm-bench-row">
       <span class="pos ${g}">${p.position}</span>
       <span class="wm-bench-name">${p.name}</span>
       <span class="wm-bench-rat">${rat}</span>
+      <span class="wm-fit-pct ${fitCls}" style="font-family:var(--fm);font-size:10px;min-width:32px;text-align:right">${fit}%</span>
       ${canSub ? `<button class="wm-sub-btn" onclick="window._wmSubClick('${p.id}')">Sub On</button>` : ''}
     </div>`;
   }).join('');
@@ -10232,7 +10338,7 @@ function _openInlinePanel(titleHtml, bodyHtml, onClose) {
   panel.style.cssText = [
     'position:fixed',
     'inset:0',
-    'z-index:600',  // above modal (500) but below loader (700)
+    'z-index:10500',  // above modal (10000) but below loader (which is ok — loader is transient)
     'background:rgba(8,12,16,0.92)',
     'display:flex',
     'align-items:center',
@@ -10359,7 +10465,7 @@ function _applyUserSub(inId, outId) {
     ls.aBenchLeft = bench.filter(p => p.id !== inId);
     ls.aSubsLeft  = Math.max(0, ls.aSubsLeft - 1);
   }
-  fitMap.set(subIn.id, 90);
+  fitMap.set(subIn.id, Math.min(100, subIn.fitness ?? 90));
 
   const newStr = teamStrength(s.userIsHome ? ls.hActive : ls.aActive);
   if (s.userIsHome) ls.hStr = newStr;
