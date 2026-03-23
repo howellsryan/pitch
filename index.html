@@ -5747,117 +5747,65 @@ function blankStandingRow(team) {
 // ────────────────────────────────────────────────────────
 // FIXTURES
 // ────────────────────────────────────────────────────────
-/** modules/fixtures.js — Circle-method round-robin fixture generation with H/A optimization */
+/** modules/fixtures.js — Mirrored double round-robin fixture generation
+ *
+ * How real leagues do it:
+ *   1. Circle-method generates N-1 rounds (first half) — every pair meets once.
+ *   2. Second half is the exact mirror: same round order, home/away swapped.
+ *   3. Within each half, rounds are shuffled to minimise long H/A runs,
+ *      but the two halves stay aligned so the second half is always the
+ *      mirror of the first.
+ *   4. A final pass shuffles the second half's round order to ensure no
+ *      team plays the same opponent in consecutive gameweeks — especially
+ *      at the half-boundary (GW19 → GW20).
+ */
 
 function generateLeagueFixtures(teamIds, seasonYear) {
-  // 1. Shuffle to prevent any team always being "pinned" at index 0
+  // 1. Shuffle teams so the "pinned" team varies each new game
   const shuffled = [...teamIds].sort(() => Math.random() - 0.5);
   const teams    = [...shuffled];
   if (teams.length % 2 !== 0) teams.push('BYE');
   const n = teams.length;
+  const halfLen = n - 1; // rounds per half
 
-  // 2. First half: circle-method round-robin
-  const firstHalf = [];
+  // 2. Circle-method: generate first half (N-1 rounds, each team plays once per round)
   const wt = [...teams];
-  for (let r = 0; r < n - 1; r++) {
+  const firstHalf = [];
+  for (let r = 0; r < halfLen; r++) {
     const pairs = [];
     for (let i = 0; i < n / 2; i++) {
-      if (wt[i] !== 'BYE' && wt[n-1-i] !== 'BYE')
-        pairs.push({ home: wt[i], away: wt[n-1-i] });
+      if (wt[i] !== 'BYE' && wt[n - 1 - i] !== 'BYE') {
+        // Randomly assign home/away for each pair
+        if (Math.random() < 0.5) pairs.push({ home: wt[i], away: wt[n - 1 - i] });
+        else pairs.push({ home: wt[n - 1 - i], away: wt[i] });
+      }
     }
     firstHalf.push(pairs);
     wt.splice(1, 0, wt.pop());
   }
 
-  // 2b. Balance H/A: each team should have ~half home, ~half away in first half.
-  //     The circle method gives the pinned team (index 0) all-home, so flip
-  //     selected pairs to balance. Target: each team ≤ ceil(19/2) = 10 home.
-  const homeCount = new Map(teams.map(t => [t, 0]));
-  const maxHome = Math.ceil((n - 1) / 2);  // 10 for 20 teams
-  for (const round of firstHalf) {
-    for (let i = 0; i < round.length; i++) {
-      homeCount.set(round[i].home, (homeCount.get(round[i].home) ?? 0) + 1);
-    }
-  }
-  // Greedily flip pairs where home team has too many home games
-  for (const round of firstHalf) {
-    for (let i = 0; i < round.length; i++) {
-      const p = round[i];
-      const hc = homeCount.get(p.home) ?? 0;
-      const ac = homeCount.get(p.away) ?? 0;
-      if (hc > maxHome && ac < maxHome) {
-        // Flip this pair
-        homeCount.set(p.home, hc - 1);
-        homeCount.set(p.away, ac + 1);
-        round[i] = { home: p.away, away: p.home };
-      }
-    }
-  }
+  // 3. Balance H/A in first half — each team should have ~half home games
+  _balanceHomeAway(firstHalf, halfLen);
 
-  // 3. Second half: swap H/A, shuffle round order independently
-  const secondHalf = firstHalf
-    .map(r => r.map(({ home, away }) => ({ home: away, away: home })))
-    .sort(() => Math.random() - 0.5);
+  // 4. Optimise round order within first half to reduce consecutive H/A runs
+  const optFirst = _optimiseRoundOrder(firstHalf);
 
-  function countBadRuns(rounds) {
-    const tms = new Set(rounds.flatMap(r => r.flatMap(p => [p.home, p.away])));
-    let bad = 0;
-    for (const t of tms) {
-      let run = 0, last = '';
-      for (const r of rounds) {
-        const m = r.find(p => p.home === t || p.away === t);
-        if (!m) continue;
-        const v = m.home === t ? 'H' : 'A';
-        run = v === last ? run + 1 : 1;
-        last = v;
-        if (run >= 4) bad += run - 3; // Penalise runs > 3
-      }
-    }
-    return bad;
-  }
+  // 5. Second half is the MIRROR: same pairings, home/away swapped.
+  //    We then shuffle the second half's round order to avoid back-to-back
+  //    same-opponent matchups (especially at the half boundary).
+  const secondHalf = optFirst.map(round =>
+    round.map(({ home, away }) => ({ home: away, away: home }))
+  );
+  let allRounds = _fixBoundarySeparation(optFirst, secondHalf);
 
-  // 4. Greedy optimisation: swap rounds WITHIN each half to reduce long consecutive H/A runs
-  //    Keeping halves separate ensures each team plays every other team once before reverse fixtures.
-  function optimiseHalf(rounds) {
-    let best = [...rounds];
-    let bestScore = countBadRuns(best);
-    for (let iter = 0; iter < 200 && bestScore > 0; iter++) {
-      const i = Math.floor(Math.random() * best.length);
-      const j = Math.floor(Math.random() * best.length);
-      if (i === j) continue;
-      [best[i], best[j]] = [best[j], best[i]];
-      const newScore = countBadRuns(best);
-      if (newScore > bestScore) [best[i], best[j]] = [best[j], best[i]];
-      else bestScore = newScore;
-    }
-    return best;
-  }
+  // 6. Final global optimisation pass (swap within same half only)
+  allRounds = _globalOptimise(allRounds, halfLen);
 
-  const optFirst = optimiseHalf(firstHalf);
-  const optSecond = optimiseHalf(secondHalf);
-  let allRounds = [...optFirst, ...optSecond];
-
-  // 5. Final full pass: only swap rounds within the SAME half to preserve
-  //    the two-half structure (each team faces every opponent once per half).
-  let fullScore = countBadRuns(allRounds);
-  const halfLen = optFirst.length;
-  for (let iter = 0; iter < 600 && fullScore > 0; iter++) {
-    // Pick a random half, swap two rounds within it
-    const half = Math.random() < 0.5 ? 0 : halfLen;
-    const i = half + Math.floor(Math.random() * halfLen);
-    const j = half + Math.floor(Math.random() * halfLen);
-    if (i === j) continue;
-    [allRounds[i], allRounds[j]] = [allRounds[j], allRounds[i]];
-    const newScore = countBadRuns(allRounds);
-    if (newScore > fullScore) [allRounds[i], allRounds[j]] = [allRounds[j], allRounds[i]];
-    else fullScore = newScore;
-  }
-
-  // 5. Convert to fixture objects
+  // 7. Convert to fixture objects
   const startDate = new Date(seasonYear, 7, 9); // Aug 9
   return allRounds.flatMap((round, gwIdx) =>
     round.map(({ home, away }) => ({
-      id:          `gw${gwIdx+1}_${home}_${away}`,
+      id:          `gw${gwIdx + 1}_${home}_${away}`,
       competition: 'league',
       gameweek:    gwIdx + 1,
       homeTeamId:  home,
@@ -5871,6 +5819,131 @@ function generateLeagueFixtures(teamIds, seasonYear) {
       events:      [],
     }))
   );
+}
+
+// ─── Balance H/A counts in the first half ──────────────────────────
+function _balanceHomeAway(rounds, halfLen) {
+  const maxHome = Math.ceil(halfLen / 2);
+  const homeCount = new Map();
+  for (const round of rounds) {
+    for (const p of round) {
+      homeCount.set(p.home, (homeCount.get(p.home) ?? 0) + 1);
+      if (!homeCount.has(p.away)) homeCount.set(p.away, 0);
+    }
+  }
+  for (const round of rounds) {
+    for (let i = 0; i < round.length; i++) {
+      const p = round[i];
+      const hc = homeCount.get(p.home) ?? 0;
+      const ac = homeCount.get(p.away) ?? 0;
+      if (hc > maxHome && ac < maxHome) {
+        homeCount.set(p.home, hc - 1);
+        homeCount.set(p.away, ac + 1);
+        round[i] = { home: p.away, away: p.home };
+      }
+    }
+  }
+}
+
+// ─── H/A run scoring — penalise 3+ consecutive H or A ─────────────
+function _countBadRuns(rounds) {
+  const tms = new Set(rounds.flatMap(r => r.flatMap(p => [p.home, p.away])));
+  let bad = 0;
+  for (const t of tms) {
+    let run = 0, last = '';
+    for (const r of rounds) {
+      const m = r.find(p => p.home === t || p.away === t);
+      if (!m) continue;
+      const v = m.home === t ? 'H' : 'A';
+      run = v === last ? run + 1 : 1;
+      last = v;
+      if (run >= 3) bad += run - 2;
+    }
+  }
+  return bad;
+}
+
+// ─── Count back-to-back same-opponent violations ───────────────────
+function _countBackToBack(rounds) {
+  const tms = new Set(rounds.flatMap(r => r.flatMap(p => [p.home, p.away])));
+  let violations = 0;
+  for (const t of tms) {
+    let lastOpp = null;
+    for (const r of rounds) {
+      const m = r.find(p => p.home === t || p.away === t);
+      if (!m) continue;
+      const opp = m.home === t ? m.away : m.home;
+      if (opp === lastOpp) violations++;
+      lastOpp = opp;
+    }
+  }
+  return violations;
+}
+
+// ─── Optimise round order within a single half ─────────────────────
+function _optimiseRoundOrder(rounds) {
+  let best = [...rounds];
+  let bestScore = _countBadRuns(best);
+  for (let iter = 0; iter < 400 && bestScore > 0; iter++) {
+    const i = Math.floor(Math.random() * best.length);
+    const j = Math.floor(Math.random() * best.length);
+    if (i === j) continue;
+    [best[i], best[j]] = [best[j], best[i]];
+    const s = _countBadRuns(best);
+    if (s > bestScore) [best[i], best[j]] = [best[j], best[i]];
+    else bestScore = s;
+  }
+  return best;
+}
+
+// ─── Shuffle second half round order to avoid back-to-back opponents
+function _fixBoundarySeparation(firstHalf, secondHalf) {
+  let bestSecond = [...secondHalf];
+  let combined = [...firstHalf, ...bestSecond];
+  let bestB2B  = _countBackToBack(combined);
+  let bestRuns = _countBadRuns(combined);
+
+  for (let iter = 0; iter < 800; iter++) {
+    const i = Math.floor(Math.random() * bestSecond.length);
+    const j = Math.floor(Math.random() * bestSecond.length);
+    if (i === j) continue;
+    [bestSecond[i], bestSecond[j]] = [bestSecond[j], bestSecond[i]];
+    combined = [...firstHalf, ...bestSecond];
+    const b2b  = _countBackToBack(combined);
+    const runs = _countBadRuns(combined);
+    // Prioritise eliminating back-to-back, then reduce H/A runs
+    if (b2b > bestB2B || (b2b === bestB2B && runs > bestRuns)) {
+      [bestSecond[i], bestSecond[j]] = [bestSecond[j], bestSecond[i]];
+    } else {
+      bestB2B  = b2b;
+      bestRuns = runs;
+    }
+  }
+  return [...firstHalf, ...bestSecond];
+}
+
+// ─── Global optimisation: swap rounds within same half only ────────
+function _globalOptimise(allRounds, halfLen) {
+  let best = [...allRounds];
+  let bestB2B  = _countBackToBack(best);
+  let bestRuns = _countBadRuns(best);
+
+  for (let iter = 0; iter < 600; iter++) {
+    const half = Math.random() < 0.5 ? 0 : halfLen;
+    const i = half + Math.floor(Math.random() * halfLen);
+    const j = half + Math.floor(Math.random() * halfLen);
+    if (i === j) continue;
+    [best[i], best[j]] = [best[j], best[i]];
+    const b2b  = _countBackToBack(best);
+    const runs = _countBadRuns(best);
+    if (b2b > bestB2B || (b2b === bestB2B && runs > bestRuns)) {
+      [best[i], best[j]] = [best[j], best[i]];
+    } else {
+      bestB2B  = b2b;
+      bestRuns = runs;
+    }
+  }
+  return best;
 }
 
 // ─── Query helpers ──────────────────────────────────────────
@@ -5942,19 +6015,23 @@ const UCL_CLUBS = [
 ];
 
 // ─── Cup metadata with fixed per-round GW schedules ──────────
+// GW mapping: GW1=mid-Aug, GW38=late May. Post-season GWs (39-41)
+// represent late May/early June for European finals AFTER the league ends.
+// Real 2025/26: PL ends May 24, FA Cup Final May 16, League Cup Final Mar 22,
+// UEL Final May 20, UECL Final May 27, UCL Final May 30.
 const CUP_META = {
   // ── English ──────────────────────────────────────────────
   fa_cup: {
     id:'fa_cup', name:'FA Cup', shortName:'FA Cup', icon:'🏆', color:'#f5c842',
     description:"The world's oldest cup competition",
     rounds:    ['R3','R4','R5','QF','SF','Final'],
-    roundGWs:  [22,  25,  28,  31,  34,  37],
+    roundGWs:  [20,  24,  27,  30,  33,  37],
   },
   league_cup: {
     id:'league_cup', name:'Carabao Cup', shortName:'League Cup', icon:'🥛', color:'#c084fc',
     description:'EFL League Cup',
     rounds:    ['R2','R3','QF','SF (1st leg)','SF (2nd leg)','Final'],
-    roundGWs:  [3,   7,   12,  17,            20,            24],
+    roundGWs:  [3,   6,   12,  17,            20,            30],
   },
   // ── Spanish ──────────────────────────────────────────────
   copa_del_rey: {
@@ -5987,7 +6064,7 @@ const CUP_META = {
     id:'coppa_italia', name:'Coppa Italia', shortName:'Coppa Italia', icon:'🏆', color:'#009246',
     description:"Italy's national cup competition",
     rounds:    ['R32','R16','QF','SF (1st leg)','SF (2nd leg)','Final'],
-    roundGWs:  [5,    12,   22,  27,            31,            36],
+    roundGWs:  [5,    12,   22,  27,            31,            37],
   },
   supercoppa: {
     id:'supercoppa', name:'Supercoppa Italiana', shortName:'Supercoppa', icon:'🔵', color:'#009246',
@@ -6015,26 +6092,30 @@ const CUP_META = {
     roundGWs:  [6,   14,  22,  30,  37],
   },
   // ── European ─────────────────────────────────────────────
+  // UCL: League phase Sep-Jan (GW 5-19), Knockouts Feb-May, Final AFTER league ends
+  // Real 2025/26: R16 Mar, QF Apr, SF Apr/May, Final May 30
   ucl: {
     id:'ucl', name:'Champions League', shortName:'UCL', icon:'⭐', color:'#3b82f6',
     description:"Europe's premier club competition — League Phase + Knockouts",
     rounds:    ['R16','QF','SF','Final'],
-    roundGWs:  [22,  27,  31,  35],
+    roundGWs:  [26,   30,  34,  40],
     isGroupStage:  true,
     groupStageGWs: [5,7,9,11,13,15,17,19],
     knockoutStartRoundIndex: 0,
   },
+  // UEL: League phase Sep-Jan, Knockouts Feb-May, Final May 20
   uel: {
     id:'uel', name:'Europa League', shortName:'UEL', icon:'🟠', color:'#f97316',
     description:'UEFA Europa League',
     rounds:    ['League Phase','R32','R16','QF','SF','Final'],
-    roundGWs:  [6,            21,   25,   29,  33,  36],
+    roundGWs:  [6,            23,   27,   31,  35,  39],
   },
+  // UECL: League phase Sep-Jan, Knockouts Feb-May, Final May 27
   uecl: {
     id:'uecl', name:'Conference League', shortName:'UECL', icon:'🟢', color:'#22c55e',
     description:'UEFA Europa Conference League',
     rounds:    ['League Phase','R16','QF','SF','Final'],
-    roundGWs:  [6,            22,   27,  31,  35],
+    roundGWs:  [6,            27,   31,  35,  40],
   },
 };
 
@@ -7914,6 +7995,28 @@ function reputationBudget(reputation, isUserTeam = false) {
 // ────────────────────────────────────────────────────────
 /** modules/gameweek.js — One-event-per-press architecture: buildPendingEvents, advanceOneFixture */
 
+// ─── Compute effective season length including post-season cups ──
+// European cup finals (UCL/UEL/UECL) happen AFTER the league ends.
+// If the user is still active in one, extend totalGameweeks so the
+// season continues until all their cup business is resolved.
+function getEffectiveTotalGW(save) {
+  const leagueGWs = save.totalGameweeks ?? 38;
+  let maxCupGW = leagueGWs;
+  if (!save.cups) return leagueGWs;
+  for (const [cupId, state] of Object.entries(save.cups)) {
+    if (state.status !== 'active') continue;
+    const meta = CUP_META[cupId];
+    if (!meta) continue;
+    const roundIdx = state.roundIndex ?? 0;
+    // Check all remaining rounds for this cup
+    for (let i = roundIdx; i < (meta.roundGWs?.length ?? 0); i++) {
+      const gw = meta.roundGWs[i];
+      if (gw > maxCupGW) maxCupGW = gw;
+    }
+  }
+  return maxCupGW;
+}
+
 // ─── Build the queue of pending events for current GW ─────────
 function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
   const events = [];
@@ -7999,7 +8102,7 @@ function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
 // ─── Get next event to play ────────────────────────────────────
 async function getNextMatchEvent() {
   const save = await getSave();
-  if (save.currentGameweek > save.totalGameweeks) return null;
+  if (save.currentGameweek > getEffectiveTotalGW(save)) return null;
 
   // If there's a pending events queue, return the first
   if (save.pendingEvents?.length) return save.pendingEvents[0];
@@ -8032,7 +8135,7 @@ async function getNextUserFixture() {
 // ─── Simulate ONE event ────────────────────────────────────────
 async function advanceOneFixture(overrideFormation) {
   const save = await getSave();
-  if (save.currentGameweek > save.totalGameweeks) return { finished: true };
+  if (save.currentGameweek > getEffectiveTotalGW(save)) return { finished: true };
 
   const gw = save.currentGameweek;
   const [allTeams, allPlayers, gwFixtures] = await Promise.all([
@@ -8059,7 +8162,7 @@ async function advanceOneFixture(overrideFormation) {
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
     await putSave({ ...freshSave1, currentGameweek: gw + 1, currentDate: newDate.toISOString(), pendingEvents: [] });
-    return { skipped: true, gameweek: gw, nextGW: gw + 1, finished: gw + 1 > save.totalGameweeks, newOffers: newOffers ?? [] };
+    return { skipped: true, gameweek: gw, nextGW: gw + 1, finished: gw + 1 > getEffectiveTotalGW(save), newOffers: newOffers ?? [] };
   }
 
   const event = pending[0];
@@ -8176,7 +8279,7 @@ async function advanceOneFixture(overrideFormation) {
     cupResults,
     gameweek:   gw,
     nextGW,
-    finished:   nextGW > save.totalGameweeks,
+    finished:   nextGW > getEffectiveTotalGW(save),
     eventsLeft: pending.length,
     newOffers,
   };
@@ -8253,7 +8356,7 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
       };
     }
     singleResult = buildCupMatchResult(
-      { userGoals, oppGoals, userIsHome, scorers: matchResult.homeScorers.concat(matchResult.awayScorers), opponentName: event0.opponentName ?? event0.oppName, opponentNation: event0.oppNation },
+      { userGoals, oppGoals, userIsHome, homeScorers: matchResult.homeScorers, awayScorers: matchResult.awayScorers, scorers: matchResult.homeScorers.concat(matchResult.awayScorers), opponentName: event0.opponentName ?? event0.oppName, opponentNation: event0.oppNation, stats: matchResult.stats, events: matchResult.events, fitnessUpdates: matchResult.fitnessUpdates },
       save.userTeamId, event0, allTeams
     );
     await updateCache(allPlayers, [matchResult]);
@@ -8271,7 +8374,7 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
   const freshSave3 = gwDone ? await getSave() : save;
   await putSave({ ...freshSave3, currentGameweek: nextGW, currentDate: gwDone ? newDate.toISOString() : save.currentDate, cups: updatedCups, pendingEvents: remaining });
 
-  return { singleResult, eventType: event0?.type, cupResults: [], gameweek: gw, nextGW, finished: nextGW > save.totalGameweeks, eventsLeft: remaining.length, newOffers };
+  return { singleResult, eventType: event0?.type, cupResults: [], gameweek: gw, nextGW, finished: nextGW > getEffectiveTotalGW(save), eventsLeft: remaining.length, newOffers };
 }
 
 // ─── Build a synthetic match result for the report modal ──────
@@ -8330,8 +8433,8 @@ function buildCupMatchResult(r, userTeamId, event, allTeams) {
     awayTeamName:  userIsHome ? (r.opponentName ?? 'Opponent') : (teamsById.get(userTeamId)?.name ?? 'Your Team'),
     homeTeamCrest: userIsHome ? (teamsById.get(userTeamId)?.crest ?? '⚽') : '⚽',
     awayTeamCrest: userIsHome ? '⚽' : (teamsById.get(userTeamId)?.crest ?? '⚽'),
-    homeScorers:   userIsHome ? (r.scorers ?? []) : (r.oppScorers ?? []),
-    awayScorers:   userIsHome ? (r.oppScorers ?? []) : (r.scorers ?? []),
+    homeScorers:   userIsHome ? (r.homeScorers ?? r.scorers ?? []) : (r.awayScorers ?? r.oppScorers ?? []),
+    awayScorers:   userIsHome ? (r.awayScorers ?? r.oppScorers ?? []) : (r.homeScorers ?? r.scorers ?? []),
     events:        r.events ?? [],
     stats:         r.stats ?? defaultStats,
     fitnessUpdates:r.fitnessUpdates ?? [],
@@ -8617,7 +8720,7 @@ async function renderHome(){
     </div>`).join('');
   const statsEl=document.getElementById('h-stats');
   if(statsEl) statsEl.innerHTML=`
-    <div class="stat-card"><div class="sl">Gameweek</div><div class="sv" style="color:var(--acc)">${save.currentGameweek}</div><div class="ss">of ${save.totalGameweeks}</div></div>
+    <div class="stat-card"><div class="sl">Gameweek</div><div class="sv" style="color:var(--acc)">${save.currentGameweek}</div><div class="ss">of ${getEffectiveTotalGW(save)}</div></div>
     <div class="stat-card"><div class="sl">Budget</div><div class="sv" style="color:#7c83e8">${fmt.money(team?.budget||0)}</div><div class="ss">Transfer funds</div></div>
     <div class="stat-card"><div class="sl">Squad</div><div class="sv" style="color:var(--acc2)">${players.length}</div><div class="ss">players</div></div>
     <div class="stat-card"><div class="sl">Season</div><div class="sv" style="color:var(--acc3)">${save.season}</div><div class="ss">${team?.league||'League'}</div></div>`;
@@ -8634,7 +8737,7 @@ async function renderHome(){
       <div class="morale-txt">${mt}</div></div>`;
   }
   await renderCharts();
-  const isEnd=save.currentGameweek>save.totalGameweeks;
+  const isEnd=save.currentGameweek>getEffectiveTotalGW(save);
 
   // Wire the VISIBLE header buttons (btn-adv-header / btn-eoy-header)
   const hdrPlay = document.getElementById('btn-adv-header');
@@ -8694,7 +8797,9 @@ async function _handleAdvanceOneFixtureStub(){
           toast(`⭐ UCL MD${cr.matchday}: ${cr.result} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals}) +${cr.points}pts`,cr.result==='W'?'success':cr.result==='D'?'info':'error',6000);
         } else if(!cr.eliminated){
           const meta=CUP_META[cr.cupId];
-          toast(`${meta?.icon||'🏆'} ${meta?.name} ${cr.roundName}: ${cr.userWon?'✅ Won':'❌ Out'} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,cr.userWon?'success':'error',6000);
+          const isFirstLeg=(cr.roundName||'').includes('1st leg');
+          const lossLabel=isFirstLeg?'❌ Lost':'❌ Out';
+          toast(`${meta?.icon||'🏆'} ${meta?.name} ${cr.roundName}: ${cr.userWon?'✅ Won':lossLabel} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,cr.userWon?'success':'error',6000);
         }
       }
     }
@@ -11115,7 +11220,9 @@ async function handleAdvanceOneFixture(overrideFormation) {
           cr.result==='W'?'success':cr.result==='D'?'info':'error', 6000);
       } else if (!cr.eliminated && cr.opponentName) {
         const meta = CUP_META[cr.cupId];
-        toast(`${meta?.icon||'🏆'} ${meta?.name} ${cr.roundName}: ${cr.userWon?'✅ Won':'❌ Out'} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,
+        const isFirstLeg = (cr.roundName||'').includes('1st leg');
+        const lossLabel = isFirstLeg ? '❌ Lost' : '❌ Out';
+        toast(`${meta?.icon||'🏆'} ${meta?.name} ${cr.roundName}: ${cr.userWon?'✅ Won':lossLabel} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,
           cr.userWon?'success':'error', 6000);
       }
     }
