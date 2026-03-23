@@ -1,114 +1,100 @@
-# ⚽ PITCH
+# PITCH — Football Career Simulator
 
-**A football manager game that runs in a single HTML file.**
-
-Pick a club, set your tactics, wheel and deal in the transfer market, watch matches live, and guide your team through a full Premier League season — FA Cup, League Cup, and European football included.
-
-No install. No server. No framework. Just open `pitch.html`.
-
----
-
-## Play
-
-Download [`pitch.html`](pitch.html) and open it in any modern browser.
-
-That's it.
-
----
+A single-file football career manager built with vanilla JS, CSS, and IndexedDB. No framework, no dependencies, no server — just one HTML file you open in a browser and you're managing a club.
 
 ## Features
 
-### 🏆 Full Season Simulation
-- 38-gameweek Premier League campaign with accurate 2025/26 squads
-- FA Cup, League Cup, and European competition (UCL / UEL / UECL)
-- Promotion, relegation, and prize money at the end of every season
+### Leagues & Competitions
+- **9 leagues, 186 clubs** — Premier League, Championship, League One, League Two, La Liga, Bundesliga, Serie A, Ligue 1, Eredivisie
+- **Full English football pyramid** — promotion and relegation across all four English tiers with realistic playoff system
+- **Domestic cups** — FA Cup, League Cup, Copa del Rey, DFB-Pokal, Coppa Italia, Coupe de France, KNVB Beker
+- **European football** — Champions League (league phase + knockouts), Europa League, Conference League
+- **Honours cabinet** — real historical trophy tallies + in-game wins, localised per nation
 
-### 🔴 Watch Matches Live
-- Real-time match engine with a 120-phase simulation
-- Live scoreboard, event feed, possession stats, and player fitness tracking
-- Make substitutions and change formation mid-match
-- Skip ahead or sim instantly — your call
+### Promotion & Relegation
+- **Automatic promotion** — top 2 in Championship, League One, and League Two go up
+- **Play-offs** — 3rd to 6th contest two-legged semi-finals and a neutral-venue final for the last promotion spot
+- **Relegation** — bottom 3 from the Premier League, Championship, and League One drop down
+- **Full pyramid simulation** — AI leagues resolve standings by reputation at end of season, so clubs move realistically even in leagues you're not playing in
 
-### 💸 Transfers
-- Buy and sell players with a dynamic valuation system
-- Form affects prices — hot players cost more, cold players can be had cheap
-- AI clubs make inbound offers you can accept or reject
+### Match Day
+- **Watch Match** — live tick-by-tick simulation with real-time commentary, substitutions, and tactical changes
+- **Quick Sim** — instant results with full match report, stats, and scorers
+- **Mentality system** — Defensive, Balanced, Possession, or Attacking; affects goals, shots, possession, and counter-attack exposure
+- **Tactics** — lineup builder with 7 formations, drag-to-swap pitch slots, mentality picker
+- **Match stats** — possession, shots, xG, corners, fouls, yellow cards
 
-### 🧠 Tactics
-- Choose your formation and pin your preferred XI
-- The engine selects your best available lineup automatically when needed
-- Fitness is tracked across every match — rotate or pay the price
+### Squad & Transfers
+- **Transfer market** — filter by position, league, age, rating, potential, price; slider-based offers with acceptance likelihood hints
+- **Negotiation** — rejected offers trigger counter-offers; slider-based haggling with live acceptance hints
+- **Squad management** — potential star ratings, transfer listing, fitness tracking, form indicators
+- **Youth academy** — intake quality tiered by club reputation, wonderkid system, promote or release decisions
+- **Player development** — all match participants earn growth points; defenders get clean sheet bonuses; position-appropriate stat boosts
 
-### 🌱 Youth Academy
-- Your club generates a youth cohort every pre-season
-- Tier depends on reputation: elite academies produce wonderkids
-- Promote standouts to the first team or release them
+### Season Management
+- **Multi-season career** — season rollover with aging, retirement, prize money, and cup reallocation
+- **Aging system** — stat decline past peak age (15–85% chance scaling), age-based fitness drain in matches, recovery penalties for older players
+- **Retirement** — players 36+ retire at end of season; elite players get a small reprieve chance
+- **Save/Load** — export save as base64 code or `.pitch` file; import on any device; integrity-checked with FNV-1a hash
 
-### 📊 20 Premier League Clubs
-- All 20 PL clubs with authentic squads including Liverpool (Isak, Wirtz), Chelsea (Sancho), and the rest
-- Championship, La Liga, Bundesliga, Serie A, and Ligue 1 clubs for transfers and European opposition
+## Getting Started
 
----
+1. Download `index.html`
+2. Open in any modern browser (Chrome, Firefox, Safari, Edge)
+3. Pick your club and go — works fully offline, saves to browser IndexedDB
 
-## Developing with AI
+## Development
 
-PITCH is developed with Claude. The repo includes [`BRIEFING.md`](BRIEFING.md) — a compressed context document that replaces ~200k tokens of conversation history with ~3k tokens of precise, actionable context.
-
-**To start a new Claude session:**
-
-1. Paste `BRIEFING.md` as your first message
-2. Make your change, run `python3 build.py`, fix any failures
-3. Update the open issues list in `BRIEFING.md` at the end of the session
-
-Without `BRIEFING.md`, Claude has to rediscover the architecture, invariants, and anti-patterns from scratch — which is slow and error-prone given the codebase size.
-
----
-
-## Technical
-
-PITCH is vanilla JavaScript — no React, no Vue, no bundler at runtime.
-
-The source is split across 22 modules in three layers:
-
-```
-data/       — Static team and player data (read-only)
-modules/    — Game logic with no DOM access
-ui/         — Rendering and event handling
-```
-
-A Python build script (`build.py`) concatenates everything in dependency order, strips ES module syntax, runs a 672-check validation suite, and emits a single self-contained HTML file. IndexedDB handles save state in the browser.
-
-### Build
+Source lives in `pitch2/`. The build system concatenates 22 JS modules into a single HTML file.
 
 ```bash
+# Build (bundles, validates, assembles)
+python3 pitch2/build.py
+
+# Output
+/mnt/user-data/outputs/index.html   (~616 KB)
+```
+
+### Architecture
+
+```
+data/          → Static team & player data (6 files, 186 clubs)
+modules/       → Game logic — no DOM access (12 files)
+ui/            → DOM rendering (6 files)
+build.py       → Concatenation pipeline + syntax validation
+validate.js    → 1190 automated checks, 0 failures required
+shell.html     → HTML/CSS shell (no JS)
+BRIEFING.md    → Full architecture docs, invariants, anti-patterns
+```
+
+### Tech Stack
+
+- **Vanilla JS** — no framework, no dependencies, no build tools at runtime
+- **IndexedDB** — persistent game state via a thin async wrapper
+- **CSS custom properties** — dark theme design tokens, fully responsive layout
+- **build.py** — Python concatenation pipeline with JS syntax validation
+- **validate.js** — 1190 automated checks run on every build (0 failures required to ship)
+
+### Adding League Data
+
+Leagues are added via a CSV pipeline — no hand-editing JS files:
+
+```bash
+# Create CSVs, run converter, build
+python3 csv_to_league.py data/csv/teams.csv data/csv/players.csv data/output.js ARRAY_NAME helper
 python3 build.py
-# → pitch.html (~370KB)
 ```
 
-Requires Node.js (for validation) and Python 3.
+Pre-registered slots exist for Segunda División, 2. Bundesliga, Serie B, and Ligue 2 — just add the CSVs and build.
 
-### Validation
+See [`BRIEFING.md`](BRIEFING.md) for full architecture documentation, invariants, and anti-patterns.
 
-```bash
-node validate.js
-```
+## Version History
 
-672 checks across fixture generation, match engine, cup scheduling, transfer logic, squad data integrity, youth academy, promotion/relegation, and more. Zero failures required before a build ships.
-
----
-
-## Leagues & Competitions
-
-| Competition | Rounds |
+| Version | Highlights |
 |---|---|
-| Premier League | 38 gameweeks, 20 clubs |
-| FA Cup | GWs 22, 25, 28, 31, 34, 37 |
-| League Cup | GWs 3, 7, 12, 17, 20, 24 |
-| Champions League | Group stage (8 matchdays) + knockouts |
-| Europa League | GWs 6, 21, 25, 29, 33, 36 |
-| Europa Conference League | GWs 6, 22, 27, 31, 35 |
-
-**PL finish → European qualification:**
-Top 4 → UCL · 5th–6th → UEL · 7th → UECL · 18th–20th → relegated
-
----
+| v3.4 | Multi-tier promotion/relegation across English pyramid, playoff system (2-leg semis + final), reputation tiering by league |
+| v3.3 | Mentality system (Defensive/Balanced/Possession/Attacking), xG fix, European cups visible on enrolment |
+| v3.2 | National cups per league, super cup fix, advanced transfer filters, honour cabinet localisation |
+| v3.1 | Token-optimised source, multi-league support, Watch Match live viewer |
+| v3.0 | Multi-season, cups, potential system, youth academy |

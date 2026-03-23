@@ -5912,7 +5912,7 @@ function applyAgingDecline(player) {
 // ────────────────────────────────────────────────────────
 // PROMOTION
 // ────────────────────────────────────────────────────────
-/** modules/promotion.js — End-of-season promotion/relegation and European qualification */
+/** modules/promotion.js — End-of-season promotion/relegation, playoffs and European qualification */
 
 // ─── Determine European qualification from PL table ──────────
 function getEuropeanQualifiers(sortedStandings) {
@@ -5924,48 +5924,294 @@ function getEuropeanQualifiers(sortedStandings) {
   };
 }
 
-// ─── Determine Championship outcome ──────────────────────────
-function getChampionshipOutcome(sortedStandings) {
+// ─── Determine 24-team league outcome (Championship / L1 / L2) ──
+// Top 2 auto-promoted, 3-6 playoff, bottom 3 relegated
+function getLeagueOutcome24(sortedStandings) {
   return {
-    promoted:  sortedStandings.slice(0, 3).map(r => r.teamId),  // 1st, 2nd auto + 3rd play-off
-    relegated: sortedStandings.slice(-3).map(r => r.teamId),    // Bottom 3 to League One
+    autoPromoted:    sortedStandings.slice(0, 2).map(r => r.teamId),   // 1st, 2nd
+    playoffTeams:    sortedStandings.slice(2, 6).map(r => r.teamId),   // 3rd-6th
+    relegated:       sortedStandings.slice(-3).map(r => r.teamId),     // Bottom 3
   };
 }
 
-// ─── Process promotion/relegation between PL and Championship ─
-async function processLeagueChanges(plStandings, champStandings, userTeamId) {
-  const plQual    = getEuropeanQualifiers(plStandings);
-  const champOut  = getChampionshipOutcome(champStandings);
-  const allTeams  = await getAllTeams();
-  const byId      = new Map(allTeams.map(t => [t.id, t]));
+// Keep old name as alias for backward compat with validate.js
+function getChampionshipOutcome(sortedStandings) {
+  const o = getLeagueOutcome24(sortedStandings);
+  return { promoted: [...o.autoPromoted], playoffTeams: o.playoffTeams, relegated: o.relegated };
+}
 
-  const relegatedPL  = plQual.relegated;    // 3 PL teams go down
-  const promotedChamp = champOut.promoted;   // 3 Championship teams go up
+// ─── Simulate a two-legged playoff semi-final ────────────────
+// Returns the winner's teamId and a description of the tie
+function simulatePlayoffTie(team1Id, team2Id, allTeams, allPlayers) {
+  const teamsById = new Map(allTeams.map(t => [t.id, t]));
+  const t1 = teamsById.get(team1Id);
+  const t2 = teamsById.get(team2Id);
 
-  // Update team leagues
-  for (const tid of relegatedPL) {
-    const t = byId.get(tid);
-    if (t) await putTeam({ ...t, league: 'Championship', reputation: Math.max(60, (t.reputation ?? 70) - 3) });
-  }
-  for (const tid of promotedChamp) {
-    const t = byId.get(tid);
-    if (t) await putTeam({ ...t, league: 'Premier League', reputation: Math.min(82, (t.reputation ?? 65) + 4) });
+  // Use team reputation as strength proxy
+  const str1 = (t1?.reputation ?? 65) + (Math.random() * 16 - 8);
+  const str2 = (t2?.reputation ?? 65) + (Math.random() * 16 - 8);
+
+  // Leg 1: team1 at home
+  const leg1Home = simulatePlayoffLeg(str1, str2);
+  // Leg 2: team2 at home
+  const leg2Home = simulatePlayoffLeg(str2, str1);
+
+  const agg1 = leg1Home.home + leg2Home.away;
+  const agg2 = leg1Home.away + leg2Home.home;
+
+  let winnerId;
+  if (agg1 > agg2) winnerId = team1Id;
+  else if (agg2 > agg1) winnerId = team2Id;
+  else {
+    // Aggregate level — away goals rule then penalties
+    const awayGoals1 = leg2Home.away; // team1's away goals (scored in leg 2)
+    const awayGoals2 = leg1Home.away; // team2's away goals (scored in leg 1)
+    if (awayGoals1 > awayGoals2) winnerId = team1Id;
+    else if (awayGoals2 > awayGoals1) winnerId = team2Id;
+    else winnerId = Math.random() < 0.5 ? team1Id : team2Id; // Penalties
   }
 
   return {
-    relegated:   relegatedPL,
-    promoted:    promotedChamp,
-    ucl:         plQual.ucl,
-    uel:         plQual.uel,
-    uecl:        plQual.uecl,
-    userRelInfo: {
-      relegated: relegatedPL.includes(userTeamId),
-      promoted:  promotedChamp.includes(userTeamId),
-      ucl:       plQual.ucl.includes(userTeamId),
-      uel:       plQual.uel.includes(userTeamId),
-      uecl:      plQual.uecl.includes(userTeamId),
+    winnerId,
+    team1: { id: team1Id, name: t1?.name ?? team1Id, crest: t1?.crest ?? '⚽' },
+    team2: { id: team2Id, name: t2?.name ?? team2Id, crest: t2?.crest ?? '⚽' },
+    leg1: { home: leg1Home.home, away: leg1Home.away },
+    leg2: { home: leg2Home.home, away: leg2Home.away },
+    agg: { team1: agg1, team2: agg2 },
+    penalties: agg1 === agg2,
+  };
+}
+
+function simulatePlayoffLeg(homeStr, awayStr) {
+  // Simple goal model based on relative strength
+  const homeAdv = 4; // home advantage
+  const hExpected = Math.max(0.3, (homeStr + homeAdv) / 55);
+  const aExpected = Math.max(0.2, awayStr / 60);
+  return {
+    home: poissonGoals(hExpected),
+    away: poissonGoals(aExpected),
+  };
+}
+
+function simulatePlayoffFinal(team1Id, team2Id, allTeams) {
+  const teamsById = new Map(allTeams.map(t => [t.id, t]));
+  const t1 = teamsById.get(team1Id);
+  const t2 = teamsById.get(team2Id);
+  const str1 = (t1?.reputation ?? 65) + (Math.random() * 14 - 7);
+  const str2 = (t2?.reputation ?? 65) + (Math.random() * 14 - 7);
+  // Neutral venue, no home advantage
+  const g1 = poissonGoals(Math.max(0.3, str1 / 58));
+  const g2 = poissonGoals(Math.max(0.3, str2 / 58));
+  let winnerId;
+  if (g1 > g2) winnerId = team1Id;
+  else if (g2 > g1) winnerId = team2Id;
+  else winnerId = Math.random() < 0.5 ? team1Id : team2Id; // Penalties
+  return {
+    winnerId,
+    team1: { id: team1Id, name: t1?.name ?? team1Id, crest: t1?.crest ?? '⚽' },
+    team2: { id: team2Id, name: t2?.name ?? team2Id, crest: t2?.crest ?? '⚽' },
+    score: { team1: g1, team2: g2 },
+    penalties: g1 === g2,
+  };
+}
+
+function poissonGoals(lambda) {
+  // Poisson random variable for goal scoring
+  let L = Math.exp(-lambda), k = 0, p = 1;
+  do { k++; p *= Math.random(); } while (p > L);
+  return k - 1;
+}
+
+// ─── Run full playoffs for a 24-team league ──────────────────
+// playoffTeams: [3rd, 4th, 5th, 6th] by league position
+// Semi-finals: 3rd vs 6th, 4th vs 5th (two legs each)
+// Final: winners play one match (neutral venue)
+// Returns { promotedViaPlayoff, playoffResults }
+function runPlayoffs(playoffTeamIds, allTeams, allPlayers) {
+  // Semi-final 1: 3rd vs 6th (3rd has home advantage in 2nd leg)
+  const semi1 = simulatePlayoffTie(playoffTeamIds[0], playoffTeamIds[3], allTeams, allPlayers);
+  // Semi-final 2: 4th vs 5th
+  const semi2 = simulatePlayoffTie(playoffTeamIds[1], playoffTeamIds[2], allTeams, allPlayers);
+  // Final
+  const final = simulatePlayoffFinal(semi1.winnerId, semi2.winnerId, allTeams);
+
+  return {
+    promotedViaPlayoff: final.winnerId,
+    playoffResults: {
+      semi1,
+      semi2,
+      final,
     },
   };
+}
+
+// ─── Process all English league promotion/relegation ──────────
+// Handles: PL↔Championship, Championship↔League One, League One↔League Two
+async function processLeagueChanges(userLeagueStandings, _unused, userTeamId) {
+  const allTeams  = await getAllTeams();
+  const allPlayers = await getAllPlayers();
+  const byId      = new Map(allTeams.map(t => [t.id, t]));
+
+  // Build standings per league from the teams in the DB
+  const teamsByLeague = new Map();
+  for (const t of allTeams) {
+    const lg = t.league ?? 'Premier League';
+    if (!teamsByLeague.has(lg)) teamsByLeague.set(lg, []);
+    teamsByLeague.get(lg).push(t);
+  }
+
+  const userLeagueName = (await getSave())?.userLeague ?? 'Premier League';
+
+  // Helper: generate simulated standings for a league based on reputation
+  function simulateStandings(teams) {
+    return teams
+      .map(t => ({
+        teamId: t.id,
+        teamName: t.name,
+        reputation: (t.reputation ?? 65) + (Math.random() * 10 - 5),
+      }))
+      .sort((a, b) => b.reputation - a.reputation);
+  }
+
+  // Get standings for each English league
+  const englishLeagues = ['Premier League', 'Championship', 'League One', 'League Two'];
+  const leagueStandings = {};
+
+  for (const lg of englishLeagues) {
+    if (lg === userLeagueName) {
+      leagueStandings[lg] = userLeagueStandings;
+    } else {
+      const lgTeams = teamsByLeague.get(lg) ?? [];
+      if (lgTeams.length > 0) {
+        leagueStandings[lg] = simulateStandings(lgTeams);
+      }
+    }
+  }
+
+  const changes = {
+    movements: [],       // { teamId, from, to, reason }
+    playoffResults: {},  // keyed by league
+    userRelInfo: {
+      relegated: false,
+      promoted: false,
+      promotedViaPlayoff: false,
+      ucl: false,
+      uel: false,
+      uecl: false,
+    },
+  };
+
+  // ── PL European spots + relegation ─────────────────────────
+  const plStandings = leagueStandings['Premier League'];
+  if (plStandings && plStandings.length >= 20) {
+    const plQual = getEuropeanQualifiers(plStandings);
+    changes.ucl  = plQual.ucl;
+    changes.uel  = plQual.uel;
+    changes.uecl = plQual.uecl;
+    changes.relegated = plQual.relegated;
+
+    // PL bottom 3 → Championship
+    for (const tid of plQual.relegated) {
+      changes.movements.push({ teamId: tid, from: 'Premier League', to: 'Championship', reason: 'Relegated' });
+    }
+    if (plQual.ucl.includes(userTeamId)) changes.userRelInfo.ucl = true;
+    if (plQual.uel.includes(userTeamId)) changes.userRelInfo.uel = true;
+    if (plQual.uecl.includes(userTeamId)) changes.userRelInfo.uecl = true;
+    if (plQual.relegated.includes(userTeamId)) changes.userRelInfo.relegated = true;
+  }
+
+  // ── Championship: top 2 auto up, 3-6 playoff, bottom 3 down ─
+  const champStandings = leagueStandings['Championship'];
+  if (champStandings && champStandings.length >= 6) {
+    const champOut = getLeagueOutcome24(champStandings);
+
+    // Auto promotion (1st, 2nd)
+    for (const tid of champOut.autoPromoted) {
+      changes.movements.push({ teamId: tid, from: 'Championship', to: 'Premier League', reason: 'Auto Promoted' });
+      if (tid === userTeamId) changes.userRelInfo.promoted = true;
+    }
+
+    // Playoffs (3rd-6th)
+    const { promotedViaPlayoff, playoffResults } = runPlayoffs(champOut.playoffTeams, allTeams, allPlayers);
+    changes.movements.push({ teamId: promotedViaPlayoff, from: 'Championship', to: 'Premier League', reason: 'Playoff Winner' });
+    changes.playoffResults['Championship'] = playoffResults;
+    if (promotedViaPlayoff === userTeamId) {
+      changes.userRelInfo.promoted = true;
+      changes.userRelInfo.promotedViaPlayoff = true;
+    }
+    changes.promoted = [...champOut.autoPromoted, promotedViaPlayoff];
+
+    // Relegation (bottom 3)
+    for (const tid of champOut.relegated) {
+      changes.movements.push({ teamId: tid, from: 'Championship', to: 'League One', reason: 'Relegated' });
+      if (tid === userTeamId) changes.userRelInfo.relegated = true;
+    }
+  }
+
+  // ── League One: top 2 auto up, 3-6 playoff, bottom 3 down ──
+  const l1Standings = leagueStandings['League One'];
+  if (l1Standings && l1Standings.length >= 6) {
+    const l1Out = getLeagueOutcome24(l1Standings);
+
+    for (const tid of l1Out.autoPromoted) {
+      changes.movements.push({ teamId: tid, from: 'League One', to: 'Championship', reason: 'Auto Promoted' });
+      if (tid === userTeamId) changes.userRelInfo.promoted = true;
+    }
+
+    const { promotedViaPlayoff, playoffResults } = runPlayoffs(l1Out.playoffTeams, allTeams, allPlayers);
+    changes.movements.push({ teamId: promotedViaPlayoff, from: 'League One', to: 'Championship', reason: 'Playoff Winner' });
+    changes.playoffResults['League One'] = playoffResults;
+    if (promotedViaPlayoff === userTeamId) {
+      changes.userRelInfo.promoted = true;
+      changes.userRelInfo.promotedViaPlayoff = true;
+    }
+
+    for (const tid of l1Out.relegated) {
+      changes.movements.push({ teamId: tid, from: 'League One', to: 'League Two', reason: 'Relegated' });
+      if (tid === userTeamId) changes.userRelInfo.relegated = true;
+    }
+  }
+
+  // ── League Two: top 2 auto up, 3-6 playoff, no relegation ──
+  const l2Standings = leagueStandings['League Two'];
+  if (l2Standings && l2Standings.length >= 6) {
+    const l2Out = getLeagueOutcome24(l2Standings);
+
+    for (const tid of l2Out.autoPromoted) {
+      changes.movements.push({ teamId: tid, from: 'League Two', to: 'League One', reason: 'Auto Promoted' });
+      if (tid === userTeamId) changes.userRelInfo.promoted = true;
+    }
+
+    const { promotedViaPlayoff, playoffResults } = runPlayoffs(l2Out.playoffTeams, allTeams, allPlayers);
+    changes.movements.push({ teamId: promotedViaPlayoff, from: 'League Two', to: 'League One', reason: 'Playoff Winner' });
+    changes.playoffResults['League Two'] = playoffResults;
+    if (promotedViaPlayoff === userTeamId) {
+      changes.userRelInfo.promoted = true;
+      changes.userRelInfo.promotedViaPlayoff = true;
+    }
+    // No relegation from League Two (no league below)
+  }
+
+  // ── Apply all team league changes ───────────────────────────
+  const repChanges = {
+    'Premier League':  { up: 4, down: -3, maxUp: 82, minDown: 60 },
+    'Championship':    { up: 3, down: -2, maxUp: 72, minDown: 50 },
+    'League One':      { up: 2, down: -2, maxUp: 62, minDown: 42 },
+    'League Two':      { up: 2, down: -1, maxUp: 55, minDown: 35 },
+  };
+
+  for (const mv of changes.movements) {
+    const t = byId.get(mv.teamId);
+    if (!t) continue;
+    const isPromotion = mv.reason.includes('Promoted') || mv.reason.includes('Playoff');
+    const rc = repChanges[mv.to] ?? { up: 2, down: -2, maxUp: 80, minDown: 50 };
+    const newRep = isPromotion
+      ? Math.min(rc.maxUp, (t.reputation ?? 65) + rc.up)
+      : Math.max(rc.minDown, (t.reputation ?? 65) + rc.down);
+    await putTeam({ ...t, league: mv.to, reputation: newRep });
+  }
+
+  return changes;
 }
 
 // ─── Get user's European cup for next season ─────────────────
@@ -6639,6 +6885,7 @@ function _retirePrimaryRating(p) {
 function buildSeasonSummary(save, sorted, players, userPosition) {
   return {
     season:     save.season,
+    userLeague: save.userLeague ?? 'Premier League',
     champion:   sorted[0]?.teamId,
     relegated:  sorted.slice(-3).map(r => r.teamId),
     table:      sorted.map(r => ({ teamId: r.teamId, points: r.points, gd: r.goalDifference })),
@@ -7582,7 +7829,7 @@ async function handleEndOfSeason(){
   if(btn) btn.disabled=true;
   showLoader('Processing end of season…');
   try{
-    const {summary,leagueWinner,newSave,prizeMoney}=await processEndOfSeason();
+    const {summary,leagueWinner,newSave,prizeMoney,leagueChanges}=await processEndOfSeason();
     hideLoader();
     const trophies=[];
     if(leagueWinner?.teamId===newSave.userTeamId) trophies.push('🏆 League Champions!');
@@ -7591,9 +7838,61 @@ async function handleEndOfSeason(){
     }
     const tHtml=trophies.length?`<div style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:8px;padding:12px;margin-bottom:12px">${trophies.map(t=>`<div style="color:var(--acc2);font-size:14px;font-weight:600">${t}</div>`).join('')}</div>`:'';
     const ord=n=>n+(['st','nd','rd'][n-1]||'th');
+
+    // Build league changes HTML (promotion/relegation/playoffs)
+    let lcHtml='';
+    if(leagueChanges){
+      const uri=leagueChanges.userRelInfo||{};
+      if(uri.promoted&&uri.promotedViaPlayoff){
+        lcHtml+=`<div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:#3b82f6">🎉 PROMOTED via Play-offs!</div>
+          <div style="font-size:11px;color:var(--tx2);margin-top:4px">Your team won the play-off final and earned promotion!</div>
+        </div>`;
+      } else if(uri.promoted){
+        lcHtml+=`<div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:#3b82f6">⬆️ PROMOTED! Automatic promotion secured!</div>
+        </div>`;
+      } else if(uri.relegated){
+        lcHtml+=`<div style="background:rgba(232,72,85,.1);border:1px solid rgba(232,72,85,.3);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--acc3)">⬇️ RELEGATED</div>
+          <div style="font-size:11px;color:var(--tx2);margin-top:4px">Your team has been relegated to the division below.</div>
+        </div>`;
+      }
+
+      // Show playoff results for the user's league
+      const userLeague=summary.userLeague||(await getSave())?.userLeague||'';
+      const po=leagueChanges.playoffResults?.[userLeague];
+      if(po){
+        const sf1=po.semi1, sf2=po.semi2, fin=po.final;
+        lcHtml+=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:6px">🏟️ Play-off Results</div>
+          <div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><strong>Semi-Final 1:</strong> ${sf1.team1.name} vs ${sf1.team2.name}</div>
+          <div style="font-size:10px;color:var(--txd);margin-bottom:2px;padding-left:8px">Leg 1: ${sf1.team1.name} ${sf1.leg1.home}-${sf1.leg1.away} ${sf1.team2.name}</div>
+          <div style="font-size:10px;color:var(--txd);margin-bottom:4px;padding-left:8px">Leg 2: ${sf1.team2.name} ${sf1.leg2.home}-${sf1.leg2.away} ${sf1.team1.name} (Agg: ${sf1.agg.team1}-${sf1.agg.team2}${sf1.penalties?' pens':''})</div>
+          <div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><strong>Semi-Final 2:</strong> ${sf2.team1.name} vs ${sf2.team2.name}</div>
+          <div style="font-size:10px;color:var(--txd);margin-bottom:2px;padding-left:8px">Leg 1: ${sf2.team1.name} ${sf2.leg1.home}-${sf2.leg1.away} ${sf2.team2.name}</div>
+          <div style="font-size:10px;color:var(--txd);margin-bottom:4px;padding-left:8px">Leg 2: ${sf2.team2.name} ${sf2.leg2.home}-${sf2.leg2.away} ${sf2.team1.name} (Agg: ${sf2.agg.team1}-${sf2.agg.team2}${sf2.penalties?' pens':''})</div>
+          <div style="font-size:11px;color:var(--acc);margin-top:4px"><strong>Final:</strong> ${fin.team1.name} ${fin.score.team1}-${fin.score.team2} ${fin.team2.name}${fin.penalties?' (pens)':''}</div>
+          <div style="font-size:11px;color:#3b82f6;font-weight:600;margin-top:4px">🏆 ${(fin.winnerId===fin.team1.id?fin.team1.name:fin.team2.name)} promoted!</div>
+        </div>`;
+      }
+
+      // Show movements summary
+      const mvs=(leagueChanges.movements||[]).filter(m=>m.teamId!==newSave.userTeamId);
+      if(mvs.length>0){
+        const promos=mvs.filter(m=>m.reason.includes('Promoted')||m.reason.includes('Playoff'));
+        const rels=mvs.filter(m=>m.reason==='Relegated');
+        let mvHtml='';
+        if(promos.length) mvHtml+=`<div style="margin-bottom:4px"><span style="color:#3b82f6;font-weight:600;font-size:10px">⬆️ PROMOTED:</span> <span style="font-size:10px;color:var(--tx2)">${promos.map(m=>{const allT=typeof getAllTeams==='function';return m.teamId;}).join(', ')}</span></div>`;
+        if(rels.length) mvHtml+=`<div><span style="color:var(--acc3);font-weight:600;font-size:10px">⬇️ RELEGATED:</span> <span style="font-size:10px;color:var(--tx2)">${rels.map(m=>m.teamId).join(', ')}</span></div>`;
+        if(mvHtml) lcHtml+=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:8px;margin-bottom:8px">${mvHtml}</div>`;
+      }
+    }
+
     showModal('Season Complete! 🎉',`<div>${tHtml}
       <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
       ${prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">💰 Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
+      ${lcHtml}
       ${summary.retirements&&summary.retirements.length?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
         <div style="font-size:12px;font-weight:600;color:var(--acc3);margin-bottom:4px">👋 Retirements</div>
         ${summary.retirements.map(r=>`<div style="font-size:12px;color:var(--tx2)">${r.name} (${r.position}, ${r.age}) has retired</div>`).join('')}
