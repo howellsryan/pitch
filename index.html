@@ -327,12 +327,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .sq-attr-bar{height:100%;border-radius:2px}
 .sq-attr-val{font-family:var(--fm);font-size:11px;font-weight:700;width:24px;text-align:right;flex-shrink:0}
 @media(max-width:768px){
-  .squad-layout{height:auto;overflow:visible;padding:0 12px 12px}
+  #screen-squad{overflow-y:auto!important;display:block!important}
+  .squad-layout{height:auto;overflow:visible;padding:0 10px 80px}
   .sq-tbl-hdr{display:none}
-  .sq-row{grid-template-columns:32px 26px 1fr 32px 32px 50px 70px;gap:4px;padding:5px 6px}
-  .sq-row>*:nth-child(5),.sq-row>*:nth-child(7),.sq-row>*:nth-child(8),.sq-row>*:nth-child(9){display:none}
+  .sq-row{grid-template-columns:34px 28px 1fr 52px 76px;gap:6px;padding:6px 8px}
+  .sq-row>*:nth-child(4),.sq-row>*:nth-child(5),.sq-row>*:nth-child(6),
+  .sq-row>*:nth-child(7),.sq-row>*:nth-child(8),.sq-row>*:nth-child(9){display:none}
+  .sq-col-money{display:block!important;font-size:10px;text-align:right;grid-column:4}
+  .sq-col-btns{display:flex!important;gap:3px;justify-content:flex-end;grid-column:5}
+  .sq-btn-sm{padding:3px 7px;font-size:9px}
   .sq-group{margin-bottom:14px}
-  .sq-scroll{overflow:visible;flex:none}
+  .sq-scroll{overflow:visible;flex:none;height:auto}
 }
 
 /* ── TROPHIES (merged Cups + Honours) ── */
@@ -413,6 +418,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .sh-season{font-family:var(--fd);font-size:14px;letter-spacing:.5px;margin-bottom:3px}
 .sh-detail{color:var(--tx2);font-size:11px}
 @media(max-width:768px){
+  #screen-settings{overflow-y:auto!important;display:block!important}
   .set-layout{height:auto;grid-template-columns:1fr;overflow:visible;padding:10px 12px}
   .set-left{overflow:visible}
   .set-history-card{height:auto;max-height:300px}
@@ -508,9 +514,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   .tr-layout.dp-open .tr-panel{display:none}
   .comp-layout{grid-template-columns:1fr;padding:10px 12px;height:auto}
   #screen-transfers,#screen-competitions{overflow-y:auto!important;display:block!important}
-  .squad-layout{padding:10px 12px}
-  .sq-row{grid-template-columns:32px 1fr 42px 0 0 0 0 84px}
-  .sq-age,.sq-attrs,.sq-val,.sq-wage{display:none}
+  .squad-layout{padding:8px 8px}
+  .sq-row{grid-template-columns:32px 26px 1fr 50px 72px;gap:4px;padding:5px 6px}
+  .sq-btn-sm{padding:2px 5px;font-size:8px}
   .ph{padding:10px 12px 0}
   .modal-bd{align-items:flex-end;padding:0}
   .mgr-card{display:none}
