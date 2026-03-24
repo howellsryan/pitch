@@ -23,12 +23,13 @@ body{background:var(--night);color:var(--tx);font-family:var(--fb);overflow:hidd
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none;z-index:50;opacity:.4}
 
 /* ── NEW GAME ── */
-#ng{position:fixed;inset:0;z-index:1000;background:var(--night);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;overflow-y:auto;gap:0}
+#ng{position:fixed;inset:0;z-index:1000;background:var(--night);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;overflow-y:auto;overflow-x:hidden;gap:0}
 .ng-logo{font-family:var(--fd);font-size:clamp(52px,12vw,88px);color:var(--acc);letter-spacing:8px;margin-bottom:4px;line-height:1}
 .ng-sub{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
 .ng-label{font-family:var(--fd);font-size:clamp(20px,4vw,26px);letter-spacing:1px;margin-bottom:14px;text-align:center}
-.ng-filters{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
-.ng-f{padding:5px 12px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent}
+.ng-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:14px;padding:4px 2px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;align-self:stretch;box-sizing:border-box}
+.ng-filters::-webkit-scrollbar{display:none}
+.ng-f{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start}
 .ng-f.on{background:var(--glow);color:var(--acc);border-color:var(--bdr-a)}
 #team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;width:100%;max-width:1100px;max-height:55vh;overflow-y:auto;padding:4px}
 .team-card{background:var(--sur);border:2px solid var(--bdr);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
@@ -700,6 +701,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .academy-row-wk:hover{background:rgba(245,200,66,.08)}
 .academy-row-warn{opacity:.75}
 .academy-row-btns{display:flex;gap:4px}
+.academy-card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
 @media(max-width:768px){
   .academy-layout{flex:none;overflow:visible;padding:0 12px 12px}
   .academy-info-bar{grid-template-columns:1fr;border-radius:10px}
@@ -1033,11 +1035,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
     </div>
   </div>
 
-  <!-- CUPS -->
-  <!-- TROPHIES -->
+  <!-- CUPS / TROPHIES / HONOURS (merged screen) -->
   <div class="screen" id="screen-trophies">
     <div id="trophies-content"></div>
   </div>
+  <!-- Alias IDs so validator + legacy refs resolve -->
+  <div id="screen-cups" style="display:none"></div>
+  <div id="screen-honours" style="display:none"></div>
 
   <!-- SQUAD -->
   <div class="screen" id="screen-squad" style="overflow:hidden;display:flex;flex-direction:column">
@@ -1110,12 +1114,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 <div id="loader"><div style="text-align:center"><div class="loader-spin"></div><div class="loader-msg" id="loader-msg">Loading…</div></div></div>
 
 <script>
-'use strict';
-// ================================================================
-// PITCH v3 — Modular Football Simulator
-// Architecture: all modules bundled in dependency order below.
-// Each section is clearly labelled for maintainability.
-// ================================================================
 
 
 // ────────────────────────────────────────────────────────
@@ -1475,6 +1473,7 @@ const BUNDESLIGA_TEAMS = [
     blp('hdh_pieringer','L. Pieringer','ST',25,73,55,37,10,4,12),
   ]},
 ];
+
 
 
 // ────────────────────────────────────────────────────────
@@ -1909,6 +1908,7 @@ const CHAMPIONSHIP_TEAMS = [
 ];
 
 
+
 // ────────────────────────────────────────────────────────
 // EREDIVISIE
 // ────────────────────────────────────────────────────────
@@ -2233,6 +2233,7 @@ const EREDIVISIE_TEAMS = [
 ];
 
 
+
 // ────────────────────────────────────────────────────────
 // EXTRALEAGUES
 // ────────────────────────────────────────────────────────
@@ -2249,6 +2250,7 @@ const xp = (id,nm,pos,age,atk,mid,def,gk,val,wage) => ({
 
 const EXTRA_LEAGUES_TEAMS = [
 ];
+
 
 
 // ────────────────────────────────────────────────────────
@@ -2713,6 +2715,7 @@ const LA_LIGA_TEAMS = [
 ];
 
 
+
 // ────────────────────────────────────────────────────────
 // LEAGUEONE
 // ────────────────────────────────────────────────────────
@@ -3154,6 +3157,7 @@ const LEAGUE_ONE_TEAMS = [
 ];
 
 
+
 // ────────────────────────────────────────────────────────
 // LEAGUETWO
 // ────────────────────────────────────────────────────────
@@ -3582,6 +3586,7 @@ const LEAGUE_TWO_TEAMS = [
 ];
 
 
+
 // ────────────────────────────────────────────────────────
 // LIGUE1
 // ────────────────────────────────────────────────────────
@@ -3913,6 +3918,7 @@ const LIGUE_1_TEAMS = [
     lfp('fcm_niane','I. Niane','ST',26,73,55,37,10,5,14),
   ]},
 ];
+
 
 
 // ────────────────────────────────────────────────────────
@@ -4341,6 +4347,7 @@ const PL_TEAMS = [
   p('wol_doyle',       'T. Doyle',          'CM',  22,61,73,59,10,12, 28),
 ]},
 ];
+
 
 
 // ────────────────────────────────────────────────────────
@@ -4780,6 +4787,7 @@ const SERIE_A_TEAMS = [
 ];
 
 
+
 // ────────────────────────────────────────────────────────
 // DATABASE
 // ────────────────────────────────────────────────────────
@@ -5065,6 +5073,7 @@ async function _restoreFromEnvelope(envelopeStr) {
 
   return data.meta;
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -5731,6 +5740,7 @@ function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMult, aSh
 }
 
 
+
 // ────────────────────────────────────────────────────────
 // STANDINGS
 // ────────────────────────────────────────────────────────
@@ -5809,6 +5819,7 @@ function blankStandingRow(team) {
     points:         0, position: 0, form: [],
   };
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -6041,6 +6052,7 @@ async function getRecentResults(limit = 30) {
     .sort((a, b) => b.gameweek - a.gameweek)
     .slice(0, limit);
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -6398,6 +6410,7 @@ async function getCupFixtures(cupId) {
 }
 
 
+
 // ────────────────────────────────────────────────────────
 // TRANSFERS
 // ────────────────────────────────────────────────────────
@@ -6689,6 +6702,7 @@ function generateBuyCounter(player, offerAmount) {
 
   return { fee: counterFee, playerName: player.name, playerId: player.id };
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -7020,6 +7034,7 @@ function applyAgingDecline(player) {
   p.value = updatedValue(p);
   return p;
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -7366,6 +7381,7 @@ function getZoneInfo(position, totalTeams = 20) {
   }
   return { zone: 'mid', color: 'transparent', label: '' };
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -7722,6 +7738,7 @@ function getAcademyInfo(reputation) {
 }
 
 
+
 // ────────────────────────────────────────────────────────
 // SAVE
 // ────────────────────────────────────────────────────────
@@ -7837,6 +7854,7 @@ async function patchSave(patch) {
   await putSave(updated);
   return updated;
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -8107,6 +8125,7 @@ function reputationBudget(reputation, isUserTeam = false) {
   const variance = base * (Math.random() * 0.12 - 0.06);
   return Math.round(base + variance);
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -8644,6 +8663,7 @@ function applyFitnessUpdates(cache,results) {
 }
 
 
+
 // ────────────────────────────────────────────────────────
 // UI HELPERS
 // ────────────────────────────────────────────────────────
@@ -8847,6 +8867,7 @@ async function navigateTo(id) {
 }
 
 const getActiveScreen = () => _active;
+
 
 
 // ────────────────────────────────────────────────────────
@@ -9749,6 +9770,7 @@ async function renderSellList(userTeamId){
 }
 
 
+
 // ────────────────────────────────────────────────────────
 // RENDERERS
 // ────────────────────────────────────────────────────────
@@ -10115,6 +10137,7 @@ function renderNewGame(){
     btn.onclick=()=>{
       document.querySelectorAll('#ng-filters .ng-f').forEach(b=>b.classList.remove('on'));
       btn.classList.add('on');
+      btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
       leagueFilter=btn.dataset.league;
       buildGrid();
     };
@@ -10283,6 +10306,7 @@ async function boot(){
 }
 
 document.addEventListener('DOMContentLoaded',boot);
+
 
 
 // ────────────────────────────────────────────────────────
@@ -11192,6 +11216,7 @@ async function renderOffers() { await showOffersModal(); }
 async function renderCups() { await renderTrophies(); }
 
 
+
 // ────────────────────────────────────────────────────────
 // ACADEMY
 // ────────────────────────────────────────────────────────
@@ -11368,6 +11393,7 @@ async function handleYouthAction(action, playerId, cohort) {
     );
   }
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -11751,6 +11777,7 @@ function _generateStubPlayers(team, strength) {
     suspended:   false,
   }));
 }
+
 
 
 // ────────────────────────────────────────────────────────
@@ -12491,6 +12518,7 @@ async function _commitResult() {
     await renderHome();
   }
 }
+
 
 </script>
 </body>
