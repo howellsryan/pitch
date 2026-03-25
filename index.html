@@ -6470,9 +6470,10 @@ function formAdjustedValue(player) {
     // Cap harder for low-rated players: max premium scales from 30% at rating 50 to 80% at 75+
     const ratingCap = Math.min(0.80, 0.30 + Math.max(0, (cur - 50) / 25) * 0.50);
     const potPremium = Math.min(ratingCap, rawPremium);
-    // Only fully applies when in form
+    // Potential premium is a stable valuation factor — form has only a small
+    // influence (±10%) so it doesn't compound with the form multiplier above
     const formFactor = Math.max(0, (cappedForm - 50) / 40);
-    potentialMult = 1 + potPremium * (0.3 + 0.7 * formFactor);
+    potentialMult = 1 + potPremium * (0.9 + 0.1 * formFactor);
   } else if (age <= 26 && headroom > 5) {
     potentialMult = 1 + Math.min(0.25, headroom * 0.015);
   }
@@ -7911,14 +7912,40 @@ const CUP_RUN_PRIZE = {
   coupe_de_france:700_000, trophee_des_champions:0,
 };
 
-function calculatePrizeMoney(leaguePosition, cupState) {
-  // ~£2m per position from bottom + merit tiers
-  const plPrize = 2_000_000 * (21 - leaguePosition);
-  const merit   =
-    leaguePosition === 1 ? 60_000_000 :
-    leaguePosition <= 4  ? 40_000_000 :
-    leaguePosition <= 6  ? 20_000_000 :
-    leaguePosition <= 10 ? 10_000_000 : 5_000_000;
+function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
+  // League-specific prize/distribution money (realistic rough guides)
+  // Sources: EFL distributions, PL solidarity payments, 2024/25 season estimates
+  let leaguePrize = 0;
+
+  if (!userLeague || userLeague === 'Premier League') {
+    // Premier League: ~£2m per position from bottom (facility fees) + merit tiers
+    // Bottom club ~£100m, top ~£180m total revenue; we model the variable portion
+    const plPrize = 2_000_000 * (21 - leaguePosition);
+    const merit   =
+      leaguePosition === 1 ? 60_000_000 :
+      leaguePosition <= 4  ? 40_000_000 :
+      leaguePosition <= 6  ? 20_000_000 :
+      leaguePosition <= 10 ? 10_000_000 : 5_000_000;
+    leaguePrize = plPrize + merit;
+
+  } else if (userLeague === 'Championship') {
+    // Championship: ~£8m EFL basic award + ~£3m PL solidarity = ~£11m base
+    // Minimal position-based variation (~£100k winner, ~£7k bottom)
+    const positionBonus = Math.max(0, Math.round(100_000 * (25 - leaguePosition) / 23));
+    leaguePrize = 11_000_000 + positionBonus;
+
+  } else if (userLeague === 'League One') {
+    // League One: ~£1m EFL basic + ~£0.8m PL solidarity ≈ £1.8m–£2m
+    leaguePrize = 1_900_000;
+
+  } else if (userLeague === 'League Two') {
+    // League Two: ~£0.9m EFL basic + ~£0.6m PL solidarity ≈ £1.5m
+    leaguePrize = 1_500_000;
+
+  } else {
+    // Other leagues (La Liga, Bundesliga, etc.) — rough guide, no real data modelled
+    leaguePrize = 5_000_000;
+  }
 
   let cupPrize = 0;
   if (cupState) {
@@ -7930,7 +7957,7 @@ function calculatePrizeMoney(leaguePosition, cupState) {
       }
     }
   }
-  return plPrize + merit + cupPrize;
+  return leaguePrize + cupPrize;
 }
 
 // ─── End-of-season processing ─────────────────────────────────
@@ -7946,7 +7973,7 @@ async function processEndOfSeason() {
   const summary      = buildSeasonSummary(save, sorted, players, userPosition);
 
   // ── Award prize money to user ────────────────────────────
-  const prizeMoney = calculatePrizeMoney(userPosition, save.cups);
+  const prizeMoney = calculatePrizeMoney(userPosition, save.cups, save.userLeague);
   const userTeamRec = await getTeam(save.userTeamId);
   if (userTeamRec) {
     await putTeam({ ...userTeamRec, budget: userTeamRec.budget + prizeMoney });
@@ -8603,23 +8630,30 @@ async function simulateFixtures(fixtures, teamsById, playersByTeam, save) {
   return results;
 }
 
+function buildHeavyLossMap(results) {
+  const map = new Map();
+  for (const r of results) {
+    const hm = r.awayGoals - r.homeGoals;
+    const am = r.homeGoals - r.awayGoals;
+    if (hm >= 3) map.set(r.homeTeamId, hm);
+    if (am >= 3) map.set(r.awayTeamId, am);
+  }
+  return map;
+}
+
 async function updateCache(allPlayers, results) {
   const cache = new Map(allPlayers.map(p => [p.id, { ...p }]));
   updatePlayerStats(cache, results);
   applyFitnessUpdates(cache, results);
-  // Between-match fitness recovery: played players recover +20, non-played fully restore to 100
-  // Older players recover slower: -2 at 30+, -4 at 33+, -6 at 36+
-  // Also update player form: played → form rises, not played → form decays
+  const heavyLossMargin = buildHeavyLossMap(results);
   for (const p of cache.values()) {
     if (!p._played) {
-      // Rested players fully recover fitness
-      p.fitness = 100;
-      // Form decays when not playing — gradual slide towards 50 (average)
+      p.fitness = 100; // rested players fully recover
       const currentForm = p.form ?? 50;
       if (currentForm > 50) {
-        p.form = Math.max(50, currentForm - 3); // lose 3 form per GW benched
+        p.form = Math.max(50, currentForm - 3);
       } else if (currentForm < 50) {
-        p.form = Math.min(50, currentForm + 1); // slowly recover from poor form
+        p.form = Math.min(50, currentForm + 1);
       }
     } else {
       const baseRecovery = 20;
@@ -8627,13 +8661,22 @@ async function updateCache(allPlayers, results) {
       const agePenalty = age >= 36 ? 6 : age >= 33 ? 4 : age >= 30 ? 2 : 0;
       const recovery = Math.max(8, baseRecovery - agePenalty);
       p.fitness = Math.min(100, (p.fitness ?? 80) + recovery);
-      // Form rises when playing — boosted by goals/assists/clean sheets
       const currentForm = p.form ?? 50;
-      let formGain = 2; // base gain for playing
-      if (p._scored)      formGain += 4;
-      if (p._assisted)    formGain += 3;
-      if (p._cleanSheet)  formGain += 2;
-      p.form = Math.min(99, currentForm + formGain);
+      let formGain = 1;
+      if (p._scored)      formGain += 3;
+      if (p._assisted)    formGain += 2;
+      if (p._cleanSheet)  formGain += 1;
+      // Heavy loss penalty: -2 per goal margin above 2 (e.g. 3-0 loss = -2, 5-0 = -6)
+      // Scorers/assisters are shielded — individual brilliance offsets team performance
+      const margin = heavyLossMargin.get(p.teamId) ?? 0;
+      if (margin >= 3 && !p._scored && !p._assisted) {
+        formGain -= (margin - 2) * 2;
+      }
+      // Ceiling decay: form above 85 drifts -1 each GW even when playing
+      // Makes 99 form genuinely rare — must keep contributing to maintain it
+      const afterGain = currentForm + formGain;
+      const ceilingDecay = afterGain > 60 ? 1 : 0;
+      p.form = Math.min(99, Math.max(1, afterGain - ceilingDecay));
     }
     delete p._played;
     delete p._scored;
