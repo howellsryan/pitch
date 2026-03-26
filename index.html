@@ -500,6 +500,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   .bot-nav{display:block}
   .main{margin-left:0!important}
   .scroll-pad{padding-bottom:80px}
+  .sq-scroll{padding-bottom:40px}
+  .pl-list{padding-bottom:40px}
+  .tbl-scroll{padding-bottom:40px}
+  #screen-settings{padding-bottom:40px}
+  #screen-competitions{padding-bottom:40px}
+  #screen-home{padding-bottom:40px}
   .toast-container{bottom:74px;right:8px;left:8px;max-width:100%}
   .home-outer{height:auto;overflow:visible;padding:8px 12px 12px}
   .home-grid{grid-template-columns:1fr!important;gap:8px}
@@ -713,10 +719,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   .academy-info-bar{grid-template-columns:1fr;border-radius:10px}
   .academy-info-brand,.academy-info-desc,.academy-info-stat{border-right:none;border-bottom:1px solid var(--bdr)}
   .academy-info-stat:last-child{border-bottom:none}
-  .academy-table-hdr{grid-template-columns:28px 32px 1fr 50px 70px}
-  .academy-row{grid-template-columns:28px 32px 1fr 50px 70px}
-  .academy-row>*:nth-child(6),.academy-row>*:nth-child(7),.academy-row>*:nth-child(8),
-  .academy-table-hdr>*:nth-child(6),.academy-table-hdr>*:nth-child(7),.academy-table-hdr>*:nth-child(8){display:none}
+  .academy-table-hdr{grid-template-columns:28px 32px 1fr 50px 70px 110px}
+  .academy-row{grid-template-columns:28px 32px 1fr 50px 70px 110px}
+  .academy-row>*:nth-child(6){display:none}
+  .academy-row>*:nth-child(7),.academy-row>*:nth-child(8){display:flex;gap:4px;align-items:center}
+  .academy-row>*:nth-child(7){grid-column:6}
+  .academy-row>*:nth-child(8){display:none}
+  .academy-table-hdr>*:nth-child(6),.academy-table-hdr>*:nth-child(8){display:none}
+  .academy-table-hdr>*:nth-child(7){grid-column:6}
+  .academy-rows{padding-bottom:40px}
 }
 
 /* ── OFFERS v2 ── */
@@ -6348,7 +6359,7 @@ function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId,
 }
 
 // ─── Simulate UCL league phase matchday ──────────────────────
-function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality) {
+function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, userIsHomeOverride) {
   const lp  = cupState.leaguePhase;
   const md  = lp?.matchday ?? 0;
   if (md >= 8) return null;
@@ -6360,7 +6371,7 @@ function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality) {
     : rawOpp;
 
   const oppPlayers = buildSyntheticSquad(opp.id, opp.strength ?? 72);
-  const userIsHome = Math.random() < 0.5;
+  const userIsHome = userIsHomeOverride ?? (Math.random() < 0.5);
   const home       = userIsHome ? userTeam    : { id:opp.id, name:opp.name, crest:opp.nation??'⚽' };
   const away       = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation??'⚽' } : userTeam;
   const hPl        = userIsHome ? userPlayers : oppPlayers;
@@ -8224,6 +8235,7 @@ function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
           oppName:  opp?.name ?? 'European Club',
           oppNation:opp?.nation ?? '🌍',
           oppStrength: opp?.strength ?? 72,
+          userIsHome: Math.random() < 0.5,
         });
       }
       continue;
