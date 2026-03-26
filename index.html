@@ -27,9 +27,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .ng-logo{font-family:var(--fd);font-size:clamp(52px,12vw,88px);color:var(--acc);letter-spacing:8px;margin-bottom:4px;line-height:1}
 .ng-sub{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
 .ng-label{font-family:var(--fd);font-size:clamp(20px,4vw,26px);letter-spacing:1px;margin-bottom:14px;text-align:center}
-.ng-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:14px;padding:4px 2px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;align-self:stretch;box-sizing:border-box}
+.ng-filters{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:14px;padding:6px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;box-sizing:border-box}
 .ng-filters::-webkit-scrollbar{display:none}
-.ng-f{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start}
+.ng-f{display:inline-flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;line-height:1;height:36px;box-sizing:border-box}
 .ng-f.on{background:var(--glow);color:var(--acc);border-color:var(--bdr-a)}
 #team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;width:100%;max-width:1100px;max-height:55vh;overflow-y:auto;padding:4px}
 .team-card{background:var(--sur);border:2px solid var(--bdr);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
@@ -510,7 +510,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   .home-outer{height:auto;overflow:visible;padding:8px 12px 12px}
   .home-grid{grid-template-columns:1fr!important;gap:8px}
   .hero,.stats-row,.form-row,.charts-row,.adv-row{grid-column:1!important}
-  .league-wdg{grid-column:1!important;grid-row:auto!important}
+  .league-wdg{grid-column:1!important;grid-row:auto!important;height:auto}
+  .league-wdg .tbl-scroll{flex:none;min-height:0;max-height:none;overflow-y:visible}
   .stats-row{grid-template-columns:1fr 1fr}
   .charts-row{grid-template-columns:1fr}
   #screen-home{overflow-y:auto!important;display:block!important}
@@ -5248,8 +5249,10 @@ function fitMult(fitness) {
 // ─── Goal probability per attacking phase ─────────────────────
 // Uses ATTACK rating of attackers vs DEFENCE + GK rating of defenders
 function goalChance(attStr, defStr, isHome) {
-  // Base rate: ~2.7 goals per 90 minutes total across 120 phases
-  const base     = 0.031;  // Tuned: ~2.5-3.2 goals/game across both teams
+  // Base rate: tuned to ~2.3-2.6 goals/game for balanced mid-table teams.
+  // Real-world averages: Serie A/La Liga ~2.5-2.6, Bundesliga/PL ~2.9-3.1.
+  // Mentality multipliers push this up/down from the base.
+  const base     = 0.019;  // Tuned: ~2.3-3.1 goals/game depending on ratings & mentality
   // Attack quality: how well forwards finish
   const attBonus = attStr.attack / 99;         // 0→1
   // Defence quality: how well they stop attacks
@@ -5268,7 +5271,7 @@ function goalChance(attStr, defStr, isHome) {
   // Midfield advantage: if one team dominates midfield, they get more chances
   // (handled separately via phase distribution)
 
-  return Math.min(Math.max(prob, 0.008), 0.18);
+  return Math.min(Math.max(prob, 0.004), 0.12);
 }
 
 // ─── Scorer picker — GK CANNOT score ─────────────────────────
@@ -5358,31 +5361,38 @@ function pickAssister(eleven, scorerId) {
 function getMentalityMods(mentality) {
   switch (mentality) {
     case 'defensive':
+      // Low block, compact shape. Hard to break down, very limited in attack.
+      // Aims to grind out 1-0s and 0-0s. Real-world defensive sides concede ~1.2 gpg.
       return {
-        goalProbMult:    0.72,   // less attacking threat
-        defResistMult:   1.30,   // compact, hard to break down
-        midShareBoost:  -0.07,   // fewer attacking phases
-        phasesBoostOpp:  0.04,   // opponents get slightly more ball from defensive shape
-        shotsMultSelf:   0.80,   // fewer shots created
-        shotsMultOpp:    0.88,   // opponents get fewer clear chances too (compact)
+        goalProbMult:    0.72,   // much less attacking threat when sitting deep
+        defResistMult:   1.35,   // very compact — hard to break down
+        midShareBoost:  -0.08,   // surrenders possession intentionally
+        phasesBoostOpp:  0.05,   // opponents get more of the ball
+        shotsMultSelf:   0.75,   // very few shots (counter-attack reliant)
+        shotsMultOpp:    0.85,   // compact shape limits opponents' shot quality
       };
     case 'possession':
+      // Patient, methodical. High midfield share. Probes for the right moment.
+      // Quality over quantity — fewer but better chances.
       return {
-        goalProbMult:    0.88,   // patient — probing, fewer rushed efforts
-        defResistMult:   1.08,   // more organised positional defence
+        goalProbMult:    0.90,   // patient, selective — fewer rushed efforts
+        defResistMult:   1.10,   // organised positional defence
         midShareBoost:   0.09,   // dominate possession via midfield supremacy
-        phasesBoostOpp: -0.04,   // starve opposition of the ball
-        shotsMultSelf:   0.90,   // fewer but higher quality shots
-        shotsMultOpp:    0.82,   // opposition barely see the ball
+        phasesBoostOpp: -0.05,   // starve opposition of the ball
+        shotsMultSelf:   0.88,   // fewer but higher quality shots
+        shotsMultOpp:    0.80,   // opposition barely see the ball
       };
     case 'attacking':
+      // High press, expansive, direct. More goals both ways.
+      // Realistic: attacking teams score more but also concede more (high line).
+      // att vs att compound = 1.10/0.88 = 1.25x — avoids runaway scorelines.
       return {
-        goalProbMult:    1.32,   // progressive, direct — high press creates chances
-        defResistMult:   0.78,   // high line leaves gaps for counters
+        goalProbMult:    1.10,   // direct, press-heavy — creates more chances
+        defResistMult:   0.88,   // high line leaves space in behind
         midShareBoost:   0.06,   // push forward, more attacking phases
-        phasesBoostOpp:  0.08,   // opponent gets counter opportunities
-        shotsMultSelf:   1.20,   // many shots, aggressive transitions
-        shotsMultOpp:    1.15,   // exposed defensively — opponents profit too
+        phasesBoostOpp:  0.08,   // opponents get counter-attack opportunities
+        shotsMultSelf:   1.18,   // many shots, aggressive transitions
+        shotsMultOpp:    1.12,   // exposed defensively — opponents profit too
       };
     case 'balanced':
     default:
@@ -5423,10 +5433,12 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
   const aMods = getMentalityMods(awayMentality ?? 'balanced');
 
   // Midfield controls possession/phases: stronger midfield = more attacking phases
-  // Mentality midShareBoost shifts the balance further
+  // Mentality midShareBoost shifts the balance further.
+  // +0.04 home crowd/familiarity boost reflects real-world home possession advantage.
+  const HOME_MID_BOOST = 0.04;
   const rawMidShare = (hStr.midfield + aStr.midfield) > 0
     ? hStr.midfield / (hStr.midfield + aStr.midfield) : 0.5;
-  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + hMods.midShareBoost - aMods.midShareBoost));
+  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + HOME_MID_BOOST + hMods.midShareBoost - aMods.midShareBoost));
 
   // Fitness tracking
   const hFitness = new Map(hElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)]));
@@ -5675,7 +5687,7 @@ function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers, homeF
   const aMods = getMentalityMods(awayMentality ?? 'balanced');
   const rawMidShare = (hStr.midfield + aStr.midfield) > 0
     ? hStr.midfield / (hStr.midfield + aStr.midfield) : 0.5;
-  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + hMods.midShareBoost - aMods.midShareBoost));
+  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + 0.04 + hMods.midShareBoost - aMods.midShareBoost));
 
   return {
     hActive: [...hElev], aActive: [...aElev],
@@ -6359,7 +6371,7 @@ function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId,
 }
 
 // ─── Simulate UCL league phase matchday ──────────────────────
-function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality) {
+function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, forcedUserIsHome) {
   const lp  = cupState.leaguePhase;
   const md  = lp?.matchday ?? 0;
   if (md >= 8) return null;
@@ -6371,7 +6383,7 @@ function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality) {
     : rawOpp;
 
   const oppPlayers = buildSyntheticSquad(opp.id, opp.strength ?? 72);
-  const userIsHome = Math.random() < 0.5;
+  const userIsHome = forcedUserIsHome !== undefined ? forcedUserIsHome : Math.random() < 0.5;
   const home       = userIsHome ? userTeam    : { id:opp.id, name:opp.name, crest:opp.nation??'⚽' };
   const away       = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation??'⚽' } : userTeam;
   const hPl        = userIsHome ? userPlayers : oppPlayers;
@@ -6452,11 +6464,11 @@ function formAdjustedValue(player) {
   // ── Form multiplier: scales DOWN for expensive players ──
   // Base form effect: hot form = up to +50%, cold = down to -25%
   let formMult;
-  if (cappedForm >= 80)      formMult = 1.25 + (cappedForm - 80) * 0.013; // 80→1.25, 99→1.50
-  else if (cappedForm >= 65) formMult = 1.08 + (cappedForm - 65) * 0.011; // 65→1.08, 79→1.24
-  else if (cappedForm >= 50) formMult = 1.0;                               // average
-  else if (cappedForm >= 35) formMult = 0.92 - (50 - cappedForm) * 0.004;  // 35→0.86
-  else                       formMult = 0.75;
+  if (cappedForm >= 80)      formMult = 1.125 + (cappedForm - 80) * 0.0065; // 80→1.125, 99→1.25
+  else if (cappedForm >= 65) formMult = 1.04  + (cappedForm - 65) * 0.0057; // 65→1.04,  79→1.12
+  else if (cappedForm >= 50) formMult = 1.0;                                 // average
+  else if (cappedForm >= 35) formMult = 0.96  - (50 - cappedForm) * 0.002;  // 35→0.93
+  else                       formMult = 0.875;
 
   // Dampen form effect for high-value players (diminishing returns)
   const valueTier = Math.min(1, base / 80_000_000);
@@ -6482,9 +6494,9 @@ function formAdjustedValue(player) {
     const ratingCap = Math.min(0.80, 0.30 + Math.max(0, (cur - 50) / 25) * 0.50);
     const potPremium = Math.min(ratingCap, rawPremium);
     // Potential premium is a stable valuation factor — form has only a small
-    // influence (±10%) so it doesn't compound with the form multiplier above
+    // influence (±5%) so it doesn't compound with the form multiplier above
     const formFactor = Math.max(0, (cappedForm - 50) / 40);
-    potentialMult = 1 + potPremium * (0.9 + 0.1 * formFactor);
+    potentialMult = 1 + potPremium * (0.95 + 0.05 * formFactor);
   } else if (age <= 26 && headroom > 5) {
     potentialMult = 1 + Math.min(0.25, headroom * 0.015);
   }
@@ -8235,6 +8247,7 @@ function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
           oppName:  opp?.name ?? 'European Club',
           oppNation:opp?.nation ?? '🌍',
           oppStrength: opp?.strength ?? 72,
+          userIsHome: Math.random() < 0.5,
         });
       }
       continue;
@@ -8392,7 +8405,7 @@ async function advanceOneFixture(overrideFormation) {
     const userTeam   = allTeams.find(t => t.id === save.userTeamId);
     const userPlayers = playersByTeam.get(save.userTeamId) ?? [];
     const cupState   = save.cups?.ucl;
-    const mdResult   = simulateUCLMatchday(userTeam, userPlayers, cupState, save.mentality ?? 'balanced');
+    const mdResult   = simulateUCLMatchday(userTeam, userPlayers, cupState, save.mentality ?? 'balanced', event.userIsHome);
 
     if (mdResult) {
       const lp    = cupState.leaguePhase ?? {};
@@ -8589,8 +8602,8 @@ function buildCupMatchResult(r, userTeamId, event, allTeams) {
       awayTeamName:  userIsHome ? r.opponentName : userName,
       homeTeamCrest: userIsHome ? userCrest : (r.opponentNation ?? '⚽'),
       awayTeamCrest: userIsHome ? (r.opponentNation ?? '⚽') : userCrest,
-      homeScorers:   userIsHome ? (r.homeScorers ?? r.scorers ?? []) : (r.awayScorers ?? []),
-      awayScorers:   userIsHome ? (r.awayScorers ?? []) : (r.homeScorers ?? r.scorers ?? []),
+      homeScorers:   r.homeScorers ?? [],
+      awayScorers:   r.awayScorers ?? [],
       events:        r.events ?? [],
       stats:         r.stats ?? defaultStats,
       fitnessUpdates:r.fitnessUpdates ?? [],
@@ -9072,9 +9085,10 @@ async function _handleAdvanceOneFixtureStub(){
   try{
     const res=await advanceOneFixture();
     hideLoader();
-    if(res.finished){await renderHome();return;}
+    if(res.skipped){await renderHome();return;}
     const r=res.singleResult;
     if(r) showMatchReport(r,save);
+    if(res.finished){await renderHome();return;}
     if(res.cupResults?.length){
       for(const cr of res.cupResults){
         if(cr.isUCLMatchday){
@@ -11705,14 +11719,17 @@ async function handleAdvanceOneFixture(overrideFormation) {
       hideLoader();
     }
 
-    if (res.finished) { await renderHome(); return; }
     if (res.skipped)  { await renderHome(); return; }
 
-    // Render home page first so the UI is up to date, THEN show match report on top
+    // Render home page first so UI is up to date, THEN show match report on top.
+    // If the season just finished, we still show the report — the user must close
+    // it manually. The EOY button will be visible underneath when they do.
     await renderHome();
 
     const r = res.singleResult;
     if (r) showMatchReport(r, save);
+
+    if (res.finished) return; // season over — don't show toasts, let user close report
 
     // Cup toasts
     for (const cr of res.cupResults ?? []) {
