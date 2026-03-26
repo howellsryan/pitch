@@ -11683,15 +11683,22 @@ async function handleAdvanceOneFixture(overrideFormation) {
     if (usingModalSpinner) {
       const mBody = modalBody?.querySelector('.modal-body');
       if (mBody) mBody.style.opacity = '';
-      // Close the pre-match modal
-      document.querySelector('.modal-bd')?.classList.remove('open');
-      setTimeout(() => document.querySelector('.modal-bd')?.remove(), 320);
+      // Close and immediately remove the pre-match modal before anything else
+      // (no setTimeout — a delayed remove would destroy the match report modal)
+      const existingModal = document.querySelector('.modal-bd');
+      if (existingModal) {
+        existingModal.classList.remove('open');
+        existingModal.remove();
+      }
     } else {
       hideLoader();
     }
 
     if (res.finished) { await renderHome(); return; }
     if (res.skipped)  { await renderHome(); return; }
+
+    // Render home page first so the UI is up to date, THEN show match report on top
+    await renderHome();
 
     const r = res.singleResult;
     if (r) showMatchReport(r, save);
@@ -11719,8 +11726,6 @@ async function handleAdvanceOneFixture(overrideFormation) {
         toast(`📨 ${o.clubName} bid ${fmt.money(o.fee)} for ${o.playerName}`, 'info', 5000);
       }
     }
-
-    await renderHome();
   } catch (err) {
     if (usingModalSpinner) {
       const mBody = modalBody?.querySelector('.modal-body');
