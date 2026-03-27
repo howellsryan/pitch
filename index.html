@@ -27,9 +27,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .ng-logo{font-family:var(--fd);font-size:clamp(52px,12vw,88px);color:var(--acc);letter-spacing:8px;margin-bottom:4px;line-height:1}
 .ng-sub{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
 .ng-label{font-family:var(--fd);font-size:clamp(20px,4vw,26px);letter-spacing:1px;margin-bottom:14px;text-align:center}
-.ng-filters{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:14px;padding:6px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;box-sizing:border-box}
+.ng-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;margin-bottom:14px;padding:4px 8px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;align-self:stretch;box-sizing:border-box}
 .ng-filters::-webkit-scrollbar{display:none}
-.ng-f{display:inline-flex;align-items:center;justify-content:center;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;line-height:1;height:36px;box-sizing:border-box}
+.ng-f{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:20px;font-size:12px;font-weight:500;line-height:1;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;box-sizing:border-box}
 .ng-f.on{background:var(--glow);color:var(--acc);border-color:var(--bdr-a)}
 #team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;width:100%;max-width:1100px;max-height:55vh;overflow-y:auto;padding:4px}
 .team-card{background:var(--sur);border:2px solid var(--bdr);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
@@ -500,18 +500,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   .bot-nav{display:block}
   .main{margin-left:0!important}
   .scroll-pad{padding-bottom:80px}
-  .sq-scroll{padding-bottom:80px}
-  .pl-list{padding-bottom:80px}
-  .tbl-scroll{padding-bottom:80px}
-  #screen-settings{padding-bottom:80px}
-  #screen-competitions{padding-bottom:80px}
-  #screen-home{padding-bottom:80px}
+  .sq-scroll{padding-bottom:40px}
+  .pl-list{padding-bottom:40px}
+  .tbl-scroll{padding-bottom:40px}
+  #screen-settings{padding-bottom:40px}
+  #screen-competitions{padding-bottom:40px}
+  #screen-home{padding-bottom:40px}
   .toast-container{bottom:74px;right:8px;left:8px;max-width:100%}
   .home-outer{height:auto;overflow:visible;padding:8px 12px 12px}
   .home-grid{grid-template-columns:1fr!important;gap:8px}
   .hero,.stats-row,.form-row,.charts-row,.adv-row{grid-column:1!important}
-  .league-wdg{grid-column:1!important;grid-row:auto!important;height:auto}
-  .league-wdg .tbl-scroll{flex:none;min-height:0;max-height:none;overflow-y:visible}
+  .league-wdg{grid-column:1!important;grid-row:auto!important}
   .stats-row{grid-template-columns:1fr 1fr}
   .charts-row{grid-template-columns:1fr}
   #screen-home{overflow-y:auto!important;display:block!important}
@@ -612,6 +611,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .slot-pos{font-size:8px;color:rgba(255,255,255,.5);font-family:var(--fm);letter-spacing:.5px;line-height:1}
 .slot-rating{font-family:var(--fm);font-size:14px;color:white;line-height:1;font-weight:700}
 .slot-empty-lbl{color:rgba(255,255,255,.3);font-size:10px}
+.slot-inner.slot-injured{border-color:var(--acc3) !important;background:rgba(200,40,40,.35) !important;animation:pulse-inj 2s ease-in-out infinite}
+.slot-inj-icon{font-size:10px;line-height:1;margin-top:1px}
+@keyframes pulse-inj{0%,100%{box-shadow:0 2px 12px rgba(0,0,0,.45),0 0 0 0 rgba(200,40,40,0)}50%{box-shadow:0 2px 12px rgba(0,0,0,.45),0 0 0 4px rgba(200,40,40,.3)}}
 
 /* bottom reserved for future use */
 
@@ -728,7 +730,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   .academy-row>*:nth-child(8){display:none}
   .academy-table-hdr>*:nth-child(6),.academy-table-hdr>*:nth-child(8){display:none}
   .academy-table-hdr>*:nth-child(7){grid-column:6}
-  .academy-rows{padding-bottom:80px}
+  .academy-rows{padding-bottom:40px}
 }
 
 /* ── OFFERS v2 ── */
@@ -824,6 +826,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .pm-fm-btn:hover:not(.active){background:var(--sur3);color:var(--tx)}
 .pm-xi-row{display:flex;flex-wrap:wrap;gap:4px}
 .pm-xi-name{font-size:10px;padding:2px 7px;background:var(--sur3);border-radius:4px;color:var(--tx2);font-family:var(--fm)}
+.pm-xi-name.pm-xi-inj{background:rgba(232,72,85,.18);color:var(--acc3);text-decoration:line-through}
+.wm-bench-row.wm-bench-injured{opacity:.5}
 /* ── HEADER PLAY BUTTON ── */
 .ph-play-btn{padding:9px 20px;border-radius:9px;border:none;background:var(--acc);color:white;font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 .ph-play-btn:hover:not(:disabled){background:#14be72;transform:translateY(-1px);box-shadow:0 4px 14px rgba(18,168,100,.3)}
@@ -5149,16 +5153,18 @@ function selectEleven(players, formation = '4-3-3', lineup = null) {
   const chosen = [];
   const used   = new Set();
 
-  // If a saved lineup is provided, use those players first (in order)
+  // If a saved lineup is provided, use those players exactly as set —
+  // including any injured players. The pre-match modal blocks play if
+  // an injured player is in the lineup; selectEleven must not auto-replace them.
   if (lineup && lineup.length === 11) {
-    const byId = new Map(avail.map(p => [p.id, p]));
+    const allById = new Map(players.map(p => [p.id, p]));
     for (const pid of lineup) {
-      const pl = byId.get(pid);
+      const pl = allById.get(pid);
       if (pl && !used.has(pl.id)) { chosen.push(pl); used.add(pl.id); }
     }
-    // If all 11 are still available, return them directly
+    // Only return the saved lineup intact — don't auto-fill missing slots
     if (chosen.length === 11) return chosen;
-    // Otherwise fall through to fill remaining slots automatically
+    // Fewer than 11 found (players removed from squad entirely) — fall through to auto-fill
   }
 
   // GK first - must be a goalkeeper (skip if already chosen via lineup)
@@ -5203,27 +5209,42 @@ function selectBench(players, eleven) {
     .sort((a,b) => primaryRating(b) - primaryRating(a));
 }
 
-// ─── Team strength — using the RIGHT attributes for each phase ─
+// ─── Team strength — all 11 players contribute ────────────────
+// Instead of only averaging positional subsets, we weight EVERY player's
+// relevant stat so that a weak link in the lineup actually drags the team.
+//
+// Attack: forwards heavily weighted, mids partially, defenders minimally
+// Midfield: mids heavily weighted, forwards/defenders partially
+// Defence: defenders heavily weighted, mids partially, GK minimally
+// GK: only the goalkeeper (weighted fully)
 function teamStrength(eleven) {
-  const byPos = (positions) => eleven.filter(p => positions.includes(p.position));
+  const ATTACK_W    = { ST:1.0, CF:1.0, RW:0.85, LW:0.85, CAM:0.70,
+                        CM:0.25, CDM:0.10, RM:0.40, LM:0.40,
+                        CB:0.05, RB:0.08, LB:0.08, GK:0.0 };
+  const MIDFIELD_W  = { CAM:1.0, CM:1.0, CDM:0.85, RM:0.90, LM:0.90,
+                        ST:0.20, CF:0.25, RW:0.35, LW:0.35,
+                        CB:0.15, RB:0.25, LB:0.25, GK:0.0 };
+  const DEFENCE_W   = { CB:1.0, RB:0.90, LB:0.90, CDM:0.60, CM:0.25,
+                        RM:0.15, LM:0.15, CAM:0.10,
+                        ST:0.05, CF:0.05, RW:0.05, LW:0.05, GK:0.0 };
 
-  // Attack strength: ST/CF/RW/LW/CAM attack rating
-  const attackers = byPos(['ST','CF','RW','LW','CAM']);
-  const midfielders = byPos(['CM','CDM','CAM','RM','LM']);
-  const defenders  = byPos(['CB','RB','LB']);
-  const gk         = byPos(['GK']);
+  function weightedAvg(attr, weightMap) {
+    let sum = 0, wt = 0;
+    for (const p of eleven) {
+      const w = weightMap[p.position] ?? 0.1;
+      sum += (p[attr] ?? 50) * w;
+      wt  += w;
+    }
+    return wt > 0 ? sum / wt : 50;
+  }
 
-  const avg = (arr, attr) => arr.length ? arr.reduce((s,p) => s + (p[attr]||50), 0) / arr.length : 50;
+  const gk = eleven.find(p => p.position === 'GK');
 
   return {
-    // Attack: how dangerous in front of goal
-    attack:      avg(attackers, 'attack'),
-    // Midfield: controls possession, chance creation, assists
-    midfield:    avg(midfielders, 'midfield'),
-    // Defence: how hard to break down
-    defence:     avg(defenders, 'defence'),
-    // GK: last line of defence
-    goalkeeping: avg(gk, 'goalkeeping'),
+    attack:      weightedAvg('attack', ATTACK_W),
+    midfield:    weightedAvg('midfield', MIDFIELD_W),
+    defence:     weightedAvg('defence', DEFENCE_W),
+    goalkeeping: gk ? gk.goalkeeping : 50,
     eleven,
   };
 }
@@ -5247,36 +5268,52 @@ function fitMult(fitness) {
 }
 
 // ─── Goal probability per attacking phase ─────────────────────
-// Uses ATTACK rating of attackers vs DEFENCE + GK rating of defenders
+// Real-world Premier League averages: ~2.65 goals/game total (~1.4 home, ~1.25 away).
+// 120 phases per game; midfield share splits phases between teams.
+// A balanced match (50/50 mid) gives each team ~60 attacking phases.
+// Target: ~1.30 goals/team in a perfectly equal match → 0.0217/phase.
+//
+// Rating influence: uses a logistic-style curve so the difference between
+// an 85-rated and 65-rated attacker is MEANINGFUL (not just 85/99 vs 65/99).
+// We normalise ratings on a curve centred at 75 (mid-tier club average).
+//
+// Defence model: separate DEF and GK stats, each on the same curve.
+// GK = 30% of resistance, outfield DEF = 70%. High-rated GKs matter a lot.
+function ratingFactor(rating, centre) {
+  // Logistic curve: returns ~0.5 at centre, ~1.0 at 99, ~0.18 at 40.
+  // Steepness 0.07 gives a meaningful spread without being too extreme.
+  return 1 / (1 + Math.exp(-0.07 * (rating - centre)));
+}
+
 function goalChance(attStr, defStr, isHome) {
-  // Base rate: tuned to ~2.3-2.6 goals/game for balanced mid-table teams.
-  // Real-world averages: Serie A/La Liga ~2.5-2.6, Bundesliga/PL ~2.9-3.1.
-  // Mentality multipliers push this up/down from the base.
-  const base     = 0.019;  // Tuned: ~2.3-3.1 goals/game depending on ratings & mentality
-  // Attack quality: how well forwards finish
-  const attBonus = attStr.attack / 99;         // 0→1
-  // Defence quality: how well they stop attacks
-  const defBlock = defStr.defence / 99;        // 0→1
-  // GK quality: how well keeper saves
-  const gkSave   = defStr.goalkeeping / 99;    // 0→1
+  // Base probability per attacking phase for a perfectly average match.
+  // Calibrated so average teams (~75 rated) produce ~2.65 goals/90 total.
+  const base = 0.011;
 
-  // Formula: base × attack_quality / (defence_quality × gk_factor)
-  // GK contributes ~30% of defensive resistance, defence ~70%
-  const defResistance = (defBlock * 0.70 + gkSave * 0.30);
-  let   prob = base * (attBonus / defResistance);
+  // Attack quality — centred at 75 (average PL attacker ~75-78)
+  const attFactor = ratingFactor(attStr.attack, 75);
 
-  // Slight home advantage
+  // Defensive resistance: outfield DEF (70%) + GK (30%)
+  const defFactor = ratingFactor(defStr.defence, 75);
+  const gkFactor  = ratingFactor(defStr.goalkeeping, 75);
+  const defResist = defFactor * 0.70 + gkFactor * 0.30;
+
+  // Core probability: attack quality vs defensive resistance
+  // Both on same scale so ratio ≈ 1.0 for equal teams.
+  // We multiply by 2 so the base×ratio restores the calibrated target rate.
+  let prob = base * (attFactor / defResist) * 2.0;
+
+  // Slight home advantage (~6%) — real PL home teams score ~12% more
   if (isHome) prob *= 1.06;
 
-  // Midfield advantage: if one team dominates midfield, they get more chances
-  // (handled separately via phase distribution)
-
-  return Math.min(Math.max(prob, 0.004), 0.12);
+  // Clamp: floor 0.005 (not impossible), ceiling 0.16 (elite attack vs poor def)
+  return Math.min(Math.max(prob, 0.005), 0.16);
 }
 
 // ─── Scorer picker — GK CANNOT score ─────────────────────────
-// Weights reflect real-world goal distribution:
-//   ST/CF: ~40% of goals, RW/LW: ~20%, CAM: ~12%, CM: ~10%, CDM: ~5%, DEF: ~5%, GK: ~0%
+// Weights reflect real-world goal distribution.
+// Individual attack rating is raised to power 2 so elite finishers
+// score disproportionately more than average ones (realistic).
 function pickScorer(eleven) {
   const POS_WEIGHTS = {
     'ST': 40, 'CF': 38,
@@ -5286,12 +5323,13 @@ function pickScorer(eleven) {
     'CB': 2,  'RB': 2, 'LB': 2,
     'GK': 0,  // GK NEVER SCORES
   };
-  // Weight by position × attack rating bonus (more clinical = more goals)
   const weights = eleven.map(p => {
     const base = POS_WEIGHTS[p.position] ?? 1;
     if (base === 0) return 0;
-    // Players with higher attack ratings score more
-    const attackBonus = (p.attack / 99) * 0.5 + 0.5;
+    // Quadratic rating bonus: a 90-rated attacker is ~2.3× more likely to
+    // score than a 70-rated one at the same position (not just 28% more)
+    const norm = (p.attack / 99);
+    const attackBonus = norm * norm * 1.5 + 0.5; // range ~0.5–2.0
     return base * attackBonus;
   });
 
@@ -5361,38 +5399,31 @@ function pickAssister(eleven, scorerId) {
 function getMentalityMods(mentality) {
   switch (mentality) {
     case 'defensive':
-      // Low block, compact shape. Hard to break down, very limited in attack.
-      // Aims to grind out 1-0s and 0-0s. Real-world defensive sides concede ~1.2 gpg.
       return {
-        goalProbMult:    0.72,   // much less attacking threat when sitting deep
-        defResistMult:   1.35,   // very compact — hard to break down
-        midShareBoost:  -0.08,   // surrenders possession intentionally
-        phasesBoostOpp:  0.05,   // opponents get more of the ball
-        shotsMultSelf:   0.75,   // very few shots (counter-attack reliant)
-        shotsMultOpp:    0.85,   // compact shape limits opponents' shot quality
+        goalProbMult:    0.72,   // less attacking threat
+        defResistMult:   1.30,   // compact, hard to break down
+        midShareBoost:  -0.07,   // fewer attacking phases
+        phasesBoostOpp:  0.04,   // opponents get slightly more ball from defensive shape
+        shotsMultSelf:   0.80,   // fewer shots created
+        shotsMultOpp:    0.88,   // opponents get fewer clear chances too (compact)
       };
     case 'possession':
-      // Patient, methodical. High midfield share. Probes for the right moment.
-      // Quality over quantity — fewer but better chances.
       return {
-        goalProbMult:    0.90,   // patient, selective — fewer rushed efforts
-        defResistMult:   1.10,   // organised positional defence
+        goalProbMult:    0.88,   // patient — probing, fewer rushed efforts
+        defResistMult:   1.08,   // more organised positional defence
         midShareBoost:   0.09,   // dominate possession via midfield supremacy
-        phasesBoostOpp: -0.05,   // starve opposition of the ball
-        shotsMultSelf:   0.88,   // fewer but higher quality shots
-        shotsMultOpp:    0.80,   // opposition barely see the ball
+        phasesBoostOpp: -0.04,   // starve opposition of the ball
+        shotsMultSelf:   0.90,   // fewer but higher quality shots
+        shotsMultOpp:    0.82,   // opposition barely see the ball
       };
     case 'attacking':
-      // High press, expansive, direct. More goals both ways.
-      // Realistic: attacking teams score more but also concede more (high line).
-      // att vs att compound = 1.10/0.88 = 1.25x — avoids runaway scorelines.
       return {
-        goalProbMult:    1.10,   // direct, press-heavy — creates more chances
-        defResistMult:   0.88,   // high line leaves space in behind
+        goalProbMult:    1.32,   // progressive, direct — high press creates chances
+        defResistMult:   0.78,   // high line leaves gaps for counters
         midShareBoost:   0.06,   // push forward, more attacking phases
-        phasesBoostOpp:  0.08,   // opponents get counter-attack opportunities
-        shotsMultSelf:   1.18,   // many shots, aggressive transitions
-        shotsMultOpp:    1.12,   // exposed defensively — opponents profit too
+        phasesBoostOpp:  0.08,   // opponent gets counter opportunities
+        shotsMultSelf:   1.20,   // many shots, aggressive transitions
+        shotsMultOpp:    1.15,   // exposed defensively — opponents profit too
       };
     case 'balanced':
     default:
@@ -5433,12 +5464,10 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
   const aMods = getMentalityMods(awayMentality ?? 'balanced');
 
   // Midfield controls possession/phases: stronger midfield = more attacking phases
-  // Mentality midShareBoost shifts the balance further.
-  // +0.04 home crowd/familiarity boost reflects real-world home possession advantage.
-  const HOME_MID_BOOST = 0.04;
+  // Mentality midShareBoost shifts the balance further
   const rawMidShare = (hStr.midfield + aStr.midfield) > 0
     ? hStr.midfield / (hStr.midfield + aStr.midfield) : 0.5;
-  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + HOME_MID_BOOST + hMods.midShareBoost - aMods.midShareBoost));
+  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + hMods.midShareBoost - aMods.midShareBoost));
 
   // Fitness tracking
   const hFitness = new Map(hElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)]));
@@ -5501,7 +5530,6 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
 
     // Yellow card (~0.4% per phase — more likely from defenders)
     if (Math.random() < 0.004 && defActive.length) {
-      // More likely to be a defender/CDM (hard tackles)
       const yellowCands = defActive.filter(p => p.position !== 'GK');
       if (yellowCands.length) {
         const defWeights = yellowCands.map(p => DEF.has(p.position) ? 4 : p.position === 'CDM' ? 3 : 1);
@@ -5510,6 +5538,27 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
         let target = yellowCands[0];
         for (let i = 0; i < yellowCands.length; i++) { roll -= defWeights[i]; if (roll <= 0) { target = yellowCands[i]; break; } }
         events.push({ type:'yellow', minute, teamId:defTeam.id, playerId:target.id, playerName:target.name });
+      }
+    }
+
+    // Injury check — target ~20 injuries per team per season (~0.4 per match across ~50 games)
+    // Rate: 0.40/match ÷ (10 outfield × 120 phases) = 0.000333 per outfield per phase
+    if (typeof rollInjuryCheck === 'function') {
+      for (const side of [
+        { active: hActive, team: homeTeam, fitMap: hFitness },
+        { active: aActive, team: awayTeam, fitMap: aFitness },
+      ]) {
+        for (const p of side.active) {
+          if (p.injured || p._injuredThisMatch) continue;
+          const isGK = p.position === 'GK';
+          const perPhaseRate = isGK ? 0.000120 : 0.000333;
+          if (Math.random() > perPhaseRate) continue;
+          const inj = rollInjuryCheck(p, false, true);
+          if (inj) {
+            events.push({ type: 'injury', minute, teamId: side.team.id, playerId: p.id, playerName: p.name, injuryName: inj.injuryName, injuryGWsLeft: inj.injuryGWsLeft });
+            p._injuredThisMatch = true;
+          }
+        }
       }
     }
 
@@ -5637,6 +5686,26 @@ function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhas
       }
     }
 
+    // Injury check for watch match segment — rates match simulateMatch
+    if (typeof rollInjuryCheck === 'function') {
+      for (const side of [
+        { active: curHActive, team: homeTeam, fitMap: hFitness },
+        { active: curAActive, team: awayTeam, fitMap: aFitness },
+      ]) {
+        for (const p of side.active) {
+          if (p.injured || p._injuredThisMatch) continue;
+          const isGK = p.position === 'GK';
+          const perPhaseRate = isGK ? 0.000120 : 0.000333;
+          if (Math.random() > perPhaseRate) continue;
+          const inj = rollInjuryCheck(p, false, true);
+          if (inj) {
+            segEvents.push({ type: 'injury', minute, teamId: side.team.id, playerId: p.id, playerName: p.name, injuryName: inj.injuryName, injuryGWsLeft: inj.injuryGWsLeft });
+            p._injuredThisMatch = true;
+          }
+        }
+      }
+    }
+
     if (phase % 10 === 0) {
       const trailH = curAGoals - curHGoals, trailA = curHGoals - curAGoals;
       if (curHSubs > 0) {
@@ -5687,7 +5756,7 @@ function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers, homeF
   const aMods = getMentalityMods(awayMentality ?? 'balanced');
   const rawMidShare = (hStr.midfield + aStr.midfield) > 0
     ? hStr.midfield / (hStr.midfield + aStr.midfield) : 0.5;
-  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + 0.04 + hMods.midShareBoost - aMods.midShareBoost));
+  const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + hMods.midShareBoost - aMods.midShareBoost));
 
   return {
     hActive: [...hElev], aActive: [...aElev],
@@ -6371,7 +6440,7 @@ function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId,
 }
 
 // ─── Simulate UCL league phase matchday ──────────────────────
-function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, forcedUserIsHome) {
+function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome) {
   const lp  = cupState.leaguePhase;
   const md  = lp?.matchday ?? 0;
   if (md >= 8) return null;
@@ -6383,7 +6452,7 @@ function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, for
     : rawOpp;
 
   const oppPlayers = buildSyntheticSquad(opp.id, opp.strength ?? 72);
-  const userIsHome = forcedUserIsHome !== undefined ? forcedUserIsHome : Math.random() < 0.5;
+  const userIsHome = eventUserIsHome ?? (Math.random() < 0.5);
   const home       = userIsHome ? userTeam    : { id:opp.id, name:opp.name, crest:opp.nation??'⚽' };
   const away       = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation??'⚽' } : userTeam;
   const hPl        = userIsHome ? userPlayers : oppPlayers;
@@ -6464,11 +6533,11 @@ function formAdjustedValue(player) {
   // ── Form multiplier: scales DOWN for expensive players ──
   // Base form effect: hot form = up to +50%, cold = down to -25%
   let formMult;
-  if (cappedForm >= 80)      formMult = 1.125 + (cappedForm - 80) * 0.0065; // 80→1.125, 99→1.25
-  else if (cappedForm >= 65) formMult = 1.04  + (cappedForm - 65) * 0.0057; // 65→1.04,  79→1.12
-  else if (cappedForm >= 50) formMult = 1.0;                                 // average
-  else if (cappedForm >= 35) formMult = 0.96  - (50 - cappedForm) * 0.002;  // 35→0.93
-  else                       formMult = 0.875;
+  if (cappedForm >= 80)      formMult = 1.25 + (cappedForm - 80) * 0.013; // 80→1.25, 99→1.50
+  else if (cappedForm >= 65) formMult = 1.08 + (cappedForm - 65) * 0.011; // 65→1.08, 79→1.24
+  else if (cappedForm >= 50) formMult = 1.0;                               // average
+  else if (cappedForm >= 35) formMult = 0.92 - (50 - cappedForm) * 0.004;  // 35→0.86
+  else                       formMult = 0.75;
 
   // Dampen form effect for high-value players (diminishing returns)
   const valueTier = Math.min(1, base / 80_000_000);
@@ -6494,9 +6563,9 @@ function formAdjustedValue(player) {
     const ratingCap = Math.min(0.80, 0.30 + Math.max(0, (cur - 50) / 25) * 0.50);
     const potPremium = Math.min(ratingCap, rawPremium);
     // Potential premium is a stable valuation factor — form has only a small
-    // influence (±5%) so it doesn't compound with the form multiplier above
+    // influence (±10%) so it doesn't compound with the form multiplier above
     const formFactor = Math.max(0, (cappedForm - 50) / 40);
-    potentialMult = 1 + potPremium * (0.95 + 0.05 * formFactor);
+    potentialMult = 1 + potPremium * (0.9 + 0.1 * formFactor);
   } else if (age <= 26 && headroom > 5) {
     potentialMult = 1 + Math.min(0.25, headroom * 0.015);
   }
@@ -7065,6 +7134,154 @@ function applyAgingDecline(player) {
   return p;
 }
 
+
+
+// ────────────────────────────────────────────────────────
+// INJURIES
+// ────────────────────────────────────────────────────────
+/** modules/injuries.js — Realistic injury system.
+ *  Target: ~20 injuries per team per season (~0.4 per match across ~50 games).
+ *  Duration skewed toward short injuries; long-term injuries are rare.
+ *  Durations always displayed in weeks.
+ */
+
+// ─── Injury catalogue ────────────────────────────────────────
+// weight = relative probability among injury types (higher = more common)
+// minGW/maxGW = recovery time in gameweeks (1 GW ≈ 1 week)
+// Skewed so ~60% are 1-2 weeks, ~25% are 3-4 weeks, ~12% are 5-8 weeks, ~3% are 9+ weeks
+const INJURY_TYPES = [
+  // Muscle injuries — most common, mostly short
+  { name: 'Hamstring Strain',    type: 'muscle',   minGW: 1,  maxGW: 3,  weight: 14 },
+  { name: 'Calf Strain',         type: 'muscle',   minGW: 1,  maxGW: 2,  weight: 12 },
+  { name: 'Quadricep Strain',    type: 'muscle',   minGW: 1,  maxGW: 3,  weight: 9  },
+  { name: 'Groin Strain',        type: 'muscle',   minGW: 1,  maxGW: 2,  weight: 10 },
+  { name: 'Adductor Tear',       type: 'muscle',   minGW: 2,  maxGW: 5,  weight: 4  },
+  // Knee injuries — range from minor to season-ending
+  { name: 'Knee Ligament Sprain',type: 'knee',     minGW: 2,  maxGW: 5,  weight: 4  },
+  { name: 'Meniscus Injury',     type: 'knee',     minGW: 4,  maxGW: 8,  weight: 2  },
+  { name: 'ACL Tear',            type: 'knee',     minGW: 20, maxGW: 30, weight: 1  },
+  { name: 'Patellar Tendinitis', type: 'knee',     minGW: 1,  maxGW: 3,  weight: 5  },
+  // Ankle injuries — mostly short
+  { name: 'Ankle Sprain',        type: 'ankle',    minGW: 1,  maxGW: 2,  weight: 12 },
+  { name: 'Ankle Ligament Tear', type: 'ankle',    minGW: 3,  maxGW: 5,  weight: 3  },
+  // Foot / lower leg
+  { name: 'Foot Fracture',       type: 'bone',     minGW: 4,  maxGW: 8,  weight: 1  },
+  { name: 'Shin Splints',        type: 'lower_leg',minGW: 1,  maxGW: 2,  weight: 7  },
+  { name: 'Achilles Tendinitis', type: 'tendon',   minGW: 2,  maxGW: 4,  weight: 3  },
+  { name: 'Achilles Rupture',    type: 'tendon',   minGW: 18, maxGW: 26, weight: 1  },
+  // Back / hip — mostly minor
+  { name: 'Back Spasm',          type: 'back',     minGW: 1,  maxGW: 2,  weight: 7  },
+  { name: 'Hip Flexor Strain',   type: 'muscle',   minGW: 1,  maxGW: 3,  weight: 6  },
+  // Upper body — short
+  { name: 'Shoulder Dislocation',type: 'shoulder', minGW: 2,  maxGW: 4,  weight: 2  },
+  { name: 'Rib Contusion',       type: 'torso',    minGW: 1,  maxGW: 2,  weight: 4  },
+  { name: 'Concussion',          type: 'head',     minGW: 1,  maxGW: 2,  weight: 4  },
+  // Illness — very short
+  { name: 'Illness',             type: 'illness',  minGW: 1,  maxGW: 1,  weight: 6  },
+];
+
+const _INJ_TOTAL_WEIGHT = INJURY_TYPES.reduce((s, t) => s + t.weight, 0);
+
+function _pickInjuryType() {
+  let roll = Math.random() * _INJ_TOTAL_WEIGHT;
+  for (const t of INJURY_TYPES) {
+    roll -= t.weight;
+    if (roll <= 0) return t;
+  }
+  return INJURY_TYPES[0];
+}
+
+// ─── Roll whether a player gets injured in a match ────────────
+// Base chance per match ~4.5% for outfield, ~1.5% for GK.
+// Modified by: fitness (tired players injure more), age (34+), high-intensity.
+// Real PL data: ~3.5 injuries per team per 38 games (91 per season / 26 squad avg).
+//
+// When forceRoll=true (called from match engine which already gated by per-phase rate),
+// skip the base-chance check and just pick the injury type/duration.
+function rollInjuryCheck(player, isHighIntensity, forceRoll) {
+  if (player.injured) return null; // already injured
+
+  if (!forceRoll) {
+    const isGK      = player.position === 'GK';
+    let baseChance  = isGK ? 0.015 : 0.045;
+
+    // Fitness penalty: low fitness → higher injury risk
+    const fit = player.fitness ?? 90;
+    if (fit < 70) baseChance *= 1.40;
+    else if (fit < 50) baseChance *= 1.80;
+
+    // Age penalty: 32+ players injure more
+    const age = player.age ?? 24;
+    if (age >= 36) baseChance *= 1.45;
+    else if (age >= 34) baseChance *= 1.25;
+    else if (age >= 32) baseChance *= 1.10;
+
+    // High intensity (cup match, derby) slight boost
+    if (isHighIntensity) baseChance *= 1.15;
+
+    if (Math.random() > baseChance) return null;
+  }
+
+  const injType = _pickInjuryType();
+  // Skew toward shorter durations: use min of two random rolls (biases toward minGW)
+  const range   = injType.maxGW - injType.minGW + 1;
+  const roll1   = Math.floor(Math.random() * range);
+  const roll2   = Math.floor(Math.random() * range);
+  const gwSpan  = injType.minGW + Math.min(roll1, roll2);
+
+  return {
+    injuryName:       injType.name,
+    injuryType:       injType.type,
+    injuryGWsLeft:    gwSpan,
+    injuryGWsTotal:   gwSpan,
+  };
+}
+
+// ─── Tick injury recovery at end of each GW ──────────────────
+// Returns array of recovered players for toast notifications.
+// Called once per GW after all matches are processed.
+// A 2-GW injury: set GW5 → injuryGWsLeft=2. Tick GW5→1. Tick GW6→0 → clear.
+function tickInjuryRecovery(allPlayers) {
+  const recovered = [];
+  for (const p of allPlayers) {
+    if (!p.injured) continue;
+    const gwLeft = (p.injuryGWsLeft ?? 1) - 1;
+    if (gwLeft <= 0) {
+      p.injured        = false;
+      p.injuryName     = null;
+      p.injuryType     = null;
+      p.injuryGWsLeft  = 0;
+      p.injuryGWsTotal = 0;
+      p.fitness        = 60; // returns at reduced fitness
+      recovered.push(p);
+    } else {
+      p.injuryGWsLeft = gwLeft;
+    }
+  }
+  return recovered;
+}
+
+// ─── Apply injury to a player object in-place ────────────────
+function applyInjury(player, injData) {
+  player.injured        = true;
+  player.injuryName     = injData.injuryName;
+  player.injuryType     = injData.injuryType;
+  player.injuryGWsLeft  = injData.injuryGWsLeft;
+  player.injuryGWsTotal = injData.injuryGWsTotal;
+}
+
+// ─── Injury duration label ─────────────────────────────────────
+// Show months ONLY for exact multiples of 4 weeks (1 month, 2 months, etc.)
+// Everything else displays in weeks.
+function injuryDurationLabel(gwsLeft) {
+  if (!gwsLeft) return 'Unknown';
+  if (gwsLeft === 1) return '~1 week';
+  if (gwsLeft % 4 === 0) {
+    const months = gwsLeft / 4;
+    return `${months} month${months !== 1 ? 's' : ''}`;
+  }
+  return `${gwsLeft} weeks`;
+}
 
 
 // ────────────────────────────────────────────────────────
@@ -7873,6 +8090,12 @@ async function startNewGame(userTeamId, managerName) {
   await putPlayersBulk(assignPotentials(players));
   await putStandingsBulk(standings);
   await putFixturesBulk(fixtures);
+
+  // Auto-generate starting lineup so player can immediately play
+  const userPlayers = players.filter(p => p.teamId === userTeamId);
+  const xi = selectEleven(userPlayers, save.formation, null);
+  save.lineup = xi.map(p => p.id);
+
   await putSave(save);
 
   return save;
@@ -8350,6 +8573,8 @@ async function advanceOneFixture(overrideFormation) {
     const aiResults  = await simulateFixtures(aiUnplayed, teamsById, playersByTeam, save);
     for (const r of aiResults) await applyResult(r);
     await recomputePositions();
+    // Tick recovery before updateCache so AI match injuries don't get ticked same GW
+    const recoveredPlayers = await processInjuryRecovery().catch(() => []);
     await updateCache(allPlayers, aiResults);
     await applyDevelopment(aiResults).catch(() => {});
     const newOffers = await generateAIOffers().catch(() => []);
@@ -8357,7 +8582,7 @@ async function advanceOneFixture(overrideFormation) {
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
     await putSave({ ...freshSave1, currentGameweek: gw + 1, currentDate: newDate.toISOString(), pendingEvents: [] });
-    return { skipped: true, gameweek: gw, nextGW: gw + 1, finished: gw + 1 > getEffectiveTotalGW(save), newOffers: newOffers ?? [] };
+    return { skipped: true, gameweek: gw, nextGW: gw + 1, finished: gw + 1 > getEffectiveTotalGW(save), newOffers: newOffers ?? [], recoveredPlayers: recoveredPlayers ?? [] };
   }
 
   const event = pending[0];
@@ -8365,6 +8590,7 @@ async function advanceOneFixture(overrideFormation) {
   let singleResult = null;
   let cupResults   = [];
   let updatedCups  = JSON.parse(JSON.stringify(save.cups ?? {}));
+  let recoveredPlayers = [];
 
   if (event.type === 'league') {
     // ── Simulate league fixture ──────────────────────────────
@@ -8393,6 +8619,8 @@ async function advanceOneFixture(overrideFormation) {
       const aiResults   = await simulateFixtures(aiUnplayed, teamsById, playersByTeam, save);
       for (const r of aiResults) await applyResult(r);
       await recomputePositions();
+      // Tick recovery BEFORE updateCache so newly-injured players (written by updateCache) aren't ticked this GW
+      recoveredPlayers = await processInjuryRecovery().catch(() => []);
       await updateCache(allPlayers, [result, ...aiResults]);
       await applyDevelopment([result, ...aiResults]).catch(() => {});
 
@@ -8424,6 +8652,10 @@ async function advanceOneFixture(overrideFormation) {
 
       // Build a synthetic "result" for the match report
       singleResult = buildCupMatchResult(mdResult, save.userTeamId, event, allTeams);
+      // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
+      recoveredPlayers = await processInjuryRecovery().catch(() => []);
+      await updateCache(allPlayers, [mdResult]);
+      await applyDevelopment([mdResult]).catch(() => {});
     }
     pending = remaining;
 
@@ -8445,6 +8677,10 @@ async function advanceOneFixture(overrideFormation) {
     };
     cupResults.push(result);
     singleResult = buildCupMatchResult(result, save.userTeamId, event, allTeams);
+    // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
+    recoveredPlayers = await processInjuryRecovery().catch(() => []);
+    await updateCache(allPlayers, [result]);
+    await applyDevelopment([result]).catch(() => {});
     pending = remaining;
   }
 
@@ -8477,6 +8713,7 @@ async function advanceOneFixture(overrideFormation) {
     finished:   nextGW > getEffectiveTotalGW(save),
     eventsLeft: pending.length,
     newOffers,
+    recoveredPlayers,
   };
 }
 
@@ -8500,6 +8737,7 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
   const remaining = pending.slice(1);
   let updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
   let singleResult = null;
+  let recoveredPlayers = [];
 
   if (event0?.type === 'league') {
     const fix = gwFixtures.find(f => f.id === event0.fixtureId);
@@ -8513,6 +8751,8 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
       const aiResults  = await simulateFixtures(aiUnplayed, teamsById, playersByTeam, save);
       for (const r of aiResults) await applyResult(r);
       await recomputePositions();
+      // Recovery before updateCache so newly-injured players aren't ticked same GW
+      recoveredPlayers = await processInjuryRecovery().catch(() => []);
       await updateCache(allPlayers, [matchResult, ...aiResults]);
       await applyDevelopment([matchResult]).catch(() => {});
     }
@@ -8554,6 +8794,8 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
       { userGoals, oppGoals, userIsHome, homeScorers: matchResult.homeScorers, awayScorers: matchResult.awayScorers, scorers: matchResult.homeScorers.concat(matchResult.awayScorers), opponentName: event0.opponentName ?? event0.oppName, opponentNation: event0.oppNation, stats: matchResult.stats, events: matchResult.events, fitnessUpdates: matchResult.fitnessUpdates },
       save.userTeamId, event0, allTeams
     );
+    // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
+    recoveredPlayers = await processInjuryRecovery().catch(() => []);
     await updateCache(allPlayers, [matchResult]);
     await applyDevelopment([matchResult]).catch(() => {});
   }
@@ -8563,13 +8805,16 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
   const nextGW  = gwDone ? gw + 1 : gw;
   const newDate = new Date(save.currentDate);
   let newOffers = [];
-  if (gwDone) { newDate.setDate(newDate.getDate() + 7); newOffers = await generateAIOffers().catch(()=>[]) ?? []; }
+  if (gwDone) {
+    newDate.setDate(newDate.getDate() + 7);
+    newOffers = await generateAIOffers().catch(()=>[]) ?? [];
+  }
 
   // Re-read save so we don't overwrite the offers generateAIOffers just wrote
   const freshSave3 = gwDone ? await getSave() : save;
   await putSave({ ...freshSave3, currentGameweek: nextGW, currentDate: gwDone ? newDate.toISOString() : save.currentDate, cups: updatedCups, pendingEvents: remaining });
 
-  return { singleResult, eventType: event0?.type, cupResults: [], gameweek: gw, nextGW, finished: nextGW > getEffectiveTotalGW(save), eventsLeft: remaining.length, newOffers };
+  return { singleResult, eventType: event0?.type, cupResults: [], gameweek: gw, nextGW, finished: nextGW > getEffectiveTotalGW(save), eventsLeft: remaining.length, newOffers, recoveredPlayers };
 }
 
 // ─── Build a synthetic match result for the report modal ──────
@@ -8602,8 +8847,8 @@ function buildCupMatchResult(r, userTeamId, event, allTeams) {
       awayTeamName:  userIsHome ? r.opponentName : userName,
       homeTeamCrest: userIsHome ? userCrest : (r.opponentNation ?? '⚽'),
       awayTeamCrest: userIsHome ? (r.opponentNation ?? '⚽') : userCrest,
-      homeScorers:   r.homeScorers ?? [],
-      awayScorers:   r.awayScorers ?? [],
+      homeScorers:   r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : []),
+      awayScorers:   r.awayScorers ?? (userIsHome ? [] : (r.scorers ?? [])),
       events:        r.events ?? [],
       stats:         r.stats ?? defaultStats,
       fitnessUpdates:r.fitnessUpdates ?? [],
@@ -8628,8 +8873,8 @@ function buildCupMatchResult(r, userTeamId, event, allTeams) {
     awayTeamName:  userIsHome ? (r.opponentName ?? 'Opponent') : (teamsById.get(userTeamId)?.name ?? 'Your Team'),
     homeTeamCrest: userIsHome ? (teamsById.get(userTeamId)?.crest ?? '⚽') : '⚽',
     awayTeamCrest: userIsHome ? '⚽' : (teamsById.get(userTeamId)?.crest ?? '⚽'),
-    homeScorers:   userIsHome ? (r.homeScorers ?? r.scorers ?? []) : (r.awayScorers ?? r.oppScorers ?? []),
-    awayScorers:   userIsHome ? (r.awayScorers ?? r.oppScorers ?? []) : (r.homeScorers ?? r.scorers ?? []),
+    homeScorers:   r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : (r.oppScorers ?? [])),
+    awayScorers:   r.awayScorers ?? (userIsHome ? (r.oppScorers ?? []) : (r.scorers ?? [])),
     events:        r.events ?? [],
     stats:         r.stats ?? defaultStats,
     fitnessUpdates:r.fitnessUpdates ?? [],
@@ -8665,10 +8910,13 @@ function buildHeavyLossMap(results) {
   return map;
 }
 
-async function updateCache(allPlayers, results) {
-  const cache = new Map(allPlayers.map(p => [p.id, { ...p }]));
+async function updateCache(allPlayersIgnored, results) {
+  // Always read fresh from DB — processInjuryRecovery may have cleared injuries
+  const freshPlayers = await getAllPlayers();
+  const cache = new Map(freshPlayers.map(p => [p.id, { ...p }]));
   updatePlayerStats(cache, results);
   applyFitnessUpdates(cache, results);
+  applyInjuryUpdates(cache, results);
   const heavyLossMargin = buildHeavyLossMap(results);
   for (const p of cache.values()) {
     if (!p._played) {
@@ -8710,6 +8958,23 @@ async function updateCache(allPlayers, results) {
   await putPlayersBulk([...cache.values()]);
 }
 
+// ─── Tick injury recovery at GW end; returns recovered player names (user team only) ───
+async function processInjuryRecovery() {
+  if (typeof tickInjuryRecovery !== 'function') return [];
+  const allPlayers = await getAllPlayers();
+  const save = await getSave();
+  const hadInjured = allPlayers.some(p => p.injured);
+  const recovered = tickInjuryRecovery(allPlayers);
+  // Always save when any player was injured — tickInjuryRecovery decrements
+  // injuryGWsLeft for ALL injured players, not just those who fully recovered.
+  // Without this, mid-recovery decrements are lost and injuries never end.
+  if (hadInjured || recovered.length) {
+    await putPlayersBulk(allPlayers);
+  }
+  // Only return user-team recoveries for toast notifications
+  return recovered.filter(p => p.teamId === save.userTeamId);
+}
+
 function groupByTeam(players) {
   const m = new Map();
   for (const p of players) { if (!m.has(p.teamId)) m.set(p.teamId, []); m.get(p.teamId).push(p); }
@@ -8733,6 +8998,23 @@ function awardCS(cache,teamId) {
 
 function applyFitnessUpdates(cache,results) {
   for(const r of results) for(const fu of r.fitnessUpdates??[]){const p=cache.get(fu.id);if(p){p.fitness=fu.newFitness;p._played=true;}}
+}
+
+function applyInjuryUpdates(cache, results) {
+  if (typeof applyInjury !== 'function') return;
+  for (const r of results) {
+    for (const evt of (r.events ?? [])) {
+      if (evt.type !== 'injury') continue;
+      const p = cache.get(evt.playerId);
+      if (!p) continue;
+      applyInjury(p, {
+        injuryName:     evt.injuryName,
+        injuryType:     evt.injuryType ?? 'unknown',
+        injuryGWsLeft:  evt.injuryGWsLeft,
+        injuryGWsTotal: evt.injuryGWsLeft,
+      });
+    }
+  }
 }
 
 
@@ -9085,10 +9367,9 @@ async function _handleAdvanceOneFixtureStub(){
   try{
     const res=await advanceOneFixture();
     hideLoader();
-    if(res.skipped){await renderHome();return;}
+    if(res.finished){await renderHome();return;}
     const r=res.singleResult;
     if(r) showMatchReport(r,save);
-    if(res.finished){await renderHome();return;}
     if(res.cupResults?.length){
       for(const cr of res.cupResults){
         if(cr.isUCLMatchday){
@@ -9147,14 +9428,24 @@ function showMatchReport(r,save){
     ? arr.map(e=>`<div class="mr-scorer">⚽ <strong>${e.playerName||'?'}</strong> <span style="color:var(--txd)">${e.minute}'</span>${e.assistName?` <span style="opacity:.55;font-size:10px">▸${e.assistName}</span>`:''}</div>`).join('')
     : '';
 
-  // Timeline shows all goal/card events, user events highlighted
-  const timeline = evts.filter(e=>e.type==='goal'||e.type==='yellow').map(e=>{
+  // Timeline shows all goal/card/injury events, user events highlighted
+  const timeline = evts.filter(e=>e.type==='goal'||e.type==='yellow'||e.type==='injury').map(e=>{
     const isU = e.teamId===save.userTeamId;
     const isH = e.teamId===r.homeTeamId;
+    let icon = e.type==='goal' ? '⚽' : e.type==='yellow' ? '🟨' : '🚑';
     return`<div class="mr-ev ${isU?'mr-ev-us':'mr-ev-op'}" style="align-self:${isH?'flex-start':'flex-end'}">
-      ${isH?`<span class="mr-ev-min">${e.minute}'</span>`:''}<span>${e.type==='goal'?'⚽':'🟨'}</span><span class="mr-ev-nm">${e.playerName||'?'}</span>${!isH?`<span class="mr-ev-min">${e.minute}'</span>`:''}
+      ${isH?`<span class="mr-ev-min">${e.minute}'</span>`:''}<span>${icon}</span><span class="mr-ev-nm">${e.playerName||'?'}</span>${e.type==='injury'?`<span style="font-size:9px;color:var(--acc3);margin-left:3px">${e.injuryName||'Injury'}</span>`:''}${!isH?`<span class="mr-ev-min">${e.minute}'</span>`:''}
     </div>`;
   }).join('');
+
+  // Injuries this match
+  const userInjuries = evts.filter(e => e.type === 'injury' && e.teamId === save.userTeamId);
+  const injuryBlock = userInjuries.length
+    ? `<div class="mr-subs" style="border-color:var(--acc3)30">
+        <div class="mr-subs-title" style="color:var(--acc3)">🚑 Injuries</div>
+        ${userInjuries.map(inj => `<div class="mr-sub"><span style="color:var(--acc3);font-weight:700">${inj.playerName||'?'}</span> — ${inj.injuryName||'Injury'} <span style="color:var(--txd)">(${injuryDurationLabel(inj.injuryGWsLeft)})</span></div>`).join('')}
+      </div>`
+    : '';
 
   // Stat rows: home stat on LEFT, label in centre, away stat on RIGHT
   const sr = (lbl, hv, av, bar=true) => {
@@ -9212,6 +9503,7 @@ function showMatchReport(r,save){
         ${sr('Yellow Cards',YC.home,YC.away)}
       </div>
       ${userSubs.length?`<div class="mr-subs"><div class="mr-subs-title">🔄 Your Substitutions</div>${userSubs.map(s=>`<div class="mr-sub">↑ <strong>${s.inName}</strong> ↓ ${s.outName} <span style="color:var(--txd)">(${s.minute}')</span></div>`).join('')}</div>`:''}
+      ${injuryBlock}
     </div>`,
     [{id:'close',label:'Continue →',cls:'btn-p'}]
   );
@@ -10780,15 +11072,16 @@ async function renderTactics() {
             const pl = assignment[i];
             const g  = pl ? posGroup(pl.position) : posGroup(slot.p);
             const r  = pl ? primaryRating(pl) : '';
+            const isInj = pl?.injured === true;
             return `<div class="pitch-slot" style="left:${slot.x}%;top:${slot.y}%" data-slot="${i}">
               <div class="slot-outer">
-                <div class="slot-inner ${pl ? `pos-${g}` : 'pos-empty'}" title="${pl?.name ?? slot.p}">
+                <div class="slot-inner ${pl ? `pos-${g}` : 'pos-empty'}${isInj ? ' slot-injured' : ''}" title="${pl?.name ?? slot.p}${isInj ? ' (INJURED)' : ''}">
                   ${pl
-                    ? `<div class="slot-rating">${r}</div><div class="slot-pos">${pl.position}</div>`
+                    ? `<div class="slot-rating">${r}</div><div class="slot-pos">${pl.position}</div>${isInj ? '<div class="slot-inj-icon">🚑</div>' : ''}`
                     : `<div class="slot-pos slot-empty-lbl">${slot.p}</div>`
                   }
                 </div>
-                ${pl ? `<div class="slot-name">${pl.name.split(' ').slice(-1)[0]}</div>` : ''}
+                ${pl ? `<div class="slot-name">${pl.name.split(' ').slice(-1)[0]}${isInj ? ' 🚑' : ''}</div>` : ''}
               </div>
             </div>`;
           }).join('')}
@@ -11535,7 +11828,7 @@ async function showPreMatchModal() {
     isLeague     = true;
   } else if (event.type === 'ucl_md') {
     oppTeam      = { name: event.oppName, crest: event.oppNation ?? '🌍', reputation: event.oppStrength ?? 72 };
-    userIsHome   = event.userIsHome ?? (Math.random() < 0.5);
+    userIsHome   = event.userIsHome ?? true;
     matchTitle   = `⭐ UCL League Phase — Matchday ${event.matchday}`;
     compBadge    = `<span class="pm-comp-badge" style="background:rgba(59,130,246,.15);color:#3b82f6">Champions League</span>`;
   } else if (event.type === 'cup') {
@@ -11649,31 +11942,92 @@ async function showPreMatchModal() {
   const userLineup    = save.lineup ?? null;
   const userPlayers   = await getPlayersByTeam(save.userTeamId);
 
+  // Check if any injured player is in the saved lineup
+  const injuredInLineup = userLineup
+    ? userPlayers.filter(p => p.injured && userLineup.includes(p.id))
+    : [];
+
+  // Check if lineup is incomplete (null, wrong length, or contains players no longer on team)
+  const lineupIncomplete = !userLineup || userLineup.length !== 11
+    || userLineup.some(pid => !userPlayers.find(p => p.id === pid));
+
+  // Combined block condition
+  const lineupBlocked = injuredInLineup.length > 0 || lineupIncomplete;
+
   const updateXIPreview = () => {
     const el = document.getElementById('pm-xi-preview');
     if (!el) return;
     const xi = selectEleven(userPlayers.map(p => ({...p,fitness:p.fitness??90,inSquad:p.inSquad!==false})), userFormation, userLineup);
-    el.innerHTML = xi.map(p => `<span class="pm-xi-name">${p.name.split(' ').slice(-1)[0]}</span>`).join('');
+    el.innerHTML = xi.map(p => {
+      const isInj = p.injured;
+      return `<span class="pm-xi-name${isInj ? ' pm-xi-inj' : ''}">${p.name.split(' ').slice(-1)[0]}${isInj ? ' 🚑' : ''}</span>`;
+    }).join('');
   };
 
-  showModal('Pre-Match Briefing', modalHtml, [
+  // Warning block for pre-match
+  let warningHtml = '';
+  if (injuredInLineup.length) {
+    warningHtml += `<div class="pm-section" style="border:1px solid var(--acc3)40;border-radius:8px;padding:10px;background:var(--acc3)0d">
+        <div class="pm-section-title" style="color:var(--acc3)">🚑 Injured Players in Lineup</div>
+        ${injuredInLineup.map(p => `<div style="font-size:12px;margin-top:4px"><strong>${p.name}</strong> — ${p.injuryName||'Injured'} <span style="color:var(--txd)">(${injuryDurationLabel(p.injuryGWsLeft)} remaining)</span></div>`).join('')}
+        <div style="font-size:11px;color:var(--acc3);margin-top:6px;font-family:var(--fm)">Go to Tactics to fix your lineup before playing.</div>
+      </div>`;
+  }
+  if (lineupIncomplete) {
+    warningHtml += `<div class="pm-section" style="border:1px solid var(--acc2)40;border-radius:8px;padding:10px;background:var(--acc2)0d;${injuredInLineup.length ? 'margin-top:8px' : ''}">
+        <div class="pm-section-title" style="color:var(--acc2)">⚠️ Lineup Incomplete</div>
+        <div style="font-size:11px;color:var(--acc2);margin-top:4px;font-family:var(--fm)">You must set a full starting XI in the Tactics screen before playing.</div>
+      </div>`;
+  }
+
+  // Inject warning into modal if needed
+  const finalModalHtml = warningHtml ? modalHtml.replace('</div>', warningHtml + '</div>') : modalHtml;
+
+  const blockMsg = injuredInLineup.length > 0
+    ? '🚑 Fix your lineup — injured players selected. Go to Tactics.'
+    : '⚠️ Set a full starting XI in Tactics before playing.';
+
+  showModal('Pre-Match Briefing', finalModalHtml, [
     {
       id: 'quick-sim',
       label: '⚡ Quick Sim',
       cls: 'btn-s',
-      handler: async () => { await handleAdvanceOneFixture(userFormation); },
+      disabled: lineupBlocked,
+      handler: async () => {
+        if (lineupBlocked) {
+          toast(blockMsg, 'error', 5000);
+          return;
+        }
+        await handleAdvanceOneFixture(userFormation);
+      },
     },
     {
       id: 'watch-match',
       label: '👁 Watch Match',
       cls: 'btn-p',
-      handler: async () => { await _launchWatchMatch(event, save, userTeam, oppTeam, userFormation); },
+      disabled: lineupBlocked,
+      handler: async () => {
+        if (lineupBlocked) {
+          toast(blockMsg, 'error', 5000);
+          return;
+        }
+        await _launchWatchMatch(event, save, userTeam, oppTeam, userFormation);
+      },
     },
     { id: 'cancel', label: 'Cancel', cls: 'btn-s' },
   ]);
 
   // Wire after modal renders
-  setTimeout(() => { updateXIPreview(); }, 30);
+  setTimeout(() => {
+    updateXIPreview();
+    // Visually disable buttons if lineup is blocked
+    if (lineupBlocked) {
+      const qsBtn = document.getElementById('quick-sim');
+      const wmBtn = document.getElementById('watch-match');
+      if (qsBtn) { qsBtn.disabled = true; qsBtn.style.opacity = '0.4'; qsBtn.style.cursor = 'not-allowed'; }
+      if (wmBtn) { wmBtn.disabled = true; wmBtn.style.opacity = '0.4'; wmBtn.style.cursor = 'not-allowed'; }
+    }
+  }, 30);
 }
 
 // ─── Pop next event, simulate, show report ────────────────────
@@ -11719,17 +12073,14 @@ async function handleAdvanceOneFixture(overrideFormation) {
       hideLoader();
     }
 
+    if (res.finished) { await renderHome(); return; }
     if (res.skipped)  { await renderHome(); return; }
 
-    // Render home page first so UI is up to date, THEN show match report on top.
-    // If the season just finished, we still show the report — the user must close
-    // it manually. The EOY button will be visible underneath when they do.
+    // Render home page first so the UI is up to date, THEN show match report on top
     await renderHome();
 
     const r = res.singleResult;
     if (r) showMatchReport(r, save);
-
-    if (res.finished) return; // season over — don't show toasts, let user close report
 
     // Cup toasts
     for (const cr of res.cupResults ?? []) {
@@ -11753,6 +12104,21 @@ async function handleAdvanceOneFixture(overrideFormation) {
       for (const o of res.newOffers) {
         toast(`📨 ${o.clubName} bid ${fmt.money(o.fee)} for ${o.playerName}`, 'info', 5000);
       }
+    }
+
+    // Injury toasts — new injuries from the match result
+    if (res.singleResult?.events) {
+      const injEvts = res.singleResult.events.filter(e => e.type === 'injury' && e.teamId === save.userTeamId);
+      for (const inj of injEvts) {
+        const wks = inj.injuryGWsLeft ?? 1;
+        const dur = typeof injuryDurationLabel === 'function' ? injuryDurationLabel(wks) : `${wks} week${wks!==1?'s':''}`;
+        toast(`🚑 ${inj.playerName} — ${inj.injuryName} (${dur})`, 'error', 8000);
+      }
+    }
+
+    // Recovery toasts — players returning from injury
+    for (const p of res.recoveredPlayers ?? []) {
+      toast(`✅ ${p.name} is fit and available again!`, 'success', 6000);
     }
   } catch (err) {
     if (usingModalSpinner) {
@@ -11875,7 +12241,7 @@ let _watchState = null;
 
 // ─── Entry point ──────────────────────────────────────────────
 async function showWatchMatchModal(matchEvent, userTeam, oppTeam, userPlayers, oppPlayers, save, overrideFormation) {
-  const userIsHome  = matchEvent.userIsHome ?? (matchEvent.type === 'league' ? true : Math.random() < 0.5);
+  const userIsHome  = matchEvent.userIsHome ?? true;
   const homeTeam    = userIsHome ? userTeam : oppTeam;
   const awayTeam    = userIsHome ? oppTeam  : userTeam;
   const homePlayers = userIsHome ? userPlayers : oppPlayers;
@@ -12125,6 +12491,15 @@ function _updateEvents(newEvents) {
     } else if (ev.type === 'sub') {
       item.className = `wm-ev-item ${cls}`;
       item.innerHTML = `<span class="wm-ev-min">${ev.minute}'</span><span class="wm-ev-icon">🔄</span><span class="wm-ev-text"><span style="color:var(--acc)">${ev.inName}</span> ↔ <span style="color:var(--acc3)">${ev.outName}</span></span>`;
+    } else if (ev.type === 'injury') {
+      item.className = `wm-ev-item ${cls}`;
+      const injLabel = ev.injuryName ? ` — ${ev.injuryName}` : '';
+      item.innerHTML = `<span class="wm-ev-min">${ev.minute}'</span><span class="wm-ev-icon">🚑</span><span class="wm-ev-text" style="color:var(--acc3)"><strong>${ev.playerName}</strong>${injLabel}</span>`;
+      // Auto-pause when user player injured
+      if (isUser && _watchState && !_watchState.paused) {
+        _togglePause();
+        toast(`🚑 ${ev.playerName} is injured! ${ev.injuryName || ''}`, 'error', 6000);
+      }
     } else {
       continue;
     }
@@ -12205,11 +12580,12 @@ function _updateFitnessList() {
     const fit = Math.round(fitMap.get(p.id) ?? 90);
     const cls = fit >= 70 ? 'wm-fit-high' : fit >= 50 ? 'wm-fit-mid' : 'wm-fit-low';
     const g   = positionGroup(p.position);
+    const injBadge = p.injured ? ` <span style="color:var(--acc3);font-size:9px;font-family:var(--fm)">🚑 INJ</span>` : '';
     return `<div class="wm-fitness-row">
       <span class="pos ${g}" style="width:30px;text-align:center">${p.position}</span>
-      <span class="wm-fit-name">${p.name.split(' ').pop()}</span>
-      <div class="wm-fit-bar-wrap"><div class="wm-fit-bar ${cls}" style="width:${fit}%"></div></div>
-      <span class="wm-fit-pct">${fit}%</span>
+      <span class="wm-fit-name">${p.name.split(' ').pop()}${injBadge}</span>
+      <div class="wm-fit-bar-wrap"><div class="wm-fit-bar ${p.injured ? 'wm-fit-low' : cls}" style="width:${p.injured ? 10 : fit}%"></div></div>
+      <span class="wm-fit-pct">${p.injured ? '🚑' : fit + '%'}</span>
     </div>`;
   }).join('');
 }
@@ -12237,13 +12613,15 @@ function _updateBenchList() {
     const rat = primaryRating(p);
     const fit = Math.round(p.fitness ?? 90);
     const fitCls = fit >= 70 ? 'wm-fit-high' : fit >= 50 ? 'wm-fit-mid' : 'wm-fit-low';
-    const canSub = s.currentPhase < TOTAL_PHASES && subsLeft > 0;
-    return `<div class="wm-bench-row">
+    const isInjured = p.injured === true;
+    const canSub = s.currentPhase < TOTAL_PHASES && subsLeft > 0 && !isInjured;
+    return `<div class="wm-bench-row${isInjured ? ' wm-bench-injured' : ''}">
       <span class="pos ${g}">${p.position}</span>
-      <span class="wm-bench-name">${p.name}</span>
+      <span class="wm-bench-name">${p.name}${isInjured ? ' <span style="color:var(--acc3);font-size:9px">🚑</span>' : ''}</span>
       <span class="wm-bench-rat">${rat}</span>
-      <span class="wm-fit-pct ${fitCls}" style="font-family:var(--fm);font-size:10px;min-width:32px;text-align:right">${fit}%</span>
+      <span class="wm-fit-pct ${isInjured ? 'wm-fit-low' : fitCls}" style="font-family:var(--fm);font-size:10px;min-width:32px;text-align:right">${isInjured ? '🚑' : fit + '%'}</span>
       ${canSub ? `<button class="wm-sub-btn" onclick="window._wmSubClick('${p.id}')">Sub On</button>` : ''}
+      ${isInjured ? `<span style="font-size:9px;color:var(--acc3);font-family:var(--fm)">INJURED</span>` : ''}
     </div>`;
   }).join('');
 }
@@ -12314,6 +12692,13 @@ window._wmSubClick = function(subInId) {
   const subIn  = bench.find(p => p.id === subInId);
   if (!subIn) { if (!wasPaused) _togglePause(); return; }
 
+  // Guard: injured players cannot be subbed on
+  if (subIn.injured) {
+    toast(`🚑 ${subIn.name} is injured and cannot play.`, 'error', 4000);
+    if (!wasPaused) _togglePause();
+    return;
+  }
+
   // GK bench player can only replace the starting GK; outfield can only replace outfield
   const outOptions = subIn.position === 'GK'
     ? active.filter(p => p.position === 'GK')
@@ -12372,6 +12757,12 @@ function _applyUserSub(inId, outId) {
   const subIn  = bench.find(p => p.id === inId);
   const subOut = active.find(p => p.id === outId);
   if (!subIn || !subOut) return;
+
+  // Guard: injured players cannot be subbed on
+  if (subIn.injured) {
+    toast(`🚑 ${subIn.name} is injured and cannot play.`, 'error', 4000);
+    return;
+  }
 
   // Guard: GK can only replace GK, outfield can only replace outfield
   if (subIn.position === 'GK' && subOut.position !== 'GK') return;
@@ -12590,6 +12981,21 @@ async function _commitResult() {
       for (const o of res.newOffers) {
         toast(`📨 ${o.clubName} bid ${fmt.money(o.fee)} for ${o.playerName}`, 'info', 5000);
       }
+    }
+
+    // Injury toasts from watch match result
+    if (res?.singleResult?.events) {
+      const injEvts = res.singleResult.events.filter(e => e.type === 'injury' && e.teamId === s.save.userTeamId);
+      for (const inj of injEvts) {
+        const wks = inj.injuryGWsLeft ?? 1;
+        const dur = typeof injuryDurationLabel === 'function' ? injuryDurationLabel(wks) : `${wks} week${wks!==1?'s':''}`;
+        toast(`🚑 ${inj.playerName} — ${inj.injuryName} (${dur})`, 'error', 8000);
+      }
+    }
+
+    // Recovery toasts
+    for (const p of res?.recoveredPlayers ?? []) {
+      toast(`✅ ${p.name} is fit and available again!`, 'success', 6000);
     }
     await renderHome();
   } catch (err) {
