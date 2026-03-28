@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>PITCH — Football Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -69,7 +69,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 /* ── MAIN ── */
 #app{display:flex;width:100%;height:100%}
 .main{margin-left:var(--nav);flex:1;height:100vh;overflow:hidden;position:relative}
-.screen{position:absolute;inset:0;overflow-y:auto;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .3s ease,transform .3s var(--ease);-webkit-overflow-scrolling:touch}
+.screen{position:absolute;inset:0;overflow-y:auto;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .3s ease,transform .3s var(--ease);-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .screen.active{opacity:1;pointer-events:all;transform:translateY(0)}
 .screen#screen-academy,.screen#screen-tactics,.screen#screen-trophies,.screen#screen-settings,.screen#screen-transfers,.screen#screen-competitions{overflow:hidden;display:flex;flex-direction:column}
 .screen::-webkit-scrollbar{width:3px}
