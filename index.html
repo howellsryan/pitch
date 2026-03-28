@@ -7071,9 +7071,9 @@ function _primaryRating(p) {
 // ─── Get potential stars (1-5, like FIFA) ────────────────────
 function getPotentialStars(player) {
   const pot = player.potentialRating ?? _primaryRating(player);
-  // 5★ exclusively for wonderkids (guaranteed pot ≥ 88 at generation)
+  // 5★ for any player with pot ≥ 90 (or wonderkids ≥ 88)
+  if (pot >= 90) return 5;
   if (player.isWonderkid && pot >= 88) return 5;
-  // Non-wonderkids capped at 4★ regardless of potentialRating
   if (pot >= 84) return 4;
   if (pot >= 76) return 3;
   if (pot >= 68) return 2;
