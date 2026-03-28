@@ -515,15 +515,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   .tr-layout.dp-open .det-panel{display:flex}
   .tr-layout.dp-open .tr-panel{display:none}
   .comp-layout{grid-template-columns:1fr;padding:10px 12px;height:auto}
-  #screen-transfers,#screen-competitions{overflow-y:auto!important;display:block!important}
+  #screen-transfers,#screen-competitions,#screen-trophies{overflow-y:auto!important;display:block!important}
   .squad-layout{padding:8px 8px}
   .sq-row{grid-template-columns:32px 26px 1fr 50px 72px;gap:4px;padding:5px 6px}
   .sq-btn-sm{padding:2px 5px;font-size:8px}
   .ph{padding:10px 12px 0}
   .modal-bd{align-items:flex-end;padding:0}
+  .modal{padding-bottom:env(safe-area-inset-bottom,0px)}
+  .modal-body{padding-bottom:10px}
   .mgr-card{display:none}
   .res-side{height:auto;flex:none}
   .comp-inn{padding:6px;flex:none;height:auto}
+  /* Ensure scrollable screens can reach their last content item */
+  .screen{padding-bottom:10px}
+  /* Inner scroll containers in flex-column screens */
+  .pl-list,.tbl-scroll,.sq-scroll,.comp-inn,.res-list,.trophies-grid-wrap,.set-grp,.comp-layout{padding-bottom:10px}
   .full-hdr,.full-row{display:grid;grid-template-columns:18px 1fr 26px 30px 1fr;gap:4px;padding:6px 8px;width:100%;box-sizing:border-box}
   .full-hdr>*:nth-child(4),.full-hdr>*:nth-child(5),.full-hdr>*:nth-child(6),
   .full-hdr>*:nth-child(7),.full-hdr>*:nth-child(8),.full-hdr>*:nth-child(9),
