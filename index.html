@@ -250,8 +250,11 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .offer-v{font-family:var(--fd);font-size:18px;color:var(--acc2);min-width:70px;text-align:right;flex-shrink:0}
 .offer-hint{font-size:10px;color:var(--txd);margin-top:4px}
 .tr-acts{padding:12px 18px;display:flex;flex-direction:column;gap:8px}
-input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--sur3);border-radius:2px;cursor:pointer;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--acc);cursor:pointer;box-shadow:0 0 0 3px var(--glow)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--sur3);border-radius:2px;cursor:pointer;outline:none;touch-action:pan-y;vertical-align:middle}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--acc);cursor:pointer;box-shadow:0 0 0 3px var(--glow);transition:transform .1s;margin-top:-8px}
+input[type=range]::-webkit-slider-thumb:active{transform:scale(1.2)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--acc);cursor:pointer;box-shadow:0 0 0 3px var(--glow);border:none}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 
 /* ── COMPETITIONS ── */
 .comp-layout{display:grid;grid-template-columns:1fr 320px;gap:13px;flex:1;min-height:0;padding:0 20px 12px}
@@ -9712,7 +9715,7 @@ function _renderAdvancedFilters(byId, team, leagueSet){
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);font-family:var(--fm);margin-bottom:3px">
           <span>AGE</span><span id="tr-age-lbl">${_trFilters.minAge}–${_trFilters.maxAge}</span>
         </div>
-        <div style="display:flex;gap:5px;align-items:center">
+        <div style="display:flex;gap:5px;align-items:center;padding:10px 0">
           <input type="range" id="tr-age-min" min="15" max="40" value="${_trFilters.minAge}" style="flex:1">
           <input type="range" id="tr-age-max" min="15" max="40" value="${_trFilters.maxAge}" style="flex:1">
         </div>
@@ -9721,7 +9724,7 @@ function _renderAdvancedFilters(byId, team, leagueSet){
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);font-family:var(--fm);margin-bottom:3px">
           <span>RATING</span><span id="tr-rat-lbl">${_trFilters.minRat}–${_trFilters.maxRat}</span>
         </div>
-        <div style="display:flex;gap:5px;align-items:center">
+        <div style="display:flex;gap:5px;align-items:center;padding:10px 0">
           <input type="range" id="tr-rat-min" min="40" max="99" value="${_trFilters.minRat}" style="flex:1">
           <input type="range" id="tr-rat-max" min="40" max="99" value="${_trFilters.maxRat}" style="flex:1">
         </div>
@@ -9731,7 +9734,7 @@ function _renderAdvancedFilters(byId, team, leagueSet){
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);font-family:var(--fm);margin-bottom:3px">
         <span>MAX PRICE</span><span id="tr-price-lbl">${_trFilters.maxPrice>0?fmt.money(_trFilters.maxPrice):'No limit'}</span>
       </div>
-      <input type="range" id="tr-price" min="0" max="${Math.round(budget*1.5/1e6)*1e6}" step="1000000" value="${Math.min(_trFilters.maxPrice||budget,Math.round(budget*1.5/1e6)*1e6)}" style="width:100%">
+      <div style="padding:8px 0"><input type="range" id="tr-price" min="0" max="${Math.round(budget*1.5/1e6)*1e6}" step="1000000" value="${Math.min(_trFilters.maxPrice||budget,Math.round(budget*1.5/1e6)*1e6)}" style="width:100%">
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span style="font-size:10px;color:var(--tx2);font-family:var(--fm);letter-spacing:.5px">MIN POTENTIAL</span>
@@ -10008,7 +10011,7 @@ async function renderPlayerDetail(player,byId){
         <div style="font-size:10px;color:var(--txd);font-family:var(--fm)">Min ~${fmt.money(minOff)}</div>
       </div>
       <div class="offer-row">
-        <input type="range" id="offer-slider" min="${Math.floor(minOff*0.7)}" max="${Math.floor(fv*1.6)}" value="${initOff}" step="500000">
+        <input type="range" id="offer-slider" min="${Math.floor(minOff*0.7)}" max="${Math.floor(fv*1.6)}" value="${initOff}" step="100000">
         <div id="offer-val" class="offer-v">${fmt.money(initOff)}</div>
       </div>
       <div id="offer-likelihood" class="offer-hint" style="margin-top:5px;color:var(--acc)">Likely accepted ✓</div>
@@ -10079,7 +10082,7 @@ async function renderPlayerDetail(player,byId){
                   ${budget<counter.fee?`<div class="ctr-warn">⚠️ Their asking price exceeds your budget</div>`:''}
                   <div style="margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--tx)">Your Revised Offer</div>
                   <div style="display:flex;align-items:center;gap:10px">
-                    <input type="range" id="buy-counter-slider" min="${cMin}" max="${cMax}" value="${cDef}" step="500000" style="flex:1">
+                    <input type="range" id="buy-counter-slider" min="${cMin}" max="${cMax}" value="${cDef}" step="100000" style="flex:1">
                     <div id="buy-counter-val" style="font-family:var(--fd);font-size:18px;color:var(--acc2);min-width:80px;text-align:right">${fmt.money(cDef)}</div>
                   </div>
                   <div id="buy-counter-hint" style="font-size:11px;margin-top:5px"></div>
@@ -11549,7 +11552,7 @@ async function showOffersModal() {
           <div class="ctr-row"><span>Form Value</span><strong>${fmt.money(fav)}</strong></div>
           <div style="margin:16px 0 8px;font-size:12px;font-weight:600;color:var(--tx)">Your Asking Price</div>
           <div style="display:flex;align-items:center;gap:10px">
-            <input type="range" id="counter-slider" min="${minAsk}" max="${maxAsk}" value="${defaultAsk}" step="500000" style="flex:1">
+            <input type="range" id="counter-slider" min="${minAsk}" max="${maxAsk}" value="${defaultAsk}" step="100000" style="flex:1">
             <div id="counter-val" style="font-family:var(--fd);font-size:18px;color:var(--acc2);min-width:80px;text-align:right">${fmt.money(defaultAsk)}</div>
           </div>
           <div id="counter-likelihood" style="font-size:11px;margin-top:6px;color:var(--acc)"></div>
