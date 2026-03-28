@@ -6170,10 +6170,10 @@ const UCL_CLUBS = [
   { id:'atletico',    name:'Atlético',    nation:'🇪🇸', strength:82 },
   { id:'real_sociedad',name:'R. Sociedad',nation:'🇪🇸', strength:72 },
   // Bundesliga
-  { id:'bayer_leverkusen',name:'Leverkusen',nation:'🇩🇪', strength:82 },
+  { id:'leverkusen',  name:'Leverkusen',  nation:'🇩🇪', strength:82 },
   { id:'bayern',      name:'Bayern',      nation:'🇩🇪', strength:91 },
-  { id:'bvb',         name:'Dortmund',    nation:'🇩🇪', strength:78 },
-  { id:'rb_leipzig',  name:'RB Leipzig',  nation:'🇩🇪', strength:76 },
+  { id:'dortmund',    name:'Dortmund',    nation:'🇩🇪', strength:78 },
+  { id:'leipzig',     name:'RB Leipzig',  nation:'🇩🇪', strength:76 },
   // Serie A
   { id:'inter',       name:'Inter Milan', nation:'🇮🇹', strength:84 },
   { id:'ac_milan',    name:'AC Milan',    nation:'🇮🇹', strength:78 },
@@ -6384,12 +6384,12 @@ function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId,
     if (event?.opponentId) {
       const preDrawn = UCL_CLUBS.find(c => c.id === event.opponentId) ?? { id: event.opponentId, name: event.opponentName, nation: event.opponentCrest, strength: event.opponentRep ?? 72 };
       opponent   = { id: preDrawn.id, name: preDrawn.name, crest: preDrawn.nation ?? preDrawn.crest ?? '⚽' };
-      oppPlayers = buildSyntheticSquad(preDrawn.id, preDrawn.strength ?? event.opponentRep ?? 72);
+      oppPlayers = playersByTeam.get(preDrawn.id) ?? buildSyntheticSquad(preDrawn.id, preDrawn.strength ?? event.opponentRep ?? 72);
     } else {
       const pool = UCL_CLUBS.filter(c => c.id !== userTeam.id);
       const pick = pool[Math.floor(Math.random() * pool.length)];
       opponent   = { id: pick.id, name: pick.name, crest: pick.nation };
-      oppPlayers = buildSyntheticSquad(pick.id, pick.strength);
+      oppPlayers = playersByTeam.get(pick.id) ?? buildSyntheticSquad(pick.id, pick.strength);
     }
   } else {
     // Domestic cup: use pre-drawn opponent from event, or fall back to same-league random
@@ -6440,7 +6440,7 @@ function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId,
 }
 
 // ─── Simulate UCL league phase matchday ──────────────────────
-function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome) {
+function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam) {
   const lp  = cupState.leaguePhase;
   const md  = lp?.matchday ?? 0;
   if (md >= 8) return null;
@@ -6451,7 +6451,7 @@ function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eve
     ? (UCL_CLUBS.find(c => c.id !== userTeam.id) ?? rawOpp)
     : rawOpp;
 
-  const oppPlayers = buildSyntheticSquad(opp.id, opp.strength ?? 72);
+  const oppPlayers = (playersByTeam && playersByTeam.get(opp.id)) ?? buildSyntheticSquad(opp.id, opp.strength ?? 72);
   const userIsHome = eventUserIsHome ?? (Math.random() < 0.5);
   const home       = userIsHome ? userTeam    : { id:opp.id, name:opp.name, crest:opp.nation??'⚽' };
   const away       = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation??'⚽' } : userTeam;
@@ -6467,6 +6467,7 @@ function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eve
 
   return {
     matchday: md + 1,
+    opponentId: opp.id,
     opponentName: opp.name,
     opponentNation: opp.nation ?? '🌍',
     userGoals: userG, oppGoals: oppG,
@@ -6483,23 +6484,41 @@ function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eve
 }
 
 // ─── Synthetic squad for non-PL clubs ─────────────────────────
-const _SYNTH_NAMES = [
-  'M. Kovačić','L. Fernández','A. Müller','R. Diallo','T. Nakamura',
-  'J. Santos','K. Andersen','P. Rossi','D. Petrov','S. El Ahmadi',
-  'N. Johansson','C. García','B. Okafor','H. Tanaka','F. Larsson',
+// Large name pool — seeded by teamId so each club gets unique but consistent names
+const _SYNTH_FIRST = ['A.','B.','C.','D.','E.','F.','G.','H.','J.','K.','L.','M.','N.','O.','P.','R.','S.','T.','V.','W.'];
+const _SYNTH_LAST  = [
+  'Müller','Fernández','García','Rossi','Silva','Santos','Pereira','Costa','Martínez','López',
+  'Andersen','Petrov','Johansson','Nakamura','Okafor','Diallo','El Ahmadi','Kovačić','Larsson','Tanaka',
+  'Weber','Schneider','Hoffmann','Becker','Wagner','Fischer','Meyer','Richter','Koch','Bauer',
+  'Dupont','Laurent','Bernard','Thomas','Robert','Richard','Petit','Simon','Michel','Martin',
+  'Bruno','Conti','Ferrari','Romano','Greco','Marino','Fontana','Ricci','Leone','Moretti',
+  'Gomes','Alves','Souza','Lima','Carvalho','Rocha','Cavalcanti','Ferreira','Teixeira','Nunes',
+  'De Jong','Van Dijk','Bakker','Visser','Smit','De Boer','Jansen','Meijer','Peters','Kuiper',
+  'Park','Kim','Choi','Lee','Jung','Yoon','Kwon','Han','Lim','Cho',
 ];
+function _synthHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 16777619) >>> 0; }
+  return h;
+}
 function buildSyntheticSquad(teamId, avgStr) {
   const positions = ['GK','CB','CB','RB','LB','CM','CM','CDM','RW','LW','ST','CM','ST','GK','CB'];
-  return positions.map((pos, i) => ({
-    id: `${teamId}_s${i}`, name: _SYNTH_NAMES[i] ?? `Player ${i+1}`, position: pos, age: 26,
-    attack:      pos==='ST'||pos==='RW'||pos==='LW' ? Math.min(99, avgStr+5) : Math.max(10, avgStr-3),
-    midfield:    pos==='CM'||pos==='CDM' ? Math.min(99, avgStr+3) : Math.max(10, avgStr-4),
-    defence:     pos==='CB'||pos==='RB'||pos==='LB' ? Math.min(99, avgStr+4) : Math.max(10, avgStr-5),
-    goalkeeping: pos==='GK' ? Math.min(99, avgStr+8) : 10,
-    value: 10_000_000, wage: 50_000, fitness: 90,
-    injured: false, suspended: false, inSquad: true,
-    goals: 0, assists: 0, cleanSheets: 0, form: 50,
-  }));
+  const seed = _synthHash(String(teamId));
+  return positions.map((pos, i) => {
+    const fi = (_synthHash(seed + i * 7) ) % _SYNTH_FIRST.length;
+    const li = (_synthHash(seed + i * 13 + 99)) % _SYNTH_LAST.length;
+    const name = `${_SYNTH_FIRST[fi]} ${_SYNTH_LAST[li]}`;
+    return {
+      id: `${teamId}_s${i}`, name, position: pos, age: 26,
+      attack:      pos==='ST'||pos==='RW'||pos==='LW' ? Math.min(99, avgStr+5) : Math.max(10, avgStr-3),
+      midfield:    pos==='CM'||pos==='CDM' ? Math.min(99, avgStr+3) : Math.max(10, avgStr-4),
+      defence:     pos==='CB'||pos==='RB'||pos==='LB' ? Math.min(99, avgStr+4) : Math.max(10, avgStr-5),
+      goalkeeping: pos==='GK' ? Math.min(99, avgStr+8) : 10,
+      value: 10_000_000, wage: 50_000, fitness: 90,
+      injured: false, suspended: false, inSquad: true,
+      goals: 0, assists: 0, cleanSheets: 0, form: 50,
+    };
+  });
 }
 
 async function getCupFixtures(cupId) {
@@ -8125,8 +8144,8 @@ const REAL_LIFE_HONORS = {
   copa_del_rey:   { barcelona:31, athletic_bilbao:23, real_madrid:20, atletico:10, real_sociedad:3, valencia:8 },
   supercopa:      { real_madrid:12, barcelona:14, atletico:2 },
   // German
-  dfb_pokal:      { bayern:20, bvb:5, bayer_leverkusen:1, frankfurt:5, werder_bremen:6 },
-  dfb_supercup:   { bayern:9, bvb:6, bayer_leverkusen:1 },
+  dfb_pokal:      { bayern:20, dortmund:5, leverkusen:1, frankfurt:5, bremen:6 },
+  dfb_supercup:   { bayern:9, dortmund:6, leverkusen:1 },
   // Italian
   coppa_italia:   { juventus:15, inter:9, roma:9, lazio:7, napoli:7, ac_milan:5, fiorentina:6, atalanta:1 },
   supercoppa:     { juventus:9, inter:8, ac_milan:7, lazio:5, roma:2, napoli:2 },
@@ -8134,7 +8153,7 @@ const REAL_LIFE_HONORS = {
   coupe_de_france:{ psg:15, marseille:10, lyon:5, monaco:5, lille:6, rennes:2 },
   trophee_des_champions: { psg:11, lyon:5, marseille:3, monaco:3, lille:2 },
   // European
-  ucl:            { real_madrid:15, barcelona:5, ac_milan:7, liverpool:6, man_utd:3, inter:3, chelsea:2, man_city:1, bvb:1, juventus:2, ajax:4, benfica:2, porto:2 },
+  ucl:            { real_madrid:15, barcelona:5, ac_milan:7, liverpool:6, man_utd:3, inter:3, chelsea:2, man_city:1, dortmund:1, juventus:2, ajax:4, benfica:2, porto:2 },
   uel:            { sevilla:7, inter:3, chelsea:2, atletico:3, liverpool:3, man_utd:1, juventus:3, ajax:1, porto:2, fiorentina:1 },
   uecl:           { roma:1, west_ham:1, chelsea:1, fiorentina:0, atalanta:1 },
 };
@@ -8253,13 +8272,19 @@ async function processEndOfSeason() {
     const declined = applyAgingDecline(p);
     return {
       ...declined,
-      age:         (declined.age ?? 22) + 1,
-      value:       agingValueAdjust(declined),
-      goals:       0,
-      assists:     0,
-      cleanSheets: 0,
-      form:        50,
-      fitness:     100,
+      age:            (declined.age ?? 22) + 1,
+      value:          agingValueAdjust(declined),
+      goals:          0,
+      assists:        0,
+      cleanSheets:    0,
+      form:           50,
+      fitness:        100,
+      // Clear all injury state between seasons
+      injured:        false,
+      injuryGWsLeft:  0,
+      injuryGWsTotal: 0,
+      injuryName:     null,
+      injuryType:     null,
     };
   });
   await putPlayersBulk(agedPlayers);
@@ -8633,7 +8658,7 @@ async function advanceOneFixture(overrideFormation) {
     const userTeam   = allTeams.find(t => t.id === save.userTeamId);
     const userPlayers = playersByTeam.get(save.userTeamId) ?? [];
     const cupState   = save.cups?.ucl;
-    const mdResult   = simulateUCLMatchday(userTeam, userPlayers, cupState, save.mentality ?? 'balanced', event.userIsHome);
+    const mdResult   = simulateUCLMatchday(userTeam, userPlayers, cupState, save.mentality ?? 'balanced', event.userIsHome, playersByTeam);
 
     if (mdResult) {
       const lp    = cupState.leaguePhase ?? {};
@@ -8825,6 +8850,8 @@ function buildCupMatchResult(r, userTeamId, event, allTeams) {
     const userIsHome = r.userIsHome ?? true;
     const userName   = teamsById.get(userTeamId)?.name ?? 'Your Team';
     const userCrest  = teamsById.get(userTeamId)?.crest ?? '⚽';
+    // Use the real opponent ID from the result so event.teamId matching works in the timeline
+    const oppId      = r.opponentId ?? (event.oppId ?? 'opp');
     return {
       isCupMatch:    true,
       cupId:         'ucl',
@@ -8839,8 +8866,8 @@ function buildCupMatchResult(r, userTeamId, event, allTeams) {
       points:        r.points,
       result:        r.result,
       scorers:       r.scorers ?? [],
-      homeTeamId:    userIsHome ? userTeamId : 'opp',
-      awayTeamId:    userIsHome ? 'opp' : userTeamId,
+      homeTeamId:    userIsHome ? userTeamId : oppId,
+      awayTeamId:    userIsHome ? oppId : userTeamId,
       homeGoals:     userIsHome ? r.userGoals : r.oppGoals,
       awayGoals:     userIsHome ? r.oppGoals  : r.userGoals,
       homeTeamName:  userIsHome ? userName : r.opponentName,
