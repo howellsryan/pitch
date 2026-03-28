@@ -499,7 +499,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
   body{flex-direction:column}
   .sidebar{display:none!important}
   .bot-nav{display:block}
-  .main{margin-left:0!important;height:calc(100vh - 62px - env(safe-area-inset-bottom,0px))}
+  .main{margin-left:0!important;height:100%}
+  #app{height:calc(100vh - 62px - env(safe-area-inset-bottom,0px))}
   .screen{bottom:0}
 
   .toast-container{bottom:74px;right:8px;left:8px;max-width:100%}
@@ -10542,6 +10543,7 @@ function renderNewGame(){
       await startNewGame(selId, managerName);
       document.getElementById('ng').style.display='none';
       document.getElementById('app').style.display='flex';
+      document.querySelector('.bot-nav').style.display='';
       initUI();
       await navigateTo('home');
     }catch(err){
@@ -10682,10 +10684,12 @@ async function boot(){
     if(!save||save._deleted){
       document.getElementById('ng').style.display='flex';
       document.getElementById('app').style.display='none';
+      document.querySelector('.bot-nav').style.display='none';
       renderNewGame();
     } else {
       document.getElementById('ng').style.display='none';
       document.getElementById('app').style.display='flex';
+      document.querySelector('.bot-nav').style.display='';
       initUI();
       await navigateTo('home');
     }
