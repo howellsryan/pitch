@@ -721,19 +721,25 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .academy-row-btns{display:flex;gap:4px}
 .academy-card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
 @media(max-width:768px){
+  #screen-academy{overflow-y:auto!important;display:block!important}
   .academy-layout{flex:none;overflow:visible;padding:0 12px 12px}
   .academy-info-bar{grid-template-columns:1fr;border-radius:10px}
   .academy-info-brand,.academy-info-desc,.academy-info-stat{border-right:none;border-bottom:1px solid var(--bdr)}
   .academy-info-stat:last-child{border-bottom:none}
-  .academy-table-hdr{grid-template-columns:28px 32px 1fr 50px 70px 110px}
-  .academy-row{grid-template-columns:28px 32px 1fr 50px 70px 110px}
-  .academy-row>*:nth-child(6){display:none}
-  .academy-row>*:nth-child(7),.academy-row>*:nth-child(8){display:flex;gap:4px;align-items:center}
-  .academy-row>*:nth-child(7){grid-column:6}
-  .academy-row>*:nth-child(8){display:none}
-  .academy-table-hdr>*:nth-child(6),.academy-table-hdr>*:nth-child(8){display:none}
-  .academy-table-hdr>*:nth-child(7){grid-column:6}
-
+  .academy-table-hdr{display:none}
+  .academy-rows{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0;flex:none;overflow:visible;height:auto}
+  .academy-row{position:relative;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:var(--sur);border:1px solid var(--bdr)}
+  .academy-row-wk{border-color:rgba(245,200,66,.5);background:rgba(245,200,66,.04)}
+  .academy-row>*:nth-child(1){order:1;font-size:26px!important;text-align:left!important}
+  .academy-row>*:nth-child(2){order:2;position:absolute;top:10px;right:10px}
+  .academy-row>*:nth-child(3){order:3}
+  .academy-row>*:nth-child(4){order:4;text-align:left!important}
+  .academy-row>*:nth-child(5){order:5}
+  .academy-row>*:nth-child(6){order:6;display:block!important}
+  .academy-row>*:nth-child(7){order:7;display:flex!important;width:100%}
+  .academy-row>*:nth-child(8){order:8;display:flex!important;width:100%}
+  .academy-row .academy-row-btns{width:100%}
+  .academy-row .sq-btn-sm{width:100%;justify-content:center;padding:6px 4px!important;font-size:10px!important}
 }
 
 /* ── OFFERS v2 ── */
@@ -7062,7 +7068,9 @@ function _primaryRating(p) {
 // ─── Get potential stars (1-5, like FIFA) ────────────────────
 function getPotentialStars(player) {
   const pot = player.potentialRating ?? _primaryRating(player);
-  if (pot >= 90) return 5;
+  // 5★ exclusively for wonderkids (guaranteed pot ≥ 88 at generation)
+  if (player.isWonderkid && pot >= 88) return 5;
+  // Non-wonderkids capped at 4★ regardless of potentialRating
   if (pot >= 84) return 4;
   if (pot >= 76) return 3;
   if (pot >= 68) return 2;
@@ -7756,32 +7764,34 @@ function generateYouthPlayer(teamId, reputation, season, index, league, isWonder
   const age  = 15 + Math.floor(Math.random() * 4); // 15-18
   const pos  = POSITIONS[Math.floor(Math.random() * POSITIONS.length)];
 
-  // Base rating scaled by academy tier
-  const baseRating = {
-    elite:   42 + Math.floor(Math.random() * 18), // 42-59
-    top:     38 + Math.floor(Math.random() * 16), // 38-53
-    good:    34 + Math.floor(Math.random() * 14), // 34-47
-    average: 30 + Math.floor(Math.random() * 12), // 30-41
-    poor:    26 + Math.floor(Math.random() * 10), // 26-35
+  // Each tier has a typical (low) range and a tail (high) range.
+  // tailChance = probability of rolling in the high range instead of the typical one.
+  // Within each range, the value is uniformly distributed.
+  // This means all tiers can hit 4★ (84-87) but poor does so rarely,
+  // and elite hits it much more consistently.
+  const cfg = {
+  //           typicalMin  typicalMax  tailMin  tailMax  tailChance
+    elite:   { lo:67, hi:84, tlo:85, thi:87, tail:0.22 },
+    top:     { lo:63, hi:82, tlo:83, thi:87, tail:0.13 },
+    good:    { lo:59, hi:79, tlo:80, thi:87, tail:0.08 },
+    average: { lo:56, hi:76, tlo:77, thi:87, tail:0.05 },
+    poor:    { lo:53, hi:73, tlo:74, thi:87, tail:0.03 },
   }[tier];
 
-  // Potential bonus by tier
-  const potentialBonus = {
-    elite:   30 + Math.floor(Math.random() * 35), // +30 to +64
-    top:     24 + Math.floor(Math.random() * 28), // +24 to +51
-    good:    18 + Math.floor(Math.random() * 22), // +18 to +39
-    average: 12 + Math.floor(Math.random() * 16), // +12 to +27
-    poor:    8  + Math.floor(Math.random() * 10), // +8 to +17
-  }[tier];
+  const inTail = Math.random() < cfg.tail;
+  const rawPot = inTail
+    ? cfg.tlo + Math.floor(Math.random() * (cfg.thi - cfg.tlo + 1))
+    : cfg.lo  + Math.floor(Math.random() * (cfg.hi  - cfg.lo  + 1));
 
-  const rawPot = Math.min(99, baseRating + potentialBonus);
+  // Base rating: always well below potential (they're raw youth prospects)
+  const baseRating = Math.max(26, Math.round(rawPot * 0.52 + Math.random() * 10));
 
   let finalPot;
   if (isWonderkid) {
-    // Wonderkid: guaranteed 5* potential (88+)
+    // Wonderkid: guaranteed 5★ potential (88+)
     finalPot = Math.max(88, rawPot);
   } else {
-    // Non-wonderkid: capped at 4* ceiling (87)
+    // Non-wonderkid: capped at 4★ ceiling (87)
     finalPot = Math.min(POT_4STAR_CAP, rawPot);
   }
 
@@ -7880,16 +7890,10 @@ function youthValue(base, age, potential) {
 // Chances: elite 25%, top 10%, good 5%, average/poor 1%.
 function generateCohort(teamId, reputation, season, league) {
   const tier = academyTier(reputation);
-  const size = {
-    elite:   5 + Math.floor(Math.random() * 2), // 5-6
-    top:     4 + Math.floor(Math.random() * 2), // 4-5
-    good:    3 + Math.floor(Math.random() * 2), // 3-4
-    average: 3 + Math.floor(Math.random() * 2), // 3-4
-    poor:    2 + Math.floor(Math.random() * 2), // 2-3
-  }[tier];
+  const size = 10; // Fixed intake of 10 players per season regardless of academy level
 
   // Roll once per cohort to determine if a wonderkid appears
-  const wonderkidChance = { elite: 0.25, top: 0.10, good: 0.05, average: 0.01, poor: 0.01 }[tier];
+  const wonderkidChance = { elite: 0.20, top: 0.10, good: 0.075, average: 0.05, poor: 0.025 }[tier];
   const cohortHasWonderkid = Math.random() < wonderkidChance;
 
   // If the cohort gets a wonderkid, one randomly chosen player receives the flag
@@ -11639,7 +11643,7 @@ async function renderAcademy() {
   }
 
   const tierColor = { elite:'#f5c842', top:'#3b82f6', good:'#22c55e', average:'#f97316', poor:'#8a9ab0' }[info.tier];
-  const intakeSize = { elite:'5–6', top:'4–5', good:'3–4', average:'3–4', poor:'2–3' }[info.tier];
+  const intakeSize = '10';
   const wonderkidChance = { elite:'25%', top:'10%', good:'5%', average:'1%', poor:'1%' }[info.tier];
 
   const infoBar = `
@@ -11674,7 +11678,7 @@ async function renderAcademy() {
         <div style="font-family:var(--fd);font-size:20px;letter-spacing:1px;color:var(--tx)">First intake arriving end of season</div>
         <div style="font-size:12px;max-width:420px;text-align:center;line-height:1.7">
           Your academy runs automatically. At the end of every season, a new cohort of
-          <strong style="color:var(--tx)">${intakeSize} youth players</strong> aged 15–18 will arrive for you to promote or release.
+          <strong style="color:var(--tx)">10 youth players</strong> aged 15–18 will arrive for you to promote or release.
         </div>
       </div>
     </div>`;
