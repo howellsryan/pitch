@@ -1069,6 +1069,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   <!-- TRANSFERS -->
   <div class="screen" id="screen-transfers">
     <div class="ph" style="flex-shrink:0"><div class="ph-left"><div class="pl">Transfer Market</div><div class="pt">Transfers</div></div><div class="ph-right" id="tr-budget-hdr"></div></div>
+    <div id="tr-window-banner" style="display:none;align-items:center;justify-content:center;padding:6px 16px;background:var(--sur2);border-bottom:1px solid var(--bdr);flex-shrink:0"></div>
     <div class="tr-layout" id="tr-layout">
         <div class="tr-panel">
           <div class="tr-tabs"><div class="tr-tab on" id="tt-buy">Buy</div><div class="tr-tab" id="tt-sell">Sell</div><div style="flex:1"></div><div class="tr-tab" id="tt-offers" style="background:var(--sur3);color:var(--acc2);border:1px solid var(--bdr);border-radius:8px;padding:4px 14px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px">📨 Offers <span id="tt-offers-badge" style="background:var(--acc3);color:#fff;font-size:9px;padding:1px 6px;border-radius:99px;font-family:var(--fm);display:none">0</span></div></div>
@@ -6755,6 +6756,9 @@ async function buyPlayer(playerId, offerAmount) {
   const userTeam   = await getTeam(save.userTeamId);
   if (!userTeam || userTeam.budget < offerAmount) throw new Error('INSUFFICIENT_FUNDS');
 
+  // Transfer window gate: both buyer and seller must be within a valid window.
+  if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
+
   // Reputation gate: player's current rating must be achievable for the club's rep level.
   // Potential is NOT gated — wonderkids can still develop at any club.
   if (!canClubSignPlayer(userTeam, player)) throw new Error('REP_TOO_LOW');
@@ -6808,6 +6812,7 @@ function _pickBuyerWeighted(teams, playerValue, playerRating) {
 // ─── Sell a player ────────────────────────────────────────────
 async function sellPlayer(playerId) {
   const save   = await getSave();
+  if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
   const player = await getPlayer(playerId);
   if (!player || player.teamId !== save.userTeamId) throw new Error('PLAYER_NOT_IN_SQUAD');
 
@@ -6839,6 +6844,8 @@ async function sellPlayer(playerId) {
  */
 async function generateAIOffers() {
   const save      = await getSave();
+  // AI inbound offers only happen during transfer windows
+  if (!isTransferWindowOpen(save).open) return [];
   const myPlayers = await getAllPlayers();
   const userSquad = myPlayers.filter(p => p.teamId === save.userTeamId);
   const allTeams  = await getAllTeams();
@@ -6937,6 +6944,212 @@ async function counterOffer(playerId, askingPrice) {
 
   await putSave({ ...save, inboundOffers: updated });
   return result;
+}
+
+// ─── Transfer Window Logic ─────────────────────────────────────
+// Real football windows:
+//   Summer: 1 Aug – 1 Sep  (GW 1 is ~9 Aug, window closes after ~GW 3)
+//   Winter: 1 Jan – 31 Jan  (roughly GW 21–24 depending on schedule)
+//
+// We derive window status from save.currentDate for accuracy rather
+// than gameweek number, which can vary by league and start date.
+
+function isTransferWindowOpen(save) {
+  const d = new Date(save.currentDate);
+  const month = d.getMonth(); // 0=Jan … 11=Dec
+  const day   = d.getDate();
+
+  // Summer window: 1 Aug (month 7) through 31 Aug (window closes 1 Sep)
+  if (month === 7) return { open: true, window: 'summer' };
+  // Winter window: 1 Jan through 31 Jan
+  if (month === 0) return { open: true, window: 'winter' };
+  // Shoulder days: Sep 1 and Feb 1 — deadline day, still open
+  if (month === 8 && day === 1) return { open: true, window: 'summer' };
+  if (month === 1 && day === 1) return { open: true, window: 'winter' };
+
+  return { open: false, window: null };
+}
+
+// Human-readable status string for UI
+function transferWindowStatus(save) {
+  const { open, window } = isTransferWindowOpen(save);
+  if (open) {
+    const d = new Date(save.currentDate);
+    // Calculate deadline
+    let deadline;
+    if (window === 'summer') {
+      deadline = new Date(d.getFullYear(), 8, 1); // Sep 1
+    } else {
+      deadline = new Date(d.getFullYear(), 1, 1);  // Feb 1
+    }
+    const msLeft = deadline - d;
+    const daysLeft = Math.max(0, Math.ceil(msLeft / 86_400_000));
+    return { open: true, window, label: `${window === 'summer' ? 'Summer' : 'Winter'} window open — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining` };
+  }
+  // Closed — find the next window opening date
+  const d2 = new Date(save.currentDate);
+  const yr  = d2.getFullYear();
+
+  // Next Aug 1 (summer) — roll to next year if already passed
+  let nextSummer = new Date(yr, 7, 1);
+  if (nextSummer <= d2) nextSummer = new Date(yr + 1, 7, 1);
+
+  // Next Jan 1 (winter) — roll to next year if already passed
+  let nextWinter = new Date(yr, 0, 1);
+  if (nextWinter <= d2) nextWinter = new Date(yr + 1, 0, 1);
+
+  // Whichever comes first
+  const nextOpen  = nextSummer <= nextWinter ? nextSummer : nextWinter;
+  const nextLabel = nextOpen.getMonth() === 7 ? 'Summer' : 'Winter';
+
+  const msUntil   = nextOpen - d2;
+  const daysUntil = Math.max(1, Math.ceil(msUntil / 86_400_000));
+  return { open: false, window: null, label: `Transfer window closed — ${nextLabel} window opens in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}` };
+}
+
+// ─── AI-to-AI Transfer Simulation ─────────────────────────────
+// Runs each gameweek during a transfer window. AI teams with budget
+// look for players to buy from other AI squads, respecting:
+//  • Reputation gate (canClubSignPlayer)
+//  • Budget adequacy
+//  • Squad size limits (≤30)
+//  • Clubs won't sell star players (top-2 by rating) unless offered ≥ 130% value
+//  • Clubs won't drop below 16 players (squad safety floor)
+//
+// Returns array of completed deals for potential news feed use.
+async function simulateAITransfers(save) {
+  const { open } = isTransferWindowOpen(save);
+  if (!open) return [];
+
+  const allTeams   = await getAllTeams();
+  const allPlayers = await getAllPlayers();
+  const userTeamId = save.userTeamId;
+
+  // Build mutable squad maps keyed by teamId
+  const squadMap = new Map();
+  for (const p of allPlayers) {
+    if (!squadMap.has(p.teamId)) squadMap.set(p.teamId, []);
+    squadMap.get(p.teamId).push({ ...p });
+  }
+
+  const aiTeams = allTeams.filter(t => t.id !== userTeamId);
+  // Shuffle so no club always goes first
+  const shuffledTeams = [...aiTeams].sort(() => Math.random() - 0.5);
+
+  // Budget tracking (we'll write back at end)
+  const budgetMap = new Map(allTeams.map(t => [t.id, t.budget ?? 0]));
+
+  const deals = [];
+  // Each team attempts 0–2 signings per window check (controlled by probability)
+  for (const buyer of shuffledTeams) {
+    const buyerBudget = budgetMap.get(buyer.id) ?? 0;
+    if (buyerBudget < 1_000_000) continue; // broke, skip
+
+    const buyerSquad = squadMap.get(buyer.id) ?? [];
+    if (buyerSquad.length >= 28) continue; // squad full
+
+    // Determine a target rating range the club should be looking at
+    // Clubs aim to improve positions. Target rating: slightly above squad average
+    const avgRating = buyerSquad.length
+      ? buyerSquad.reduce((s, p) => s + _fav_primaryRating(p), 0) / buyerSquad.length
+      : 60;
+    const targetMin = Math.max(50, avgRating - 5);
+    const targetMax = Math.min(99, avgRating + 18); // reach up modestly
+
+    // Find available players from OTHER AI teams (not user, not same club)
+    const candidates = allPlayers.filter(p => {
+      if (p.teamId === userTeamId) return false;
+      if (p.teamId === buyer.id)   return false;
+      const r = _fav_primaryRating(p);
+      if (r < targetMin || r > targetMax) return false;
+      if (!canClubSignPlayer(buyer, p))   return false;
+      const pValue = formAdjustedValue(p);
+      if (buyerBudget < pValue * 0.75)    return false; // can't afford
+
+      // Seller squad safety: won't drop below 16
+      const sellerSquad = squadMap.get(p.teamId) ?? [];
+      if (sellerSquad.length <= 16) return false;
+
+      // Seller star protection: top 2 rated players in squad not for sale
+      // unless buyer offers a premium (simulate transfer listed vs not)
+      const sorted = [...sellerSquad].sort((a, b) => _fav_primaryRating(b) - _fav_primaryRating(a));
+      const isTopStar = sorted[0]?.id === p.id || sorted[1]?.id === p.id;
+      if (isTopStar) return false; // AI protects key players
+
+      return true;
+    });
+
+    if (!candidates.length) continue;
+
+    // Probability of making a move this GW — not every team buys every week
+    // Higher rep / bigger budget = more active in window
+    const activityChance = Math.min(0.35, 0.05 + (buyer.reputation ?? 60) / 300);
+    if (Math.random() > activityChance) continue;
+
+    // Pick best value candidate (highest rating within affordable range)
+    const affordable = candidates.filter(p => budgetMap.get(buyer.id) >= formAdjustedValue(p) * 0.75);
+    if (!affordable.length) continue;
+
+    // Weighted pick — prefer higher rated within budget
+    affordable.sort((a, b) => _fav_primaryRating(b) - _fav_primaryRating(a));
+    // Small randomness: pick from top 5
+    const pool    = affordable.slice(0, 5);
+    const target  = pool[Math.floor(Math.random() * pool.length)];
+    const fav     = formAdjustedValue(target);
+    // AI pays between 90% and 110% of form value (realistic negotiation)
+    const fee     = Math.round(fav * (0.90 + Math.random() * 0.20));
+    const curBudget = budgetMap.get(buyer.id);
+    if (curBudget < fee) continue;
+
+    const sellerTeamId = target.teamId;
+
+    // Execute transfer in memory
+    budgetMap.set(buyer.id,     curBudget - fee);
+    budgetMap.set(sellerTeamId, (budgetMap.get(sellerTeamId) ?? 0) + fee);
+
+    // Update squad maps
+    const oldSellerSquad = squadMap.get(sellerTeamId) ?? [];
+    squadMap.set(sellerTeamId, oldSellerSquad.filter(p => p.id !== target.id));
+    const buyerSquadNow = squadMap.get(buyer.id) ?? [];
+    squadMap.set(buyer.id, [...buyerSquadNow, { ...target, teamId: buyer.id }]);
+
+    // Update allPlayers array for subsequent iterations
+    const pIdx = allPlayers.findIndex(p => p.id === target.id);
+    if (pIdx !== -1) allPlayers[pIdx] = { ...allPlayers[pIdx], teamId: buyer.id };
+
+    deals.push({
+      playerId:      target.id,
+      playerName:    target.name,
+      fromTeamId:    sellerTeamId,
+      fromTeamName:  allTeams.find(t => t.id === sellerTeamId)?.name ?? sellerTeamId,
+      toTeamId:      buyer.id,
+      toTeamName:    buyer.name,
+      fee,
+      date:          save.currentDate,
+    });
+  }
+
+  if (!deals.length) return [];
+
+  // Persist changed players and team budgets
+  const movedPlayerIds = new Set(deals.map(d => d.playerId));
+  const playersToWrite = allPlayers.filter(p => movedPlayerIds.has(p.id));
+  if (playersToWrite.length) await bulkPut('players', playersToWrite);
+
+  const teamsToWrite = [];
+  for (const t of allTeams) {
+    if (budgetMap.has(t.id) && budgetMap.get(t.id) !== t.budget) {
+      teamsToWrite.push({ ...t, budget: budgetMap.get(t.id) });
+    }
+  }
+  if (teamsToWrite.length) await bulkPut('teams', teamsToWrite);
+
+  // Log to transfer history
+  for (const d of deals) {
+    await addTransfer({ playerId: d.playerId, playerName: d.playerName, fromTeamId: d.fromTeamId, toTeamId: d.toTeamId, fee: d.fee, type: 'ai_transfer', date: d.date }).catch(() => {});
+  }
+
+  return deals;
 }
 
 // ─── Buy-side counter: club comes back with price after rejection ──
@@ -8767,6 +8980,7 @@ async function advanceOneFixture(overrideFormation) {
     await updateCache(allPlayers, aiResults);
     await applyDevelopment(aiResults).catch(() => {});
     const newOffers = await generateAIOffers().catch(() => []);
+    await simulateAITransfers(save).catch(() => {});
     const freshSave1 = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
@@ -8881,6 +9095,7 @@ async function advanceOneFixture(overrideFormation) {
 
   let newOffers = [];
   if (gwDone) newOffers = await generateAIOffers().catch(() => []) ?? [];
+  if (gwDone) await simulateAITransfers(save).catch(() => {});
 
   // Re-read save so we don't overwrite the offers generateAIOffers just wrote
   const freshSave2 = gwDone ? await getSave() : save;
@@ -8997,6 +9212,7 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
   if (gwDone) {
     newDate.setDate(newDate.getDate() + 7);
     newOffers = await generateAIOffers().catch(()=>[]) ?? [];
+    await simulateAITransfers(save).catch(() => {});
   }
 
   // Re-read save so we don't overwrite the offers generateAIOffers just wrote
@@ -9233,14 +9449,6 @@ function posGroup(pos) {
   if (['CB','RB','LB'].includes(pos))             return 'DEF';
   if (pos === 'GK')                               return 'GK';
   return 'MID';
-}
-
-function primaryRating(p) {
-  const g = posGroup(p.position);
-  if (g === 'ATT') return p.attack;
-  if (g === 'MID') return p.midfield;
-  if (g === 'DEF') return p.defence;
-  return p.goalkeeping;
 }
 
 function formLabel(p) {
@@ -9827,6 +10035,16 @@ async function renderTransfers(){
   const save=await getSave(), team=await getTeam(save.userTeamId);
   const allTeams=await getAllTeams(), byId=new Map(allTeams.map(t=>[t.id,t]));
   const bh=document.getElementById('tr-budget-hdr');
+
+  // ── Transfer window status banner ──
+  const winStatus = transferWindowStatus(save);
+  const winBanner = document.getElementById('tr-window-banner');
+  if (winBanner) {
+    const isOpen = winStatus.open;
+    winBanner.innerHTML = `<span style="font-size:11px;font-weight:700;letter-spacing:.5px;color:${isOpen?'var(--acc)':'#e55'}">${isOpen?'🟢':'🔴'} ${winStatus.label.toUpperCase()}</span>`;
+    winBanner.style.display = 'flex';
+  }
+
   if(bh&&team) bh.innerHTML=`<span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2)">Budget</span><span style="font-family:var(--fd);font-size:20px;color:var(--acc)">${fmt.money(team.budget)}</span></span>`;
 
   const allPl=await getAllPlayers();
@@ -10160,6 +10378,8 @@ async function renderPlayerDetail(player,byId){
   const el=document.getElementById('det-panel');
   if(!el) return;
   const _sv=await getSave();
+  const _winStatus=typeof transferWindowStatus==='function'?transferWindowStatus(_sv):{open:true};
+  const _windowClosed=!_winStatus.open;
   const _isCollapsed=(_sv.collapsedDeals||[]).includes(player.id);
   const _userTeam=await getTeam(_sv.userTeamId);
   const _userRep=_userTeam?.reputation??60;
@@ -10194,9 +10414,11 @@ async function renderPlayerDetail(player,byId){
   // Pre-compute offer section HTML to avoid nested backtick issues
   const _offerSectionHtml = _isCollapsed
     ? '<div class="offer-sec" style="opacity:0.6"><div style="background:rgba(232,72,85,0.12);border:1px solid var(--acc3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:13px;font-weight:700;color:var(--acc3);margin-bottom:4px">🚫 Deal Collapsed</div><div style="font-size:11px;color:var(--tx2)">Negotiations broke down earlier this window. You cannot make another offer until the next transfer window.</div></div></div><div class="tr-acts"><button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button></div>'
-    : _repBlocked
-      ? '<div class="tr-acts"><button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button></div>'
-      : '<div class="offer-sec"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><div class="offer-lbl">Your Offer</div><div style="font-size:10px;color:var(--txd);font-family:var(--fm)">Min ~'+fmt.money(minOff)+'</div></div><div class="offer-row"><input type="range" id="offer-slider" min="'+Math.floor(minOff*0.7)+'" max="'+Math.floor(fv*1.6)+'" value="'+initOff+'" step="100000"><div id="offer-val" class="offer-v">'+fmt.money(initOff)+'</div></div><div id="offer-likelihood" class="offer-hint" style="margin-top:5px;color:var(--acc)">Likely accepted ✓</div></div><div class="tr-acts"><button class="btn btn-p" id="btn-offer">Make Offer</button><button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button></div>';
+    : _windowClosed
+      ? '<div class="offer-sec"><div style="background:rgba(232,72,85,0.10);border:1px solid rgba(232,72,85,0.3);border-radius:8px;padding:12px;text-align:center"><div style="font-size:13px;font-weight:700;color:var(--acc3);margin-bottom:4px">🔴 Window Closed</div><div style="font-size:11px;color:var(--tx2)">'+(_winStatus.label||'Transfer window is currently closed.')+'</div></div></div><div class="tr-acts"><button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button></div>'
+      : _repBlocked
+        ? '<div class="tr-acts"><button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button></div>'
+        : '<div class="offer-sec"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><div class="offer-lbl">Your Offer</div><div style="font-size:10px;color:var(--txd);font-family:var(--fm)">Min ~'+fmt.money(minOff)+'</div></div><div class="offer-row"><input type="range" id="offer-slider" min="'+Math.floor(minOff*0.7)+'" max="'+Math.floor(fv*1.6)+'" value="'+initOff+'" step="100000"><div id="offer-val" class="offer-v">'+fmt.money(initOff)+'</div></div><div id="offer-likelihood" class="offer-hint" style="margin-top:5px;color:var(--acc)">Likely accepted ✓</div></div><div class="tr-acts"><button class="btn btn-p" id="btn-offer">Make Offer</button><button class="btn btn-s" id="btn-det-back" style="display:none">← Back</button></div>';
   const baseVal=player.value||fv;
   const valChange=fv-baseVal;
   const valPct=Math.round(Math.min(100,(fv/Math.max(fv,baseVal))*100));
@@ -10369,7 +10591,7 @@ async function renderPlayerDetail(player,byId){
               toast(`❌ ${tn} rejected and won't negotiate further`,'error',5000);
             }
           } else {
-            const msgs={INSUFFICIENT_FUNDS:'Not enough budget.',ALREADY_IN_SQUAD:'Already in your squad.',REP_TOO_LOW:'Your club\'s reputation is too low to attract this calibre of player. Earn promotions to raise your standing.'};
+            const msgs={INSUFFICIENT_FUNDS:'Not enough budget.',ALREADY_IN_SQUAD:'Already in your squad.',REP_TOO_LOW:'Your club\'s reputation is too low to attract this calibre of player. Earn promotions to raise your standing.',WINDOW_CLOSED:'The transfer window is closed. You can only sign players in the summer (Aug) or winter (Jan) windows.'};
             toast(`❌ ${msgs[err.message]||err.message}`,'error',6000);
           }
         }
@@ -10380,6 +10602,9 @@ async function renderPlayerDetail(player,byId){
 async function renderSellList(userTeamId){
   const el=document.getElementById('sell-list');
   if(!el) return;
+  const save=await getSave();
+  const winStatus=typeof transferWindowStatus==='function'?transferWindowStatus(save):{open:true};
+  const winClosed=!winStatus.open;
   const players=await getPlayersByTeam(userTeamId);
   el.innerHTML=[...players].sort((a,b)=>primaryRating(b)-primaryRating(a)).map(p=>{
     const g=posGroup(p.position),r=primaryRating(p);
@@ -10389,9 +10614,15 @@ async function renderSellList(userTeamId){
       <div class="pl-av" style="background:var(--sur3);font-size:8px;font-family:var(--fm);font-weight:700;color:var(--tx2);letter-spacing:.5px">${posGroup(p.position)}</div>
       <div class="pl-info"><div class="pl-name">${p.name}${isL?` <span class="listed-badge">LISTED</span>`:''}</div><div class="pl-meta"><span class="pos ${g}">${p.position}</span><span>Age ${p.age}</span></div></div>
       <div class="pl-val">${fmt.money(fv)}</div><div class="pl-rat">${r}</div>
-      <button class="sell-btn" data-sid="${p.id}">Sell</button>
+      <button class="sell-btn" data-sid="${p.id}" ${winClosed?'disabled title="Transfer window closed" style=\'opacity:0.35;cursor:not-allowed\'':''}>Sell</button>
     </div>`;
   }).join('');
+  if(winClosed){
+    const notice=document.createElement('div');
+    notice.style.cssText='padding:10px 14px;text-align:center;font-size:11px;color:var(--acc3);font-family:var(--fm);border-top:1px solid var(--bdr);background:rgba(232,72,85,0.07)';
+    notice.textContent='🔴 Transfer window closed — selling resumes in the next window';
+    el.prepend(notice);
+  }
   el.querySelectorAll('.sell-btn').forEach(btn=>{
     btn.onclick=async(e)=>{
       e.stopPropagation();
@@ -10413,7 +10644,10 @@ async function renderSellList(userTeamId){
           if(typeof newsPlayerSold==='function') newsPlayerSold(pl,fee,buyerName,await getSave()).catch(()=>{});
           await renderTransfers();
         }
-        catch(err){toast(`❌ ${err.message}`,'error',5000);}
+        catch(err){
+          const sellMsgs={WINDOW_CLOSED:'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.',NO_BUYERS:'No clubs could be found willing to buy this player right now.',PLAYER_NOT_IN_SQUAD:'Player not found in your squad.'};
+          toast(`❌ ${sellMsgs[err.message]||err.message}`,'error',5000);
+        }
       }},{id:'x',label:'Cancel',cls:'btn-s'}]);
     };
   });
