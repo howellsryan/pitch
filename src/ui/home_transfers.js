@@ -1,9 +1,26 @@
+import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, putSave } from '../modules/db.js';
+import { primaryRating } from '../modules/matchEngine.js';
+import { getTableSliceAroundTeam } from '../modules/standings.js';
+import { getLastResultForTeam, getNextFixtureForTeam } from '../modules/fixtures.js';
+import { CUP_META } from '../modules/cups.js';
+import { _loanFee, _loanWageCost, buyPlayer, canClubSignPlayer, formAdjustedValue, generateAIOffers, generateBuyCounter, getLoanableInPlayers, isDeadlineDay, loanInPlayer, loanOutPlayer, playerMinRepToSign, sellPlayer, simulateAITransfers, transferWindowStatus } from '../modules/transfers.js';
+import { getPotentialLabel, getPotentialStars } from '../modules/potential.js';
+import { injuryDurationLabel } from '../modules/injuries.js';
+import { patchSave } from '../modules/save.js';
+import { processEndOfSeason } from '../modules/season.js';
+import { advanceOneFixture, getEffectiveTotalGW } from '../modules/gameweek.js';
+import { fmt, formLabel, hideLoader, playerNationality, posGroup, showLoader, showModal, toast } from './helpers.js';
+import { renderSettings } from './renderers.js';
+import { _updateOffersBadge, openSquadPlayerModal, showOffersModal } from './squad_tactics_offers.js';
+import { _makeNewsItem, addNewsItem, newsMatchResult, newsPlayerSigned, newsPlayerSold, newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
+import { showPreMatchModal } from './prematch.js';
+
 // ══════════════════════════════════════════════════════════════
 // HOME SCREEN
 // ══════════════════════════════════════════════════════════════
 
 // ─── Close the transfer window after deadline day ─────────────
-async function _closeTransferWindow(ddInfo, btn) {
+export async function _closeTransferWindow(ddInfo, btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Closing window…'; }
   const save = await getSave();
   const cur = new Date(save.currentDate);
@@ -25,7 +42,7 @@ async function _closeTransferWindow(ddInfo, btn) {
   await renderHome();
 }
 
-async function renderHome(){
+export async function renderHome(){
   const save=await getSave(), team=await getTeam(save.userTeamId);
   const players=await getPlayersByTeam(save.userTeamId);
   const allTeams=await getAllTeams(), byId=new Map(allTeams.map(t=>[t.id,t]));
@@ -228,7 +245,7 @@ async function renderHome(){
   if (eoyBtn) { eoyBtn.disabled=false; eoyBtn.onclick=null; if(isEnd) eoyBtn.onclick=handleEndOfSeason; }
 }
 
-async function renderCharts(){
+export async function renderCharts(){
   const el=document.getElementById('h-charts');
   if(!el) return;
   const all=await getAllPlayers();
@@ -245,7 +262,7 @@ async function renderCharts(){
 
 // ── SIMULATE ONE FIXTURE
 // handleAdvanceOneFixture is defined in prematch.js
-async function _handleAdvanceOneFixtureStub(){
+export async function _handleAdvanceOneFixtureStub(){
   const btn=document.getElementById('btn-adv');
   if(!btn||btn.disabled) return;
   const save=await getSave();
@@ -289,7 +306,7 @@ async function _handleAdvanceOneFixtureStub(){
 // ── MATCH REPORT
 // Layout: HOME team always on LEFT, AWAY always on RIGHT (real football convention)
 // User's team highlighted. Stats bar: home=left/green, away=right/red.
-function showMatchReport(r,save){
+export function showMatchReport(r,save){
   const isHome = r.homeTeamId === save.userTeamId;
   const userResult = r.homeTeamId===save.userTeamId
     ? (r.homeGoals>r.awayGoals?'WIN':r.homeGoals<r.awayGoals?'LOSS':'DRAW')
@@ -405,7 +422,7 @@ function showMatchReport(r,save){
 }
 
 // ── END OF SEASON
-async function handleEndOfSeason(){
+export async function handleEndOfSeason(){
   const btn=document.getElementById('btn-eoy');
   if(btn) btn.disabled=true;
   showLoader('Processing end of season…');
@@ -506,9 +523,9 @@ async function handleEndOfSeason(){
 }
 
 // ── TRANSFERS
-let _buyTargets=[],_selPid=null,_trByIdCache=null,_trTeamCache=null;
+export let _buyTargets=[],_selPid=null,_trByIdCache=null,_trTeamCache=null;
 // Active filter state
-const _trFilters = {
+export const _trFilters = {
   pos:'ALL', league:'ALL', sort:'rating',
   minAge:15, maxAge:40, minRat:40, maxRat:99,
   maxPrice:0,   // 0 = no limit (never filters)
@@ -519,7 +536,7 @@ const _trFilters = {
   page: 0,       // current page (0-indexed), 100 players per page
 };
 
-async function renderTransfers(){
+export async function renderTransfers(){
   const save=await getSave(), team=await getTeam(save.userTeamId);
   const allTeams=await getAllTeams(), byId=new Map(allTeams.map(t=>[t.id,t]));
   const bh=document.getElementById('tr-budget-hdr');
@@ -565,7 +582,7 @@ async function renderTransfers(){
   if(typeof _updateOffersBadge==='function') _updateOffersBadge();
 }
 
-function _renderAdvancedFilters(byId, team, leagueSet){
+export function _renderAdvancedFilters(byId, team, leagueSet){
   // Position tabs
   document.querySelectorAll('#tr-filters .ftab').forEach(tab=>{
     tab.onclick=()=>{
@@ -723,7 +740,7 @@ function _renderAdvancedFilters(byId, team, leagueSet){
   };
 }
 
-function _applyAndRenderBuyList(byId, team, keepPage){
+export function _applyAndRenderBuyList(byId, team, keepPage){
   if(!keepPage) _trFilters.page=0;
   // Cache refs so pagination can re-call without needing them passed in
   if(byId) _trByIdCache=byId;
@@ -786,7 +803,7 @@ function _applyAndRenderBuyList(byId, team, keepPage){
   renderBuyList(_byId, pageSlice, userRep, fil.length, totalPages, f.page);
 }
 
-function renderBuyList(byId, filteredPlayers, userRep, totalCount, totalPages, currentPage){
+export function renderBuyList(byId, filteredPlayers, userRep, totalCount, totalPages, currentPage){
   const el=document.getElementById('buy-list');
   if(!el) return;
   totalCount=totalCount??filteredPlayers.length;
@@ -873,7 +890,7 @@ function renderBuyList(byId, filteredPlayers, userRep, totalCount, totalPages, c
   pag.querySelector('#tr-pg-next').onclick=()=>{ if(currentPage<totalPages-1) goTo(currentPage+1); };
   pag.querySelector('#tr-pg-last').onclick=()=>{ if(currentPage<totalPages-1) goTo(totalPages-1); };
 }
-async function renderPlayerDetail(player,byId){
+export async function renderPlayerDetail(player,byId){
   const el=document.getElementById('det-panel');
   if(!el) return;
   const _sv=await getSave();
@@ -1105,9 +1122,9 @@ async function renderPlayerDetail(player,byId){
   };
 }
 // ─── Loan Market UI ────────────────────────────────────────────
-let _loanMode='in'; // 'in' | 'out'
+export let _loanMode='in'; // 'in' | 'out'
 
-async function renderLoanMarket(){
+export async function renderLoanMarket(){
   const el=document.getElementById('loan-list');
   const countEl=document.getElementById('loan-count');
   if(!el) return;
@@ -1139,7 +1156,7 @@ async function renderLoanMarket(){
   }
 }
 
-async function _renderLoanInList(el, countEl, save){
+export async function _renderLoanInList(el, countEl, save){
   const allTeams=await getAllTeams();
   const byId=new Map(allTeams.map(t=>[t.id,t]));
   const userTeam=byId.get(save.userTeamId);
@@ -1187,7 +1204,7 @@ async function _renderLoanInList(el, countEl, save){
   });
 }
 
-async function _renderLoanOutList(el, countEl, save){
+export async function _renderLoanOutList(el, countEl, save){
   const players=await getPlayersByTeam(save.userTeamId);
   const allTeams=await getAllTeams();
   const byId=new Map(allTeams.map(t=>[t.id,t]));
@@ -1229,7 +1246,7 @@ async function _renderLoanOutList(el, countEl, save){
   });
 }
 
-function _showLoanInDetail(player, byId, save, userBudget){
+export function _showLoanInDetail(player, byId, save, userBudget){
   const parentTeam=byId.get(player.teamId);
   const pName=parentTeam?.name??'Unknown';
   const g=typeof posGroup==='function'?posGroup(player.position):'MID';
@@ -1278,7 +1295,7 @@ function _showLoanInDetail(player, byId, save, userBudget){
   );
 }
 
-function _showLoanOutDetail(player, save){
+export function _showLoanOutDetail(player, save){
   const g=typeof posGroup==='function'?posGroup(player.position):'MID';
   const r=typeof primaryRating==='function'?primaryRating(player):70;
   const fee=typeof _loanFee==='function'?_loanFee(player):Math.round((player.value??0)*0.1);
@@ -1314,7 +1331,7 @@ function _showLoanOutDetail(player, save){
   );
 }
 
-async function renderSellList(userTeamId){
+export async function renderSellList(userTeamId){
   const el=document.getElementById('sell-list');
   if(!el) return;
   const save=await getSave();

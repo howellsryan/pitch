@@ -1,10 +1,15 @@
+import { getSave } from '../modules/db.js';
+import { injuryDurationLabel } from '../modules/injuries.js';
+import { patchSave } from '../modules/save.js';
+import { fmt } from './helpers.js';
+
 // ══════════════════════════════════════════════════════════════
 // INBOX / NEWS FEED
 // ══════════════════════════════════════════════════════════════
 
 // ─── News item factory ────────────────────────────────────────
 // type: 'match' | 'transfer_in' | 'transfer_out' | 'injury' | 'season' | 'academy' | 'offer'
-function _makeNewsItem(type, title, body, extra = {}) {
+export function _makeNewsItem(type, title, body, extra = {}) {
   return {
     id:    `news_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
     type,
@@ -17,8 +22,8 @@ function _makeNewsItem(type, title, body, extra = {}) {
 }
 
 // ─── Add to save.inbox (cap at 80) — serialised to prevent race conditions ──
-let _inboxWriteQueue = Promise.resolve();
-async function addNewsItem(item) {
+export let _inboxWriteQueue = Promise.resolve();
+export async function addNewsItem(item) {
   _inboxWriteQueue = _inboxWriteQueue.then(async () => {
     const save = await getSave();
     const inbox = save.inbox || [];
@@ -31,7 +36,7 @@ async function addNewsItem(item) {
 }
 
 // ─── Badge update ─────────────────────────────────────────────
-async function _updateInboxBadge() {
+export async function _updateInboxBadge() {
   const save = await getSave();
   const unread = (save.inbox || []).filter(i => !i.read).length;
   // Desktop sidebar badge
@@ -53,7 +58,7 @@ async function _updateInboxBadge() {
 }
 
 // ─── Category config ─────────────────────────────────────────
-const _NEWS_CAT = {
+export const _NEWS_CAT = {
   match:        { label: 'Match',    icon: '⚽', color: 'var(--acc)'  },
   transfer_in:  { label: 'Signing',  icon: '📥', color: '#22c55e'     },
   transfer_out: { label: 'Sale',     icon: '📤', color: '#f97316'     },
@@ -64,7 +69,7 @@ const _NEWS_CAT = {
 };
 
 // ─── Render inbox screen ──────────────────────────────────────
-async function renderInbox() {
+export async function renderInbox() {
   const el = document.getElementById('screen-inbox');
   if (!el) return;
 
@@ -132,7 +137,7 @@ async function renderInbox() {
   });
 }
 
-function _timeAgo(ts) {
+export function _timeAgo(ts) {
   if (!ts) return '';
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
@@ -148,7 +153,7 @@ function _timeAgo(ts) {
 // NEWS GENERATION HELPERS — called from other modules
 // ══════════════════════════════════════════════════════════════
 
-async function newsMatchResult(result, save) {
+export async function newsMatchResult(result, save) {
   const isHome = result.homeTeamId === save.userTeamId;
   const ug = isHome ? result.homeGoals : result.awayGoals;
   const og = isHome ? result.awayGoals : result.homeGoals;
@@ -170,31 +175,31 @@ async function newsMatchResult(result, save) {
   await addNewsItem(_makeNewsItem('match', title, body, { gw: result.gameweek || save.currentGameweek }));
 }
 
-async function newsPlayerSigned(player, fee, save) {
+export async function newsPlayerSigned(player, fee, save) {
   const title = `📥 ${player.name} signed`;
   const body  = `${player.position} · Age ${player.age} · ${fmt.money(fee)} fee`;
   await addNewsItem(_makeNewsItem('transfer_in', title, body, { gw: save.currentGameweek }));
 }
 
-async function newsPlayerSold(player, fee, buyerName, save) {
+export async function newsPlayerSold(player, fee, buyerName, save) {
   const title = `📤 ${player.name} sold to ${buyerName}`;
   const body  = `${player.position} · Age ${player.age} · ${fmt.money(fee)} fee received`;
   await addNewsItem(_makeNewsItem('transfer_out', title, body, { gw: save.currentGameweek }));
 }
 
-async function newsInjury(player, injuryName, gwsLeft, save) {
+export async function newsInjury(player, injuryName, gwsLeft, save) {
   const title = `🚑 ${player.name} injured`;
   const body  = `${injuryName} · ${injuryDurationLabel(gwsLeft)} estimated recovery`;
   await addNewsItem(_makeNewsItem('injury', title, body, { gw: save.currentGameweek }));
 }
 
-async function newsAIBid(player, offer, buyerName, save) {
+export async function newsAIBid(player, offer, buyerName, save) {
   const title = `📨 Bid received for ${player.name}`;
   const body  = `${buyerName} have offered ${fmt.money(offer)} · Head to Transfers to respond`;
   await addNewsItem(_makeNewsItem('offer', title, body, { gw: save.currentGameweek }));
 }
 
-async function newsSeasonEnd(finish, league, trophies, prizeMoney, save) {
+export async function newsSeasonEnd(finish, league, trophies, prizeMoney, save) {
   const ordStr = finish + (['st','nd','rd'][finish-1]||'th');
   const title  = trophies.length ? `🏆 ${trophies[0]}` : `Season ${save.season} complete`;
   const parts  = [`Finished ${ordStr} in ${league}`];
@@ -203,25 +208,25 @@ async function newsSeasonEnd(finish, league, trophies, prizeMoney, save) {
   await addNewsItem(_makeNewsItem('season', title, parts.join(' · '), { gw: save.currentGameweek }));
 }
 
-async function newsPromotion(teamName, toLeague, save) {
+export async function newsPromotion(teamName, toLeague, save) {
   const title = `⬆️ Promoted to ${toLeague}!`;
   const body  = `${teamName} have earned promotion. New challenges await.`;
   await addNewsItem(_makeNewsItem('season', title, body, { gw: save.currentGameweek }));
 }
 
-async function newsRelegation(teamName, toLeague, save) {
+export async function newsRelegation(teamName, toLeague, save) {
   const title = `⬇️ Relegated to ${toLeague}`;
   const body  = `${teamName} drop down. Time to bounce back.`;
   await addNewsItem(_makeNewsItem('season', title, body, { gw: save.currentGameweek }));
 }
 
-async function newsYouthPromotion(player, save) {
+export async function newsYouthPromotion(player, save) {
   const title = `🎓 ${player.name} promoted from academy`;
   const body  = `${player.position} · Age ${player.age} · joins the first team squad`;
   await addNewsItem(_makeNewsItem('academy', title, body, { gw: save.currentGameweek }));
 }
 
-async function newsYouthIntake(count, wonderkids, save) {
+export async function newsYouthIntake(count, wonderkids, save) {
   const wkStr = wonderkids > 0 ? ` — ${wonderkids} wonderkid${wonderkids>1?'s':''} spotted!` : '';
   const title = `🎓 Youth intake complete`;
   const body  = `${count} new prospects joined the academy${wkStr}`;

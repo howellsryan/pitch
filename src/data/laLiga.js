@@ -5,7 +5,7 @@
  *
  * llp(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const llp = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const llp = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const llp = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const LA_LIGA_TEAMS = [
+export const LA_LIGA_TEAMS = [
   // ── REAL MADRID ────────────────────────────────────────────
   {id:'real_madrid',name:'Real Madrid',shortName:'RMA',crest:'👑',league:'La Liga',stadium:'Santiago Bernabéu',stadiumCapacity:85454,budget:250000000,reputation:99,primaryColor:'#FFFFFF',players:[
     llp('rma_courtois','T. Courtois','GK',33,14,16,20,94,70,220,94,0),

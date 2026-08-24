@@ -5,7 +5,7 @@
  *
  * sap(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const sap = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const sap = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const sap = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const SERIE_A_TEAMS = [
+export const SERIE_A_TEAMS = [
   // ── INTER MILAN ────────────────────────────────────────────
   {id:'inter',name:'Inter Milan',shortName:'INT',crest:'🔵⚫',league:'Serie A',stadium:'San Siro',stadiumCapacity:80018,budget:180000000,reputation:96,primaryColor:'#0068A8',players:[
     sap('int_j_martinez','J. Martínez','GK',27,10,12,16,82,18,55,83,0),

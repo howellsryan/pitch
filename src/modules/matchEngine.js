@@ -1,10 +1,12 @@
+import { rollInjuryCheck } from './injuries.js';
+
 /** modules/matchEngine.js — Simulation core. ATK→goals, MID→possession, DEF+GK→resistance. GK never scores. */
 
-const ATT = new Set(['ST','CF','RW','LW','CAM']);
-const MID = new Set(['CM','CDM','CAM','RM','LM']);
-const DEF = new Set(['CB','RB','LB']);
+export const ATT = new Set(['ST','CF','RW','LW','CAM']);
+export const MID = new Set(['CM','CDM','CAM','RM','LM']);
+export const DEF = new Set(['CB','RB','LB']);
 
-function positionGroup(pos) {
+export function positionGroup(pos) {
   if (ATT.has(pos)) return 'ATT';
   if (MID.has(pos)) return 'MID';
   if (DEF.has(pos)) return 'DEF';
@@ -12,7 +14,7 @@ function positionGroup(pos) {
   return 'MID';
 }
 
-function primaryRating(player) {
+export function primaryRating(player) {
   const g = positionGroup(player.position);
   if (g === 'ATT') return player.attack;
   if (g === 'MID') return player.midfield;
@@ -21,7 +23,7 @@ function primaryRating(player) {
 }
 
 // ─── Formation presets ───────────────────────────────────
-const FORMATIONS = {
+export const FORMATIONS = {
   '3-4-3':   { GK:1, CB:3, CM:2, RM:1, LM:1, RW:1, LW:1, ST:1 },
   '3-5-2':   { GK:1, CB:3, CM:2, CDM:1, RM:1, LM:1, ST:2 },
   '3-4-1-2': { GK:1, CB:3, CM:2, RM:1, LM:1, CAM:1, ST:2 },
@@ -38,13 +40,13 @@ const FORMATIONS = {
   '5-2-3':   { GK:1, CB:3, RB:1, LB:1, CM:2, RW:1, LW:1, ST:1 },
 };
 
-function pickAIFormation() {
+export function pickAIFormation() {
   const keys = Object.keys(FORMATIONS);
   return keys[Math.floor(Math.random() * keys.length)];
 }
 
 // ─── Select best 11 for a formation ──────────────────────────
-function selectEleven(players, formation = '4-3-3', lineup = null) {
+export function selectEleven(players, formation = '4-3-3', lineup = null) {
   const avail  = players.filter(p => !p.injured && !p.suspended && p.inSquad !== false);
   const slots  = { ...FORMATIONS[formation] ?? FORMATIONS['4-3-3'] };
   const chosen = [];
@@ -99,7 +101,7 @@ function selectEleven(players, formation = '4-3-3', lineup = null) {
   return chosen.slice(0, 11);
 }
 
-function selectBench(players, eleven) {
+export function selectBench(players, eleven) {
   const usedIds = new Set(eleven.map(p => p.id));
   return players
     .filter(p => !p.injured && !p.suspended && p.inSquad !== false && !usedIds.has(p.id))
@@ -114,7 +116,7 @@ function selectBench(players, eleven) {
 // Midfield: mids heavily weighted, forwards/defenders partially
 // Defence: defenders heavily weighted, mids partially, GK minimally
 // GK: only the goalkeeper (weighted fully)
-function teamStrength(eleven) {
+export function teamStrength(eleven) {
   const ATTACK_W    = { ST:1.0, CF:1.0, RW:0.85, LW:0.85, CAM:0.70,
                         CM:0.25, CDM:0.10, RM:0.40, LM:0.40,
                         CB:0.05, RB:0.08, LB:0.08, GK:0.0 };
@@ -148,7 +150,7 @@ function teamStrength(eleven) {
 
 // ─── Age-based fitness drain multiplier ──────────────────────
 // Older players tire faster during matches
-function ageDrain(age) {
+export function ageDrain(age) {
   if (age >= 36) return 1.35;
   if (age >= 33) return 1.20;
   if (age >= 30) return 1.10;
@@ -156,7 +158,7 @@ function ageDrain(age) {
 }
 
 // ─── Fitness degradation ──────────────────────────────────────
-function fitMult(fitness) {
+export function fitMult(fitness) {
   if (fitness >= 80) return 1.00;
   if (fitness >= 65) return 0.95;
   if (fitness >= 50) return 0.88;
@@ -176,13 +178,13 @@ function fitMult(fitness) {
 //
 // Defence model: separate DEF and GK stats, each on the same curve.
 // GK = 30% of resistance, outfield DEF = 70%. High-rated GKs matter a lot.
-function ratingFactor(rating, centre) {
+export function ratingFactor(rating, centre) {
   // Logistic curve: returns ~0.5 at centre, ~1.0 at 99, ~0.18 at 40.
   // Steepness 0.07 gives a meaningful spread without being too extreme.
   return 1 / (1 + Math.exp(-0.07 * (rating - centre)));
 }
 
-function goalChance(attStr, defStr, isHome) {
+export function goalChance(attStr, defStr, isHome) {
   // Base probability per attacking phase for a perfectly average match.
   // Calibrated so average teams (~75 rated) produce ~2.65 goals/90 total.
   const base = 0.011;
@@ -211,7 +213,7 @@ function goalChance(attStr, defStr, isHome) {
 // Weights reflect real-world goal distribution.
 // Individual attack rating is raised to power 2 so elite finishers
 // score disproportionately more than average ones (realistic).
-function pickScorer(eleven) {
+export function pickScorer(eleven) {
   const POS_WEIGHTS = {
     'ST': 40, 'CF': 38,
     'RW': 20, 'LW': 20, 'CAM': 15,
@@ -243,7 +245,7 @@ function pickScorer(eleven) {
 
 // ─── Assister picker — midfielders create most chances ────────
 // Weights reflect: playmakers and wide midfielders provide most assists
-function pickAssister(eleven, scorerId) {
+export function pickAssister(eleven, scorerId) {
   const cands = eleven.filter(p => p.id !== scorerId);
   if (!cands.length) return null;
 
@@ -293,7 +295,7 @@ function pickAssister(eleven, scorerId) {
 //             higher goal prob, but defensive line is high and they are
 //             susceptible to the counter — opponents get more phases too.
 //
-function getMentalityMods(mentality) {
+export function getMentalityMods(mentality) {
   switch (mentality) {
     case 'defensive':
       return {
@@ -336,7 +338,7 @@ function getMentalityMods(mentality) {
 }
 
 
-function shouldSub(fitness, minute, trailsBy) {
+export function shouldSub(fitness, minute, trailsBy) {
   if (minute < 55) return false;
   if (fitness < 65) return true;
   if (fitness < 75 && minute > 70) return true;
@@ -345,7 +347,7 @@ function shouldSub(fitness, minute, trailsBy) {
 }
 
 // ─── Core simulation ─────────────────────────────────────────
-function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality) {
+export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality) {
   const hFm    = homeFormation ?? '4-3-3';
   const aFm    = awayFormation ?? pickAIFormation();
   const hElev  = selectEleven(homePlayers, hFm, homeLineup ?? null);
@@ -516,7 +518,7 @@ function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormati
 // Simulates phases from startPhase to endPhase (1-120) using
 // provided live state. Returns events + updated live state.
 // Live state can be mutated between segments for real-time interventions.
-function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase) {
+export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase) {
   const {
     hActive, aActive, hFitness, aFitness,
     hBenchLeft, aBenchLeft, hSubsLeft, aSubsLeft,
@@ -640,7 +642,7 @@ function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhas
 }
 
 // ─── Build initial live state for Watch Match mode ─────────────
-function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality) {
+export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality) {
   const hFm   = homeFormation ?? '4-3-3';
   const aFm   = awayFormation ?? pickAIFormation();
   const hElev = selectEleven(homePlayers, hFm, homeLineup ?? null);
@@ -672,7 +674,7 @@ function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers, homeF
 }
 
 // ─── Finalise a live match into the standard result shape ──────
-function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
+export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
   const { hGoals, aGoals, hPhases, aPhases, hStr, aStr, hElev, aElev, hBench, aBenchLeft, hFitness, aFitness, homeFormation, awayFormation } = liveState;
   const fitnessUpdates = [];
   for (const p of hElev) fitnessUpdates.push({ id:p.id, teamId:homeTeam.id, newFitness:Math.max(30, hFitness.get(p.id) ?? 65) });
@@ -700,7 +702,7 @@ function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
 }
 
 // ─── Rich match statistics ────────────────────────────────────
-function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMult, aShotsMult) {
+export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMult, aShotsMult) {
   const total = (hPhases||60) + (aPhases||60);
   const homePoss = Math.round(((hPhases||60) / total) * 100);
 

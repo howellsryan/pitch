@@ -1,10 +1,10 @@
 /** ui/helpers.js — fmt.money/wage/date, toast, showModal, showLoader, navigateTo */
 
 // ─── Formatting ───────────────────────────────────────────────
-const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+export const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+export const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
-const fmt = {
+export const fmt = {
   date:      (d) => { const dt = new Date(d); return `${DAYS[dt.getDay()]} ${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`; },
   dateShort: (d) => { const dt = new Date(d); return `${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]}`; },
   money:     (v) => { v = Number(v) || 0; return v <= 0 ? 'Free' : v >= 1e9 ? `£${(v/1e9).toFixed(1)}B` : v >= 1e6 ? `£${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `£${(v/1e3).toFixed(0)}K` : `£${v}`; },
@@ -12,7 +12,7 @@ const fmt = {
 };
 
 // ─── Position helpers ────────────────────────────────────────
-function posGroup(pos) {
+export function posGroup(pos) {
   if (['ST','CF','RW','LW','CAM'].includes(pos)) return 'ATT';
   if (['CM','CDM','RM','LM'].includes(pos))       return 'MID';
   if (['CB','RB','LB'].includes(pos))             return 'DEF';
@@ -20,7 +20,7 @@ function posGroup(pos) {
   return 'MID';
 }
 
-function formLabel(p) {
+export function formLabel(p) {
   const score = 50 + (p.goals ?? 0) * 8 + (p.assists ?? 0) * 5 + (p.cleanSheets ?? 0) * 6;
   const capped = Math.min(99, score);
   if (capped >= 75) return { text: '🔥 Hot',   cls: 'hot' };
@@ -30,7 +30,7 @@ function formLabel(p) {
 
 // ─── Player nationality by ID + league fallback ──────────────
 // Covers all real players in the game data. Youth/generated players fall back to league.
-const _NAT = {
+export const _NAT = {
   // ── PREMIER LEAGUE ────────────────────────────────────────────
   ars_raya:'🇪🇸',ars_turner:'🇺🇸',ars_white:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',ars_timber:'🇳🇱',ars_saliba:'🇫🇷',ars_gabriel:'🇧🇷',
   ars_calafiori:'🇮🇹',ars_zinchenko:'🇺🇦',ars_rice:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',ars_partey:'🇬🇭',ars_merino:'🇪🇸',
@@ -100,20 +100,20 @@ const _NAT = {
 };
 
 // League-based fallback flag
-const _LEAGUE_FLAG = {
+export const _LEAGUE_FLAG = {
   'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League One':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League Two':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
   'La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Eredivisie':'🇳🇱',
 };
 
-function playerNationality(player, teamLeague) {
+export function playerNationality(player, teamLeague) {
   return _NAT[player.id] || _LEAGUE_FLAG[teamLeague] || '🌍';
 }
 
 // Keep for any legacy calls
-function flagEmoji(name) { return '🌍'; }
+export function flagEmoji(name) { return '🌍'; }
 
 // ─── Toast ───────────────────────────────────────────────────
-function toast(msg, type = 'info', duration = 3500) {
+export function toast(msg, type = 'info', duration = 3500) {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const el   = document.createElement('div');
@@ -126,16 +126,16 @@ function toast(msg, type = 'info', duration = 3500) {
 }
 
 // ─── Loader ───────────────────────────────────────────────────
-function showLoader(msg = 'Simulating…') {
+export function showLoader(msg = 'Simulating…') {
   const el = document.getElementById('loader');
   if (el) { el.querySelector('.loader-msg').textContent = msg; el.classList.add('vis'); }
 }
-function hideLoader() {
+export function hideLoader() {
   document.getElementById('loader')?.classList.remove('vis');
 }
 
 // ─── Modal ───────────────────────────────────────────────────
-function showModal(title, bodyHTML, actions = [], opts = {}) {
+export function showModal(title, bodyHTML, actions = [], opts = {}) {
   document.getElementById('modal-bd')?.remove();
   const bd = document.createElement('div');
   bd.id = 'modal-bd'; bd.className = 'modal-bd';
@@ -168,15 +168,15 @@ function showModal(title, bodyHTML, actions = [], opts = {}) {
 }
 
 // ─── Screen navigation ────────────────────────────────────────
-const _screens = new Map();
-let _active = null;
+export const _screens = new Map();
+export let _active = null;
 
-function registerScreen(id, onEnter) {
+export function registerScreen(id, onEnter) {
   const el = document.getElementById(`screen-${id}`);
   if (el) _screens.set(id, { el, onEnter });
 }
 
-async function navigateTo(id) {
+export async function navigateTo(id) {
   if (!_screens.has(id) || _active === id) return;
   if (_active) {
     _screens.get(_active).el.classList.remove('active');
@@ -190,5 +190,5 @@ async function navigateTo(id) {
   if (s.onEnter) { try { await s.onEnter(); } catch(e) { console.error(`[screen:${id}]`, e); } }
 }
 
-const getActiveScreen = () => _active;
+export const getActiveScreen = () => _active;
 

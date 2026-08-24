@@ -5,7 +5,7 @@
  *
  * l1p(id, name, nationality, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const l1p = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const l1p = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,nationality:nat,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const l1p = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const LEAGUE_ONE_TEAMS = [
+export const LEAGUE_ONE_TEAMS = [
   // ── CARDIFF CITY ───────────────────────────────────────────
   {id:'cardiff',name:'Cardiff City',shortName:'CAR',crest:'🔵',league:'League One',stadium:'Cardiff City Stadium',stadiumCapacity:33280,budget:18000000,reputation:68,primaryColor:'#0070B5',players:[
     l1p('car_trott','Nathan Trott','🏴󠁧󠁢󠁥󠁮󠁧󠁿','GK',27,10,11,13,72,2,10,74,0),

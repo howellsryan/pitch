@@ -5,7 +5,7 @@
  *
  * l2p(id, name, nationality, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const l2p = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const l2p = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,nationality:nat,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const l2p = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const LEAGUE_TWO_TEAMS = [
+export const LEAGUE_TWO_TEAMS = [
   // ── BROMLEY ────────────────────────────────────────────────
   {id:'bromley',name:'Bromley',shortName:'BRM',crest:'⚪⚫',league:'League Two',stadium:'Hayes Lane',stadiumCapacity:6100,budget:4000000,reputation:52,primaryColor:'#FFFFFF',players:[
     l2p('brm_addai','Dillon Addai','🏴󠁧󠁢󠁥󠁮󠁧󠁿','GK',25,10,10,12,65,1,6,68,0),

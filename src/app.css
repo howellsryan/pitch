@@ -1,0 +1,32 @@
+/**
+ * Design tokens — "Broadcast Kit" (docs/plan/02-design-system.md).
+ *
+ * Phase 2 lands the token layer only. src/shell.html still carries the live
+ * styling and its own --acc family; src/lib/theme.mjs sets both this
+ * --color-club token and those legacy vars, so the club accent works on
+ * today's screens and on the Phase 3 ones without a flag day.
+ */
+@theme {
+  --color-ground:  #0A0E14;
+  --color-surface: #131A23;
+  --color-raised:  #1C2530;
+  --color-line:    rgba(255, 255, 255, 0.07);
+
+  --color-tx:      #EDF1F5;
+  --color-tx-2:    #8695A8;
+  --color-tx-3:    #5A6878;
+
+  /* Set at runtime from the club's primaryColor — see src/lib/theme.mjs.
+     The value here is only the fallback before a save is loaded. */
+  --color-club:    #EF0107;
+  --color-on-club: #FFFFFF;
+
+  /* Semantic only. Green means live / positive / fit, and nothing else. */
+  --color-live:    #2BD97C;
+  --color-warn:    #F5B93D;
+  --color-bad:     #F0576B;
+
+  --font-display:  "Saira Condensed", "Arial Narrow", sans-serif;
+  --font-body:     "Figtree", system-ui, sans-serif;
+  --font-mono:     "IBM Plex Mono", ui-monospace, monospace;
+}

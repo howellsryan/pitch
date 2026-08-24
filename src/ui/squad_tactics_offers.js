@@ -1,7 +1,15 @@
+import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave } from '../modules/db.js';
+import { FORMATIONS, primaryRating } from '../modules/matchEngine.js';
+import { acceptOffer, counterOffer, formAdjustedValue, rejectOffer } from '../modules/transfers.js';
+import { getPotentialLabel, getPotentialStars } from '../modules/potential.js';
+import { fmt, formLabel, posGroup, showModal, toast } from './helpers.js';
+import { renderHome, renderTransfers } from './home_transfers.js';
+import { renderTrophies } from './renderers.js';
+
 // ══════════════════════════════════════════════════════════════
 // SQUAD SCREEN — compact no-scroll desktop table
 // ══════════════════════════════════════════════════════════════
-async function renderSquad() {
+export async function renderSquad() {
   const save    = await getSave();
   const players = await getPlayersByTeam(save.userTeamId);
   const team    = await getTeam(save.userTeamId);
@@ -110,7 +118,7 @@ async function renderSquad() {
   });
 }
 
-function openSquadPlayerModal(p, players, save) {
+export function openSquadPlayerModal(p, players, save) {
   const g        = posGroup(p.position);
   const r        = primaryRating(p);
   const fav      = formAdjustedValue ? formAdjustedValue(p) : p.value;
@@ -235,7 +243,7 @@ function openSquadPlayerModal(p, players, save) {
   ]);
 }
 
-async function handleSquadAction(action, playerId, players, save) {
+export async function handleSquadAction(action, playerId, players, save) {
   const pl = players.find(p => p.id === playerId);
   if (!pl) return;
   switch (action) {
@@ -251,7 +259,7 @@ async function handleSquadAction(action, playerId, players, save) {
 // ══════════════════════════════════════════════════════════════
 // TACTICS SCREEN — full-screen pitch, tap-to-swap bottom sheet
 // ══════════════════════════════════════════════════════════════
-async function renderTactics() {
+export async function renderTactics() {
   const save    = await getSave();
   const players = await getPlayersByTeam(save.userTeamId);
   const el      = document.getElementById('screen-tactics');
@@ -510,7 +518,7 @@ async function renderTactics() {
   });
 }
 
-function openSwapPicker(slotIdx, currentPlayer, players, assignment, slots, formation, save, preSelected) {
+export function openSwapPicker(slotIdx, currentPlayer, players, assignment, slots, formation, save, preSelected) {
   // Remove any existing swap sheet
   document.querySelector('.swap-backdrop')?.remove();
   document.querySelector('.swap-sheet')?.remove();
@@ -672,7 +680,7 @@ function openSwapPicker(slotIdx, currentPlayer, players, assignment, slots, form
 // ══════════════════════════════════════════════════════════════
 // TRANSFER OFFERS — shown via modal from Transfers screen
 // ══════════════════════════════════════════════════════════════
-async function showOffersModal() {
+export async function showOffersModal() {
   const save    = await getSave();
   const players = await getPlayersByTeam(save.userTeamId);
 
@@ -880,7 +888,7 @@ async function showOffersModal() {
 }
 
 // Update the badge on the Offers button in the Transfers screen
-async function _updateOffersBadge() {
+export async function _updateOffersBadge() {
   const save  = await getSave();
   const count = (save.inboundOffers ?? []).filter(o => o.status === 'pending').length;
   const badge = document.getElementById('tt-offers-badge');
@@ -895,10 +903,10 @@ async function _updateOffersBadge() {
 }
 
 // Keep old name as alias so nothing breaks if referenced elsewhere
-async function renderOffers() { await showOffersModal(); }
+export async function renderOffers() { await showOffersModal(); }
 
 
 // renderCups is now merged into renderTrophies (Trophies screen).
 // Kept as a named function so any validator/reference checks still resolve.
-async function renderCups() { await renderTrophies(); }
+export async function renderCups() { await renderTrophies(); }
 

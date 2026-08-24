@@ -1,9 +1,9 @@
 /** modules/db.js — IndexedDB ops: openDB, bulkPut, clearAndBulkPut, deleteDB. Stores: save,teams,players,fixtures,standings,transfers,honors,seasons */
-const DB_NAME    = 'pitch_fc';
-const DB_VERSION = 3;
-let _db = null;
+export const DB_NAME    = 'pitch_fc';
+export const DB_VERSION = 3;
+export let _db = null;
 
-function openDB() {
+export function openDB() {
   return new Promise((resolve, reject) => {
     if (_db) { resolve(_db); return; }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -30,10 +30,10 @@ function openDB() {
   });
 }
 
-const req2p = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-const store  = (name, mode='readonly') => _db.transaction(name, mode).objectStore(name);
+export const req2p = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+export const store  = (name, mode='readonly') => _db.transaction(name, mode).objectStore(name);
 
-function bulkPut(storeName, items) {
+export function bulkPut(storeName, items) {
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(storeName, 'readwrite');
     const s  = tx.objectStore(storeName);
@@ -44,7 +44,7 @@ function bulkPut(storeName, items) {
 }
 
 // Clear a store then bulk-insert — used for season rollover
-function clearAndBulkPut(storeName, items) {
+export function clearAndBulkPut(storeName, items) {
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(storeName, 'readwrite');
     const s  = tx.objectStore(storeName);
@@ -55,18 +55,18 @@ function clearAndBulkPut(storeName, items) {
   });
 }
 
-const getSave            = ()    => req2p(store('save').get('active'));
-const putSave            = (d)   => req2p(store('save','readwrite').put({ id:'active', ...d }));
-const getAllTeams         = ()    => req2p(store('teams').getAll());
-const getTeam            = (id)  => req2p(store('teams').get(id));
-const putTeam            = (t)   => req2p(store('teams','readwrite').put(t));
-const putTeamsBulk       = (ts)  => bulkPut('teams', ts);
-const getAllPlayers       = ()    => req2p(store('players').getAll());
-const getPlayer          = (id)  => req2p(store('players').get(id));
-const getPlayersByTeam   = (tid) => req2p(store('players').index('by_team').getAll(tid));
-const putPlayer          = (p)   => req2p(store('players','readwrite').put(p));
-const putPlayersBulk     = (ps)  => bulkPut('players', ps);
-function deletePlayersBulk(ids) {
+export const getSave            = ()    => req2p(store('save').get('active'));
+export const putSave            = (d)   => req2p(store('save','readwrite').put({ id:'active', ...d }));
+export const getAllTeams         = ()    => req2p(store('teams').getAll());
+export const getTeam            = (id)  => req2p(store('teams').get(id));
+export const putTeam            = (t)   => req2p(store('teams','readwrite').put(t));
+export const putTeamsBulk       = (ts)  => bulkPut('teams', ts);
+export const getAllPlayers       = ()    => req2p(store('players').getAll());
+export const getPlayer          = (id)  => req2p(store('players').get(id));
+export const getPlayersByTeam   = (tid) => req2p(store('players').index('by_team').getAll(tid));
+export const putPlayer          = (p)   => req2p(store('players','readwrite').put(p));
+export const putPlayersBulk     = (ps)  => bulkPut('players', ps);
+export function deletePlayersBulk(ids) {
   return new Promise((resolve, reject) => {
     const tx = _db.transaction('players', 'readwrite');
     const s  = tx.objectStore('players');
@@ -75,26 +75,26 @@ function deletePlayersBulk(ids) {
     tx.onerror    = () => reject(tx.error);
   });
 }
-const getAllFixtures      = ()    => req2p(store('fixtures').getAll());
-const getFixture         = (id)  => req2p(store('fixtures').get(id));
-const getFixturesByGW    = (gw)  => req2p(store('fixtures').index('by_gameweek').getAll(gw));
-const putFixture         = (f)   => req2p(store('fixtures','readwrite').put(f));
-const putFixturesBulk    = (fs)  => bulkPut('fixtures', fs);
+export const getAllFixtures      = ()    => req2p(store('fixtures').getAll());
+export const getFixture         = (id)  => req2p(store('fixtures').get(id));
+export const getFixturesByGW    = (gw)  => req2p(store('fixtures').index('by_gameweek').getAll(gw));
+export const putFixture         = (f)   => req2p(store('fixtures','readwrite').put(f));
+export const putFixturesBulk    = (fs)  => bulkPut('fixtures', fs);
 // Season rollover: clear ALL old fixtures first, then insert new ones
-const replaceAllFixtures  = (fs) => clearAndBulkPut('fixtures', fs);
-const getAllStandings     = ()    => req2p(store('standings').getAll());
-const getStanding        = (id)  => req2p(store('standings').get(id));
-const putStanding        = (s)   => req2p(store('standings','readwrite').put(s));
-const putStandingsBulk   = (ss)  => bulkPut('standings', ss);
-const replaceAllStandings= (ss)  => clearAndBulkPut('standings', ss);
-const getAllTransfers     = ()    => req2p(store('transfers').getAll());
-const addTransfer        = (t)   => req2p(store('transfers','readwrite').add(t));
-const getAllHonors        = ()    => req2p(store('honors').getAll());
-const addHonor           = (h)   => req2p(store('honors','readwrite').add(h));
-const getAllSeasons       = ()    => req2p(store('seasons').getAll());
-const addSeason          = (s)   => req2p(store('seasons','readwrite').add(s));
+export const replaceAllFixtures  = (fs) => clearAndBulkPut('fixtures', fs);
+export const getAllStandings     = ()    => req2p(store('standings').getAll());
+export const getStanding        = (id)  => req2p(store('standings').get(id));
+export const putStanding        = (s)   => req2p(store('standings','readwrite').put(s));
+export const putStandingsBulk   = (ss)  => bulkPut('standings', ss);
+export const replaceAllStandings= (ss)  => clearAndBulkPut('standings', ss);
+export const getAllTransfers     = ()    => req2p(store('transfers').getAll());
+export const addTransfer        = (t)   => req2p(store('transfers','readwrite').add(t));
+export const getAllHonors        = ()    => req2p(store('honors').getAll());
+export const addHonor           = (h)   => req2p(store('honors','readwrite').add(h));
+export const getAllSeasons       = ()    => req2p(store('seasons').getAll());
+export const addSeason          = (s)   => req2p(store('seasons','readwrite').add(s));
 
-function deleteDB() {
+export function deleteDB() {
   if (_db) { try { _db.close(); } catch(e) {} }
   _db = null;
   return new Promise((res, rej) => {
@@ -108,11 +108,11 @@ function deleteDB() {
 // ─── Save File Export / Import ────────────────────────────────
 // Exports all IndexedDB stores as a single compressed, obfuscated
 // .pitch file. Includes an integrity hash to detect tampering.
-const _PITCH_SALT = 'pitch_fc_v3_2025';
-const _PITCH_MAGIC = 'PITCH_SAVE_V1';
+export const _PITCH_SALT = 'pitch_fc_v3_2025';
+export const _PITCH_MAGIC = 'PITCH_SAVE_V1';
 
 // Simple hash for integrity checking (FNV-1a 32-bit, then hex)
-function _fnv1a(str) {
+export function _fnv1a(str) {
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
     h ^= str.charCodeAt(i);
@@ -121,7 +121,7 @@ function _fnv1a(str) {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-async function exportSaveFile() {
+export async function exportSaveFile() {
   const db = await openDB();
   const storeNames = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
   const snapshot = {};
@@ -183,7 +183,7 @@ async function exportSaveFile() {
   return { filename, size: saveCode.length, meta, saveCode };
 }
 
-async function importSaveFromCode(code) {
+export async function importSaveFromCode(code) {
   // Decode base64 save code
   let envelopeStr;
   try {
@@ -195,7 +195,7 @@ async function importSaveFromCode(code) {
   return _restoreFromEnvelope(envelopeStr);
 }
 
-async function importSaveFile(file) {
+export async function importSaveFile(file) {
   // Read file as text — save files are now base64-encoded text
   const text = await file.text();
 
@@ -225,7 +225,7 @@ async function importSaveFile(file) {
   return _restoreFromEnvelope(envelopeStr);
 }
 
-async function _restoreFromEnvelope(envelopeStr) {
+export async function _restoreFromEnvelope(envelopeStr) {
   // Parse envelope
   let envelope;
   try {

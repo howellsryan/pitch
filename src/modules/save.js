@@ -1,8 +1,26 @@
+import { BUNDESLIGA_TEAMS } from '../data/bundesliga.js';
+import { CHAMPIONSHIP_TEAMS } from '../data/championship.js';
+import { EREDIVISIE_TEAMS } from '../data/eredivisie.js';
+import { EXTRA_LEAGUES_TEAMS } from '../data/extraLeagues.js';
+import { LA_LIGA_TEAMS } from '../data/laLiga.js';
+import { LEAGUE_ONE_TEAMS } from '../data/leagueOne.js';
+import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
+import { LIGUE_1_TEAMS } from '../data/ligue1.js';
+import { PL_TEAMS } from '../data/plTeams.js';
+import { SERIE_A_TEAMS } from '../data/serieA.js';
+import { getSave, openDB, putFixturesBulk, putPlayersBulk, putSave, putStandingsBulk, putTeamsBulk } from './db.js';
+import { selectEleven } from './matchEngine.js';
+import { blankStandingRow } from './standings.js';
+import { generateLeagueFixtures } from './fixtures.js';
+import { assignCups, buildInitialCupState } from './cups.js';
+import { assignPotentials } from './potential.js';
+import { generateCohort } from './youthAcademy.js';
+
 /** modules/save.js — New game creation, save state management. Supports all leagues. */
 
 // ALL_TEAMS is populated at runtime from all *_TEAMS arrays (auto-discovered).
 // To add a new league: just create the data file with csv_to_league.py — no code changes needed.
-function getAllTeamData() {
+export function getAllTeamData() {
   const sources = [
     typeof PL_TEAMS             !== 'undefined' ? PL_TEAMS             : [],
     typeof EXTRA_LEAGUES_TEAMS  !== 'undefined' ? EXTRA_LEAGUES_TEAMS  : [],
@@ -22,14 +40,14 @@ function getAllTeamData() {
   return sources.flat();
 }
 
-async function initApp() {
+export async function initApp() {
   await openDB();
   const save = await getSave();
   if (save && save._deleted) return null;
   return save ?? null;
 }
 
-async function startNewGame(userTeamId, managerName) {
+export async function startNewGame(userTeamId, managerName) {
   await openDB();
 
   const allTeamData  = getAllTeamData();
@@ -111,7 +129,7 @@ async function startNewGame(userTeamId, managerName) {
   return save;
 }
 
-async function patchSave(patch) {
+export async function patchSave(patch) {
   const current = await getSave();
   const updated  = { ...current, ...patch };
   await putSave(updated);

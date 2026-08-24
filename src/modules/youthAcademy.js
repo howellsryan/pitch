@@ -1,8 +1,10 @@
+import { getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeamsBulk } from './db.js';
+
 /** modules/youthAcademy.js -- Youth cohort intake, development, promotion/release */
-const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RM','LM','ST','ST','CF','RW','LW'];
+export const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RM','LM','ST','ST','CF','RW','LW'];
 
 // Nation-aware name pools
-const NAMES_BY_NATION = {
+export const NAMES_BY_NATION = {
   english: {
     first: ['Jack','Harry','George','Oliver','Charlie','James','Thomas','Alfie','Freddie','Archie',
             'Joshua','William','Ethan','Mason','Logan','Liam','Noah','Theo','Finley','Sebastian',
@@ -53,7 +55,7 @@ const NAMES_BY_NATION = {
   },
 };
 
-const LEAGUE_NATION = {
+export const LEAGUE_NATION = {
   'Premier League': 'english',
   'Championship':   'english',
   'League One':     'english',
@@ -65,7 +67,7 @@ const LEAGUE_NATION = {
   'Eredivisie':     'dutch',
 };
 
-function randName(league) {
+export function randName(league) {
   const nation = LEAGUE_NATION[league] ?? 'english';
   const pool   = NAMES_BY_NATION[nation];
   const fn = pool.first[Math.floor(Math.random() * pool.first.length)];
@@ -74,7 +76,7 @@ function randName(league) {
 }
 
 // Academy quality tier by reputation
-function academyTier(reputation) {
+export function academyTier(reputation) {
   if (reputation >= 90) return 'elite';
   if (reputation >= 80) return 'top';
   if (reputation >= 68) return 'good';
@@ -88,12 +90,12 @@ function academyTier(reputation) {
 //   3* = 62-75
 //   2* = 48-61
 //   1* = < 48
-const POT_4STAR_CAP = 87; // non-wonderkid ceiling
+export const POT_4STAR_CAP = 87; // non-wonderkid ceiling
 
 // Generate a single youth prospect.
 // league param is needed for nation-aware naming and is passed from generateCohort.
 // isWonderkid is pre-determined at cohort level and passed in.
-function generateYouthPlayer(teamId, reputation, season, index, league, isWonderkid) {
+export function generateYouthPlayer(teamId, reputation, season, index, league, isWonderkid) {
   const tier = academyTier(reputation);
   const age  = 15 + Math.floor(Math.random() * 4); // 15-18
   const pos  = POSITIONS[Math.floor(Math.random() * POSITIONS.length)];
@@ -165,7 +167,7 @@ function generateYouthPlayer(teamId, reputation, season, index, league, isWonder
   };
 }
 
-function distributeAttributes(pos, base) {
+export function distributeAttributes(pos, base) {
   const jitter = () => Math.floor(Math.random() * 8) - 4;
   const clamp  = (v) => Math.max(10, Math.min(99, v));
   if (pos === 'GK') return {
@@ -200,7 +202,7 @@ function distributeAttributes(pos, base) {
   };
 }
 
-function calcYouthPeakAge(pos) {
+export function calcYouthPeakAge(pos) {
   if (['GK','CB'].includes(pos))             return 29 + Math.floor(Math.random() * 3);
   if (['RB','LB','CDM'].includes(pos))       return 28 + Math.floor(Math.random() * 3);
   if (['CM','CAM','RM','LM'].includes(pos))  return 27 + Math.floor(Math.random() * 3);
@@ -209,7 +211,7 @@ function calcYouthPeakAge(pos) {
   return 28;
 }
 
-function youthValue(base, age, potential) {
+export function youthValue(base, age, potential) {
   const ageFactor = age <= 16 ? 0.6 : age <= 17 ? 0.7 : age <= 18 ? 0.8 : 0.9;
   if (potential < 55) {
     return Math.round((250_000 + Math.max(0, potential - 30) * 20_000) * ageFactor);
@@ -222,7 +224,7 @@ function youthValue(base, age, potential) {
 // Generate a full cohort for one team.
 // Wonderkid chance applies per cohort (not per player) so at most one wonderkid per intake.
 // Chances: elite 25%, top 10%, good 5%, average/poor 1%.
-function generateCohort(teamId, reputation, season, league) {
+export function generateCohort(teamId, reputation, season, league) {
   const tier = academyTier(reputation);
   const size = 10; // Fixed intake of 10 players per season regardless of academy level
 
@@ -239,7 +241,7 @@ function generateCohort(teamId, reputation, season, league) {
 }
 
 // Run yearly intake for ALL teams
-async function runYouthIntake(save, allTeams) {
+export async function runYouthIntake(save, allTeams) {
   const season = save.season;
 
   const agedUserYouth = (save.youthCohort ?? [])
@@ -288,7 +290,7 @@ async function runYouthIntake(save, allTeams) {
 }
 
 // User promotes a youth player to first team
-async function promoteYouthPlayer(playerId) {
+export async function promoteYouthPlayer(playerId) {
   const save = await getSave();
   const youth = (save.youthCohort ?? []).find(p => p.id === playerId);
   if (!youth) throw new Error('Youth player not found');
@@ -315,14 +317,14 @@ async function promoteYouthPlayer(playerId) {
 }
 
 // User releases a youth player
-async function releaseYouthPlayer(playerId) {
+export async function releaseYouthPlayer(playerId) {
   const save      = await getSave();
   const newCohort = (save.youthCohort ?? []).filter(p => p.id !== playerId);
   await putSave({ ...save, youthCohort: newCohort });
 }
 
 // Get academy info for display
-function getAcademyInfo(reputation) {
+export function getAcademyInfo(reputation) {
   const tier = academyTier(reputation);
   return {
     tier,

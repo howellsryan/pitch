@@ -1,13 +1,19 @@
+import { FORMATIONS, buildLiveMatchState, finaliseLiveMatch, pickAIFormation, positionGroup, primaryRating, selectEleven, simulateMatchSegment, teamStrength } from '../modules/matchEngine.js';
+import { injuryDurationLabel } from '../modules/injuries.js';
+import { advanceOneFixtureWithResult } from '../modules/gameweek.js';
+import { fmt, hideLoader, showLoader, showModal, toast } from './helpers.js';
+import { renderHome, showMatchReport } from './home_transfers.js';
+
 /** ui/watchmatch.js — Live match viewer. Uses _openInlinePanel for subs/tactics (NOT showModal). GK↔GK only. */
 
-const WATCH_PHASES_PER_TICK = 1;       // 1 phase per tick = ~0.75 match-min
-const WATCH_TICK_MS         = 750;     // ms at 1× → full game in ~90s real time
-const TOTAL_PHASES          = 120;
+export const WATCH_PHASES_PER_TICK = 1;       // 1 phase per tick = ~0.75 match-min
+export const WATCH_TICK_MS         = 750;     // ms at 1× → full game in ~90s real time
+export const TOTAL_PHASES          = 120;
 
-let _watchState = null;
+export let _watchState = null;
 
 // ─── Entry point ──────────────────────────────────────────────
-async function showWatchMatchModal(matchEvent, userTeam, oppTeam, userPlayers, oppPlayers, save, overrideFormation) {
+export async function showWatchMatchModal(matchEvent, userTeam, oppTeam, userPlayers, oppPlayers, save, overrideFormation) {
   const userIsHome  = matchEvent.userIsHome ?? true;
   const homeTeam    = userIsHome ? userTeam : oppTeam;
   const awayTeam    = userIsHome ? oppTeam  : userTeam;
@@ -44,7 +50,7 @@ async function showWatchMatchModal(matchEvent, userTeam, oppTeam, userPlayers, o
 }
 
 // ─── Render ───────────────────────────────────────────────────
-function _renderWatchModal() {
+export function _renderWatchModal() {
   const s = _watchState;
   const h = s.homeTeam, a = s.awayTeam;
 
@@ -183,14 +189,14 @@ function _renderWatchModal() {
 }
 
 // ─── Tick engine ──────────────────────────────────────────────
-function _startTick() { _scheduleTick(); }
+export function _startTick() { _scheduleTick(); }
 
-function _scheduleTick() {
+export function _scheduleTick() {
   const delay = Math.round(WATCH_TICK_MS / (_watchState.speedMultiplier || 1));
   _watchState.tickTimer = setTimeout(_runTick, delay);
 }
 
-function _runTick() {
+export function _runTick() {
   if (!_watchState || _watchState.paused) return;
   const s = _watchState;
   const startPhase = s.currentPhase + 1;
@@ -215,7 +221,7 @@ function _runTick() {
 }
 
 // ─── Scoreboard ───────────────────────────────────────────────
-function _updateScoreboard() {
+export function _updateScoreboard() {
   const s = _watchState;
   const minute = Math.ceil((s.currentPhase / TOTAL_PHASES) * 90);
 
@@ -235,7 +241,7 @@ function _updateScoreboard() {
 }
 
 // ─── Events timeline ──────────────────────────────────────────
-function _updateEvents(newEvents) {
+export function _updateEvents(newEvents) {
   const list = document.getElementById('wm-events-list');
   if (!list) return;
   const s = _watchState;
@@ -275,7 +281,7 @@ function _updateEvents(newEvents) {
 }
 
 // ─── Stats bars ───────────────────────────────────────────────
-function _statBarHtml(label, hVal, aVal, id) {
+export function _statBarHtml(label, hVal, aVal, id) {
   const total = (hVal + aVal) || 1;
   const hPct  = Math.round((hVal / total) * 100);
   return `<div class="wm-stat-row" id="${id}">
@@ -291,7 +297,7 @@ function _statBarHtml(label, hVal, aVal, id) {
   </div>`;
 }
 
-function _updateStatRow(id, hVal, aVal) {
+export function _updateStatRow(id, hVal, aVal) {
   const el = document.getElementById(id);
   if (!el) return;
   const total = (hVal + aVal) || 1;
@@ -306,7 +312,7 @@ function _updateStatRow(id, hVal, aVal) {
   if (barA) barA.style.width = (100 - hPct) + '%';
 }
 
-function _updateStats() {
+export function _updateStats() {
   const ls = _watchState.liveState;
   const hp = ls.hPhases, ap = ls.aPhases;
   const total = hp + ap || 1;
@@ -336,7 +342,7 @@ function _updateStats() {
 }
 
 // ─── Fitness + Bench ──────────────────────────────────────────
-function _updateFitnessList() {
+export function _updateFitnessList() {
   const el = document.getElementById('wm-fitness-list');
   if (!el) return;
   const s = _watchState, ls = s.liveState;
@@ -357,7 +363,7 @@ function _updateFitnessList() {
   }).join('');
 }
 
-function _updateBenchList() {
+export function _updateBenchList() {
   const el     = document.getElementById('wm-bench-list');
   const subsEl = document.getElementById('wm-subs-left');
   if (!el) return;
@@ -395,7 +401,7 @@ function _updateBenchList() {
 
 // ─── Inline panel helper ──────────────────────────────────────
 // Uses position:fixed so it's never clipped by modal-body overflow:hidden
-function _openInlinePanel(titleHtml, bodyHtml, onClose) {
+export function _openInlinePanel(titleHtml, bodyHtml, onClose) {
   const existing = document.getElementById('wm-inline-panel');
   if (existing) existing.remove();
 
@@ -512,7 +518,7 @@ window._wmSubClick = function(subInId) {
   }, 0);
 };
 
-function _applyUserSub(inId, outId) {
+export function _applyUserSub(inId, outId) {
   const s  = _watchState;
   const ls = s.liveState;
   const minute = Math.ceil((s.currentPhase / TOTAL_PHASES) * 90);
@@ -565,7 +571,7 @@ function _applyUserSub(inId, outId) {
 }
 
 // ─── Tactics / formation panel ────────────────────────────────
-function _showInterventionPanel() {
+export function _showInterventionPanel() {
   if (!_watchState) return;
   const wasPaused = _watchState.paused;
   if (!wasPaused) _togglePause();
@@ -622,7 +628,7 @@ function _showInterventionPanel() {
   }, 0);
 }
 
-function _applyFormationChange(newFormation) {
+export function _applyFormationChange(newFormation) {
   const s  = _watchState;
   const ls = s.liveState;
 
@@ -659,7 +665,7 @@ function _applyFormationChange(newFormation) {
 }
 
 // ─── Skip to end ─────────────────────────────────────────────
-function _skipMatch() {
+export function _skipMatch() {
   if (!_watchState) return;
   const s = _watchState;
   if (s.currentPhase >= TOTAL_PHASES) return;
@@ -688,7 +694,7 @@ function _skipMatch() {
 }
 
 // ─── Pause / resume ───────────────────────────────────────────
-function _togglePause() {
+export function _togglePause() {
   if (!_watchState) return;
   const s = _watchState;
   s.paused = !s.paused;
@@ -703,7 +709,7 @@ function _togglePause() {
 }
 
 // ─── Match end ────────────────────────────────────────────────
-async function _finishMatch() {
+export async function _finishMatch() {
   const s = _watchState;
   clearTimeout(s.tickTimer);
 
@@ -729,7 +735,7 @@ async function _finishMatch() {
   toast(`Full Time: ${s.homeTeam.name} ${hg}–${ag} ${s.awayTeam.name}`, col, 10000);
 }
 
-async function _commitResult() {
+export async function _commitResult() {
   const bd = document.getElementById('modal-bd');
   if (bd) { bd.classList.remove('open'); bd.addEventListener('transitionend', () => bd.remove(), { once: true }); }
 

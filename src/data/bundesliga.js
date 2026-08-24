@@ -5,7 +5,7 @@
  *
  * blp(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const blp = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const blp = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const blp = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const BUNDESLIGA_TEAMS = [
+export const BUNDESLIGA_TEAMS = [
   // ── BAYERN MUNICH ──────────────────────────────────────────
   {id:'bayern',name:'Bayern Munich',shortName:'BAY',crest:'🔴',league:'Bundesliga',stadium:'Allianz Arena',stadiumCapacity:75000,budget:230000000,reputation:97,primaryColor:'#DC052D',players:[
     blp('bay_neuer','M. Neuer','GK',39,14,16,20,88,28,215,88,0),
