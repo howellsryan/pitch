@@ -22,10 +22,10 @@ drive-by refactor bundled in with it is not.
    you rename something the bundler's regex-based module stripping depends on).
 3. **Outside the fence: eyes open, hands off.** This repo is mid-migration —
    `src/modules/` and `src/ui/` still concatenate into one file via
-   `src/build.py`; the plan (`docs/plan/` in `howellsryan/footy-sim`) has that
-   changing to real ES modules and a Svelte UI over several phases. You will
-   see things worth cleaning up along the way. Don't, unless it's the phase
-   you're actually working. Record them instead.
+   `src/build.py`; the plan (`docs/plan/`) has that changing to real ES
+   modules and a Svelte UI over several phases. You will see things worth
+   cleaning up along the way. Don't, unless it's the phase you're actually
+   working. Record them instead.
 4. **Flag, do not fix.** If you noticed something, end with:
 
 ```

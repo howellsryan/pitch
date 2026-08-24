@@ -9,12 +9,15 @@
   leagues, 186 clubs, cups, European competitions, youth academy, a
   tick-by-tick match engine. Live at **pitch-sim.com**. No accounts, no
   backend: everything runs client-side and saves to the browser's IndexedDB.
-- **This repo is mid-rebuild, on a plan that lives in a different repository.**
-  The full plan — tech stack decision, design direction, an 8-phase migration
-  order, and the data-reconciliation spec — is `docs/plan/*.md` in
-  **`howellsryan/footy-sim`**, not here. Read it before starting any
-  non-trivial work; don't infer the plan from this repo's current state alone,
-  because the current state is a snapshot mid-migration, not the destination.
+- **This repo is mid-rebuild, on a written plan — read `docs/plan/*.md` before
+  starting any non-trivial work.** It covers the tech stack decision, the
+  design direction, an 8-phase migration order, and the data-reconciliation
+  spec. Don't infer the plan from this repo's current state alone — the
+  current state is a snapshot mid-migration, not the destination. (The plan
+  was originally drafted in `howellsryan/footy-sim` during early exploration,
+  before `pitch` was identified as the actual base to build on — it moved here
+  once that was settled. `footy-sim` still holds a copy from that point; this
+  one is authoritative.)
 - **Where things stand right now**: Phase 0 (deployed to Cloudflare Workers)
   and Phase 1 (portable build + CI) are done. Everything from Phase 2 onward —
   the Vite/Svelte/Tailwind toolchain, the mobile UI rebuild, the live-match
@@ -66,8 +69,8 @@ the plan exists to provide.
 
 **Design direction is also already decided**: "Broadcast Kit" — broadcast-
 graphics visual language (score bugs, condensed numerals) with a runtime
-per-club accent color. See `docs/plan/02-design-system.md` in `footy-sim` for
-the full mobile UX spec, tokens, and the design canvas it was drafted against.
+per-club accent color. See `docs/plan/02-design-system.md` for the full mobile
+UX spec, tokens, and the design canvas it was drafted against.
 
 ## 3) Repository Layout
 
@@ -123,9 +126,9 @@ on demand.
 ## 5) Agent Best Practices
 
 - **Check which phase of the plan is current before starting non-trivial
-  work.** `docs/plan/04-migration-phases.md` in `footy-sim` has the phase
-  table; this file's §0/§2 summarize where things stand as of the last update.
-  If they disagree, the live plan doc wins — fix this file in the same change.
+  work.** `docs/plan/04-migration-phases.md` has the phase table; this file's
+  §0/§2 summarize where things stand as of the last update. If they disagree,
+  the live plan doc wins — fix this file in the same change.
 - **`.claude/skills/plan-gate`** before touching the IndexedDB schema, the
   event queue, simulation math, the module load order, the data pipeline, or
   the footy-sim attribute-mapping step.
