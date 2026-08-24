@@ -6,3 +6,5 @@ package-lock.json
 .github
 src
 BRIEFING.md
+CLAUDE.md
+.claude
