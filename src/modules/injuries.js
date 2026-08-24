@@ -8,7 +8,7 @@
 // weight = relative probability among injury types (higher = more common)
 // minGW/maxGW = recovery time in gameweeks (1 GW ≈ 1 week)
 // Skewed so ~60% are 1-2 weeks, ~25% are 3-4 weeks, ~12% are 5-8 weeks, ~3% are 9+ weeks
-const INJURY_TYPES = [
+export const INJURY_TYPES = [
   // Muscle injuries — most common, mostly short
   { name: 'Hamstring Strain',    type: 'muscle',   minGW: 1,  maxGW: 3,  weight: 14 },
   { name: 'Calf Strain',         type: 'muscle',   minGW: 1,  maxGW: 2,  weight: 12 },
@@ -39,9 +39,9 @@ const INJURY_TYPES = [
   { name: 'Illness',             type: 'illness',  minGW: 1,  maxGW: 1,  weight: 6  },
 ];
 
-const _INJ_TOTAL_WEIGHT = INJURY_TYPES.reduce((s, t) => s + t.weight, 0);
+export const _INJ_TOTAL_WEIGHT = INJURY_TYPES.reduce((s, t) => s + t.weight, 0);
 
-function _pickInjuryType() {
+export function _pickInjuryType() {
   let roll = Math.random() * _INJ_TOTAL_WEIGHT;
   for (const t of INJURY_TYPES) {
     roll -= t.weight;
@@ -57,7 +57,7 @@ function _pickInjuryType() {
 //
 // When forceRoll=true (called from match engine which already gated by per-phase rate),
 // skip the base-chance check and just pick the injury type/duration.
-function rollInjuryCheck(player, isHighIntensity, forceRoll) {
+export function rollInjuryCheck(player, isHighIntensity, forceRoll) {
   if (player.injured) return null; // already injured
 
   if (!forceRoll) {
@@ -100,7 +100,7 @@ function rollInjuryCheck(player, isHighIntensity, forceRoll) {
 // Returns array of recovered players for toast notifications.
 // Called once per GW after all matches are processed.
 // A 2-GW injury: set GW5 → injuryGWsLeft=2. Tick GW5→1. Tick GW6→0 → clear.
-function tickInjuryRecovery(allPlayers) {
+export function tickInjuryRecovery(allPlayers) {
   const recovered = [];
   for (const p of allPlayers) {
     if (!p.injured) continue;
@@ -121,7 +121,7 @@ function tickInjuryRecovery(allPlayers) {
 }
 
 // ─── Apply injury to a player object in-place ────────────────
-function applyInjury(player, injData) {
+export function applyInjury(player, injData) {
   player.injured        = true;
   player.injuryName     = injData.injuryName;
   player.injuryType     = injData.injuryType;
@@ -132,7 +132,7 @@ function applyInjury(player, injData) {
 // ─── Injury duration label ─────────────────────────────────────
 // Show months ONLY for exact multiples of 4 weeks (1 month, 2 months, etc.)
 // Everything else displays in weeks.
-function injuryDurationLabel(gwsLeft) {
+export function injuryDurationLabel(gwsLeft) {
   if (!gwsLeft) return 'Unknown';
   if (gwsLeft === 1) return '~1 week';
   if (gwsLeft % 4 === 0) {

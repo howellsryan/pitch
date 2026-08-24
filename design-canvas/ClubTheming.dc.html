@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #0A0E14; font-family: Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #8695A8; } a:hover { color: #EDF1F5; }
+    * { box-sizing: border-box; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    .disp { font-family: "Saira Condensed", "Arial Narrow", sans-serif; }
+  </style>
+</helmet>
+
+<div style="width: 980px; background: #0A0E14; color: #EDF1F5; padding: 36px 40px 40px;">
+
+  <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 1.6px; margin-bottom: 8px;">SIGNATURE</div>
+  <div class="disp" style="font-size: 40px; font-weight: 700; letter-spacing: 0.6px; line-height: 1;">THE APP WEARS YOUR CLUB</div>
+  <div style="font-size: 14px; color: #8695A8; margin-top: 12px; max-width: 660px; line-height: 1.55;">
+    One token — <span class="mono" style="color: #EDF1F5;">--color-club</span> — set at runtime from the club's
+    <span class="mono" style="color: #EDF1F5;">primaryColor</span>. Ground, type and spacing never move; only the accent does.
+    A shirt colour is not a usable UI accent, so the raw value is treated as intent: walked in oklch until text on it
+    clears 4.5:1 and it clears 3:1 against the ground, with hue preserved. <span style="color: #EDF1F5;">83 of 186 clubs need this.</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 28px 0 32px;">
+    <sc-for list="{{cards}}" as="c" hint-placeholder-count="3">
+      <div style="border: 1px solid rgba(255,255,255,0.07); border-top: 3px solid {{c.hex}}; border-radius: 10px; background: #131A23; padding: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg viewBox="0 0 26 30" width="24" height="28"><path d="M13 1 L24 5 V16 C24 23 18 27 13 29 C8 27 2 23 2 16 V5 Z" fill="{{c.hex}}" stroke="rgba(255,255,255,0.22)"></path></svg>
+          <div>
+            <div class="disp" style="font-size: 19px; font-weight: 700; letter-spacing: 0.4px; line-height: 1.1;">{{c.name}}</div>
+            <div class="mono" style="font-size: 11px; color: #8695A8; margin-top: 2px;">{{c.stadium}}</div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 6px;">
+          <span class="mono" style="font-size: 12px; color: {{c.hex}}; letter-spacing: 0.8px;">{{c.standing}}</span>
+          <span class="disp" style="font-size: 16px; font-weight: 600;">{{c.budget}}</span>
+        </div>
+        <div style="height: 4px; border-radius: 2px; background: #1C2530; overflow: hidden;">
+          <div style="width: {{c.barW}}; height: 4px; background: {{c.hex}};"></div>
+        </div>
+        <div class="disp" style="margin-top: 16px; text-align: center; padding: 12px; border-radius: 8px; background: {{c.hex}}; color: {{c.on}}; font-size: 15px; font-weight: 700; letter-spacing: 1.2px;">PLAY MATCH</div>
+        <div class="mono" style="display: flex; justify-content: space-between; font-size: 11px; color: #5A6878; margin-top: 12px;">
+          <span>{{c.raw}}</span><span>{{c.arrow}}</span><span style="color: #8695A8;">{{c.hex}}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 1.2px; margin-bottom: 10px;">EVERY PREMIER LEAGUE ACCENT, RESOLVED</div>
+  <div class="mono" style="display: flex; gap: 12px; font-size: 11px; color: #5A6878; letter-spacing: 0.7px; padding: 0 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.07);">
+    <span style="width: 168px;">CLUB</span>
+    <span style="width: 78px;">DATA</span>
+    <span style="width: 78px;">ACCENT</span>
+    <span style="width: 150px;">ON ACCENT</span>
+    <span style="width: 92px; text-align: right;">TEXT</span>
+    <span style="width: 110px; text-align: right;">VS GROUND</span>
+    <span style="width: 92px; text-align: right;">GUARD</span>
+  </div>
+  <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+    <div style="display: flex; gap: 12px; align-items: center; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.045);">
+      <span style="width: 168px; display: flex; align-items: center; gap: 8px;">
+        <span style="width: 10px; height: 10px; border-radius: 2px; background: {{r.hex}}; flex-shrink: 0;"></span>
+        <span style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{r.name}}</span>
+      </span>
+      <span class="mono" style="width: 78px; font-size: 11px; color: #5A6878;">{{r.raw}}</span>
+      <span class="mono" style="width: 78px; font-size: 11px; color: #8695A8;">{{r.hex}}</span>
+      <span style="width: 150px;">
+        <span class="mono" style="display: inline-block; background: {{r.hex}}; color: {{r.on}}; font-size: 11px; padding: 3px 9px; border-radius: 4px;">{{r.short}} · PLAY</span>
+      </span>
+      <span class="mono" style="width: 92px; text-align: right; font-size: 12px; color: {{r.textC}};">{{r.text}}</span>
+      <span class="mono" style="width: 110px; text-align: right; font-size: 12px; color: {{r.groundC}};">{{r.ground}}</span>
+      <span class="mono" style="width: 92px; text-align: right; font-size: 11px; color: {{r.adjC}}; white-space: nowrap;">{{r.adjLabel}}</span>
+    </div>
+  </sc-for>
+
+  <div style="display: flex; gap: 12px; margin-top: 24px; padding: 14px 16px; border: 1px solid rgba(245,185,61,0.35); border-radius: 9px; background: rgba(245,185,61,0.06);">
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#F5B93D" stroke-width="1.8" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16h.01"></path></svg>
+    <div style="font-size: 13px; color: #C9B27E; line-height: 1.6;">
+      Newcastle's <span class="mono">#241F20</span> sits at <span class="mono">1.19:1</span> against the ground — invisible.
+      The guard lifts it to <span class="mono">#635D5E</span> at <span class="mono">3.00:1</span> while keeping its hue.
+      Light kits move the other way: Wolves, Man City, Fulham and Sunderland keep their colour untouched and take
+      <span class="mono">#0A0E14</span> text instead of white, because forcing white would drag every bright kit dark.
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script>
+class Component extends DCLogic {
+  // Every value here is real: primaryColor out of src/data/plTeams.js, resolved
+  // through src/lib/theme.mjs, with WCAG ratios computed by the same code that
+  // gates CI in tools/check-club-accents.mjs.
+  static ROWS = [
+    { name: 'Arsenal',            short: 'ARS', raw: '#EF0107', hex: '#EE0004', on: '#FFFFFF', adj: true,  text: 4.53, ground: 4.27 },
+    { name: 'Newcastle United',   short: 'NEW', raw: '#241F20', hex: '#635D5E', on: '#FFFFFF', adj: true,  text: 6.45, ground: 3.00 },
+    { name: 'Manchester City',    short: 'MCI', raw: '#6CABDD', hex: '#6CABDD', on: '#0A0E14', adj: false, text: 7.83, ground: 7.83 },
+    { name: 'Wolverhampton',      short: 'WOL', raw: '#FDB913', hex: '#FDB913', on: '#0A0E14', adj: false, text: 11.17, ground: 11.17 },
+    { name: 'Tottenham Hotspur',  short: 'TOT', raw: '#132257', hex: '#485D98', on: '#FFFFFF', adj: true,  text: 6.37, ground: 3.03 },
+    { name: 'Everton',            short: 'EVE', raw: '#003399', hex: '#255AC2', on: '#FFFFFF', adj: true,  text: 6.33, ground: 3.06 },
+    { name: 'Aston Villa',        short: 'AVL', raw: '#670E36', hex: '#9A4060', on: '#FFFFFF', adj: true,  text: 6.41, ground: 3.02 },
+    { name: 'Fulham',             short: 'FUL', raw: '#FFFFFF', hex: '#FFFFFF', on: '#0A0E14', adj: false, text: 19.34, ground: 19.34 },
+    { name: 'Sunderland',         short: 'SUN', raw: '#FF0000', hex: '#FF0000', on: '#0A0E14', adj: false, text: 4.84, ground: 4.84 },
+    { name: 'Chelsea',            short: 'CHE', raw: '#034694', hex: '#235FAF', on: '#FFFFFF', adj: true,  text: 6.31, ground: 3.06 },
+    { name: 'Liverpool',          short: 'LIV', raw: '#C8102E', hex: '#C8102E', on: '#FFFFFF', adj: false, text: 5.88, ground: 3.29 },
+    { name: 'Brighton',           short: 'BHA', raw: '#0057B8', hex: '#095CBD', on: '#FFFFFF', adj: true,  text: 6.41, ground: 3.02 },
+  ];
+
+  renderVals() {
+    return {
+      cards: [
+        { name: 'Arsenal',   stadium: 'Emirates · 60,704',       hex: '#EE0004', on: '#FFFFFF', raw: '#EF0107', arrow: '→', standing: '3RD · 24 PTS',  budget: '£48.5M', barW: '63%' },
+        { name: 'Everton',   stadium: 'Hill Dickinson · 52,888',  hex: '#255AC2', on: '#FFFFFF', raw: '#003399', arrow: '→', standing: '11TH · 14 PTS', budget: '£11.0M', barW: '37%' },
+        { name: 'Newcastle', stadium: 'St James Park · 52,258',   hex: '#635D5E', on: '#FFFFFF', raw: '#241F20', arrow: '→', standing: '7TH · 19 PTS',  budget: '£28.0M', barW: '50%' },
+      ],
+      rows: Component.ROWS.map((r) => ({
+        ...r,
+        text: r.text.toFixed(2),
+        ground: r.ground.toFixed(2),
+        textC: r.text >= 4.5 ? '#2BD97C' : '#F0576B',
+        groundC: r.ground >= 3 ? '#2BD97C' : '#F0576B',
+        adjLabel: r.adj ? 'lightened' : 'unchanged',
+        adjC: r.adj ? '#F5B93D' : '#5A6878',
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

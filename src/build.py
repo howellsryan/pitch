@@ -55,6 +55,7 @@ MODULES += [
     ('modules/save.js',           'SAVE'),
     ('modules/season.js',         'SEASON'),
     ('modules/gameweek.js',       'GAMEWEEK'),
+    ('lib/theme.mjs',             'CLUB THEME'),
     ('ui/helpers.js',             'UI HELPERS'),
     ('ui/home_transfers.js',      'HOME & TRANSFERS'),
     ('ui/renderers.js',           'RENDERERS'),

@@ -1,6 +1,9 @@
+import { getAllFixtures } from './db.js';
+import { simulateMatch } from './matchEngine.js';
+
 /** modules/cups.js — Cup competitions: CUP_META, UCL_CLUBS, simulateCupRound, simulateUCLMatchday */
 // ─── Real UCL 2025/26 participants ────────────────────────────
-const UCL_CLUBS = [
+export const UCL_CLUBS = [
   // PL
   { id:'man_city',    name:'Man City',    nation:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', strength:90 },
   { id:'arsenal',     name:'Arsenal',     nation:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', strength:85 },
@@ -50,7 +53,7 @@ const UCL_CLUBS = [
 //
 // The `roundPrize` array maps to each round index (winner's prize for that round).
 // `entryRound` maps league→roundIndex so buildInitialCupState sets the right start.
-const CUP_META = {
+export const CUP_META = {
   // ── English ──────────────────────────────────────────────
   fa_cup: {
     id:'fa_cup', name:'FA Cup', shortName:'FA Cup', icon:'🏆', color:'#f5c842',
@@ -161,7 +164,7 @@ const CUP_META = {
 // Super cups (DFL-Supercup, Supercopa, Supercoppa, Trophée des Champions,
 // Carabao/League Cup) are invitation-only — NOT assigned here.
 // They are only shown in the UI if the team has actually played in them.
-const LEAGUE_DOMESTIC_CUPS = {
+export const LEAGUE_DOMESTIC_CUPS = {
   'Premier League': ['fa_cup',          'league_cup'],
   'Championship':   ['fa_cup',          'league_cup'],
   'League One':     ['fa_cup',          'league_cup'],
@@ -175,17 +178,17 @@ const LEAGUE_DOMESTIC_CUPS = {
 
 // Cups that require a specific qualifier (champion / cup winner) to enter.
 // These are stored in save.cups when earned, never assigned blindly.
-const INVITATION_ONLY_CUPS = new Set([
+export const INVITATION_ONLY_CUPS = new Set([
   'dfb_supercup', 'supercopa', 'supercoppa', 'trophee_des_champions',
 ]);
 
-function getDomesticCups(league) {
+export function getDomesticCups(league) {
   return LEAGUE_DOMESTIC_CUPS[league] ?? ['fa_cup', 'league_cup'];
 }
 
 // ─── Assign cups based on league + reputation ─────────────────
 // Super cups and European cups are only assigned to genuinely qualifying clubs.
-function assignCups(userTeam) {
+export function assignCups(userTeam) {
   const league = userTeam.league ?? 'Premier League';
   const cups   = [...getDomesticCups(league)];
   const rep    = userTeam.reputation ?? 70;
@@ -205,7 +208,7 @@ function assignCups(userTeam) {
 
 // ─── Build initial cup state ──────────────────────────────────
 // userLeague sets correct FA Cup entry round: L2/L1→R1(0), Champ→R2(1), PL→R3(2)
-function buildInitialCupState(cupIds, userTeamId, userLeague) {
+export function buildInitialCupState(cupIds, userTeamId, userLeague) {
   const state = {};
   cupIds.forEach(id => {
     const isUCL = id === 'ucl';
@@ -230,7 +233,7 @@ function buildInitialCupState(cupIds, userTeamId, userLeague) {
   return state;
 }
 
-function buildUCLOpponents(excludeTeamId) {
+export function buildUCLOpponents(excludeTeamId) {
   const pool = excludeTeamId
     ? UCL_CLUBS.filter(c => c.id !== excludeTeamId)
     : UCL_CLUBS;
@@ -239,7 +242,7 @@ function buildUCLOpponents(excludeTeamId) {
 }
 
 // ─── Simulate a cup round for the user ───────────────────────
-function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId, roundName, event) {
+export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId, roundName, event) {
   let opponent, oppPlayers;
 
   if (cupId === 'ucl' || cupId === 'uel' || cupId === 'uecl') {
@@ -311,7 +314,7 @@ function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId,
 }
 
 // ─── Simulate UCL league phase matchday ──────────────────────
-function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam) {
+export function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam) {
   const lp  = cupState.leaguePhase;
   const md  = lp?.matchday ?? 0;
   if (md >= 8) return null;
@@ -356,8 +359,8 @@ function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eve
 
 // ─── Synthetic squad for non-PL clubs ─────────────────────────
 // Large name pool — seeded by teamId so each club gets unique but consistent names
-const _SYNTH_FIRST = ['A.','B.','C.','D.','E.','F.','G.','H.','J.','K.','L.','M.','N.','O.','P.','R.','S.','T.','V.','W.'];
-const _SYNTH_LAST  = [
+export const _SYNTH_FIRST = ['A.','B.','C.','D.','E.','F.','G.','H.','J.','K.','L.','M.','N.','O.','P.','R.','S.','T.','V.','W.'];
+export const _SYNTH_LAST  = [
   'Müller','Fernández','García','Rossi','Silva','Santos','Pereira','Costa','Martínez','López',
   'Andersen','Petrov','Johansson','Nakamura','Okafor','Diallo','El Ahmadi','Kovačić','Larsson','Tanaka',
   'Weber','Schneider','Hoffmann','Becker','Wagner','Fischer','Meyer','Richter','Koch','Bauer',
@@ -367,12 +370,12 @@ const _SYNTH_LAST  = [
   'De Jong','Van Dijk','Bakker','Visser','Smit','De Boer','Jansen','Meijer','Peters','Kuiper',
   'Park','Kim','Choi','Lee','Jung','Yoon','Kwon','Han','Lim','Cho',
 ];
-function _synthHash(str) {
+export function _synthHash(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 16777619) >>> 0; }
   return h;
 }
-function buildSyntheticSquad(teamId, avgStr) {
+export function buildSyntheticSquad(teamId, avgStr) {
   const positions = ['GK','CB','CB','RB','LB','CM','CM','CDM','RW','LW','ST','CM','ST','GK','CB'];
   const seed = _synthHash(String(teamId));
   return positions.map((pos, i) => {
@@ -392,7 +395,7 @@ function buildSyntheticSquad(teamId, avgStr) {
   });
 }
 
-async function getCupFixtures(cupId) {
+export async function getCupFixtures(cupId) {
   const all = await getAllFixtures();
   return all.filter(f => f.competition === cupId);
 }

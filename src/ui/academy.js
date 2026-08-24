@@ -1,6 +1,13 @@
+import { getSave, getTeam } from '../modules/db.js';
+import { primaryRating } from '../modules/matchEngine.js';
+import { getPotentialLabel, getPotentialStars } from '../modules/potential.js';
+import { getAcademyInfo, promoteYouthPlayer, releaseYouthPlayer } from '../modules/youthAcademy.js';
+import { fmt, navigateTo, posGroup, showModal, toast } from './helpers.js';
+import { newsYouthPromotion } from './inbox.js';
+
 // ── ACADEMY SCREEN — compact tabular layout
 
-async function renderAcademy() {
+export async function renderAcademy() {
   const save = await getSave();
   const team = await getTeam(save.userTeamId);
   const el   = document.getElementById('academy-content');
@@ -126,7 +133,7 @@ async function renderAcademy() {
   });
 }
 
-async function handleYouthAction(action, playerId, cohort) {
+export async function handleYouthAction(action, playerId, cohort) {
   if (action === 'promote') {
     const p = cohort.find(y => y.id === playerId);
     if (!p) return;

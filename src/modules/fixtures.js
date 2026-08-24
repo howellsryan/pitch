@@ -1,3 +1,5 @@
+import { getAllFixtures } from './db.js';
+
 /** modules/fixtures.js — Mirrored double round-robin fixture generation
  *
  * How real leagues do it:
@@ -11,7 +13,7 @@
  *      at the half-boundary (GW19 → GW20).
  */
 
-function generateLeagueFixtures(teamIds, seasonYear) {
+export function generateLeagueFixtures(teamIds, seasonYear) {
   // 1. Shuffle teams so the "pinned" team varies each new game
   const shuffled = [...teamIds].sort(() => Math.random() - 0.5);
   const teams    = [...shuffled];
@@ -73,7 +75,7 @@ function generateLeagueFixtures(teamIds, seasonYear) {
 }
 
 // ─── Balance H/A counts in the first half ──────────────────────────
-function _balanceHomeAway(rounds, halfLen) {
+export function _balanceHomeAway(rounds, halfLen) {
   const maxHome = Math.ceil(halfLen / 2);
   const homeCount = new Map();
   for (const round of rounds) {
@@ -97,7 +99,7 @@ function _balanceHomeAway(rounds, halfLen) {
 }
 
 // ─── H/A run scoring — penalise 3+ consecutive H or A ─────────────
-function _countBadRuns(rounds) {
+export function _countBadRuns(rounds) {
   const tms = new Set(rounds.flatMap(r => r.flatMap(p => [p.home, p.away])));
   let bad = 0;
   for (const t of tms) {
@@ -115,7 +117,7 @@ function _countBadRuns(rounds) {
 }
 
 // ─── Count back-to-back same-opponent violations ───────────────────
-function _countBackToBack(rounds) {
+export function _countBackToBack(rounds) {
   const tms = new Set(rounds.flatMap(r => r.flatMap(p => [p.home, p.away])));
   let violations = 0;
   for (const t of tms) {
@@ -132,7 +134,7 @@ function _countBackToBack(rounds) {
 }
 
 // ─── Optimise round order within a single half ─────────────────────
-function _optimiseRoundOrder(rounds) {
+export function _optimiseRoundOrder(rounds) {
   let best = [...rounds];
   let bestScore = _countBadRuns(best);
   for (let iter = 0; iter < 400 && bestScore > 0; iter++) {
@@ -148,7 +150,7 @@ function _optimiseRoundOrder(rounds) {
 }
 
 // ─── Shuffle second half round order to avoid back-to-back opponents
-function _fixBoundarySeparation(firstHalf, secondHalf) {
+export function _fixBoundarySeparation(firstHalf, secondHalf) {
   let bestSecond = [...secondHalf];
   let combined = [...firstHalf, ...bestSecond];
   let bestB2B  = _countBackToBack(combined);
@@ -174,7 +176,7 @@ function _fixBoundarySeparation(firstHalf, secondHalf) {
 }
 
 // ─── Global optimisation: swap rounds within same half only ────────
-function _globalOptimise(allRounds, halfLen) {
+export function _globalOptimise(allRounds, halfLen) {
   let best = [...allRounds];
   let bestB2B  = _countBackToBack(best);
   let bestRuns = _countBadRuns(best);
@@ -199,26 +201,26 @@ function _globalOptimise(allRounds, halfLen) {
 
 // ─── Query helpers ──────────────────────────────────────────
 
-async function getUpcomingForTeam(teamId) {
+export async function getUpcomingForTeam(teamId) {
   const all = await getAllFixtures();
   return all
     .filter(f => !f.played && (f.homeTeamId === teamId || f.awayTeamId === teamId))
     .sort((a, b) => a.gameweek - b.gameweek);
 }
 
-async function getLastResultForTeam(teamId) {
+export async function getLastResultForTeam(teamId) {
   const all = await getAllFixtures();
   return all
     .filter(f => f.played && (f.homeTeamId === teamId || f.awayTeamId === teamId))
     .sort((a, b) => b.gameweek - a.gameweek)[0] ?? null;
 }
 
-async function getNextFixtureForTeam(teamId) {
+export async function getNextFixtureForTeam(teamId) {
   const upcoming = await getUpcomingForTeam(teamId);
   return upcoming[0] ?? null;
 }
 
-async function getRecentResults(limit = 30) {
+export async function getRecentResults(limit = 30) {
   const all = await getAllFixtures();
   return all
     .filter(f => f.played)

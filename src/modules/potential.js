@@ -1,3 +1,5 @@
+import { getAllPlayers, putPlayersBulk } from './db.js';
+
 /** modules/potential.js — FIFA-style potential/development: assignPotentials, applyDevelopment, getPotentialStars */
 // ─── Assign initial potentials ────────────────────────────────
 /**
@@ -5,7 +7,7 @@
  *   - potentialRating: their ceiling (hidden from user, shown as stars)
  *   - growthPoints: accumulates form → triggers stat improvements
  */
-function assignPotentials(players) {
+export function assignPotentials(players) {
   return players.map(p => {
     const cur = _primaryRating(p);
     const age = p.age ?? 24;
@@ -35,7 +37,7 @@ function assignPotentials(players) {
   });
 }
 
-function calcPotential(p) {
+export function calcPotential(p) {
   const current = _primaryRating(p);
   const age     = p.age ?? 24;
 
@@ -54,7 +56,7 @@ function calcPotential(p) {
   return Math.min(99, Math.max(current, current + headroom));
 }
 
-function calcPeakAge(p) {
+export function calcPeakAge(p) {
   // Defenders peak later, attackers earlier
   const pos = p.position;
   if (['GK','CB'].includes(pos))              return 29 + Math.floor(Math.random()*3);
@@ -72,7 +74,7 @@ function calcPeakAge(p) {
  * Goals, assists, clean sheets accelerate growth.
  * Uses fitnessUpdates from match results to identify actual participants.
  */
-async function applyDevelopment(matchResults) {
+export async function applyDevelopment(matchResults) {
   const allPlayers = await getAllPlayers();
   const cache      = new Map(allPlayers.map(p => [p.id, { ...p }]));
   const changed    = [];
@@ -175,7 +177,7 @@ async function applyDevelopment(matchResults) {
 }
 
 // ─── How many growth points to level up ──────────────────────
-function growthThreshold(age, currentRating, potential) {
+export function growthThreshold(age, currentRating, potential) {
   const gap = potential - currentRating;
   // Harder to grow when: old, high current rating, small gap remaining
   // Tuned so even the best young players max out around 5-7 gains per 38-GW season
@@ -192,7 +194,7 @@ function growthThreshold(age, currentRating, potential) {
 }
 
 // ─── Apply a stat boost to a player ──────────────────────────
-function applyStatBoost(player) {
+export function applyStatBoost(player) {
   const p   = { ...player };
   const pos = p.position;
 
@@ -226,7 +228,7 @@ function applyStatBoost(player) {
 }
 
 // ─── Recalculate value after stat change ──────────────────────
-function updatedValue(p) {
+export function updatedValue(p) {
   const rating = _primaryRating(p);
   const age    = p.age ?? 24;
   const ageMult =
@@ -243,7 +245,7 @@ function updatedValue(p) {
   return Math.max(500_000, Math.round(baseVal * ageMult));
 }
 
-function _primaryRating(p) {
+export function _primaryRating(p) {
   const pos = p.position;
   if (['ST','CF','RW','LW','CAM'].includes(pos)) return p.attack;
   if (['CM','CDM','RM','LM'].includes(pos))       return p.midfield;
@@ -252,7 +254,7 @@ function _primaryRating(p) {
 }
 
 // ─── Get potential stars (1-5, like FIFA) ────────────────────
-function getPotentialStars(player) {
+export function getPotentialStars(player) {
   const pot = player.potentialRating ?? _primaryRating(player);
   // 5★ — elite world-class ceiling
   if (pot >= 88) return 5;
@@ -266,14 +268,14 @@ function getPotentialStars(player) {
   return 1;
 }
 
-function getPotentialLabel(player) {
+export function getPotentialLabel(player) {
   const stars = getPotentialStars(player);
   const labels = ['','Average','Good','Great','World Class','Legendary'];
   return labels[stars] ?? 'Unknown';
 }
 
 // ─── End-of-season aging with potential awareness ────────────
-function agingValueAdjust(player) {
+export function agingValueAdjust(player) {
   const age = (player.age ?? 24) + 1; // +1 because this runs before age increment
   const pot = player.potentialRating ?? _primaryRating(player);
   const cur = _primaryRating(player);
@@ -298,7 +300,7 @@ function agingValueAdjust(player) {
 // ─── End-of-season stat decline for aging players ────────────
 // Returns a copy of the player with reduced stats if past peak age.
 // Decline is gradual: small chance per stat per year, increasing with age.
-function applyAgingDecline(player) {
+export function applyAgingDecline(player) {
   const p   = { ...player };
   const age = p.age ?? 24;
   const peak = p.peakAge ?? 28;

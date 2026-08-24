@@ -7,9 +7,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Runs on every push and PR. src/build.py bundles the 22 source modules and
-  # runs src/validate.js's 1,180 checks as part of that — this is the gate
-  # nothing else in this workflow bypasses.
+  # Runs on every push and PR. Both build paths are exercised: build.py's
+  # concatenation (which runs validate.js's 1180 checks) and the Vite build,
+  # plus lint, the club-accent contrast floor, and a Playwright career smoke
+  # test. Deploy still ships the legacy index.html — switching the Worker to
+  # dist/ is a separate, deliberate step.
   build:
     runs-on: ubuntu-latest
     steps:
@@ -20,7 +22,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm run build
+          cache: npm
+      - run: npm ci
+
+      # The legacy concatenation path: bundles and runs validate.js's 1180
+      # checks. Still the gate nothing bypasses.
+      # NOTE: the "Home win rate >20% over 30 games" check is stochastic and
+      # fails roughly 1 run in 8 independently of the change under test.
+      - run: npm run build:legacy
+
+      # The Vite path: real ES modules, the app that Phase 3 builds on.
+      - run: npm run build:app
+      - run: npm run lint
+      - run: npm run check:accents
+
+      # A passing Vite build proves the module graph resolves, not that it is
+      # complete — a missing import only surfaces when the code path runs.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
       - uses: actions/upload-artifact@v4
         with:
           name: index.html

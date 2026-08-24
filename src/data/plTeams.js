@@ -5,7 +5,7 @@
  *
  * plp(id, name, nationality, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const plp = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const plp = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,nationality:nat,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const plp = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const PL_TEAMS = [
+export const PL_TEAMS = [
   // ── ARSENAL ────────────────────────────────────────────────
   {id:'arsenal',name:'Arsenal',shortName:'ARS',crest:'🔴',league:'Premier League',stadium:'Emirates Stadium',stadiumCapacity:60704,budget:130000000,reputation:88,primaryColor:'#EF0107',players:[
     plp('ars_kepa','Kepa Arrizabalaga','🇪🇸','GK',30,10,11,14,80,18,95,80,0),

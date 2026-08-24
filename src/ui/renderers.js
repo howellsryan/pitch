@@ -1,5 +1,28 @@
+import { applyClubTheme } from '../lib/theme.mjs';
+import { BUNDESLIGA_TEAMS } from '../data/bundesliga.js';
+import { CHAMPIONSHIP_TEAMS } from '../data/championship.js';
+import { EREDIVISIE_TEAMS } from '../data/eredivisie.js';
+import { EXTRA_LEAGUES_TEAMS } from '../data/extraLeagues.js';
+import { LA_LIGA_TEAMS } from '../data/laLiga.js';
+import { LEAGUE_ONE_TEAMS } from '../data/leagueOne.js';
+import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
+import { LIGUE_1_TEAMS } from '../data/ligue1.js';
+import { PL_TEAMS } from '../data/plTeams.js';
+import { SERIE_A_TEAMS } from '../data/serieA.js';
+import { deleteDB, exportSaveFile, getAllFixtures, getAllPlayers, getAllSeasons, getAllTeams, getSave, getTeam, importSaveFile, importSaveFromCode, openDB, putPlayersBulk } from '../modules/db.js';
+import { getLeagueTable } from '../modules/standings.js';
+import { CUP_META } from '../modules/cups.js';
+import { assignPotentials } from '../modules/potential.js';
+import { startNewGame } from '../modules/save.js';
+import { getHonorsForTeam } from '../modules/season.js';
+import { fmt, navigateTo, registerScreen, showModal, toast } from './helpers.js';
+import { renderHome, renderTransfers } from './home_transfers.js';
+import { renderSquad, renderTactics } from './squad_tactics_offers.js';
+import { renderAcademy } from './academy.js';
+import { _updateInboxBadge, renderInbox } from './inbox.js';
+
 // ── Full-screen overlay for blocking operations ─────────────
-function _showFullOverlay(msg) {
+export function _showFullOverlay(msg) {
   _removeFullOverlay();
   const ov = document.createElement('div');
   ov.id = 'pitch-full-overlay';
@@ -7,12 +30,12 @@ function _showFullOverlay(msg) {
   ov.innerHTML = '<div class="loader-spin"></div><div style="color:var(--tx,#fff);font-family:var(--fd,sans-serif);font-size:18px;letter-spacing:1px">' + (msg || 'Loading…') + '</div>';
   document.body.appendChild(ov);
 }
-function _removeFullOverlay() {
+export function _removeFullOverlay() {
   document.getElementById('pitch-full-overlay')?.remove();
 }
 
 // ── COMPETITIONS ─────────────────────────────────────────────
-async function renderCompetitions(){
+export async function renderCompetitions(){
   const save=await getSave();
   const table=await getLeagueTable();
   const allTeams=await getAllTeams();
@@ -83,7 +106,7 @@ async function renderCompetitions(){
 }
 
 // ── TROPHIES (merged Cups + Honours) ─────────────────────────
-async function renderTrophies(){
+export async function renderTrophies(){
   const save=await getSave();
   const el=document.getElementById('trophies-content');
   if(!el) return;
@@ -233,11 +256,11 @@ async function renderTrophies(){
 }
 
 // Keep old names as aliases so any lingering references don't break
-async function renderHonours(){ await renderTrophies(); }
-async function renderCupsLegacy(){ await renderTrophies(); }
+export async function renderHonours(){ await renderTrophies(); }
+export async function renderCupsLegacy(){ await renderTrophies(); }
 
 // ── SETTINGS ──────────────────────────────────────────────────
-async function renderSettings(){
+export async function renderSettings(){
   const save=await getSave();
   const seasons=await getAllSeasons();
   const histEl=document.getElementById('season-history');
@@ -321,7 +344,7 @@ async function renderSettings(){
     };
   }
 }
-function renderNewGame(){
+export function renderNewGame(){
   const grid=document.getElementById('team-grid');
   let selId=null,leagueFilter='all';
 
@@ -394,6 +417,7 @@ function renderNewGame(){
     btn.disabled=true; btn.textContent='Setting up…';
     try{
       await startNewGame(selId, managerName);
+      await themeForTeam(selId);
       document.getElementById('ng').style.display='none';
       document.getElementById('app').style.display='flex';
       initUI();
@@ -446,7 +470,7 @@ function renderNewGame(){
 }
 
 // ── INIT UI ────────────────────────────────────────────────────
-function initUI(){
+export function initUI(){
   registerScreen('home',         renderHome);
   registerScreen('transfers',    renderTransfers);
   registerScreen('competitions', renderCompetitions);
@@ -530,7 +554,15 @@ function initUI(){
 }
 
 // ── BOOT ──────────────────────────────────────────────────────
-async function boot(){
+/** Paints the club accent. Cosmetic — never let it block or break boot. */
+export async function themeForTeam(teamId){
+  try{
+    if(!teamId) return;
+    applyClubTheme(await getTeam(teamId));
+  }catch(err){ console.warn('[theme]',err); }
+}
+
+export async function boot(){
   try{
     await openDB();
     const save=await getSave();
@@ -539,6 +571,7 @@ async function boot(){
       document.getElementById('app').style.display='none';
       renderNewGame();
     } else {
+      await themeForTeam(save.userTeamId);
       document.getElementById('ng').style.display='none';
       document.getElementById('app').style.display='flex';
       initUI();

@@ -1,7 +1,10 @@
+import { getAllPlayers, getAllTeams, getSave, putTeam } from './db.js';
+import { LEAGUE_DOMESTIC_CUPS } from './cups.js';
+
 /** modules/promotion.js — End-of-season promotion/relegation, playoffs and European qualification */
 
 // ─── Determine European qualification from PL table ──────────
-function getEuropeanQualifiers(sortedStandings) {
+export function getEuropeanQualifiers(sortedStandings) {
   return {
     ucl:   sortedStandings.slice(0, 4).map(r => r.teamId),  // Top 4
     uel:   sortedStandings.slice(4, 6).map(r => r.teamId),  // 5th-6th
@@ -12,7 +15,7 @@ function getEuropeanQualifiers(sortedStandings) {
 
 // ─── Determine 24-team league outcome (Championship / L1 / L2) ──
 // Top 2 auto-promoted, 3-6 playoff, bottom 3 relegated
-function getLeagueOutcome24(sortedStandings) {
+export function getLeagueOutcome24(sortedStandings) {
   return {
     autoPromoted:    sortedStandings.slice(0, 2).map(r => r.teamId),   // 1st, 2nd
     playoffTeams:    sortedStandings.slice(2, 6).map(r => r.teamId),   // 3rd-6th
@@ -21,14 +24,14 @@ function getLeagueOutcome24(sortedStandings) {
 }
 
 // Keep old name as alias for backward compat with validate.js
-function getChampionshipOutcome(sortedStandings) {
+export function getChampionshipOutcome(sortedStandings) {
   const o = getLeagueOutcome24(sortedStandings);
   return { promoted: [...o.autoPromoted], playoffTeams: o.playoffTeams, relegated: o.relegated };
 }
 
 // ─── Simulate a two-legged playoff semi-final ────────────────
 // Returns the winner's teamId and a description of the tie
-function simulatePlayoffTie(team1Id, team2Id, allTeams, allPlayers) {
+export function simulatePlayoffTie(team1Id, team2Id, allTeams, allPlayers) {
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const t1 = teamsById.get(team1Id);
   const t2 = teamsById.get(team2Id);
@@ -68,7 +71,7 @@ function simulatePlayoffTie(team1Id, team2Id, allTeams, allPlayers) {
   };
 }
 
-function simulatePlayoffLeg(homeStr, awayStr) {
+export function simulatePlayoffLeg(homeStr, awayStr) {
   // Simple goal model based on relative strength
   const homeAdv = 4; // home advantage
   const hExpected = Math.max(0.3, (homeStr + homeAdv) / 55);
@@ -79,7 +82,7 @@ function simulatePlayoffLeg(homeStr, awayStr) {
   };
 }
 
-function simulatePlayoffFinal(team1Id, team2Id, allTeams) {
+export function simulatePlayoffFinal(team1Id, team2Id, allTeams) {
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const t1 = teamsById.get(team1Id);
   const t2 = teamsById.get(team2Id);
@@ -101,7 +104,7 @@ function simulatePlayoffFinal(team1Id, team2Id, allTeams) {
   };
 }
 
-function poissonGoals(lambda) {
+export function poissonGoals(lambda) {
   // Poisson random variable for goal scoring
   let L = Math.exp(-lambda), k = 0, p = 1;
   do { k++; p *= Math.random(); } while (p > L);
@@ -113,7 +116,7 @@ function poissonGoals(lambda) {
 // Semi-finals: 3rd vs 6th, 4th vs 5th (two legs each)
 // Final: winners play one match (neutral venue)
 // Returns { promotedViaPlayoff, playoffResults }
-function runPlayoffs(playoffTeamIds, allTeams, allPlayers) {
+export function runPlayoffs(playoffTeamIds, allTeams, allPlayers) {
   // Semi-final 1: 3rd vs 6th (3rd has home advantage in 2nd leg)
   const semi1 = simulatePlayoffTie(playoffTeamIds[0], playoffTeamIds[3], allTeams, allPlayers);
   // Semi-final 2: 4th vs 5th
@@ -133,7 +136,7 @@ function runPlayoffs(playoffTeamIds, allTeams, allPlayers) {
 
 // ─── Process all English league promotion/relegation ──────────
 // Handles: PL↔Championship, Championship↔League One, League One↔League Two
-async function processLeagueChanges(userLeagueStandings, _unused, userTeamId) {
+export async function processLeagueChanges(userLeagueStandings, _unused, userTeamId) {
   const allTeams  = await getAllTeams();
   const allPlayers = await getAllPlayers();
   const byId      = new Map(allTeams.map(t => [t.id, t]));
@@ -316,7 +319,7 @@ async function processLeagueChanges(userLeagueStandings, _unused, userTeamId) {
 }
 
 // ─── Get user's European cup for next season ─────────────────
-function assignCupsFromPosition(position, userLeague, cupState) {
+export function assignCupsFromPosition(position, userLeague, cupState) {
   const domestic = LEAGUE_DOMESTIC_CUPS[userLeague] ?? ['fa_cup', 'league_cup'];
   const cups = [...domestic];
 
@@ -334,7 +337,7 @@ function assignCupsFromPosition(position, userLeague, cupState) {
 }
 
 // ─── Relegation zone helper for UI ───────────────────────────
-function getZoneInfo(position, totalTeams = 20) {
+export function getZoneInfo(position, totalTeams = 20) {
   if (totalTeams === 20) { // PL
     if (position <= 4)  return { zone: 'ucl',   color: '#3b82f6', label: 'Champions League' };
     if (position <= 6)  return { zone: 'uel',   color: '#f97316', label: 'Europa League' };

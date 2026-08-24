@@ -1,7 +1,9 @@
+import { getAllStandings, getStanding, putStanding, putStandingsBulk } from './db.js';
+
 /** modules/standings.js — sortTable, applyResult, recomputePositions, blankStandingRow */
 
 // ─── Sort helpers ────────────────────────────────────────────
-function sortTable(rows) {
+export function sortTable(rows) {
   return [...rows].sort((a, b) => {
     if (b.points          !== a.points)          return b.points          - a.points;
     if (b.goalDifference  !== a.goalDifference)  return b.goalDifference  - a.goalDifference;
@@ -11,7 +13,7 @@ function sortTable(rows) {
 }
 
 // ─── Apply one result ────────────────────────────────────────
-async function applyResult(result) {
+export async function applyResult(result) {
   const [hRow, aRow] = await Promise.all([
     getStanding(result.homeTeamId),
     getStanding(result.awayTeamId),
@@ -23,7 +25,7 @@ async function applyResult(result) {
   await Promise.all([putStanding(hRow), putStanding(aRow)]);
 }
 
-function mutateRow(row, gf, ga) {
+export function mutateRow(row, gf, ga) {
   row.played++;
   row.goalsFor      += gf;
   row.goalsAgainst  += ga;
@@ -34,7 +36,7 @@ function mutateRow(row, gf, ga) {
 }
 
 // ─── Recompute positions ─────────────────────────────────────
-async function recomputePositions() {
+export async function recomputePositions() {
   const rows   = await getAllStandings();
   const sorted = sortTable(rows);
   sorted.forEach((row, i) => { row.position = i + 1; });
@@ -43,12 +45,12 @@ async function recomputePositions() {
 }
 
 // ─── Public getters ──────────────────────────────────────────
-async function getLeagueTable() {
+export async function getLeagueTable() {
   const rows = await getAllStandings();
   return sortTable(rows);
 }
 
-async function getTableSliceAroundTeam(teamId, radius = 2) {
+export async function getTableSliceAroundTeam(teamId, radius = 2) {
   const table = await getLeagueTable();
   const idx   = table.findIndex(r => r.teamId === teamId);
   if (idx === -1) return table;
@@ -62,7 +64,7 @@ async function getTableSliceAroundTeam(teamId, radius = 2) {
 }
 
 // ─── Build blank standings row ───────────────────────────────
-function blankStandingRow(team) {
+export function blankStandingRow(team) {
   return {
     teamId:         team.id,
     teamName:       team.name,

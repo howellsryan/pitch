@@ -5,7 +5,7 @@
  *
  * lg1p(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const lg1p = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const lg1p = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const lg1p = (id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const LIGUE_1_TEAMS = [
+export const LIGUE_1_TEAMS = [
   // ── PARIS SAINT-GERMAIN ────────────────────────────────────
   {id:'psg',name:'Paris Saint-Germain',shortName:'PSG',crest:'🔴🔵',league:'Ligue 1',stadium:'Parc des Princes',stadiumCapacity:47929,budget:300000000,reputation:98,primaryColor:'#004170',players:[
     lg1p('psg_donnarumma','G. Donnarumma','GK',26,12,14,18,90,62,185,90,0),

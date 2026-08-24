@@ -1,10 +1,18 @@
+import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
+import { pickAIFormation, simulateMatch } from './matchEngine.js';
+import { applyResult, recomputePositions } from './standings.js';
+import { CUP_META, UCL_CLUBS, simulateCupRound, simulateUCLMatchday } from './cups.js';
+import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
+import { applyDevelopment } from './potential.js';
+import { applyInjury, tickInjuryRecovery } from './injuries.js';
+
 /** modules/gameweek.js — One-event-per-press architecture: buildPendingEvents, advanceOneFixture */
 
 // ─── Compute effective season length including post-season cups ──
 // European cup finals (UCL/UEL/UECL) happen AFTER the league ends.
 // If the user is still active in one, extend totalGameweeks so the
 // season continues until all their cup business is resolved.
-function getEffectiveTotalGW(save) {
+export function getEffectiveTotalGW(save) {
   const leagueGWs = save.totalGameweeks ?? 38;
   let maxCupGW = leagueGWs;
   if (!save.cups) return leagueGWs;
@@ -23,7 +31,7 @@ function getEffectiveTotalGW(save) {
 }
 
 // ─── Build the queue of pending events for current GW ─────────
-function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
+export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
   const events = [];
 
   // 1. User's league fixture for this GW
@@ -114,7 +122,7 @@ function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
 }
 
 // ─── Get next event to play ────────────────────────────────────
-async function getNextMatchEvent() {
+export async function getNextMatchEvent() {
   const save = await getSave();
   if (save.currentGameweek > getEffectiveTotalGW(save)) return null;
 
@@ -138,7 +146,7 @@ async function getNextMatchEvent() {
 }
 
 // ─── Also exported for pre-match modal ────────────────────────
-async function getNextUserFixture() {
+export async function getNextUserFixture() {
   const save = await getSave();
   const all  = await getAllFixtures();
   return all
@@ -147,7 +155,7 @@ async function getNextUserFixture() {
 }
 
 // ─── Simulate ONE event ────────────────────────────────────────
-async function advanceOneFixture(overrideFormation) {
+export async function advanceOneFixture(overrideFormation) {
   const save = await getSave();
   if (save.currentGameweek > getEffectiveTotalGW(save)) return { finished: true };
 
@@ -320,7 +328,7 @@ async function advanceOneFixture(overrideFormation) {
 // ─── Advance using a pre-computed Watch Match result ──────────
 // Called after the live viewer finishes — skips simulation,
 // applies the pre-computed result, then runs the normal GW logic.
-async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
+export async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
   const save = await getSave();
   const gw   = save.currentGameweek;
   const [allTeams, allPlayers, gwFixtures] = await Promise.all([
@@ -420,7 +428,7 @@ async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
 }
 
 // ─── Build a synthetic match result for the report modal ──────
-function buildCupMatchResult(r, userTeamId, event, allTeams) {
+export function buildCupMatchResult(r, userTeamId, event, allTeams) {
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const defaultStats = { possession:{home:50,away:50}, shots:{home:0,away:0}, shotsOnTarget:{home:0,away:0}, xG:{home:0,away:0}, corners:{home:0,away:0}, fouls:{home:0,away:0}, yellowCards:{home:0,away:0} };
   if (event.type === 'ucl_md') {
@@ -489,7 +497,7 @@ function buildCupMatchResult(r, userTeamId, event, allTeams) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
-async function simulateFixtures(fixtures, teamsById, playersByTeam, save) {
+export async function simulateFixtures(fixtures, teamsById, playersByTeam, save) {
   const results = [];
   const toWrite = [];
   for (const f of fixtures) {
@@ -503,7 +511,7 @@ async function simulateFixtures(fixtures, teamsById, playersByTeam, save) {
   return results;
 }
 
-function buildHeavyLossMap(results) {
+export function buildHeavyLossMap(results) {
   const map = new Map();
   for (const r of results) {
     const hm = r.awayGoals - r.homeGoals;
@@ -514,7 +522,7 @@ function buildHeavyLossMap(results) {
   return map;
 }
 
-async function updateCache(allPlayersIgnored, results) {
+export async function updateCache(allPlayersIgnored, results) {
   // Always read fresh from DB — processInjuryRecovery may have cleared injuries
   const freshPlayers = await getAllPlayers();
   const cache = new Map(freshPlayers.map(p => [p.id, { ...p }]));
@@ -563,7 +571,7 @@ async function updateCache(allPlayersIgnored, results) {
 }
 
 // ─── Tick injury recovery at GW end; returns recovered player names (user team only) ───
-async function processInjuryRecovery() {
+export async function processInjuryRecovery() {
   if (typeof tickInjuryRecovery !== 'function') return [];
   const allPlayers = await getAllPlayers();
   const save = await getSave();
@@ -579,13 +587,13 @@ async function processInjuryRecovery() {
   return recovered.filter(p => p.teamId === save.userTeamId);
 }
 
-function groupByTeam(players) {
+export function groupByTeam(players) {
   const m = new Map();
   for (const p of players) { if (!m.has(p.teamId)) m.set(p.teamId, []); m.get(p.teamId).push(p); }
   return m;
 }
 
-function updatePlayerStats(cache, results) {
+export function updatePlayerStats(cache, results) {
   for (const r of results) {
     for (const evt of [...(r.homeScorers??[]), ...(r.awayScorers??[])]) {
       const p=cache.get(evt.playerId); if(p){p.goals=(p.goals??0)+1;p._played=true;p._scored=true;}
@@ -596,15 +604,15 @@ function updatePlayerStats(cache, results) {
   }
 }
 
-function awardCS(cache,teamId) {
+export function awardCS(cache,teamId) {
   for(const p of cache.values()){if(p.teamId===teamId&&p.position==='GK'&&p.inSquad!==false&&!p.injured){p.cleanSheets=(p.cleanSheets??0)+1;p._played=true;p._cleanSheet=true;break;}}
 }
 
-function applyFitnessUpdates(cache,results) {
+export function applyFitnessUpdates(cache,results) {
   for(const r of results) for(const fu of r.fitnessUpdates??[]){const p=cache.get(fu.id);if(p){p.fitness=fu.newFitness;p._played=true;}}
 }
 
-function applyInjuryUpdates(cache, results) {
+export function applyInjuryUpdates(cache, results) {
   if (typeof applyInjury !== 'function') return;
   for (const r of results) {
     for (const evt of (r.events ?? [])) {

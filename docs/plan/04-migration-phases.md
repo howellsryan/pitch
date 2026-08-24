@@ -51,7 +51,7 @@ the commit.
 
 ---
 
-## Phase 2 — Toolchain (~2 days)
+## Phase 2 — Toolchain (~2 days) — ✅ done (steps 1–7); step 8 done in the same commit
 
 **Ships:** identical game, built by Vite. Zero visible change — which is what
 makes it the riskiest phase.
@@ -63,13 +63,23 @@ makes it the riskiest phase.
    declared dependency order**, running `validate.js` after each:
    `db → matchEngine → standings → fixtures → cups → transfers → potential →
    injuries → promotion → youthAcademy → save → season → gameweek`
-3. Handle `season.js`'s dynamic `import('./cups.js')` (`build.py:77`) — check for a
-   cycle once it's real.
+3. ~~Handle `season.js`'s dynamic `import('./cups.js')`.~~ **Moot** — no dynamic
+   import remains in `season.js`; it calls `buildInitialCupState` directly.
+   `build.py`'s `DYNAMIC_IMPORT_FIX` and all eight of its `RENAMES` entries were
+   found to be dead (zero occurrences in source) and are now vestigial.
 4. Convert `data/*.js` from global assignment to explicit exports.
 5. Keep `ui/` as-is, loaded as side-effect imports; keep `shell.html`'s markup and
    CSS verbatim in `index.html`. **The UI does not change in this phase.**
-6. Configure a second IIFE build target so `validate.js` still has a bundle to
-   check (`01-tech-stack.md`).
+6. ~~Configure a second IIFE build target so `validate.js` still has a bundle to
+   check.~~ **Corrected in implementation — this does not work.** 430 of
+   `validate.js`'s 1180 checks assert against the bundle's *raw source text*
+   (exact strings like `function selectEleven(players, formation` and
+   `'GK': 0`). esbuild normalises quote style and tree-shakes unreferenced
+   top-level code, so an IIFE Vite target fails hundreds of checks that
+   describe no real regression. **`build.py`'s concatenation is kept as the
+   validator's bundler** and Vite owns the app build. Because `strip_modules()`
+   only removes import/export lines, adding real module syntax left the bundle
+   byte-identical — which is how the conversion was proven behaviour-neutral.
 7. Add `.claude/rules/svelte5.md` and wire `eslint-plugin-svelte` into CI *now*,
    before the first component exists.
 8. **Rewrite `BRIEFING.md`** in this same commit — its Commands table and Source

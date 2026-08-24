@@ -1,3 +1,6 @@
+import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
+import { patchSave } from './save.js';
+
 /** modules/transfers.js — buyPlayer, sellPlayer, generateAIOffers, formAdjustedValue */
 
 // ─── Form-adjusted value ──────────────────────────────────────
@@ -5,7 +8,7 @@
 // age, and potential. Higher-value players get smaller % boosts from form
 // to prevent £100M players becoming £250M. Young high-potential players
 // in form get outsized premiums (the "wonderkid tax").
-function formAdjustedValue(player) {
+export function formAdjustedValue(player) {
   const base  = Number(player.value) || 10_000_000;
   const age   = player.age ?? 24;
   const pot   = player.potentialRating ?? 70;
@@ -72,7 +75,7 @@ function formAdjustedValue(player) {
   return Math.max(500_000, Math.round(capped));
 }
 
-function _fav_primaryRating(p) {
+export function _fav_primaryRating(p) {
   const pos = p.position;
   if (['ST','CF','RW','LW','CAM'].includes(pos)) return p.attack;
   if (['CM','CDM','RM','LM'].includes(pos))       return p.midfield;
@@ -80,7 +83,7 @@ function _fav_primaryRating(p) {
   return p.goalkeeping;
 }
 
-function minimumOffer(player) {
+export function minimumOffer(player) {
   return Math.floor(formAdjustedValue(player) * 0.88);
 }
 
@@ -99,7 +102,7 @@ function minimumOffer(player) {
 //  65+  decent             → need rep ≥ 48
 //  60+  league-standard    → need rep ≥ 40
 //  <60  anyone can sign
-function playerMinRepToSign(player) {
+export function playerMinRepToSign(player) {
   const rating = _fav_primaryRating(player);
   if (rating >= 90) return 88;
   if (rating >= 85) return 80;
@@ -121,7 +124,7 @@ function playerMinRepToSign(player) {
 //
 // Hard block: a player who has already moved clubs this season cannot be
 // signed again until the next season (signedThisSeason flag).
-function canClubSignPlayer(team, player) {
+export function canClubSignPlayer(team, player) {
   if (player.signedThisSeason) return false; // already transferred this season
   const minRep = playerMinRepToSign(player);
   if (minRep === 0) return true; // sub-60 rated — anyone can sign
@@ -131,7 +134,7 @@ function canClubSignPlayer(team, player) {
 }
 
 // Human-readable reason why a signing is blocked (shown in UI).
-function repGateReason(team, player) {
+export function repGateReason(team, player) {
   if (player.signedThisSeason) {
     return `${player.name} already transferred this season and cannot move again until next season.`;
   }
@@ -144,7 +147,7 @@ function repGateReason(team, player) {
 }
 
 // ─── Buy a player ─────────────────────────────────────────────
-async function buyPlayer(playerId, offerAmount) {
+export async function buyPlayer(playerId, offerAmount) {
   const save   = await getSave();
   const player = await getPlayer(playerId);
   if (!player)                           throw new Error('PLAYER_NOT_FOUND');
@@ -182,7 +185,7 @@ async function buyPlayer(playerId, offerAmount) {
 // ─── Reputation-weighted team picker ─────────────────────────
 // Higher-rep clubs are more likely to buy expensive/high-rated players.
 // This means PL clubs realistically poach stars from Championship etc.
-function _pickBuyerWeighted(teams, playerValue, playerRating) {
+export function _pickBuyerWeighted(teams, playerValue, playerRating) {
   // Weight = reputation^2 * budget-adequacy bonus
   // High-value players attract higher-rep clubs disproportionately
   const valueTier = Math.min(1, playerValue / 50_000_000); // 0-1, 1 at £50M+
@@ -210,7 +213,7 @@ function _pickBuyerWeighted(teams, playerValue, playerRating) {
 }
 
 // ─── Sell a player ────────────────────────────────────────────
-async function sellPlayer(playerId) {
+export async function sellPlayer(playerId) {
   const save   = await getSave();
   if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
   const player = await getPlayer(playerId);
@@ -242,7 +245,7 @@ async function sellPlayer(playerId) {
  * Each gameweek, AI clubs may bid on your players.
  * Stored in save.inboundOffers = [{playerId, clubId, clubName, fee, date, status}]
  */
-async function generateAIOffers() {
+export async function generateAIOffers() {
   const save      = await getSave();
   // AI inbound offers only happen during transfer windows
   if (!isTransferWindowOpen(save).open) return [];
@@ -281,7 +284,7 @@ async function generateAIOffers() {
 }
 
 // ─── Accept an inbound offer ──────────────────────────────────
-async function acceptOffer(playerId) {
+export async function acceptOffer(playerId) {
   const save   = await getSave();
   const offer  = save.inboundOffers?.find(o => o.playerId === playerId && o.status === 'pending');
   if (!offer) throw new Error('OFFER_NOT_FOUND');
@@ -302,14 +305,14 @@ async function acceptOffer(playerId) {
 }
 
 // ─── Reject an offer ──────────────────────────────────────────
-async function rejectOffer(playerId) {
+export async function rejectOffer(playerId) {
   const save  = await getSave();
   const updated = (save.inboundOffers ?? []).map(o => o.playerId === playerId && o.status === 'pending' ? { ...o, status: 'rejected' } : o);
   await putSave({ ...save, inboundOffers: updated });
 }
 
 // ─── Counter an offer — instant negotiation ─────────────────
-async function counterOffer(playerId, askingPrice) {
+export async function counterOffer(playerId, askingPrice) {
   const save   = await getSave();
   const player = await getPlayer(playerId);
   const fav    = player ? formAdjustedValue(player) : askingPrice;
@@ -359,7 +362,7 @@ async function counterOffer(playerId, askingPrice) {
 // We derive window status from save.currentDate for accuracy rather
 // than gameweek number, which can vary by league and start date.
 
-function isTransferWindowOpen(save) {
+export function isTransferWindowOpen(save) {
   const d = new Date(save.currentDate);
   const month = d.getMonth(); // 0=Jan … 11=Dec
   const day   = d.getDate();
@@ -378,7 +381,7 @@ function isTransferWindowOpen(save) {
 // Returns { isDeadline, window } — true when the transfer window is open
 // AND the next gameweek advance (+7 days) would cross or reach the deadline.
 // This catches the case where the game date never lands exactly on Sep 1 / Feb 1.
-function isDeadlineDay(save) {
+export function isDeadlineDay(save) {
   const d = new Date(save.currentDate);
   const month = d.getMonth();
   const day   = d.getDate();
@@ -406,7 +409,7 @@ function isDeadlineDay(save) {
 }
 
 // Human-readable status string for UI
-function transferWindowStatus(save) {
+export function transferWindowStatus(save) {
   const { open, window } = isTransferWindowOpen(save);
   if (open) {
     const d = new Date(save.currentDate);
@@ -457,7 +460,7 @@ function transferWindowStatus(save) {
 //  • Clubs won't drop below 16 players (squad safety floor)
 //
 // Returns array of completed deals for potential news feed use.
-async function simulateAITransfers(save) {
+export async function simulateAITransfers(save) {
   const { open } = isTransferWindowOpen(save);
   if (!open) return [];
 
@@ -613,23 +616,23 @@ async function simulateAITransfers(save) {
 //
 // Loan returns are handled by processEndOfSeason (season.js).
 
-function _loanFee(player) {
+export function _loanFee(player) {
   return Math.round((player.value ?? 0) * 0.10);
 }
 
-function _loanWageCost(player, save) {
+export function _loanWageCost(player, save) {
   const gwsRemaining = Math.max(0, (save.totalGameweeks ?? 38) - (save.currentGameweek ?? 1) + 1);
   return (player.wage ?? 0) * gwsRemaining;
 }
 
 // Total cost for the loan club: fee + projected wages
-function loanTotalCost(player, save) {
+export function loanTotalCost(player, save) {
   return _loanFee(player) + _loanWageCost(player, save);
 }
 
 // User loans OUT one of their own players to an AI club.
 // Budget effect: user receives loanFee + projected wage cost back.
-async function loanOutPlayer(playerId) {
+export async function loanOutPlayer(playerId) {
   const save = await getSave();
   if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
 
@@ -685,7 +688,7 @@ async function loanOutPlayer(playerId) {
 
 // User loans IN a player from an AI parent club.
 // Budget effect: user pays loanFee + projected wages upfront.
-async function loanInPlayer(playerId) {
+export async function loanInPlayer(playerId) {
   const save = await getSave();
   if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
 
@@ -735,7 +738,7 @@ async function loanInPlayer(playerId) {
 // Determines if an AI club would loan out a given player.
 // Logic: only loan out genuine fringe/youth — not first-team starters.
 // Future: could be extended with min-play-time clauses, etc.
-function _aiWillingToLoanOut(player, parentTeam) {
+export function _aiWillingToLoanOut(player, parentTeam) {
   // Never loan on-loan players
   if (player.onLoan || player.loanedFrom) return false;
   // Never loan players already moved this season
@@ -753,7 +756,7 @@ function _aiWillingToLoanOut(player, parentTeam) {
 // Returns all players available for the user to loan in from AI clubs.
 // Filtered to: fringe youth (age ≤22 or isYouth), not already loaned,
 // parent club must be willing, and not from user's own club.
-async function getLoanableInPlayers(save) {
+export async function getLoanableInPlayers(save) {
   const allPlayers = await getAllPlayers();
   const allTeams = await getAllTeams();
   const teamById = new Map(allTeams.map(t => [t.id, t]));
@@ -785,7 +788,7 @@ async function getLoanableInPlayers(save) {
 // Future extension points:
 //   save.loanCap           — per-club loan limit (not enforced in v1)
 //   player.loanRecallable  — mid-season recall clause (not wired in v1)
-async function simulateAILoans(save) {
+export async function simulateAILoans(save) {
   // Loans only happen during transfer windows (same gate as simulateAITransfers)
   const { open } = isTransferWindowOpen(save);
   if (!open) return [];
@@ -904,7 +907,7 @@ async function simulateAILoans(save) {
 }
 
 // ─── Buy-side counter: club comes back with price after rejection ──
-function generateBuyCounter(player, offerAmount) {
+export function generateBuyCounter(player, offerAmount) {
   const fav       = formAdjustedValue(player);
   const threshold = minimumOffer(player);
 

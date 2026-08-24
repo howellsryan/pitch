@@ -1,7 +1,18 @@
+import { getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave } from '../modules/db.js';
+import { selectEleven } from '../modules/matchEngine.js';
+import { CUP_META } from '../modules/cups.js';
+import { injuryDurationLabel } from '../modules/injuries.js';
+import { POSITIONS } from '../modules/youthAcademy.js';
+import { advanceOneFixture, getNextMatchEvent } from '../modules/gameweek.js';
+import { flagEmoji, fmt, formLabel, hideLoader, posGroup, showLoader, showModal, toast } from './helpers.js';
+import { renderHome, showMatchReport } from './home_transfers.js';
+import { newsAIBid, newsInjury } from './inbox.js';
+import { showWatchMatchModal } from './watchmatch.js';
+
 /** ui/prematch.js — Pre-match briefing modal, handleAdvanceOneFixture, _launchWatchMatch, _generateStubPlayers */
 
 // ─── Get last N results for any team ─────────────────────────
-async function getTeamRecentForm(teamId, n = 5) {
+export async function getTeamRecentForm(teamId, n = 5) {
   const all = await getAllFixtures();
   return all
     .filter(f => f.played && (f.homeTeamId === teamId || f.awayTeamId === teamId))
@@ -17,7 +28,7 @@ async function getTeamRecentForm(teamId, n = 5) {
 }
 
 // ─── Get most in-form player for a team ──────────────────────
-async function getInFormPlayer(teamId) {
+export async function getInFormPlayer(teamId) {
   const players = await getPlayersByTeam(teamId);
   return players
     .filter(p => !p.injured)
@@ -29,7 +40,7 @@ async function getInFormPlayer(teamId) {
 }
 
 // ─── Show pre-match modal ─────────────────────────────────────
-async function showPreMatchModal() {
+export async function showPreMatchModal() {
   const save  = await getSave();
   const event = await getNextMatchEvent();
 
@@ -263,7 +274,7 @@ async function showPreMatchModal() {
 }
 
 // ─── Pop next event, simulate, show report ────────────────────
-async function handleAdvanceOneFixture(overrideFormation) {
+export async function handleAdvanceOneFixture(overrideFormation) {
   const hdrBtn = document.getElementById('btn-adv-header');
   if (hdrBtn) hdrBtn.disabled = true;
 
@@ -369,7 +380,7 @@ async function handleAdvanceOneFixture(overrideFormation) {
 }
 
 // ─── Launch Watch Match — load data then open live viewer ─────
-async function _launchWatchMatch(event, save, userTeam, oppTeam, selectedFormation) {
+export async function _launchWatchMatch(event, save, userTeam, oppTeam, selectedFormation) {
   showLoader('Preparing match…');
   try {
     const allTeams2  = await getAllTeams();
@@ -427,7 +438,7 @@ async function _launchWatchMatch(event, save, userTeam, oppTeam, selectedFormati
 // ─── Generate stub players for AI opponents not in DB ─────────
 // Used for UCL/European opponents who have a strength rating but
 // no actual players stored in IndexedDB.
-function _generateStubPlayers(team, strength) {
+export function _generateStubPlayers(team, strength) {
   const s = Math.max(40, Math.min(95, strength));
   const v = (base, spread) => Math.round(base + (Math.random() - 0.5) * spread);
   const POSITIONS = [

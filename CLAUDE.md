@@ -18,16 +18,26 @@
   before `pitch` was identified as the actual base to build on — it moved here
   once that was settled. `footy-sim` still holds a copy from that point; this
   one is authoritative.)
-- **Where things stand right now**: Phase 0 (deployed to Cloudflare Workers)
-  and Phase 1 (portable build + CI) are done. Everything from Phase 2 onward —
-  the Vite/Svelte/Tailwind toolchain, the mobile UI rebuild, the live-match
-  viewer rebuild, the footy-sim data reconciliation — has **not** happened yet.
-  The vanilla-JS/concatenation build described below is today's reality, not
-  the target architecture. Don't "fix" it toward a different shape than the
-  plan specifies, and don't assume Svelte/Vite/Tailwind exist yet — they don't.
-- **No test suite beyond `src/validate.js`, no lint config.** CI runs the
-  1180-check validator on every push and PR — real, but narrow. It doesn't
-  cover UI correctness or most one-off logic paths. See `scope-fence`.
+- **Where things stand right now**: Phase 0 (Workers), Phase 1 (portable build
+  + CI) and **Phase 2 (toolchain)** are done. `src/modules/`, `src/data/` and
+  `src/ui/` are **real ES modules**, built by **Vite**; Svelte 5 and Tailwind v4
+  are installed and configured, and the `@theme` tokens live in `src/app.css`.
+  **No Svelte component exists yet** — the UI is still the hand-written
+  `innerHTML` renderers in `src/ui/`, and Phase 3 (shell + first screen) has not
+  started. The club accent layer (`src/lib/theme.mjs`) landed early with Phase 2
+  and already drives the live UI.
+- **Two build paths run side by side.** Vite builds the app; `src/build.py`'s
+  concatenation survives *only* to feed `src/validate.js`, which asserts against
+  the bundle's raw source text and cannot read a Vite bundle. Don't delete
+  `build.py`, and don't repoint the validator at Vite output. `npm run build`
+  runs both.
+- **The deployed artifact is still the legacy `index.html`.** Switching the
+  Worker to `dist/` is a deliberate, untaken step.
+- **Test coverage is still narrow.** `src/validate.js`'s 1180 checks run on
+  every push and PR, joined by a Playwright smoke test that drives a real career
+  and an accent-contrast check over all 186 clubs. None of it covers UI
+  correctness screen by screen. Vitest is installed but unused. See
+  `scope-fence`.
 
 ## 1) Snapshot
 
@@ -54,13 +64,15 @@
 
 ## 2) Tech stack — current vs. target
 
-| | **Today** | **Target (per the plan, not yet built)** |
+| | **Today** | **Target (per the plan)** |
 |---|---|---|
-| Build | `src/build.py` concatenates 22 files into one `index.html` (globals on `window`, no real `import`/`export`) | Vite |
-| UI | Hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS | Svelte 5 (runes) |
-| Styling | Plain CSS custom properties in `shell.html` | Tailwind v4, `@theme` tokens |
+| Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
+| Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
+| UI | Hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS | Svelte 5 (runes) — **installed, no component written yet** |
+| Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
+| Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
-| Tests | `src/validate.js`, 1180 checks, run in Node against the bundle | Vitest + Playwright, added alongside — `validate.js` is retired section by section, not deleted wholesale |
+| Tests | `src/validate.js` (1180 checks) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -113,15 +125,24 @@ UX spec, tokens, and the design canvas it was drafted against.
 ## 4) Build / Test / Deploy
 
 ```bash
-npm run build           # python3 src/build.py — bundles, validates, assembles
+npm run dev              # Vite dev server with HMR, :5173
+npm run build            # both paths: legacy bundle + validator, then the Vite app
+npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
+npm run build:app        # Vite → dist/
 npm run validate         # node src/validate.js — re-run just the 1180 checks
+npm run check:accents    # club accent contrast, all 186 clubs
+npm run test:e2e         # Playwright, 390×844
+npm run lint             # ESLint + eslint-plugin-svelte
 npm run deploy           # build, then wrangler deploy (needs Cloudflare creds)
-npm run deploy:preview   # build, then wrangler versions upload
 ```
 
-No `npm install` is required for `build`/`validate` — they shell out to system
-`python3`/`node` directly. `deploy`/`deploy:preview` fetch `wrangler` via `npx`
-on demand.
+`build:legacy` and `validate` shell out to system `python3`/`node` and need no
+`npm install`. Everything else needs `npm ci` first.
+
+**Known flake:** `validate.js`'s "Home win rate >20% over 30 games" check is
+stochastic and fails roughly **1 run in 8** — on unmodified `main` too. CI is
+therefore intermittently red through no fault of the change under test. Re-run
+before investigating; seeding the RNG is simulation math and needs `plan-gate`.
 
 ## 5) Agent Best Practices
 

@@ -1,7 +1,15 @@
+import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllPlayers, getAllStandings, getAllTeams, getSave, getTeam, putPlayersBulk, putSave, putTeam, replaceAllFixtures, replaceAllStandings } from './db.js';
+import { blankStandingRow } from './standings.js';
+import { generateLeagueFixtures } from './fixtures.js';
+import { CUP_META, buildInitialCupState } from './cups.js';
+import { agingValueAdjust, applyAgingDecline } from './potential.js';
+import { assignCupsFromPosition, processLeagueChanges } from './promotion.js';
+import { runYouthIntake } from './youthAcademy.js';
+
 /** modules/season.js — End-of-season: aging, honors, prize money, season rollover */
 
 // ─── Real-life trophy tallies (as of 2025) ───────────────────
-const REAL_LIFE_HONORS = {
+export const REAL_LIFE_HONORS = {
   // English
   fa_cup:         { arsenal:14, man_utd:12, chelsea:8, tottenham:8, liverpool:8, man_city:7, aston_villa:7, newcastle:6 },
   league_cup:     { man_city:8, liverpool:10, aston_villa:5, chelsea:5, man_utd:6, tottenham:4, arsenal:2 },
@@ -28,7 +36,7 @@ const REAL_LIFE_HONORS = {
 // European cups: full prize structure with trickle-down per round reached.
 // CUP_WIN_PRIZE = trophy winners. CUP_RUNNER_UP_PRIZE = finalists.
 // CUP_ROUND_PRIZE = prize for reaching/surviving each round (SF, QF, R16, group).
-const CUP_WIN_PRIZE = {
+export const CUP_WIN_PRIZE = {
   // European — winners take massive prizes reflecting UEFA distributions
   ucl:100_000_000, uel:50_000_000, uecl:25_000_000,
   // FA Cup per-round via CUP_META.roundPrize — this is the EXTRA for lifting the trophy
@@ -40,7 +48,7 @@ const CUP_WIN_PRIZE = {
   knvb_beker:600_000,
 };
 // Runner-up prize for cup finals
-const CUP_RUNNER_UP_PRIZE = {
+export const CUP_RUNNER_UP_PRIZE = {
   ucl:50_000_000, uel:25_000_000, uecl:12_500_000,
   fa_cup:1_000_000, league_cup:600_000,
 };
@@ -49,13 +57,13 @@ const CUP_RUNNER_UP_PRIZE = {
 // UCL: group/league-phase ~£15m, R16 +£10m, QF +£12m, SF +£15m (all below final prize)
 // UEL: league-phase ~£5m, R32 +£2m, R16 +£3m, QF +£4m, SF +£6m
 // UECL: league-phase ~£3m, R16 +£1.5m, QF +£2m, SF +£3m
-const CUP_ROUND_PRIZE = {
+export const CUP_ROUND_PRIZE = {
   ucl:  { 0:15_000_000, 1:10_000_000, 2:12_000_000, 3:15_000_000 }, // R16,QF,SF,Final(winner/ru handled above)
   uel:  { 0: 5_000_000, 1: 2_000_000, 2: 3_000_000, 3: 4_000_000, 4: 6_000_000 },
   uecl: { 0: 3_000_000, 1: 1_500_000, 2: 2_000_000, 3: 3_000_000 },
 };
 // Flat run prize for domestic cups (non-FA Cup) — paid if team reached a deep round
-const CUP_RUN_PRIZE = {
+export const CUP_RUN_PRIZE = {
   fa_cup:0, league_cup:150_000,  // FA Cup handled per-round via CUP_META
   copa_del_rey:700_000, supercopa:200_000,
   dfb_pokal:700_000, dfb_supercup:0,
@@ -64,7 +72,7 @@ const CUP_RUN_PRIZE = {
   knvb_beker:100_000,
 };
 
-function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
+export function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
   // League prize money — real EFL/PL distributions (2024/25 estimates) with
   // position-weighted merit payments. Sources: EFL handbook, PL published distributions.
   let leaguePrize = 0;
@@ -186,7 +194,7 @@ function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
 }
 
 // ─── End-of-season processing ─────────────────────────────────
-async function processEndOfSeason() {
+export async function processEndOfSeason() {
   const save      = await getSave();
   const standings = await getAllStandings();
   const players   = await getAllPlayers();
@@ -354,7 +362,7 @@ async function processEndOfSeason() {
 // applyAgingDecline is provided by potential.js (imported as applyAgingDecline)
 
 // ─── Inline primary rating for retirement check ──────────────
-function _retirePrimaryRating(p) {
+export function _retirePrimaryRating(p) {
   const pos = p.position;
   if (['ST','CF','RW','LW','CAM'].includes(pos)) return p.attack;
   if (['CM','CDM','RM','LM'].includes(pos))       return p.midfield;
@@ -362,7 +370,7 @@ function _retirePrimaryRating(p) {
   return p.goalkeeping;
 }
 
-function buildSeasonSummary(save, sorted, players, userPosition) {
+export function buildSeasonSummary(save, sorted, players, userPosition) {
   return {
     season:     save.season,
     userLeague: save.userLeague ?? 'Premier League',
@@ -377,14 +385,14 @@ function buildSeasonSummary(save, sorted, players, userPosition) {
   };
 }
 
-function resetCups(old) {
+export function resetCups(old) {
   const fresh = {};
   Object.keys(old).forEach(id => { fresh[id] = { id, roundIndex: 0, status: 'active', results: [] }; });
   return fresh;
 }
 
 // ─── Get honors for a team ────────────────────────────────────
-async function getHonorsForTeam(teamId) {
+export async function getHonorsForTeam(teamId) {
   const earned   = await getAllHonors();
   const myEarned = earned.filter(h => h.teamId === teamId);
   const combined = {};
@@ -399,7 +407,7 @@ async function getHonorsForTeam(teamId) {
  * Higher reputation = bigger budget. Prize money already added
  * to user. Here we refresh AI budgets so the market stays liquid.
  */
-function reputationBudget(reputation, isUserTeam = false) {
+export function reputationBudget(reputation, isUserTeam = false) {
   // Scale: rep 99 → ~£200m, rep 70 → ~£30m, rep 60 → ~£12m
   const base = Math.round(
     reputation >= 95 ? 180_000_000 + (reputation - 95) * 10_000_000 :

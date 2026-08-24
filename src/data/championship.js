@@ -5,7 +5,7 @@
  *
  * cp(id, name, nationality, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
  */
-const cp = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
+export const cp = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   id,name:nm,nationality:nat,position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,
   value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,
   injured:false,suspended:false,inSquad:true,fitness:100,
@@ -13,7 +13,7 @@ const cp = (id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk) => ({
   ...(wk  ? {isWonderkid:true}    : {}),
 });
 
-const CHAMPIONSHIP_TEAMS = [
+export const CHAMPIONSHIP_TEAMS = [
   // ── BIRMINGHAM CITY ────────────────────────────────────────
   {id:'birmingham',name:'Birmingham City',shortName:'BIR',crest:'🔵',league:'Championship',stadium:'St Andrew\'s',stadiumCapacity:29409,budget:14000000,reputation:66,primaryColor:'#0000FF',players:[
     cp('bir_bonham','John Ruddy','🏴󠁧󠁢󠁥󠁮󠁧󠁿','GK',38,10,11,13,72,1,10,72,0),

@@ -4,12 +4,32 @@
   "version": "0.0.0",
   "description": "Football career simulator. Live at pitch-sim.com.",
   "scripts": {
-    "build": "python3 src/build.py",
+    "dev": "node tools/make-entry.mjs && vite",
+    "build": "npm run build:legacy && npm run build:app",
+    "build:legacy": "python3 src/build.py",
+    "build:app": "node tools/make-entry.mjs && vite build",
+    "preview": "npm run build:app && vite preview --port 4173 --strictPort",
     "validate": "node src/validate.js",
+    "check:accents": "node tools/check-club-accents.mjs",
+    "test:e2e": "playwright test --config=playwright.config.mjs",
+    "check:svelte": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint .",
     "deploy": "npm run build && wrangler deploy",
     "deploy:preview": "npm run build && wrangler versions upload"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tailwindcss/vite": "^4.3.3",
+    "eslint": "^10.9.1",
+    "eslint-plugin-svelte": "^3.23.0",
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.7.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11",
     "wrangler": "^4.0.0"
   }
 }
