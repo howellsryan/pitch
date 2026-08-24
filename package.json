@@ -1,0 +1,13 @@
+{
+  "name": "pitch",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Football career simulator. Live at pitch-sim.com.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "deploy:preview": "wrangler versions upload"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
