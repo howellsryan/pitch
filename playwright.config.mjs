@@ -1,4 +1,14 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
+
+// Some sandboxes preinstall Chromium at a build the pinned @playwright/test
+// doesn't expect, so we point at it rather than downloading a second copy.
+// CI has no such binary — there Playwright must resolve the browser it
+// installed itself, so this stays empty.
+const PREINSTALLED_CHROMIUM = '/opt/pw-browsers/chromium';
+const launchOptions = existsSync(PREINSTALLED_CHROMIUM)
+  ? { executablePath: PREINSTALLED_CHROMIUM }
+  : {};
 
 export default defineConfig({
   testDir: './tests',
@@ -10,10 +20,7 @@ export default defineConfig({
     // The design system targets 390x844 portrait (docs/plan/02-design-system.md).
     // Chromium is the browser available in CI here; WebKit is not installed.
     browserName: 'chromium',
-    // This environment preinstalls Chromium at a build the pinned
-    // @playwright/test doesn't expect, so point at it explicitly rather than
-    // downloading a second copy.
-    launchOptions: { executablePath: '/opt/pw-browsers/chromium' },
+    launchOptions,
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,
