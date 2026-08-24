@@ -20,9 +20,14 @@ export default defineConfig({
     hasTouch: true,
   },
   webServer: {
-    command: 'npx vite preview --port 4173 --strictPort',
+    // --host 127.0.0.1 is load-bearing: vite preview otherwise binds "localhost",
+    // which on a CI runner can resolve to ::1 only, so polling 127.0.0.1 never
+    // succeeds and the server appears to never start.
+    command: 'npx vite preview --port 4173 --strictPort --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
+    stdout: 'pipe',
+    stderr: 'pipe',
     timeout: 120_000,
   },
 });
