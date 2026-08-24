@@ -1,0 +1,552 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #0A0E14; font-family: Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #8695A8; } a:hover { color: #EDF1F5; }
+    * { box-sizing: border-box; }
+    .tap { cursor: pointer; user-select: none; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    .disp { font-family: "Saira Condensed", "Arial Narrow", sans-serif; }
+    .scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+    .scroll::-webkit-scrollbar { display: none; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #0A0E14; color: #EDF1F5; display: flex; flex-direction: column; position: relative; overflow: hidden;">
+
+  <!-- context bar -->
+  <div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;">
+    <div style="width: 26px; height: 30px; flex-shrink: 0;">
+      <svg viewBox="0 0 26 30" width="26" height="30" aria-hidden="true">
+        <path d="M13 1 L24 5 V16 C24 23 18 27 13 29 C8 27 2 23 2 16 V5 Z" fill="{{club.hex}}" stroke="rgba(255,255,255,0.22)" stroke-width="1"></path>
+        <path d="M13 1 L24 5 V16 C24 23 18 27 13 29 Z" fill="rgba(0,0,0,0.18)"></path>
+      </svg>
+    </div>
+    <div style="flex-grow: 1; min-width: 0;">
+      <div class="disp" style="font-size: 17px; font-weight: 700; letter-spacing: 0.3px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{club.name}}</div>
+      <div class="mono" style="font-size: 11px; color: #8695A8; letter-spacing: 0.4px; margin-top: 2px;">GW 12 / 38 · {{club.stadium}}</div>
+    </div>
+    <div style="text-align: right; flex-shrink: 0;">
+      <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.6px;">BUDGET</div>
+      <div class="disp" style="font-size: 17px; font-weight: 600; line-height: 1.1;">£48.5M</div>
+    </div>
+  </div>
+
+  <!-- screens -->
+  <div class="scroll" style="flex-grow: 1; min-height: 0;">
+
+    <!-- ══ HOME ══ -->
+    <sc-if value="{{isHome}}" hint-placeholder-val="{{ true }}">
+      <div style="padding: 14px 16px 92px;">
+        <div style="border: 1px solid rgba(255,255,255,0.07); border-top: 2px solid {{club.hex}}; border-radius: 10px; background: #131A23; padding: 14px; margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+            <span class="mono" style="font-size: 11px; color: {{club.hex}}; letter-spacing: 1.2px;">NEXT MATCH</span>
+            <span class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.6px;">SAT 15:00</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="text-align: center; width: 92px;">
+              <div class="disp" style="font-size: 22px; font-weight: 700; letter-spacing: 0.6px;">{{club.short}}</div>
+              <div style="display: flex; gap: 3px; justify-content: center; margin-top: 7px;">
+                <sc-for list="{{formHome}}" as="f" hint-placeholder-count="5">
+                  <div style="width: 13px; height: 3px; border-radius: 2px; background: {{f.c}};"></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="text-align: center;">
+              <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.6px;">VS</div>
+              <div class="mono" style="font-size: 11px; color: #8695A8; margin-top: 5px;">3rd v 8th</div>
+            </div>
+            <div style="text-align: center; width: 92px;">
+              <div class="disp" style="font-size: 22px; font-weight: 700; letter-spacing: 0.6px; color: #8695A8;">NEW</div>
+              <div style="display: flex; gap: 3px; justify-content: center; margin-top: 7px;">
+                <sc-for list="{{formAway}}" as="f" hint-placeholder-count="5">
+                  <div style="width: 13px; height: 3px; border-radius: 2px; background: {{f.c}};"></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07);">
+            <div style="flex-grow: 1;">
+              <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.6px;">SHAPE</div>
+              <div style="font-size: 13px; font-weight: 600; margin-top: 3px;">4-3-3 · Attacking</div>
+            </div>
+            <div style="flex-grow: 1;">
+              <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.6px;">UNAVAILABLE</div>
+              <div style="font-size: 13px; font-weight: 600; margin-top: 3px; color: #F5B93D;">2 injured</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tap disp" onClick="{{ goMatch }}" style="width: 100%; background: {{club.hex}}; color: {{club.on}}; border: none; border-radius: 10px; padding: 15px; font-size: 18px; font-weight: 700; letter-spacing: 1.4px; text-align: center; margin-bottom: 16px;">▶ PLAY MATCH</div>
+
+        <div style="border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; background: #131A23; overflow: hidden; margin-bottom: 14px;">
+          <div class="tap" onClick="{{ goLeague }}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.07);">
+            <span class="disp" style="font-size: 15px; font-weight: 700; letter-spacing: 0.7px;">PREMIER LEAGUE</span>
+            <span class="mono" style="font-size: 11px; color: {{club.hex}}; letter-spacing: 0.6px;">FULL TABLE →</span>
+          </div>
+          <sc-for list="{{tableTop}}" as="row" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: {{row.bg}}; border-left: 2px solid {{row.mark}};">
+              <span class="mono" style="font-size: 12px; color: #5A6878; width: 16px;">{{row.pos}}</span>
+              <span style="flex-grow: 1; font-size: 13px; font-weight: {{row.weight}};">{{row.name}}</span>
+              <span class="mono" style="font-size: 12px; color: #8695A8; width: 30px; text-align: right;">{{row.gd}}</span>
+              <span class="mono" style="font-size: 13px; font-weight: 600; width: 24px; text-align: right;">{{row.pts}}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 11px; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; background: #131A23; padding: 12px 14px;">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8695A8" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m2 7 10 6 10-6"></path></svg>
+          <div style="flex-grow: 1;">
+            <div style="font-size: 13px; font-weight: 600;">Bid received for Zinchenko</div>
+            <div class="mono" style="font-size: 11px; color: #8695A8; margin-top: 2px;">Nottm Forest · £31.0M</div>
+          </div>
+          <div class="mono" style="background: {{club.hex}}; color: {{club.on}}; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px;">3</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ SQUAD ══ -->
+    <sc-if value="{{isSquad}}" hint-placeholder-val="{{ true }}">
+      <div style="padding: 14px 16px 92px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <span class="disp" style="font-size: 21px; font-weight: 700; letter-spacing: 0.7px;">SQUAD</span>
+          <span class="mono" style="font-size: 11px; color: #8695A8; letter-spacing: 0.4px;">24 PLAYERS · £4.2M/WK</span>
+        </div>
+
+        <div style="display: flex; gap: 6px; background: #131A23; border-radius: 9px; padding: 4px; margin-bottom: 12px;">
+          <div class="tap" onClick="{{ showPlayers }}" style="flex-grow: 1; text-align: center; padding: 9px; border-radius: 6px; font-size: 13px; font-weight: 600; background: {{playersTabBg}}; color: {{playersTabFg}};">Players</div>
+          <div class="tap" onClick="{{ showTactics }}" style="flex-grow: 1; text-align: center; padding: 9px; border-radius: 6px; font-size: 13px; font-weight: 600; background: {{tacticsTabBg}}; color: {{tacticsTabFg}};">Tactics</div>
+        </div>
+
+        <sc-if value="{{isPlayers}}" hint-placeholder-val="{{ true }}">
+          <div>
+            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+              <sc-for list="{{posFilters}}" as="f" hint-placeholder-count="5">
+                <div class="tap mono" onClick="{{ f.pick }}" style="padding: 7px 13px; border-radius: 999px; font-size: 11px; font-weight: 500; letter-spacing: 0.6px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}};">{{f.label}}</div>
+              </sc-for>
+            </div>
+            <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; display: flex; justify-content: space-between; margin-bottom: 7px;">
+              <span>SORTED BY RATING</span><span>FITNESS · VALUE</span>
+            </div>
+            <sc-for list="{{squad}}" as="p" hint-placeholder-count="7">
+              <div style="display: flex; align-items: center; gap: 11px; padding: 11px 12px; margin-bottom: 6px; background: #131A23; border-radius: 9px; border-left: 3px solid {{p.bar}};">
+                <div class="disp" style="font-size: 25px; font-weight: 700; width: 34px; text-align: center; line-height: 1;">{{p.r}}</div>
+                <div style="flex-grow: 1; min-width: 0;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{p.n}}</span>
+                    <sc-if value="{{p.wk}}" hint-placeholder-val="{{ false }}">
+                      <span class="mono" style="font-size: 11px; color: #F5B93D; border: 1px solid #F5B93D; border-radius: 3px; padding: 0 4px; flex-shrink: 0;">WK</span>
+                    </sc-if>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 7px; margin-top: 3px;">
+                    <span class="mono" style="font-size: 11px; background: #1C2530; color: #8695A8; padding: 1px 5px; border-radius: 3px;">{{p.pos}}</span>
+                    <span class="mono" style="font-size: 11px; color: #8695A8;">{{p.meta}}</span>
+                  </div>
+                </div>
+                <div style="text-align: right; flex-shrink: 0;">
+                  <div class="disp" style="font-size: 15px; font-weight: 600;">{{p.val}}</div>
+                  <div style="width: 46px; height: 3px; border-radius: 2px; background: #1C2530; margin-top: 6px;">
+                    <div style="width: {{p.fitW}}; height: 3px; border-radius: 2px; background: {{p.fitC}};"></div>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isTactics}}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="position: relative; height: 320px; border-radius: 10px; background: linear-gradient(#101822, #0C131B); border: 1px solid rgba(255,255,255,0.07); margin-bottom: 14px; overflow: hidden;">
+              <div style="position: absolute; inset: 12px; border: 1px solid rgba(255,255,255,0.09); border-radius: 4px;"></div>
+              <div style="position: absolute; left: 12px; right: 12px; top: 50%; height: 1px; background: rgba(255,255,255,0.09);"></div>
+              <div style="position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border: 1px solid rgba(255,255,255,0.09); border-radius: 50%; transform: translate(-50%,-50%);"></div>
+              <sc-for list="{{pitchSlots}}" as="s" hint-placeholder-count="11">
+                <div class="tap" style="position: absolute; left: {{s.x}}; top: {{s.y}}; transform: translate(-50%,-50%); text-align: center;">
+                  <div class="disp" style="width: 30px; height: 30px; border-radius: 50%; background: {{club.hex}}; color: {{club.on}}; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{s.r}}</div>
+                  <div class="mono" style="font-size: 11px; color: #8695A8; margin-top: 3px; white-space: nowrap;">{{s.n}}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; margin-bottom: 7px;">FORMATION</div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+              <sc-for list="{{formations}}" as="f" hint-placeholder-count="4">
+                <div class="tap mono" onClick="{{ f.pick }}" style="padding: 8px 12px; border-radius: 7px; font-size: 12px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}};">{{f.label}}</div>
+              </sc-for>
+            </div>
+            <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; margin-bottom: 7px;">MENTALITY</div>
+            <div style="display: flex; gap: 6px;">
+              <sc-for list="{{mentalities}}" as="m" hint-placeholder-count="4">
+                <div class="tap" onClick="{{ m.pick }}" style="flex-grow: 1; text-align: center; padding: 10px 4px; border-radius: 7px; font-size: 12px; font-weight: 600; background: {{m.bg}}; color: {{m.fg}}; border: 1px solid {{m.bd}};">{{m.label}}</div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ══ LIVE MATCH ══ -->
+    <sc-if value="{{isMatch}}" hint-placeholder-val="{{ false }}">
+      <div style="padding: 0 0 92px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.07);">
+          <div class="tap mono" onClick="{{ goHome }}" style="font-size: 11px; color: #8695A8; letter-spacing: 0.6px;">‹ BACK</div>
+          <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px;">PREMIER LEAGUE · GW 12</div>
+          <div class="mono" style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: #2BD97C; letter-spacing: 0.6px;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #2BD97C; display: inline-block;"></span>LIVE
+          </div>
+        </div>
+
+        <div style="border-top: 2px solid {{club.hex}}; background: #131A23; padding: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="text-align: center; width: 76px;">
+              <svg viewBox="0 0 26 30" width="24" height="28"><path d="M13 1 L24 5 V16 C24 23 18 27 13 29 C8 27 2 23 2 16 V5 Z" fill="{{club.hex}}" stroke="rgba(255,255,255,0.22)"></path></svg>
+              <div class="disp" style="font-size: 15px; font-weight: 700; letter-spacing: 0.6px; margin-top: 4px;">{{club.short}}</div>
+            </div>
+            <div style="text-align: center;">
+              <div class="disp" style="font-size: 46px; font-weight: 700; line-height: 1; letter-spacing: 1px;">{{score}}</div>
+              <div class="mono" style="font-size: 13px; color: #2BD97C; margin-top: 5px;">{{clock}}</div>
+            </div>
+            <div style="text-align: center; width: 76px;">
+              <svg viewBox="0 0 26 30" width="24" height="28"><path d="M13 1 L24 5 V16 C24 23 18 27 13 29 C8 27 2 23 2 16 V5 Z" fill="#2B3442" stroke="rgba(255,255,255,0.22)"></path></svg>
+              <div class="disp" style="font-size: 15px; font-weight: 700; letter-spacing: 0.6px; margin-top: 4px; color: #8695A8;">NEW</div>
+            </div>
+          </div>
+          <div style="margin-top: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <span class="mono" style="font-size: 12px; font-weight: 500;">58%</span>
+              <span class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.8px;">POSSESSION</span>
+              <span class="mono" style="font-size: 12px; color: #8695A8;">42%</span>
+            </div>
+            <div style="display: flex; height: 4px; border-radius: 2px; overflow: hidden; background: #1C2530;">
+              <div style="width: 58%; background: {{club.hex}};"></div>
+              <div style="width: 42%; background: #2B3442;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.07); background: #131A23;">
+          <sc-for list="{{matchStats}}" as="s" hint-placeholder-count="3">
+            <div style="flex-grow: 1; text-align: center; padding: 11px 4px; border-right: 1px solid rgba(255,255,255,0.07);">
+              <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px;">{{s.label}}</div>
+              <div class="mono" style="font-size: 14px; font-weight: 500; margin-top: 4px;">{{s.value}}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="padding: 14px 16px 0;">
+          <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.8px; margin-bottom: 9px;">TIMELINE</div>
+          <sc-for list="{{timeline}}" as="e" hint-placeholder-count="4">
+            <div style="display: flex; gap: 11px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.07);">
+              <span class="mono" style="font-size: 12px; color: {{e.minC}}; width: 30px; flex-shrink: 0;">{{e.min}}</span>
+              <div style="flex-grow: 1;">
+                <div style="font-size: 13px; font-weight: 600;">{{e.title}}</div>
+                <div class="mono" style="font-size: 11px; color: #8695A8; margin-top: 2px;">{{e.sub}}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="padding: 14px 16px 0;">
+          <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.8px; margin-bottom: 7px;">MENTALITY</div>
+          <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+            <sc-for list="{{mentalities}}" as="m" hint-placeholder-count="4">
+              <div class="tap" onClick="{{ m.pick }}" style="flex-grow: 1; text-align: center; padding: 10px 4px; border-radius: 7px; font-size: 12px; font-weight: 600; background: {{m.bg}}; color: {{m.fg}}; border: 1px solid {{m.bd}};">{{m.label}}</div>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div class="tap" style="flex-grow: 1; text-align: center; padding: 12px; border-radius: 8px; background: #1C2530; font-size: 13px; font-weight: 600;">⇄ Subs · 2 left</div>
+            <sc-for list="{{speeds}}" as="s" hint-placeholder-count="3">
+              <div class="tap mono" onClick="{{ s.pick }}" style="width: 46px; text-align: center; padding: 12px 0; border-radius: 8px; font-size: 12px; background: {{s.bg}}; color: {{s.fg}};">{{s.label}}</div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ══ TRANSFERS ══ -->
+    <sc-if value="{{isTransfers}}" hint-placeholder-val="{{ false }}">
+      <div style="padding: 14px 16px 92px;">
+        <div class="disp" style="font-size: 21px; font-weight: 700; letter-spacing: 0.7px; margin-bottom: 12px;">TRANSFERS</div>
+        <div style="display: flex; gap: 6px; background: #131A23; border-radius: 9px; padding: 4px; margin-bottom: 14px;">
+          <sc-for list="{{transferTabs}}" as="t" hint-placeholder-count="4">
+            <div class="tap" onClick="{{ t.pick }}" style="flex-grow: 1; text-align: center; padding: 9px 2px; border-radius: 6px; font-size: 12px; font-weight: 600; background: {{t.bg}}; color: {{t.fg}};">{{t.label}}</div>
+          </sc-for>
+        </div>
+        <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; margin-bottom: 8px;">{{transferHint}}</div>
+        <sc-for list="{{targets}}" as="p" hint-placeholder-count="5">
+          <div style="display: flex; align-items: center; gap: 11px; padding: 11px 12px; margin-bottom: 6px; background: #131A23; border-radius: 9px; border-left: 3px solid {{p.bar}};">
+            <div class="disp" style="font-size: 25px; font-weight: 700; width: 34px; text-align: center; line-height: 1;">{{p.r}}</div>
+            <div style="flex-grow: 1; min-width: 0;">
+              <div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{p.n}}</div>
+              <div style="display: flex; align-items: center; gap: 7px; margin-top: 3px;">
+                <span class="mono" style="font-size: 11px; background: #1C2530; color: #8695A8; padding: 1px 5px; border-radius: 3px;">{{p.pos}}</span>
+                <span class="mono" style="font-size: 11px; color: #8695A8;">{{p.club}}</span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div class="disp" style="font-size: 15px; font-weight: 600;">{{p.val}}</div>
+              <div class="mono" style="font-size: 11px; color: {{club.hex}}; margin-top: 3px;">BID</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ══ LEAGUE ══ -->
+    <sc-if value="{{isLeague}}" hint-placeholder-val="{{ false }}">
+      <div style="padding: 14px 0 92px;">
+        <div class="disp" style="font-size: 21px; font-weight: 700; letter-spacing: 0.7px; padding: 0 16px 12px;">PREMIER LEAGUE</div>
+        <div class="mono" style="display: flex; gap: 10px; padding: 0 16px 8px; font-size: 11px; color: #5A6878; letter-spacing: 0.7px; border-bottom: 1px solid rgba(255,255,255,0.07);">
+          <span style="width: 18px;">#</span><span style="flex-grow: 1;">CLUB</span>
+          <span style="width: 26px; text-align: right;">GD</span><span style="width: 22px; text-align: right;">PL</span><span style="width: 26px; text-align: right;">PTS</span>
+        </div>
+        <sc-for list="{{fullTable}}" as="row" hint-placeholder-count="12">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: {{row.bg}}; border-left: 3px solid {{row.mark}};">
+            <span class="mono" style="font-size: 12px; color: #5A6878; width: 18px;">{{row.pos}}</span>
+            <span style="flex-grow: 1; font-size: 13px; font-weight: {{row.weight}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{row.name}}</span>
+            <span class="mono" style="font-size: 12px; color: #8695A8; width: 26px; text-align: right;">{{row.gd}}</span>
+            <span class="mono" style="font-size: 12px; color: #8695A8; width: 22px; text-align: right;">12</span>
+            <span class="mono" style="font-size: 13px; font-weight: 600; width: 26px; text-align: right;">{{row.pts}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- bottom nav -->
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 72px; background: #0C1219; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: flex-start; padding-top: 9px;">
+    <div class="tap" onClick="{{ goHome }}" style="flex-grow: 1; text-align: center;">
+      <div style="display: flex; justify-content: center; color: {{navHome}};">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"></path></svg>
+      </div>
+      <div class="mono" style="font-size: 11px; color: {{navHome}}; letter-spacing: 0.6px; margin-top: 3px;">HOME</div>
+    </div>
+    <div class="tap" onClick="{{ goSquad }}" style="flex-grow: 1; text-align: center;">
+      <div style="display: flex; justify-content: center; color: {{navSquad}};">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"></circle><path d="M2.5 20a6.5 6.5 0 0 1 13 0"></path><path d="M17 11a3 3 0 1 0 0-6"></path><path d="M17.5 14.5A6.2 6.2 0 0 1 22 20"></path></svg>
+      </div>
+      <div class="mono" style="font-size: 11px; color: {{navSquad}}; letter-spacing: 0.6px; margin-top: 3px;">SQUAD</div>
+    </div>
+    <div class="tap" onClick="{{ goMatch }}" style="flex-grow: 1; text-align: center;">
+      <div style="width: 50px; height: 50px; border-radius: 50%; background: {{club.hex}}; color: {{club.on}}; display: flex; align-items: center; justify-content: center; margin: -20px auto 0; box-shadow: 0 5px 16px rgba(0,0,0,0.45);">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+      </div>
+      <div class="mono" style="font-size: 11px; color: #8695A8; letter-spacing: 0.6px; margin-top: 4px;">PLAY</div>
+    </div>
+    <div class="tap" onClick="{{ goTransfers }}" style="flex-grow: 1; text-align: center;">
+      <div style="display: flex; justify-content: center; color: {{navTransfers}};">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"></path><path d="M21 7H8a4 4 0 0 0-4 4v1"></path><path d="M7 21l-4-4 4-4"></path><path d="M3 17h13a4 4 0 0 0 4-4v-1"></path></svg>
+      </div>
+      <div class="mono" style="font-size: 11px; color: {{navTransfers}}; letter-spacing: 0.6px; margin-top: 3px;">MARKET</div>
+    </div>
+    <div class="tap" onClick="{{ goLeague }}" style="flex-grow: 1; text-align: center;">
+      <div style="display: flex; justify-content: center; color: {{navLeague}};">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M10 20h4"></path><path d="M12 14v6"></path></svg>
+      </div>
+      <div class="mono" style="font-size: 11px; color: {{navLeague}}; letter-spacing: 0.6px; margin-top: 3px;">LEAGUE</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"clubId":{"editor":"enum","default":"arsenal","options":["arsenal","newcastle","everton","man_city","wolves","tottenham","liverpool","chelsea","aston_villa","fulham"],"section":"Club"}}'>
+class Component extends DCLogic {
+  // Colours are the real primaryColor values from src/data/plTeams.js, resolved
+  // through src/lib/theme.mjs — hex is what the app actually paints, `on` is the
+  // text colour it picks for that accent.
+  static CLUBS = {
+    arsenal:     { name: 'Arsenal',            short: 'ARS', stadium: 'Emirates',      raw: '#EF0107', hex: '#EE0004', on: '#FFFFFF' },
+    newcastle:   { name: 'Newcastle United',   short: 'NEW', stadium: 'St James Park', raw: '#241F20', hex: '#635D5E', on: '#FFFFFF' },
+    everton:     { name: 'Everton',            short: 'EVE', stadium: 'Hill Dickinson',raw: '#003399', hex: '#255AC2', on: '#FFFFFF' },
+    man_city:    { name: 'Manchester City',    short: 'MCI', stadium: 'Etihad',        raw: '#6CABDD', hex: '#6CABDD', on: '#0A0E14' },
+    wolves:      { name: 'Wolverhampton',      short: 'WOL', stadium: 'Molineux',      raw: '#FDB913', hex: '#FDB913', on: '#0A0E14' },
+    tottenham:   { name: 'Tottenham Hotspur',  short: 'TOT', stadium: 'Tottenham',     raw: '#132257', hex: '#485D98', on: '#FFFFFF' },
+    liverpool:   { name: 'Liverpool',          short: 'LIV', stadium: 'Anfield',       raw: '#C8102E', hex: '#C8102E', on: '#FFFFFF' },
+    chelsea:     { name: 'Chelsea',            short: 'CHE', stadium: 'Stamford Bridge',raw: '#034694', hex: '#235FAF', on: '#FFFFFF' },
+    aston_villa: { name: 'Aston Villa',        short: 'AVL', stadium: 'Villa Park',    raw: '#670E36', hex: '#9A4060', on: '#FFFFFF' },
+    fulham:      { name: 'Fulham',             short: 'FUL', stadium: 'Craven Cottage',raw: '#FFFFFF', hex: '#FFFFFF', on: '#0A0E14' },
+  };
+
+  // Real Arsenal squad from src/data/plTeams.js. Rating is primaryRating() —
+  // the attribute for the player's position group, exactly as matchEngine reads it.
+  static SQUAD = [
+    { n: 'William Saliba',     pos: 'CB',  age: 24, r: 91, pot: 95, wk: false, val: 108, fit: 100 },
+    { n: 'Viktor Gyökeres',    pos: 'ST',  age: 27, r: 91, pot: 91, wk: false, val: 105, fit: 100 },
+    { n: 'Declan Rice',        pos: 'CDM', age: 26, r: 89, pot: 95, wk: false, val: 120, fit: 82  },
+    { n: 'Bukayo Saka',        pos: 'RW',  age: 23, r: 89, pot: 97, wk: true,  val: 168, fit: 100 },
+    { n: 'Gabriel Magalhães',  pos: 'CB',  age: 27, r: 88, pot: 88, wk: false, val: 75,  fit: 94  },
+    { n: 'David Raya',         pos: 'GK',  age: 29, r: 87, pot: 87, wk: false, val: 38,  fit: 100 },
+    { n: 'Martin Zubimendi',   pos: 'CDM', age: 26, r: 86, pot: 90, wk: false, val: 68,  fit: 96  },
+    { n: 'Ben White',          pos: 'RB',  age: 27, r: 85, pot: 85, wk: false, val: 65,  fit: 88  },
+    { n: 'Gabriel Martinelli', pos: 'LW',  age: 23, r: 85, pot: 92, wk: false, val: 75,  fit: 100 },
+    { n: 'Kai Havertz',        pos: 'CF',  age: 26, r: 85, pot: 85, wk: false, val: 80,  fit: 100 },
+    { n: 'Martin Ødegaard',    pos: 'CAM', age: 26, r: 84, pot: 95, wk: false, val: 120, fit: 22  },
+    { n: 'Mikel Merino',       pos: 'CM',  age: 28, r: 84, pot: 84, wk: false, val: 42,  fit: 100 },
+    { n: 'Noni Madueke',       pos: 'RW',  age: 23, r: 84, pot: 91, wk: true,  val: 62,  fit: 100 },
+    { n: 'Gabriel Jesus',      pos: 'ST',  age: 27, r: 84, pot: 84, wk: false, val: 55,  fit: 100 },
+  ];
+
+  static TABLE = [
+    { name: 'Liverpool',         gd: '+18', pts: 28 }, { name: 'Manchester City', gd: '+15', pts: 26 },
+    { name: 'ARSENAL',           gd: '+13', pts: 24 }, { name: 'Chelsea',         gd: '+9',  pts: 23 },
+    { name: 'Aston Villa',       gd: '+7',  pts: 21 }, { name: 'Tottenham',       gd: '+5',  pts: 19 },
+    { name: 'Newcastle United',  gd: '+4',  pts: 19 }, { name: 'Brighton',        gd: '+1',  pts: 17 },
+    { name: 'Bournemouth',       gd: '0',   pts: 16 }, { name: 'Crystal Palace',  gd: '-2',  pts: 15 },
+    { name: 'Everton',           gd: '-3',  pts: 14 }, { name: 'Brentford',       gd: '-5',  pts: 13 },
+  ];
+
+  constructor(props) {
+    super(props);
+    this.state = { screen: 'home', squadTab: 'players', posFilter: 'All', formation: '4-3-3', mentality: 'Attacking', speed: '1×', transferTab: 'Search' };
+  }
+
+  club() { return Component.CLUBS[this.props.clubId] ?? Component.CLUBS.arsenal; }
+
+  chip(active, accent, on) {
+    return active
+      ? { bg: accent, fg: on, bd: accent }
+      : { bg: '#131A23', fg: '#8695A8', bd: 'rgba(255,255,255,0.07)' };
+  }
+
+  ratingBar(r) {
+    if (r >= 88) return '#2BD97C';
+    if (r >= 85) return '#7FD98F';
+    return '#F5B93D';
+  }
+
+  renderVals() {
+    const c = this.club();
+    const s = this.state;
+    const go = (screen) => () => this.setState({ screen });
+
+    const activeTab = s.screen === 'match' ? 'home' : s.screen;
+    const navColor = (id) => (activeTab === id ? c.hex : '#5A6878');
+
+    const posFilters = ['All', 'GK', 'DEF', 'MID', 'FWD'].map((label) => ({
+      label, pick: () => this.setState({ posFilter: label }), ...this.chip(s.posFilter === label, c.hex, c.on),
+    }));
+
+    const groupOf = (pos) => {
+      if (pos === 'GK') return 'GK';
+      if (['CB', 'RB', 'LB'].includes(pos)) return 'DEF';
+      if (['CDM', 'CM', 'CAM', 'RM', 'LM'].includes(pos)) return 'MID';
+      return 'FWD';
+    };
+
+    const squad = Component.SQUAD
+      .filter((p) => s.posFilter === 'All' || groupOf(p.pos) === s.posFilter)
+      .map((p) => ({
+        ...p,
+        val: '£' + p.val.toFixed(1) + 'M',
+        meta: p.fit < 40 ? p.age + 'y · Out 3 weeks' : p.age + 'y · POT ' + p.pot + (p.pot > p.r ? ' ↑' : ''),
+        bar: p.fit < 40 ? '#F0576B' : this.ratingBar(p.r),
+        fitW: p.fit + '%',
+        fitC: p.fit < 40 ? '#F0576B' : p.fit < 90 ? '#F5B93D' : '#2BD97C',
+      }));
+
+    const mkTable = (rows) => rows.map((row, i) => {
+      const mine = row.name === 'ARSENAL';
+      return {
+        pos: i + 1,
+        name: mine ? c.name : row.name,
+        gd: row.gd, pts: row.pts,
+        weight: mine ? '700' : '500',
+        bg: mine ? 'rgba(255,255,255,0.04)' : 'transparent',
+        mark: mine ? c.hex : 'transparent',
+      };
+    });
+
+    const form = (str) => str.split('').map((ch) => ({ c: ch === 'W' ? '#2BD97C' : ch === 'D' ? '#F5B93D' : '#F0576B' }));
+
+    return {
+      club: c,
+      isHome: s.screen === 'home', isSquad: s.screen === 'squad', isMatch: s.screen === 'match',
+      isTransfers: s.screen === 'transfers', isLeague: s.screen === 'league',
+      isPlayers: s.squadTab === 'players', isTactics: s.squadTab === 'tactics',
+
+      goMatch: go('match'), goHome: go('home'), goLeague: go('league'),
+      goSquad: go('squad'), goTransfers: go('transfers'),
+      showPlayers: () => this.setState({ squadTab: 'players' }),
+      showTactics: () => this.setState({ squadTab: 'tactics' }),
+
+      playersTabBg: s.squadTab === 'players' ? c.hex : 'transparent',
+      playersTabFg: s.squadTab === 'players' ? c.on : '#8695A8',
+      tacticsTabBg: s.squadTab === 'tactics' ? c.hex : 'transparent',
+      tacticsTabFg: s.squadTab === 'tactics' ? c.on : '#8695A8',
+
+      navHome: navColor('home'), navSquad: navColor('squad'),
+      navTransfers: navColor('transfers'), navLeague: navColor('league'),
+
+      formHome: form('WWDWL'), formAway: form('LWWDW'),
+      tableTop: mkTable(Component.TABLE.slice(0, 4)),
+      fullTable: mkTable(Component.TABLE),
+
+      posFilters, squad,
+
+      pitchSlots: [
+        { n: 'Raya',       r: 87, x: '50%', y: '88%' },
+        { n: 'White',      r: 85, x: '82%', y: '70%' },
+        { n: 'Saliba',     r: 91, x: '61%', y: '73%' },
+        { n: 'Gabriel',    r: 88, x: '39%', y: '73%' },
+        { n: 'Lewis-Skelly', r: 78, x: '18%', y: '70%' },
+        { n: 'Rice',       r: 89, x: '50%', y: '54%' },
+        { n: 'Zubimendi',  r: 86, x: '74%', y: '46%' },
+        { n: 'Ødegaard',   r: 84, x: '26%', y: '46%' },
+        { n: 'Saka',       r: 89, x: '82%', y: '22%' },
+        { n: 'Gyökeres',   r: 91, x: '50%', y: '15%' },
+        { n: 'Martinelli', r: 85, x: '18%', y: '22%' },
+      ],
+
+      formations: ['4-3-3', '4-2-3-1', '4-4-2', '3-5-2'].map((label) => ({
+        label, pick: () => this.setState({ formation: label }), ...this.chip(s.formation === label, c.hex, c.on),
+      })),
+      mentalities: ['Defensive', 'Balanced', 'Possess.', 'Attacking'].map((label) => ({
+        label, pick: () => this.setState({ mentality: label }), ...this.chip(s.mentality === label, c.hex, c.on),
+      })),
+      speeds: ['1×', '4×', '▶|'].map((label) => ({
+        label, pick: () => this.setState({ speed: label }),
+        bg: s.speed === label ? c.hex : '#1C2530',
+        fg: s.speed === label ? c.on : '#8695A8',
+      })),
+
+      score: '2 - 1', clock: '67’',
+      matchStats: [
+        { label: 'SHOTS', value: '14 · 7' }, { label: 'xG', value: '2.31 · 0.94' }, { label: 'CORNERS', value: '6 · 3' },
+      ],
+      timeline: [
+        { min: '64’', minC: c.hex,   title: 'Goal — Bukayo Saka',        sub: 'Assist: Declan Rice · right foot, inside box' },
+        { min: '58’', minC: '#F5B93D', title: 'Booking — Bruno Guimarães', sub: 'Newcastle · tactical foul' },
+        { min: '51’', minC: '#5A6878', title: 'Substitution — Newcastle',  sub: 'Barnes on, Murphy off' },
+        { min: '43’', minC: '#8695A8', title: 'Goal — Anthony Gordon',     sub: 'Newcastle · counter-attack' },
+      ],
+
+      transferTabs: ['Search', 'Shortlist', 'Offers', 'History'].map((label) => ({
+        label, pick: () => this.setState({ transferTab: label }),
+        bg: s.transferTab === label ? c.hex : 'transparent',
+        fg: s.transferTab === label ? c.on : '#8695A8',
+      })),
+      transferHint: s.transferTab === 'Search' ? 'RATING 82+ · AGE ≤ 26 · 47 MATCHES'
+        : s.transferTab === 'Shortlist' ? '4 PLAYERS WATCHED'
+        : s.transferTab === 'Offers' ? '3 OFFERS AWAITING RESPONSE' : 'THIS SEASON · 6 COMPLETED',
+      targets: [
+        { n: 'Alexander Isak',   pos: 'ST',  club: 'Newcastle United', r: 88, val: '£120.0M', bar: '#2BD97C' },
+        { n: 'Bruno Guimarães',  pos: 'CM',  club: 'Newcastle United', r: 86, val: '£75.0M',  bar: '#7FD98F' },
+        { n: 'Morgan Rogers',    pos: 'CAM', club: 'Aston Villa',      r: 82, val: '£58.0M',  bar: '#F5B93D' },
+        { n: 'Antoine Semenyo',  pos: 'RW',  club: 'Bournemouth',      r: 82, val: '£52.0M',  bar: '#F5B93D' },
+        { n: 'Jarrad Branthwaite',pos: 'CB', club: 'Everton',          r: 82, val: '£60.0M',  bar: '#F5B93D' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

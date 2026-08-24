@@ -13,3 +13,7 @@ web/index.html
 test-results/
 playwright-report/
 screenshots/
+
+# Seeded design-canvas output — regenerated from the .dc.html sources.
+design-canvas/*.html
+!design-canvas/*.dc.html
