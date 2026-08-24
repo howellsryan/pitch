@@ -1,0 +1,21 @@
+team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
+inter,Inter Milan,INT,🔵⚫,Serie A,San Siro,80018,180,96,#0068A8
+juventus,Juventus,JUV,⚪⚫,Serie A,Allianz Stadium,41507,160,93,#000000
+napoli,Napoli,NAP,🔵,Serie A,Diego Armando Maradona,54726,140,93,#12A0D7
+ac_milan,AC Milan,MIL,🔴⚫,Serie A,San Siro,80018,160,92,#FB090B
+roma,AS Roma,ROM,🟡🔴,Serie A,Stadio Olimpico,72698,110,85,#8E1F2F
+atalanta,Atalanta BC,ATA,🔵⚫,Serie A,Gewiss Stadium,21300,85,84,#1E71B8
+lazio,SS Lazio,LAZ,🔵⚪,Serie A,Stadio Olimpico,72698,80,82,#87D8F7
+fiorentina,ACF Fiorentina,FIO,💜,Serie A,Stadio Artemio Franchi,43147,70,78,#482E92
+bologna,Bologna FC,BOL,🔴🔵,Serie A,Stadio Dall'Ara,38279,55,77,#1A2F48
+torino,Torino FC,TOR,🟤,Serie A,Stadio Olimpico Grande Torino,27994,40,72,#8B0000
+udinese,Udinese Calcio,UDI,⚪⚫,Serie A,Bluenergy Stadium,25144,35,70,#000000
+cagliari,Cagliari Calcio,CAG,🔴🔵,Serie A,Unipol Domus,16416,28,66,#A91B2E
+como,Como 1907,COM,🔵,Serie A,Stadio Giuseppe Sinigaglia,13602,50,65,#003DA5
+lecce,US Lecce,LEC,🔴🟡,Serie A,Stadio Via del Mare,33876,22,63,#FFD700
+parma,Parma Calcio,PAR,🟡🔵,Serie A,Stadio Ennio Tardini,22352,32,68,#FFD700
+genoa,Genoa CFC,GEN,🔴🔵,Serie A,Stadio Luigi Ferraris,36536,28,67,#9B111E
+verona,Hellas Verona,VER,🟡🔵,Serie A,Stadio Bentegodi,39371,22,62,#003399
+sassuolo,US Sassuolo,SAS,🟢⚫,Serie A,Mapei Stadium,21525,35,68,#00A651
+pisa,Pisa SC,PIS,🔵,Serie A,Arena Garibaldi,9788,18,56,#003DA5
+cremonese,US Cremonese,CRE,🔴⚪,Serie A,Stadio Giovanni Zini,16003,16,55,#DB1F2C

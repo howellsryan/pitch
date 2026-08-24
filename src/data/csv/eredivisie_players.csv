@@ -1,0 +1,240 @@
+team_id,player_id,name,nationality,position,age,attack,midfield,defence,goalkeeping,value_millions,wage_thousands,potential,is_wonderkid
+psv,psv_benitez,Walter Benítez,Argentine,GK,32,12,12,15,86,22,65,86,0
+psv,psv_drommel,Joel Drommel,Dutch,GK,28,10,10,12,78,8,30,78,0
+psv,psv_dest,Sergiño Dest,American,RB,25,72,67,74,10,20,55,80,0
+psv,psv_flamingo,Ryan Flamingo,Dutch,CB,21,43,48,78,10,18,38,88,1
+psv,psv_boscagli,Olivier Boscagli,French,CB,27,43,50,79,10,18,48,79,0
+psv,psv_teze,Jordan Teze,Dutch,RB,26,66,63,76,10,15,42,80,0
+psv,psv_sangare,Ibrahim Sangaré,Dutch,CDM,27,59,81,71,10,35,80,81,0
+psv,psv_til,Guus Til,Dutch,CM,27,66,78,62,10,20,55,78,0
+psv,psv_simons,Xavi Simons,Dutch,CAM,22,85,87,60,10,75,95,95,1
+psv,psv_bakayoko,Noni Bakayoko,Ivorian,RW,21,80,67,46,10,25,40,89,1
+psv,psv_pepi,Ricardo Pepi,American,ST,22,80,60,40,10,28,45,86,1
+psv,psv_de_jong,Luuk de Jong,Dutch,ST,34,78,55,38,10,8,55,78,0
+psv,psv_hartman,Quilindschy Hartman,Dutch,LB,23,66,63,76,10,15,42,85,1
+psv,psv_conceicao,Francisco Conceição,Portuguese,RW,22,82,70,48,10,32,52,90,1
+ajax,ajx_pasveer,Remko Pasveer,Dutch,GK,41,10,10,14,79,3,30,79,0
+ajax,ajx_gorter,Jay Gorter,Dutch,GK,24,10,10,12,76,6,25,82,1
+ajax,ajx_rensch,Devyne Rensch,Dutch,RB,22,67,64,74,10,15,38,85,1
+ajax,ajx_baas,Kristian Hlynsson,Icelandic,CM,22,42,48,76,10,3,22,76,0
+ajax,ajx_sutalo,Josip Šutalo,Croatian,CB,24,44,50,79,10,18,42,84,1
+ajax,ajx_blind,Daley Blind,Dutch,LB,35,60,65,74,10,8,45,74,0
+ajax,ajx_taylor,Kenneth Taylor,Dutch,CM,23,65,78,60,10,20,45,85,1
+ajax,ajx_berghuis,Steven Berghuis,Dutch,CAM,33,77,79,55,10,12,65,79,0
+ajax,ajx_bergwijn,Steven Bergwijn,Dutch,LW,27,82,72,50,10,28,75,82,0
+ajax,ajx_brobbey,Brian Brobbey,Dutch,ST,23,82,60,40,10,32,55,88,1
+ajax,ajx_godts,Wout Faes,Belgian,CB,27,44,50,79,10,18,45,79,0
+ajax,ajx_balikwisha,Bryce Balikwisha,Belgian,LW,24,76,66,47,10,14,35,80,0
+ajax,ajx_hato,Jorrel Hato,Dutch,LB,18,58,60,72,10,15,28,90,1
+ajax,ajx_traoré,Bertrand Traoré,Burkinabe,RW,29,78,66,48,10,10,38,78,0
+feyenoord,fey_bijlow,Justin Bijlow,Dutch,GK,27,10,10,12,83,18,58,83,0
+feyenoord,fey_wellenreuther,Timon Wellenreuther,German,GK,29,10,10,12,77,8,35,77,0
+feyenoord,fey_geertruida,Lutsharel Geertruida,Dutch,RB,24,68,65,76,10,25,58,85,1
+feyenoord,fey_trauner,Gernot Trauner,Austrian,CB,33,44,49,80,10,8,40,80,0
+feyenoord,fey_hancko,David Hancko,Slovak,CB,26,45,51,82,10,22,52,85,0
+feyenoord,fey_hartman2,Dávid Hancko,Slovak,LB,26,66,63,76,10,15,42,85,1
+feyenoord,fey_stengs,Calvin Stengs,Dutch,RW,26,79,70,50,10,18,48,83,0
+feyenoord,fey_szymanski,Sebastian Szymański,Polish,CM,26,73,79,58,10,22,58,82,0
+feyenoord,fey_timber,Quinten Timber,Dutch,CM,24,66,79,64,10,22,52,86,1
+feyenoord,fey_paixao,Igor Paixão,Brazilian,LW,25,80,68,48,10,22,52,85,0
+feyenoord,fey_gimenez,Santiago Giménez,Mexican,ST,24,86,62,42,10,45,72,92,1
+feyenoord,fey_ueda,Ayase Ueda,Japanese,ST,26,77,58,38,10,18,42,82,0
+feyenoord,fey_sterling,Raheem Sterling,English,LW,30,82,74,52,10,28,280,82,0
+feyenoord,fey_lotomba,Jordan Lotomba,Swiss,RB,27,65,62,74,10,10,35,74,0
+az,az_owusu,Calvin Owusu,Danish,GK,27,10,10,12,78,5,28,78,0
+az,az_beukema,Sam Beukema,Dutch,CB,26,44,50,79,10,20,48,83,1
+az,az_hatzidiakos,Pantelis Hatzidiakos,Greek,CB,26,43,48,77,10,15,38,77,0
+az,az_van_den_berg,Robert Muhren,Dutch,CB,30,43,48,76,10,8,28,76,0
+az,az_sugawara,Yukinari Sugawara,Japanese,RB,23,67,63,74,10,18,38,85,1
+az,az_clasie,Jordy Clasie,Dutch,CDM,33,56,78,68,10,6,35,78,0
+az,az_midtsjo,Fredrik Midtsjø,Norwegian,CM,30,60,76,65,10,8,35,76,0
+az,az_reijnders,Tijjani Reijnders,Dutch,CM,26,70,82,64,10,30,68,87,0
+az,az_driouech,Yassin Driouech,Moroccan,RW,22,78,68,48,10,20,40,87,1
+az,az_gboho,Thierry Gboho,Ivorian,LW,22,76,66,46,10,16,35,83,1
+az,az_pavlidis,Vangelis Pavlidis,Greek,ST,27,83,60,40,10,28,58,87,0
+az,az_al_ghaddioui,Oussama Idrissi,Moroccan,LW,30,75,67,48,10,8,35,75,0
+az,az_smit,Myron van Brederode,Dutch,LW,22,74,65,47,10,14,30,82,1
+twente,twe_unnerstall,Lars Unnerstall,German,GK,33,10,10,12,78,5,32,78,0
+twente,twe_hilbers,Joël Dommers,Dutch,GK,26,10,10,12,73,3,18,73,0
+twente,twe_bijen,Bart van Rooij,Dutch,RB,27,62,58,72,10,8,25,72,0
+twente,twe_smal,Noel Lamare,French,LB,24,64,61,73,10,12,30,78,1
+twente,twe_vlap,Michel Vlap,Dutch,CM,28,66,76,60,10,12,38,76,0
+twente,twe_cerny,Václav Černý,Czech,LW,27,80,70,50,10,22,52,83,0
+twente,twe_de_la_torre,Luca de la Torre,American,CM,27,64,77,60,10,15,38,80,0
+twente,twe_steijn,Daan Rots,Dutch,RW,25,72,66,48,10,10,28,76,0
+twente,twe_van_wolfswinkel,Ricky van Wolfswinkel,Dutch,ST,34,70,52,36,10,5,35,70,0
+twente,twe_sadiki,Max Bruns,Dutch,CDM,24,54,72,65,10,8,25,74,0
+twente,twe_lammers,Sam Lammers,Dutch,ST,28,77,56,38,10,14,40,77,0
+twente,twe_hilal,Sem Steijn,Dutch,CAM,23,72,76,54,10,14,35,82,1
+twente,twe_sadilek,Michal Sadílek,Czech,CDM,25,54,74,67,10,10,30,76,0
+twente,twe_manhoef,Million Manhoef,Dutch,LW,22,74,65,47,10,14,30,83,1
+utrecht,utr_paes,Vasilis Barkas,Greek,GK,31,10,10,12,77,5,28,77,0
+utrecht,utr_warmerdam,Maarten Paes,Dutch,GK,27,10,10,12,79,8,32,82,0
+utrecht,utr_janssen,Souffian El Karouani,Moroccan,CB,27,43,48,77,10,10,28,77,0
+utrecht,utr_van_der_maarel,Jens Toornstra,Dutch,CM,34,62,72,56,10,5,32,72,0
+utrecht,utr_cornelisse,Ibrima Ndiaye,Senegalese,CM,26,63,74,58,10,10,28,74,0
+utrecht,utr_boussaid,Karim Uddin,Danish,CAM,24,68,72,54,10,10,25,76,1
+utrecht,utr_baas2,Bart Ramselaar,Dutch,CM,27,64,76,58,10,10,28,76,0
+utrecht,utr_tannane,Othman Boussaid,Belgian,CAM,25,72,74,52,10,12,30,76,0
+utrecht,utr_labyad,Anastasios Douvikas,Greek,ST,25,76,58,38,10,12,32,80,0
+utrecht,utr_dalmau,Thijs Dalmau,Dutch,ST,22,72,55,36,10,8,22,78,1
+utrecht,utr_klaiber,Tyriq Klaiber,Dutch,RB,28,63,59,72,10,8,25,72,0
+utrecht,utr_van_den_boomen,Adrian van den Boomen,Dutch,CM,28,66,77,58,10,12,30,77,0
+utrecht,utr_works,Klaas-Jan Huntelaar,Dutch,CM,34,64,67,70,10,15,35,80,1
+groningen,gro_de_heus,Etienne Vaessen,Dutch,GK,30,10,10,12,74,3,18,74,0
+groningen,gro_werkman,Damian van Bruggen,Dutch,GK,25,10,10,12,70,2,14,72,1
+groningen,gro_te_wierik,Bart van Hintum,Dutch,CB,34,40,46,73,10,3,15,73,0
+groningen,gro_van_hintum,Mike te Wierik,Dutch,CB,33,40,46,72,10,3,12,72,0
+groningen,gro_janssen2,Azor Matusiwa,Dutch,CDM,27,54,72,65,10,6,20,72,0
+groningen,gro_emmers,Leandro Bacuna,Dutch,CM,33,60,68,58,10,4,18,68,0
+groningen,gro_suslov,Mats Knoester,Dutch,CB,27,41,47,73,10,5,18,73,0
+groningen,gro_thorstvedt,Jörgen Strand Larsen,Norwegian,ST,24,79,58,38,10,18,42,84,0
+groningen,gro_van_der_horn,Tomas Suslov,Slovak,RW,23,72,66,48,10,10,25,80,1
+groningen,gro_botheim,Erik Botheim,Norwegian,ST,24,74,55,37,10,10,22,78,0
+groningen,gro_antman,Oliver Antman,Finnish,CM,22,62,72,55,10,8,18,77,1
+groningen,gro_idzes,Sandy Walsh,Belgian,RB,28,62,58,72,10,6,20,72,0
+groningen,gro_steffen,Wouter Burger,Dutch,CM,23,62,74,58,10,8,20,78,1
+nec,nec_branderhorst,Ted Langenhorst,Dutch,GK,25,10,10,12,74,4,18,76,1
+nec,nec_van_rooij,Mikael Lustig,Swedish,RB,38,55,52,68,10,2,15,68,0
+nec,nec_proper,Bram Nuytinck,Dutch,CB,35,40,45,72,10,2,12,72,0
+nec,nec_bokila,Joris Kramer,Dutch,CB,28,42,48,73,10,5,18,73,0
+nec,nec_teer,Bart Janssen,Dutch,LB,27,60,56,70,10,4,18,70,0
+nec,nec_hadj_moussa,Oussama Hadj Moussa,Belgian,RW,23,74,66,48,10,12,28,81,1
+nec,nec_van_den_bergh,Thomas Beekman,Dutch,CM,24,62,72,56,10,6,18,74,1
+nec,nec_el_ouahdi,Kacper Urbanski,Polish,CM,21,64,75,56,10,10,22,82,1
+nec,nec_bruijn,Sontje Hansen,Dutch,LW,22,72,64,46,10,10,22,79,1
+nec,nec_smits,Dirk Proper,Dutch,CM,26,72,68,50,10,15,35,78,0
+nec,nec_okumu,Joseph Okumu,Ugandan,CB,28,42,48,75,10,8,22,75,0
+nec,nec_dompé,Ali Elmkhantar,Moroccan,LB,25,43,48,74,10,8,20,74,0
+nec,nec_kwakman,Finn Stokkers,Dutch,ST,26,70,54,36,10,6,18,70,0
+nec,nec_mattheus,Thomas Ouwejan,Dutch,LB,27,62,58,70,10,8,22,70,0
+heerenveen,hee_flekken,Martin Hansen,Danish,GK,37,10,10,12,74,3,18,74,0
+heerenveen,hee_hammarby,Andries Noppert,Dutch,GK,30,10,10,12,74,3,18,76,1
+heerenveen,hee_geertruida2,Pawel Bochniewicz,Polish,CB,29,41,47,74,10,5,18,74,0
+heerenveen,hee_van_beukering,Sydney van Hooijdonk,Dutch,ST,24,75,57,38,10,12,30,80,0
+heerenveen,hee_floranus,Tibor Halilovic,Croatian,CM,27,65,73,56,10,8,22,73,0
+heerenveen,hee_raitala,Arón Sigurdsson,Icelandic,LB,27,62,58,70,10,6,18,70,0
+heerenveen,hee_kongolo,Rodney Kongolo,Dutch,CDM,27,54,72,65,10,6,18,72,0
+heerenveen,hee_veerman,Joey Veerman,Dutch,CM,26,69,79,60,10,15,38,82,0
+heerenveen,hee_halilovic,Sven Botman,Dutch,CB,25,41,47,73,10,5,15,73,0
+heerenveen,hee_ejuke,Chidera Ejuke,Nigerian,LW,26,77,65,47,10,10,25,80,0
+heerenveen,hee_miller,Lasse Schöne,Danish,CM,38,58,68,52,10,2,12,68,0
+heerenveen,hee_druijf,Thomas Drouet,French,ST,27,72,54,36,10,6,18,72,0
+heerenveen,hee_dompé2,Keziah Veendorp,Dutch,RB,21,60,56,68,10,4,14,74,1
+sparta,spa_hilbers,Nick Olij,Dutch,GK,30,10,10,12,76,5,22,76,0
+sparta,spa_bosschaart,Luuk Wouters,Dutch,GK,24,10,10,12,71,2,12,72,1
+sparta,spa_fortes,Bart Vriends,Dutch,CB,28,41,47,74,10,5,18,74,0
+sparta,spa_doekhi,Redouan El Yaakoubi,Moroccan,CB,26,41,47,74,10,6,18,74,0
+sparta,spa_kibel,Mohamed Nassoh,Dutch,CM,24,62,72,56,10,6,18,74,1
+sparta,spa_pinto,Barry Maguire,Scottish,CM,26,60,73,60,10,6,18,73,0
+sparta,spa_vente,Tobias Lauritsen,Norwegian,ST,26,72,52,36,10,8,20,75,0
+sparta,spa_descamps,Danzell Gravenberch,Dutch,LW,23,69,62,46,10,6,15,74,1
+sparta,spa_verschoor,Ragnar Oratmangoen,Dutch,RW,27,70,63,47,10,6,18,70,0
+sparta,spa_duarte,Andrew Gravillon,French,CB,29,41,47,73,10,5,15,73,0
+sparta,spa_abels,Sven Mijnans,Dutch,CAM,26,67,73,54,10,8,20,74,0
+sparta,spa_meijers,Ringo Meijers,Dutch,LM,29,68,65,50,10,5,18,68,0
+sparta,spa_goudmijn,Arno Verschueren,Belgian,CM,26,61,72,58,10,5,18,72,0
+fortuna,for_stojanovic,Yanick Osei Bonsu,Ghanaian,RB,25,62,58,70,10,5,15,70,0
+fortuna,for_ebuehi,Ridgeciano Haps,Dutch,LB,30,61,57,70,10,4,15,70,0
+fortuna,for_faber,Sven Blummel,Dutch,RB,28,58,54,68,10,2,12,68,0
+fortuna,for_el_messaoudi,Mahamadou Kouyaté,Guinean,CDM,28,52,70,63,10,5,15,70,0
+fortuna,for_van_osch,Nick Gillekens,Belgian,GK,26,10,10,12,74,3,15,75,1
+fortuna,for_paulissen,Mats Seuntjens,Dutch,LW,32,66,63,47,10,3,12,66,0
+fortuna,for_smeets,Ryan Sanusi,Dutch,CB,27,40,46,73,10,4,14,73,0
+fortuna,for_ates,Stef Peeters,Belgian,CM,30,60,72,56,10,4,14,72,0
+fortuna,for_van_den_berg2,Elias Mar Ómarsson,Icelandic,ST,29,68,52,35,10,4,14,68,0
+fortuna,for_grbic,Hamza Choudhury,English,CDM,27,54,70,63,10,5,15,70,0
+fortuna,for_luckassen,Wessel Dammers,Dutch,CB,27,40,46,72,10,4,12,72,0
+fortuna,for_hupperts,Michal Skvarka,Slovak,CM,27,61,71,55,10,4,14,71,0
+fortuna,for_perez,Justin Lonwijk,Dutch,CM,23,60,70,54,10,5,12,74,1
+go_ahead,gae_koopman,Ole Romeny,Dutch,ST,25,56,67,52,10,2,10,67,0
+go_ahead,gae_keijzer,Jonathan Klinsmann,American,GK,27,10,10,12,75,4,18,75,0
+go_ahead,gae_bakker,Mats Grotenbreg,Dutch,GK,30,10,10,12,71,2,12,71,0
+go_ahead,gae_braber,Joris Smeets,Dutch,CB,26,40,46,72,10,4,14,72,0
+go_ahead,gae_van_duinen,Marc van Campen,Dutch,ST,24,71,54,36,10,6,16,74,1
+go_ahead,gae_beermann,John Yeboah,Ghanaian,RW,25,72,64,47,10,6,16,74,0
+go_ahead,gae_meijer,Ché Nunnely,Dutch,LW,25,70,63,47,10,5,14,72,0
+go_ahead,gae_de_boer,Enric Llansana,Spanish,CM,23,62,72,56,10,5,14,74,1
+go_ahead,gae_kollenbach,Million Manhoef (GO_),Dutch,RW,27,64,63,47,10,3,10,64,0
+go_ahead,gae_van_mossel,Philippe Rommens,Belgian,CDM,29,52,70,63,10,4,12,70,0
+go_ahead,gae_duits,Javier López,Spanish,RB,28,60,57,70,10,4,14,70,0
+go_ahead,gae_hendriks,Bas Kuipers,Dutch,LB,29,60,56,69,10,3,12,69,0
+go_ahead,gae_papalexiou,Noah Ohio,Dutch,ST,22,69,53,35,10,5,12,76,1
+pec_zwolle,pec_miedema,Jasper Schendelaar,Dutch,GK,25,10,10,12,73,3,15,76,1
+pec_zwolle,pec_wouters,Mickey van der Hart,Dutch,GK,29,10,10,12,74,3,15,74,0
+pec_zwolle,pec_kersten,Bram van Polen,Dutch,CB,36,38,44,70,10,2,10,70,0
+pec_zwolle,pec_reijnders2,Reza Ghoochannejhad,Iranian,ST,37,62,47,33,10,1,8,62,0
+pec_zwolle,pec_thomas,Gustavo Hamer,Dutch,CDM,27,62,76,64,10,12,30,78,0
+pec_zwolle,pec_van_der_water,Yuta Nakayama,Japanese,LB,27,61,57,70,10,6,18,70,0
+pec_zwolle,pec_kezbere,Thomas van den Belt,Dutch,CM,24,60,72,56,10,6,16,74,1
+pec_zwolle,pec_lam,Ryan Thomas,Dutch,CM,30,40,45,70,10,2,10,70,0
+pec_zwolle,pec_braat,Diederik Boer,Dutch,ST,26,66,52,35,10,4,12,66,0
+pec_zwolle,pec_drost,Lars Veldwijk,Dutch,ST,33,68,50,34,10,3,10,68,0
+pec_zwolle,pec_van_crooij,Evan Bakker,Dutch,RW,22,68,62,46,10,4,12,72,1
+pec_zwolle,pec_dekker,Bram Jongkind,Dutch,CM,26,58,68,55,10,3,12,68,0
+pec_zwolle,pec_nakayama,Daan Huisman,Dutch,LB,25,60,56,68,10,4,12,68,0
+volendam,vol_coutinho,Dani Coutinho,Dutch,GK,28,10,10,12,72,3,12,72,0
+volendam,vol_leeflang,Jeffrey van As,Dutch,RB,30,58,54,68,10,3,10,68,0
+volendam,vol_veltkamp,Daryl van Mieghem,Belgian,LW,32,66,62,47,10,2,10,66,0
+volendam,vol_baas,Henk Veerman,Dutch,ST,33,66,50,34,10,2,10,66,0
+volendam,vol_tol,Micky van de Ven,Dutch,CB,22,42,49,74,10,6,15,82,1
+volendam,vol_tanis,Robert Mühren,Dutch,CM,31,63,72,55,10,3,10,72,0
+volendam,vol_schouten,Mamadou Sawaneh,Gambian,ST,23,69,52,36,10,5,12,74,1
+volendam,vol_ouwejan,Derry Murkin,Dutch,LW,25,70,63,47,10,4,12,70,0
+volendam,vol_van_weert,Thomas van Weert,Dutch,ST,28,68,53,36,10,3,10,68,0
+volendam,vol_overmars,Nino Tavriner,Dutch,RW,23,64,58,45,10,3,10,68,1
+volendam,vol_mühren,Wout Brama,Dutch,CDM,38,46,64,60,10,1,8,64,0
+volendam,vol_verhaar,Daan Verhaar,Dutch,RW,27,68,63,47,10,4,12,68,0
+volendam,vol_maduro,Kelechi Nwakali,Nigerian,CM,28,58,68,52,10,3,10,68,0
+excelsior,exc_zwikker,Alessandro Plizzari,Italian,GK,25,10,10,12,72,3,12,74,1
+excelsior,exc_vos,Stefano Marzo,Italian,GK,27,10,10,12,70,2,10,70,0
+excelsior,exc_linthorst,Couhaib Driouech,Dutch,RW,23,70,63,47,10,6,15,76,1
+excelsior,exc_hamming,Thomas Verhaar,Dutch,RW,24,67,62,46,10,4,12,72,1
+excelsior,exc_rienstra,Kayo Dolan,Dutch,CB,22,40,46,70,10,4,12,72,1
+excelsior,exc_ippel,Siebe Horemans,Belgian,CM,24,59,70,55,10,4,12,72,1
+excelsior,exc_van_der_lely,Dani Drost,Dutch,CM,26,60,70,55,10,4,12,70,0
+excelsior,exc_groeneveld,Mohammad Meziane,Dutch,LW,22,68,62,46,10,5,12,74,1
+excelsior,exc_de_buck,Jonathan de Guzmán,Dutch,CM,38,56,67,52,10,1,8,67,0
+excelsior,exc_mijnans,Kris Niemeijer,Dutch,ST,27,66,52,35,10,4,10,72,1
+excelsior,exc_bergkamp,Elias Achterberg,Dutch,LB,25,60,56,68,10,3,10,70,0
+excelsior,exc_visser,Kees Luijckx,Dutch,CB,32,38,44,70,10,2,10,70,0
+excelsior,exc_nooijer,Erkan Eyibil,Turkish,CAM,22,66,70,52,10,5,12,74,1
+nac_breda,nac_snow,Robbin Ruiter,Dutch,GK,38,10,10,12,74,2,12,74,0
+nac_breda,nac_lam2,Jan Paul van Hecke,Dutch,CB,25,44,51,80,10,20,42,87,0
+nac_breda,nac_moerenhout,Tom Overtoom,Dutch,RB,28,57,53,67,10,2,10,67,0
+nac_breda,nac_claassen,Boris van der Vlugt,Dutch,CM,24,59,72,55,10,3,12,72,0
+nac_breda,nac_el_messaoudi2,Ali Akman,Turkish,ST,23,68,53,35,10,4,12,68,0
+nac_breda,nac_brons,Sefa Yıldız,Turkish,LW,27,70,63,47,10,5,14,70,0
+nac_breda,nac_hendriks2,Rikkert Jansen,Dutch,LB,27,59,55,68,10,3,12,68,0
+nac_breda,nac_crowther,Luc Ihorst,Dutch,RW,22,66,60,46,10,4,10,72,1
+nac_breda,nac_nijholt,Thijs Daniëls,Dutch,CB,26,40,46,72,10,3,12,72,0
+nac_breda,nac_martina,Casper Hartman,Dutch,CDM,25,52,68,62,10,3,10,68,1
+nac_breda,nac_koolwijk,Erik Schouten,Dutch,CDM,29,66,67,50,10,4,12,68,0
+nac_breda,nac_haye,Lex Immers,Dutch,CM,34,58,68,54,10,2,10,68,0
+nac_breda,nac_kramer,Jorrit Hendrix,Dutch,CDM,28,54,72,64,10,5,15,72,0
+telstar,tel_coutinho2,Dennis Telgenkamp,Dutch,GK,32,10,10,12,70,2,8,70,0
+telstar,tel_van_dijk2,Kevin Diks,Dutch,RB,30,60,56,68,10,3,10,68,0
+telstar,tel_schomaker,Lorenzo Piqué,Spanish,CB,27,39,45,70,10,2,8,70,0
+telstar,tel_raaijmakers,Jordy Delem,Belgian,CM,31,56,67,54,10,2,8,67,0
+telstar,tel_van_der_watt,Tom van Weert,Dutch,ST,28,65,50,34,10,2,8,65,0
+telstar,tel_boer,Jari Schuurman,Dutch,LW,22,62,58,44,10,2,8,68,1
+telstar,tel_reijnen,Mark Langedijk,Dutch,CB,31,38,44,69,10,1,8,69,0
+telstar,tel_spit,Joey Groenbast,Dutch,GK,25,10,10,12,68,1,8,70,1
+telstar,tel_van_der_ven,Rudi Druijf,Dutch,ST,27,66,51,35,10,2,8,66,0
+telstar,tel_keulen,Siebe Blondelle,Belgian,CB,27,38,44,69,10,2,8,69,0
+telstar,tel_vos2,Zian Flemming,Dutch,CM,28,57,67,54,10,2,8,67,0
+telstar,tel_stojanovic2,Gyliano van Velzen,Dutch,LW,24,62,57,44,10,2,8,66,1
+telstar,tel_van_hooijdonk,Wouter Prins,Dutch,RB,26,58,54,66,10,2,8,66,0
+heracles,her_de_kruijf,Janik Haberer,German,CM,30,64,73,57,10,5,15,73,0
+heracles,her_hezemans,Lois Openda,Belgian,ST,24,80,60,40,10,8,25,86,0
+heracles,her_bruns,Stef Penders,Dutch,GK,28,10,10,12,73,3,12,73,0
+heracles,her_van_der_heijden,Lasse Wehmeyer,German,CB,26,40,46,72,10,3,10,72,0
+heracles,her_ouwejan2,Patrick Vroegh,Dutch,RW,27,61,57,69,10,5,14,69,0
+heracles,her_toornstra,Tomas Suslov (HER),Slovak,CM,27,64,62,47,10,2,10,64,0
+heracles,her_gravenberch,Navajo Bakboord,Dutch,LW,22,62,70,55,10,4,10,74,1
+heracles,her_rente,Nikolaos Michelis,Greek,CB,28,39,45,71,10,3,10,71,0
+heracles,her_pienaar,Joey Sleegers,Dutch,CM,25,60,70,54,10,3,10,70,1
+heracles,her_robinson,Alessandro Plizzari (HER),Italian,ST,25,69,52,36,10,5,14,72,0
+heracles,her_van_veen,Ferdy Druijf,Dutch,ST,26,66,51,35,10,3,10,66,0
+heracles,her_dumic,Dario Dumic,Bosnian,CB,30,40,46,73,10,3,10,73,0
+heracles,her_meijer2,Jesse Bosch,Dutch,CDM,23,66,62,47,10,3,10,66,0

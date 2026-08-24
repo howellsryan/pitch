@@ -1,0 +1,25 @@
+team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
+bromley,Bromley,BRM,⚪⚫,League Two,Hayes Lane,6100,4,52,#FFFFFF
+cambridge,Cambridge United,CAM,🟡,League Two,Abbey Stadium,8127,6,54,#F5A623
+mk_dons,Milton Keynes Dons,MKD,⚪,League Two,Stadium MK,30500,8,56,#FFFFFF
+swindon,Swindon Town,SWI,🔴,League Two,County Ground,15728,6,54,#E2001A
+notts_county,Notts County,NOT,⚫⚪,League Two,Meadow Lane,19841,6,54,#000000
+crewe,Crewe Alexandra,CRE,🔴,League Two,Gresty Road,10153,5,50,#E2001A
+salford,Salford City,SAL,🔴,League Two,Moor Lane,5108,8,54,#E2001A
+chesterfield,Chesterfield,CHE,🔵,League Two,SMH Group Stadium,10504,5,50,#1E3F8F
+barnet,Barnet,BNT,🟠⚫,League Two,The Hive Stadium,6500,4,48,#F5A623
+walsall,Walsall,WAL,🔴,League Two,Bescot Stadium,11300,5,50,#E2001A
+grimsby,Grimsby Town,GRI,⚫⚪,League Two,Blundell Park,9052,5,50,#000000
+colchester,Colchester United,COL,🔵⚪,League Two,Colchester Community Stadium,10105,5,50,#003399
+accrington,Accrington Stanley,ACC,🔴,League Two,Crown Ground,5450,3,46,#E2001A
+oldham,Oldham Athletic,OLD,🔵,League Two,Boundary Park,13513,4,48,#004B87
+fleetwood,Fleetwood Town,FLE,🔴,League Two,Highbury Stadium,5327,4,48,#E2001A
+gillingham,Gillingham,GIL,🔵,League Two,Priestfield Stadium,11582,5,50,#0000FF
+shrewsbury,Shrewsbury Town,SHR,🔵,League Two,New Meadow,9875,5,50,#003399
+cheltenham,Cheltenham Town,CLT,🔴,League Two,Whaddon Road,7066,4,48,#E2001A
+tranmere,Tranmere Rovers,TRA,⚪,League Two,Prenton Park,16789,5,50,#FFFFFF
+bristol_rovers,Bristol Rovers,BRR,🔵⚪,League Two,Memorial Stadium,9832,5,50,#0038A8
+crawley,Crawley Town,CRA,🔴,League Two,Broadfield Stadium,5996,4,46,#E2001A
+barrow,Barrow,BAW,🔵⚪,League Two,Holker Street,6500,3,44,#003DA5
+harrogate,Harrogate Town,HAR,🟡⚫,League Two,Wetherby Road,5000,3,42,#F7C948
+newport,Newport County,NEW,🟡⚫,League Two,Rodney Parade,7850,3,44,#F5A623

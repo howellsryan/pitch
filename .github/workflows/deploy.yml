@@ -1,4 +1,4 @@
-name: Deploy to Cloudflare Workers
+name: Build, validate, and deploy
 
 on:
   push:
@@ -7,13 +7,37 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Runs on every push and PR. src/build.py bundles the 22 source modules and
+  # runs src/validate.js's 1,180 checks as part of that — this is the gate
+  # nothing else in this workflow bypasses.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: index.html
+          path: index.html
+          retention-days: 7
+
   # Pushes to main go live at pitch-sim.com (once the custom domain is
   # attached — see docs/plan/03-cloudflare-workers.md, Phase 0).
   deploy:
+    needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: index.html
       - run: npx wrangler@4 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -22,10 +46,14 @@ jobs:
   # Every other push and PR gets its own preview URL, without touching
   # production traffic. Open it on a phone before merging.
   preview:
+    needs: build
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: index.html
       - run: npx wrangler@4 versions upload
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

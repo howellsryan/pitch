@@ -1,0 +1,19 @@
+team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
+psv,PSV Eindhoven,PSV,🔴⚪,Eredivisie,Philips Stadion,36500,60,88,#ED1C24
+feyenoord,Feyenoord,FEY,🔴⚪,Eredivisie,De Kuip,47500,50,86,#ED1C24
+ajax,Ajax,AJX,🔴⚪,Eredivisie,Johan Cruyff Arena,55865,55,87,#D2122E
+nec,NEC Nijmegen,NEC,🔴🟢,Eredivisie,Goffertstadion,12500,18,72,#ED1C24
+twente,FC Twente,TWE,🔴,Eredivisie,De Grolsch Veste,30205,22,76,#ED1C24
+az,AZ Alkmaar,AZ,🔴,Eredivisie,AFAS Stadion,19478,25,78,#ED1C24
+sparta,Sparta Rotterdam,SPA,🔴⚪,Eredivisie,Spartastadion Het Kasteel,11000,12,68,#ED1C24
+heerenveen,SC Heerenveen,HEE,🔵⚪,Eredivisie,Abe Lenstra Stadion,27224,14,70,#0070B8
+fortuna,Fortuna Sittard,FOR,🟡🟢,Eredivisie,Fortuna Sittard Stadion,10300,10,66,#F7D100
+utrecht,FC Utrecht,UTR,🔴,Eredivisie,Stadion Galgenwaard,23750,20,74,#ED1C24
+groningen,FC Groningen,GRO,🟢⚪,Eredivisie,Euroborg,22550,14,70,#00A651
+pec_zwolle,PEC Zwolle,PEC,🔵,Eredivisie,MAC3PARK Stadion,13250,10,64,#003DA5
+volendam,FC Volendam,VOL,🟠,Eredivisie,Kras Stadion,7384,8,60,#FF6600
+go_ahead,Go Ahead Eagles,GAE,🔴🟡,Eredivisie,De Adelaarshorst,10000,10,66,#ED1C24
+excelsior,Excelsior,EXC,🔴⚫,Eredivisie,Van Donge en De Roo Stadion,4500,6,58,#ED1C24
+nac_breda,NAC Breda,NAC,🟡🟢,Eredivisie,Rat Verlegh Stadion,19000,10,64,#F7D100
+telstar,SC Telstar,TEL,⚪,Eredivisie,BUKO Stadion,5338,5,54,#FFFFFF
+heracles,Heracles Almelo,HER,⚫⚪,Eredivisie,Asito Stadion,12080,8,60,#000000

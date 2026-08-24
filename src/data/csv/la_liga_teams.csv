@@ -1,0 +1,21 @@
+team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
+real_madrid,Real Madrid,RMA,👑,La Liga,Santiago Bernabéu,85454,250,99,#FFFFFF
+barcelona,Barcelona,BAR,🔵🔴,La Liga,Spotify Camp Nou,99354,180,97,#A50044
+atletico,Atlético Madrid,ATM,🔴⚪,La Liga,Civitas Metropolitano,68456,120,90,#CB3524
+villarreal,Villarreal CF,VIL,🟡,La Liga,Estadio de la Cerámica,23500,55,79,#FFE900
+athletic_bilbao,Athletic Club,ATH,🔴⚪,La Liga,San Mamés,53289,48,80,#EE2523
+real_sociedad,Real Sociedad,RSO,🔵⚪,La Liga,Reale Arena,39500,55,80,#003DA5
+real_betis,Real Betis,BET,🟢⚪,La Liga,Benito Villamarín,60720,65,78,#00954C
+sevilla,Sevilla FC,SEV,⚪🔴,La Liga,Ramón Sánchez-Pizjuán,43883,52,76,#D4021D
+celta_vigo,Celta Vigo,CEL,🔵⚪,La Liga,Estadio ABANCA Balaídos,29000,38,72,#8AC3EE
+valencia,Valencia CF,VAL,🦇,La Liga,Camp de Mestalla,49430,42,75,#EE2523
+girona,Girona FC,GIR,🔴⚪,La Liga,Estadio Montilivi,13500,52,74,#CD2534
+osasuna,CA Osasuna,OSA,🔴,La Liga,Estadio El Sadar,23576,28,68,#0A346F
+getafe,Getafe CF,GET,🔵,La Liga,Estadio Coliseum,17700,24,66,#004FA3
+rayo_vallecano,Rayo Vallecano,RAY,🔴⚪,La Liga,Campo de Vallecas,14708,22,66,#E53027
+espanyol,RCD Espanyol,ESP,🔵⚪,La Liga,RCDE Stadium,40000,28,68,#007FC8
+alaves,Deportivo Alavés,ALA,🔵⚪,La Liga,Mendizorrotza,19840,18,62,#003DA5
+mallorca,RCD Mallorca,MAL,🔴⚫,La Liga,Son Moix,23142,30,69,#E20613
+levante,Levante UD,LEV,🔵🔴,La Liga,Ciutat de València,25354,18,60,#93272C
+elche,Elche CF,ELC,🟢,La Liga,Martínez Valero,33732,16,57,#1D6B37
+real_oviedo,Real Oviedo,OVI,🔵,La Liga,Carlos Tartiere,30500,15,55,#002F6C

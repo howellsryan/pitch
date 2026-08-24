@@ -4,8 +4,10 @@
   "version": "0.0.0",
   "description": "Football career simulator. Live at pitch-sim.com.",
   "scripts": {
-    "deploy": "wrangler deploy",
-    "deploy:preview": "wrangler versions upload"
+    "build": "python3 src/build.py",
+    "validate": "node src/validate.js",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:preview": "npm run build && wrangler versions upload"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

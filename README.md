@@ -45,25 +45,27 @@ A single-file football career manager built with vanilla JS, CSS, and IndexedDB.
 
 ## Development
 
-Source lives in `pitch2/`. The build system concatenates 22 JS modules into a single HTML file.
+Source lives in `src/`. The build system concatenates 22 JS modules into a
+single HTML file at the repo root.
 
 ```bash
-# Build (bundles, validates, assembles)
-python3 pitch2/build.py
-
-# Output
-/mnt/user-data/outputs/index.html   (~616 KB)
+npm run build      # bundles, validates (1180 checks), assembles → index.html
+npm run validate   # re-run just the validation suite against the last build
+npm run deploy     # build, then wrangler deploy (needs Cloudflare credentials)
 ```
+
+`index.html` is a build artifact — gitignored, regenerated every build, never
+committed or hand-edited.
 
 ### Architecture
 
 ```
-data/          → Static team & player data (6 files, 186 clubs)
-modules/       → Game logic — no DOM access (12 files)
-ui/            → DOM rendering (6 files)
-build.py       → Concatenation pipeline + syntax validation
-validate.js    → 1190 automated checks, 0 failures required
-shell.html     → HTML/CSS shell (no JS)
+src/data/      → Static team & player data (10 files, 186 clubs)
+src/modules/   → Game logic — no DOM access (13 files)
+src/ui/        → DOM rendering (8 files)
+src/build.py   → Concatenation pipeline + syntax validation
+src/validate.js → 1180 automated checks, 0 failures required
+src/shell.html → HTML/CSS shell (no JS)
 BRIEFING.md    → Full architecture docs, invariants, anti-patterns
 ```
 
@@ -73,7 +75,7 @@ BRIEFING.md    → Full architecture docs, invariants, anti-patterns
 - **IndexedDB** — persistent game state via a thin async wrapper
 - **CSS custom properties** — dark theme design tokens, fully responsive layout
 - **build.py** — Python concatenation pipeline with JS syntax validation
-- **validate.js** — 1190 automated checks run on every build (0 failures required to ship)
+- **validate.js** — 1180 automated checks run on every build (0 failures required to ship)
 
 ### Adding League Data
 
@@ -81,8 +83,8 @@ Leagues are added via a CSV pipeline — no hand-editing JS files:
 
 ```bash
 # Create CSVs, run converter, build
-python3 csv_to_league.py data/csv/teams.csv data/csv/players.csv data/output.js ARRAY_NAME helper
-python3 build.py
+python3 src/csv_to_league.py src/data/csv/teams.csv src/data/csv/players.csv src/data/output.js ARRAY_NAME helper
+npm run build
 ```
 
 Pre-registered slots exist for Segunda División, 2. Bundesliga, Serie B, and Ligue 2 — just add the CSVs and build.

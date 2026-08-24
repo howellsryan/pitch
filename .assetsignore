@@ -1,7 +1,8 @@
 # Not part of the deployed game — repo tooling, not web assets.
-pitch_source.zip
 CNAME
 wrangler.jsonc
 package.json
 package-lock.json
 .github
+src
+BRIEFING.md

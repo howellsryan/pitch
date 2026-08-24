@@ -1,0 +1,19 @@
+team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
+psg,Paris Saint-Germain,PSG,🔴🔵,Ligue 1,Parc des Princes,47929,300,98,#004170
+monaco,AS Monaco,MON,🔴⚪,Ligue 1,Stade Louis II,18523,100,84,#E2001A
+marseille,Olympique Marseille,OM,🔵⚪,Ligue 1,Stade Vélodrome,67394,80,85,#2FAEE0
+lille,Lille OSC,LIL,🔴⚪,Ligue 1,Stade Pierre-Mauroy,50186,65,80,#E2001A
+lens,RC Lens,LEN,🔴🟡,Ligue 1,Stade Bollaert-Delelis,38223,55,78,#FFD700
+lyon,Olympique Lyonnais,OL,🔵⚪🔴,Ligue 1,Groupama Stadium,59186,75,82,#001F6D
+nice,OGC Nice,NIC,🔴⚫,Ligue 1,Allianz Riviera,36178,55,76,#000000
+rennes,Stade Rennais,REN,🔴⚫,Ligue 1,Roazhon Park,29820,55,76,#E2001A
+auxerre,AJ Auxerre,AUX,🔵⚪,Ligue 1,Stade de l'Abbé-Deschamps,21569,22,63,#0D4DA1
+brest,Stade Brestois,BRE,🔴⚪,Ligue 1,Stade Francis-Le Blé,15220,28,70,#E2001A
+toulouse,Toulouse FC,TFC,💜,Ligue 1,Stadium de Toulouse,33150,35,70,#7B2D8E
+strasbourg,RC Strasbourg,STR,🔵⚪,Ligue 1,Stade de la Meinau,26109,35,69,#009FE3
+nantes,FC Nantes,NAN,🟢🟡,Ligue 1,Stade de la Beaujoire,37473,30,68,#FCDD09
+le_havre,Le Havre AC,HAC,🔵⚪,Ligue 1,Stade Océane,25278,18,60,#009FE3
+angers,Angers SCO,ANG,⚪⚫,Ligue 1,Stade Raymond Kopa,18752,20,62,#000000
+lorient,FC Lorient,LOR,🟠,Ligue 1,Stade du Moustoir,18890,20,60,#F58220
+paris_fc,Paris FC,PFC,🔵,Ligue 1,Stade Charléty,20000,25,58,#003DA5
+metz,FC Metz,FCM,🔴,Ligue 1,Stade Saint-Symphorien,30000,18,58,#8B0000

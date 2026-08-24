@@ -1,0 +1,25 @@
+team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
+cardiff,Cardiff City,CAR,🔵,League One,Cardiff City Stadium,33280,18,68,#0070B5
+lincoln,Lincoln City,LIN,🔴,League One,LNER Stadium,10669,8,62,#E2001A
+bolton,Bolton Wanderers,BOL,⚪,League One,Toughsheet Community Stadium,28723,12,65,#263C6F
+bradford,Bradford City,BRA,🟡,League One,Valley Parade,25136,8,60,#7A263A
+stockport,Stockport County,STO,🔵,League One,Edgeley Park,10841,8,60,#004B87
+huddersfield,Huddersfield Town,HUD,🔵⚪,League One,Kirklees Stadium,24121,14,64,#0E63AD
+reading,Reading FC,REA,🔵⚪,League One,Madejski Stadium,24161,10,62,#004494
+stevenage,Stevenage,STE,🔴⚪,League One,Broadhall Way,7200,5,55,#D42828
+wycombe,Wycombe Wanderers,WYC,🔵,League One,Adams Park,10137,6,56,#143C73
+luton,Luton Town,LUT,🟠,League One,Kenilworth Road,12300,14,66,#F78F1E
+peterborough,Peterborough United,PET,🔵,League One,London Road Stadium,15314,8,60,#005DAA
+plymouth,Plymouth Argyle,PLY,🟢,League One,Home Park,18173,12,64,#00573F
+barnsley,Barnsley FC,BAR,🔴,League One,Oakwell,23287,8,60,#E3000B
+afc_wimbledon,AFC Wimbledon,AFW,🔵🟡,League One,Plough Lane,9215,5,55,#003C82
+exeter,Exeter City,EXE,🔴,League One,St James Park,8219,6,57,#E2001A
+mansfield,Mansfield Town,MAN,🟡,League One,Field Mill,9186,6,56,#F7B500
+burton,Burton Albion,BUR,🟡⚫,League One,Pirelli Stadium,6912,5,54,#FDDE02
+doncaster,Doncaster Rovers,DON,🔴⚪,League One,Eco-Power Stadium,15231,6,56,#E2001A
+wigan,Wigan Athletic,WIG,🔵,League One,Brick Community Stadium,25133,8,58,#1D428A
+blackpool,Blackpool FC,BLK,🟠,League One,Bloomfield Road,16616,8,58,#F68B1F
+leyton_orient,Leyton Orient,LEY,🔴,League One,Brisbane Road,9271,5,55,#E2001A
+northampton,Northampton Town,NOR,🔴,League One,Sixfields Stadium,8203,5,54,#7A263A
+rotherham,Rotherham United,ROT,🔴,League One,New York Stadium,12021,6,56,#E2001A
+port_vale,Port Vale,PVA,⚪⚫,League One,Vale Park,19052,5,53,#FFFFFF
