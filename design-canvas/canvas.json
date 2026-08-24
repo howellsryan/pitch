@@ -1,12 +1,47 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "Click-through prototype" },
-    { "file": "ClubTheming.dc.html", "x": 520, "y": 0, "w": 900, "h": 1180, "title": "Club theming study" }
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Click-through prototype"
+    },
+    {
+      "file": "ClubTheming.dc.html",
+      "x": 520,
+      "y": 0,
+      "w": 980,
+      "h": 1210,
+      "title": "Club theming study"
+    }
   ],
   "annotations": [
-    { "id": "how-to-drive", "x": 0, "y": -190, "w": 390, "text": "CLICK-THROUGH PROTOTYPE\n\nWorking controls — tap the bottom nav to move between Home, Squad, Market and League. The raised centre button opens the live match.\n\nUnder Squad, the Players/Tactics segment switches views; position chips filter the list; formation, mentality and speed controls all hold state.\n\nUse the Club tweak above this artboard to switch club — every accent in the UI follows it." },
-    { "id": "data-note", "x": 520, "y": -190, "w": 900, "text": "All colour values are real: primaryColor out of src/data/plTeams.js, resolved through src/lib/theme.mjs, with contrast ratios from the same code that gates CI in tools/check-club-accents.mjs. Arsenal's squad — names, ratings, ages, potentials, values — is read out of the same data, with rating computed the way matchEngine's primaryRating() does.\n\nMatch state (GW 12, the 2-1 scoreline, budget, league points) is sample data chosen to show a mid-season screen." },
-    { "id": "open-question", "x": 0, "y": 900, "w": 390, "text": "STILL OPEN\n\npitch renders potential as star ratings (getPotentialStars). These screens use a POT number plus a growth arrow instead — faster to scan, and it doesn't compress five elite prospects into the same five stars.\n\nWorth deciding explicitly before Phase 4 builds the Squad screen." }
+    {
+      "id": "how-to-drive",
+      "x": 0,
+      "y": -190,
+      "w": 390,
+      "text": "CLICK-THROUGH PROTOTYPE\n\nWorking controls \u2014 tap the bottom nav to move between Home, Squad, Market and League. The raised centre button opens the live match.\n\nUnder Squad, the Players/Tactics segment switches views; position chips filter the list; formation, mentality and speed controls all hold state.\n\nUse the Club tweak above this artboard to switch club \u2014 every accent in the UI follows it."
+    },
+    {
+      "id": "data-note",
+      "x": 520,
+      "y": -190,
+      "w": 900,
+      "text": "All colour values are real: primaryColor out of src/data/plTeams.js, resolved through src/lib/theme.mjs, with contrast ratios from the same code that gates CI in tools/check-club-accents.mjs. Arsenal's squad \u2014 names, ratings, ages, potentials, values \u2014 is read out of the same data, with rating computed the way matchEngine's primaryRating() does.\n\nMatch state (GW 12, the 2-1 scoreline, budget, league points) is sample data chosen to show a mid-season screen."
+    },
+    {
+      "id": "open-question",
+      "x": 0,
+      "y": 900,
+      "w": 390,
+      "text": "STILL OPEN\n\npitch renders potential as star ratings (getPotentialStars). These screens use a POT number plus a growth arrow instead \u2014 faster to scan, and it doesn't compress five elite prospects into the same five stars.\n\nWorth deciding explicitly before Phase 4 builds the Squad screen."
+    }
   ],
-  "launch": { "view": "focused", "file": "Main.dc.html" }
+  "launch": {
+    "view": "focused",
+    "file": "Main.dc.html"
+  }
 }

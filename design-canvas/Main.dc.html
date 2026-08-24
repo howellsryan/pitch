@@ -65,7 +65,7 @@
               <div class="mono" style="font-size: 11px; color: #8695A8; margin-top: 5px;">3rd v 8th</div>
             </div>
             <div style="text-align: center; width: 92px;">
-              <div class="disp" style="font-size: 22px; font-weight: 700; letter-spacing: 0.6px; color: #8695A8;">NEW</div>
+              <div class="disp" style="font-size: 22px; font-weight: 700; letter-spacing: 0.6px; color: #8695A8;">{{opp.short}}</div>
               <div style="display: flex; gap: 3px; justify-content: center; margin-top: 7px;">
                 <sc-for list="{{formAway}}" as="f" hint-placeholder-count="5">
                   <div style="width: 13px; height: 3px; border-radius: 2px; background: {{f.c}};"></div>
@@ -85,7 +85,10 @@
           </div>
         </div>
 
-        <div class="tap disp" onClick="{{ goMatch }}" style="width: 100%; background: {{club.hex}}; color: {{club.on}}; border: none; border-radius: 10px; padding: 15px; font-size: 18px; font-weight: 700; letter-spacing: 1.4px; text-align: center; margin-bottom: 16px;">▶ PLAY MATCH</div>
+        <div class="tap disp" onClick="{{ goMatch }}" style="width: 100%; background: {{club.hex}}; color: {{club.on}}; border-radius: 10px; padding: 15px; font-size: 18px; font-weight: 700; letter-spacing: 1.4px; display: flex; align-items: center; justify-content: center; gap: 9px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+          <span>PLAY MATCH</span>
+        </div>
 
         <div style="border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; background: #131A23; overflow: hidden; margin-bottom: 14px;">
           <div class="tap" onClick="{{ goLeague }}" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.07);">
@@ -118,26 +121,27 @@
       <div style="padding: 14px 16px 92px;">
         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
           <span class="disp" style="font-size: 21px; font-weight: 700; letter-spacing: 0.7px;">SQUAD</span>
-          <span class="mono" style="font-size: 11px; color: #8695A8; letter-spacing: 0.4px;">24 PLAYERS · £4.2M/WK</span>
+          <span class="mono" style="font-size: 11px; color: #8695A8; letter-spacing: 0.4px;">{{squadCount}} · £4.2M/WK</span>
         </div>
 
         <div style="display: flex; gap: 6px; background: #131A23; border-radius: 9px; padding: 4px; margin-bottom: 12px;">
-          <div class="tap" onClick="{{ showPlayers }}" style="flex-grow: 1; text-align: center; padding: 9px; border-radius: 6px; font-size: 13px; font-weight: 600; background: {{playersTabBg}}; color: {{playersTabFg}};">Players</div>
-          <div class="tap" onClick="{{ showTactics }}" style="flex-grow: 1; text-align: center; padding: 9px; border-radius: 6px; font-size: 13px; font-weight: 600; background: {{tacticsTabBg}}; color: {{tacticsTabFg}};">Tactics</div>
+          <div class="tap" onClick="{{ showPlayers }}" style="flex-grow: 1; text-align: center; padding: 12px 9px; min-height: 44px; border-radius: 6px; font-size: 13px; font-weight: 600; background: {{playersTabBg}}; color: {{playersTabFg}};">Players</div>
+          <div class="tap" onClick="{{ showTactics }}" style="flex-grow: 1; text-align: center; padding: 12px 9px; min-height: 44px; border-radius: 6px; font-size: 13px; font-weight: 600; background: {{tacticsTabBg}}; color: {{tacticsTabFg}};">Tactics</div>
         </div>
 
         <sc-if value="{{isPlayers}}" hint-placeholder-val="{{ true }}">
           <div>
             <div style="display: flex; gap: 6px; margin-bottom: 12px;">
               <sc-for list="{{posFilters}}" as="f" hint-placeholder-count="5">
-                <div class="tap mono" onClick="{{ f.pick }}" style="padding: 7px 13px; border-radius: 999px; font-size: 11px; font-weight: 500; letter-spacing: 0.6px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}};">{{f.label}}</div>
+                <div class="tap mono" onClick="{{ f.pick }}" style="min-height: 44px; display: flex; align-items: center; padding: 0 15px; border-radius: 999px; font-size: 11px; font-weight: 500; letter-spacing: 0.6px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}};">{{f.label}}</div>
               </sc-for>
             </div>
             <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; display: flex; justify-content: space-between; margin-bottom: 7px;">
               <span>SORTED BY RATING</span><span>FITNESS · VALUE</span>
             </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
             <sc-for list="{{squad}}" as="p" hint-placeholder-count="7">
-              <div style="display: flex; align-items: center; gap: 11px; padding: 11px 12px; margin-bottom: 6px; background: #131A23; border-radius: 9px; border-left: 3px solid {{p.bar}};">
+              <div style="display: flex; align-items: center; gap: 11px; padding: 11px 12px; background: #131A23; border-radius: 9px; border-left: 3px solid {{p.bar}};">
                 <div class="disp" style="font-size: 25px; font-weight: 700; width: 34px; text-align: center; line-height: 1;">{{p.r}}</div>
                 <div style="flex-grow: 1; min-width: 0;">
                   <div style="display: flex; align-items: center; gap: 6px;">
@@ -159,6 +163,7 @@
                 </div>
               </div>
             </sc-for>
+            </div>
           </div>
         </sc-if>
 
@@ -169,7 +174,7 @@
               <div style="position: absolute; left: 12px; right: 12px; top: 50%; height: 1px; background: rgba(255,255,255,0.09);"></div>
               <div style="position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border: 1px solid rgba(255,255,255,0.09); border-radius: 50%; transform: translate(-50%,-50%);"></div>
               <sc-for list="{{pitchSlots}}" as="s" hint-placeholder-count="11">
-                <div class="tap" style="position: absolute; left: {{s.x}}; top: {{s.y}}; transform: translate(-50%,-50%); text-align: center;">
+                <div class="tap" style="position: absolute; left: {{s.x}}; top: {{s.y}}; transform: translate(-50%,-50%); text-align: center; min-width: 44px; padding: 7px 0;">
                   <div class="disp" style="width: 30px; height: 30px; border-radius: 50%; background: {{club.hex}}; color: {{club.on}}; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{s.r}}</div>
                   <div class="mono" style="font-size: 11px; color: #8695A8; margin-top: 3px; white-space: nowrap;">{{s.n}}</div>
                 </div>
@@ -178,13 +183,13 @@
             <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; margin-bottom: 7px;">FORMATION</div>
             <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
               <sc-for list="{{formations}}" as="f" hint-placeholder-count="4">
-                <div class="tap mono" onClick="{{ f.pick }}" style="padding: 8px 12px; border-radius: 7px; font-size: 12px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}};">{{f.label}}</div>
+                <div class="tap mono" onClick="{{ f.pick }}" style="min-height: 44px; display: flex; align-items: center; padding: 0 14px; border-radius: 7px; font-size: 12px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}};">{{f.label}}</div>
               </sc-for>
             </div>
             <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; margin-bottom: 7px;">MENTALITY</div>
             <div style="display: flex; gap: 6px;">
               <sc-for list="{{mentalities}}" as="m" hint-placeholder-count="4">
-                <div class="tap" onClick="{{ m.pick }}" style="flex-grow: 1; text-align: center; padding: 10px 4px; border-radius: 7px; font-size: 12px; font-weight: 600; background: {{m.bg}}; color: {{m.fg}}; border: 1px solid {{m.bd}};">{{m.label}}</div>
+                <div class="tap" onClick="{{ m.pick }}" style="flex-grow: 1; text-align: center; padding: 14px 4px; min-height: 44px; border-radius: 7px; font-size: 12px; font-weight: 600; background: {{m.bg}}; color: {{m.fg}}; border: 1px solid {{m.bd}};">{{m.label}}</div>
               </sc-for>
             </div>
           </div>
@@ -196,7 +201,7 @@
     <sc-if value="{{isMatch}}" hint-placeholder-val="{{ false }}">
       <div style="padding: 0 0 92px;">
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.07);">
-          <div class="tap mono" onClick="{{ goHome }}" style="font-size: 11px; color: #8695A8; letter-spacing: 0.6px;">‹ BACK</div>
+          <div class="tap mono" onClick="{{ goHome }}" style="font-size: 11px; color: #8695A8; letter-spacing: 0.6px; min-height: 44px; display: flex; align-items: center; padding-right: 14px;">‹ BACK</div>
           <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px;">PREMIER LEAGUE · GW 12</div>
           <div class="mono" style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: #2BD97C; letter-spacing: 0.6px;">
             <span style="width: 6px; height: 6px; border-radius: 50%; background: #2BD97C; display: inline-block;"></span>LIVE
@@ -215,7 +220,7 @@
             </div>
             <div style="text-align: center; width: 76px;">
               <svg viewBox="0 0 26 30" width="24" height="28"><path d="M13 1 L24 5 V16 C24 23 18 27 13 29 C8 27 2 23 2 16 V5 Z" fill="#2B3442" stroke="rgba(255,255,255,0.22)"></path></svg>
-              <div class="disp" style="font-size: 15px; font-weight: 700; letter-spacing: 0.6px; margin-top: 4px; color: #8695A8;">NEW</div>
+              <div class="disp" style="font-size: 15px; font-weight: 700; letter-spacing: 0.6px; margin-top: 4px; color: #8695A8;">{{opp.short}}</div>
             </div>
           </div>
           <div style="margin-top: 14px;">
@@ -257,13 +262,16 @@
           <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.8px; margin-bottom: 7px;">MENTALITY</div>
           <div style="display: flex; gap: 6px; margin-bottom: 10px;">
             <sc-for list="{{mentalities}}" as="m" hint-placeholder-count="4">
-              <div class="tap" onClick="{{ m.pick }}" style="flex-grow: 1; text-align: center; padding: 10px 4px; border-radius: 7px; font-size: 12px; font-weight: 600; background: {{m.bg}}; color: {{m.fg}}; border: 1px solid {{m.bd}};">{{m.label}}</div>
+              <div class="tap" onClick="{{ m.pick }}" style="flex-grow: 1; text-align: center; padding: 14px 4px; min-height: 44px; border-radius: 7px; font-size: 12px; font-weight: 600; background: {{m.bg}}; color: {{m.fg}}; border: 1px solid {{m.bd}};">{{m.label}}</div>
             </sc-for>
           </div>
           <div style="display: flex; gap: 8px;">
-            <div class="tap" style="flex-grow: 1; text-align: center; padding: 12px; border-radius: 8px; background: #1C2530; font-size: 13px; font-weight: 600;">⇄ Subs · 2 left</div>
+            <div class="tap" onClick="{{ openSubs }}" style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 8px; background: #1C2530; font-size: 13px; font-weight: 600;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"></path><path d="M21 7H8a4 4 0 0 0-4 4v1"></path><path d="M7 21l-4-4 4-4"></path><path d="M3 17h13a4 4 0 0 0 4-4v-1"></path></svg>
+              <span>Subs · 2 left</span>
+            </div>
             <sc-for list="{{speeds}}" as="s" hint-placeholder-count="3">
-              <div class="tap mono" onClick="{{ s.pick }}" style="width: 46px; text-align: center; padding: 12px 0; border-radius: 8px; font-size: 12px; background: {{s.bg}}; color: {{s.fg}};">{{s.label}}</div>
+              <div class="tap mono" onClick="{{ s.pick }}" style="width: 46px; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 12px; background: {{s.bg}}; color: {{s.fg}};">{{s.label}}</div>
             </sc-for>
           </div>
         </div>
@@ -276,12 +284,13 @@
         <div class="disp" style="font-size: 21px; font-weight: 700; letter-spacing: 0.7px; margin-bottom: 12px;">TRANSFERS</div>
         <div style="display: flex; gap: 6px; background: #131A23; border-radius: 9px; padding: 4px; margin-bottom: 14px;">
           <sc-for list="{{transferTabs}}" as="t" hint-placeholder-count="4">
-            <div class="tap" onClick="{{ t.pick }}" style="flex-grow: 1; text-align: center; padding: 9px 2px; border-radius: 6px; font-size: 12px; font-weight: 600; background: {{t.bg}}; color: {{t.fg}};">{{t.label}}</div>
+            <div class="tap" onClick="{{ t.pick }}" style="flex-grow: 1; text-align: center; padding: 13px 6px; min-height: 44px; border-radius: 6px; font-size: 12px; font-weight: 600; background: {{t.bg}}; color: {{t.fg}};">{{t.label}}</div>
           </sc-for>
         </div>
         <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 0.7px; margin-bottom: 8px;">{{transferHint}}</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
         <sc-for list="{{targets}}" as="p" hint-placeholder-count="5">
-          <div style="display: flex; align-items: center; gap: 11px; padding: 11px 12px; margin-bottom: 6px; background: #131A23; border-radius: 9px; border-left: 3px solid {{p.bar}};">
+          <div style="display: flex; align-items: center; gap: 11px; padding: 11px 12px; background: #131A23; border-radius: 9px; border-left: 3px solid {{p.bar}};">
             <div class="disp" style="font-size: 25px; font-weight: 700; width: 34px; text-align: center; line-height: 1;">{{p.r}}</div>
             <div style="flex-grow: 1; min-width: 0;">
               <div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{p.n}}</div>
@@ -296,6 +305,7 @@
             </div>
           </div>
         </sc-for>
+        </div>
       </div>
     </sc-if>
 
@@ -312,7 +322,7 @@
             <span class="mono" style="font-size: 12px; color: #5A6878; width: 18px;">{{row.pos}}</span>
             <span style="flex-grow: 1; font-size: 13px; font-weight: {{row.weight}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{row.name}}</span>
             <span class="mono" style="font-size: 12px; color: #8695A8; width: 26px; text-align: right;">{{row.gd}}</span>
-            <span class="mono" style="font-size: 12px; color: #8695A8; width: 22px; text-align: right;">12</span>
+            <span class="mono" style="font-size: 12px; color: #8695A8; width: 22px; text-align: right;">{{row.played}}</span>
             <span class="mono" style="font-size: 13px; font-weight: 600; width: 26px; text-align: right;">{{row.pts}}</span>
           </div>
         </sc-for>
@@ -322,14 +332,14 @@
   </div>
 
   <!-- bottom nav -->
-  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 72px; background: #0C1219; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: flex-start; padding-top: 9px;">
-    <div class="tap" onClick="{{ goHome }}" style="flex-grow: 1; text-align: center;">
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 72px; background: #0C1219; border-top: 1px solid rgba(255,255,255,0.07); display: flex; align-items: stretch; padding-top: 6px;">
+    <div class="tap" onClick="{{ goHome }}" style="flex-grow: 1; text-align: center; padding-top: 6px;">
       <div style="display: flex; justify-content: center; color: {{navHome}};">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"></path></svg>
       </div>
       <div class="mono" style="font-size: 11px; color: {{navHome}}; letter-spacing: 0.6px; margin-top: 3px;">HOME</div>
     </div>
-    <div class="tap" onClick="{{ goSquad }}" style="flex-grow: 1; text-align: center;">
+    <div class="tap" onClick="{{ goSquad }}" style="flex-grow: 1; text-align: center; padding-top: 6px;">
       <div style="display: flex; justify-content: center; color: {{navSquad}};">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"></circle><path d="M2.5 20a6.5 6.5 0 0 1 13 0"></path><path d="M17 11a3 3 0 1 0 0-6"></path><path d="M17.5 14.5A6.2 6.2 0 0 1 22 20"></path></svg>
       </div>
@@ -341,13 +351,13 @@
       </div>
       <div class="mono" style="font-size: 11px; color: #8695A8; letter-spacing: 0.6px; margin-top: 4px;">PLAY</div>
     </div>
-    <div class="tap" onClick="{{ goTransfers }}" style="flex-grow: 1; text-align: center;">
+    <div class="tap" onClick="{{ goTransfers }}" style="flex-grow: 1; text-align: center; padding-top: 6px;">
       <div style="display: flex; justify-content: center; color: {{navTransfers}};">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"></path><path d="M21 7H8a4 4 0 0 0-4 4v1"></path><path d="M7 21l-4-4 4-4"></path><path d="M3 17h13a4 4 0 0 0 4-4v-1"></path></svg>
       </div>
       <div class="mono" style="font-size: 11px; color: {{navTransfers}}; letter-spacing: 0.6px; margin-top: 3px;">MARKET</div>
     </div>
-    <div class="tap" onClick="{{ goLeague }}" style="flex-grow: 1; text-align: center;">
+    <div class="tap" onClick="{{ goLeague }}" style="flex-grow: 1; text-align: center; padding-top: 6px;">
       <div style="display: flex; justify-content: center; color: {{navLeague}};">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M10 20h4"></path><path d="M12 14v6"></path></svg>
       </div>
@@ -393,12 +403,13 @@ class Component extends DCLogic {
     { n: 'Mikel Merino',       pos: 'CM',  age: 28, r: 84, pot: 84, wk: false, val: 42,  fit: 100 },
     { n: 'Noni Madueke',       pos: 'RW',  age: 23, r: 84, pot: 91, wk: true,  val: 62,  fit: 100 },
     { n: 'Gabriel Jesus',      pos: 'ST',  age: 27, r: 84, pot: 84, wk: false, val: 55,  fit: 100 },
+    { n: 'Riccardo Calafiori',  pos: 'LB',  age: 23, r: 82, pot: 89, wk: false, val: 52,  fit: 100 },
   ];
 
   static TABLE = [
     { name: 'Liverpool',         gd: '+18', pts: 28 }, { name: 'Manchester City', gd: '+15', pts: 26 },
-    { name: 'ARSENAL',           gd: '+13', pts: 24 }, { name: 'Chelsea',         gd: '+9',  pts: 23 },
-    { name: 'Aston Villa',       gd: '+7',  pts: 21 }, { name: 'Tottenham',       gd: '+5',  pts: 19 },
+    { name: 'Arsenal',           gd: '+13', pts: 24 }, { name: 'Chelsea',         gd: '+9',  pts: 23 },
+    { name: 'Aston Villa',       gd: '+7',  pts: 21 }, { name: 'Tottenham Hotspur', gd: '+5', pts: 19 },
     { name: 'Newcastle United',  gd: '+4',  pts: 19 }, { name: 'Brighton',        gd: '+1',  pts: 17 },
     { name: 'Bournemouth',       gd: '0',   pts: 16 }, { name: 'Crystal Palace',  gd: '-2',  pts: 15 },
     { name: 'Everton',           gd: '-3',  pts: 14 }, { name: 'Brentford',       gd: '-5',  pts: 13 },
@@ -453,17 +464,21 @@ class Component extends DCLogic {
         fitC: p.fit < 40 ? '#F0576B' : p.fit < 90 ? '#F5B93D' : '#2BD97C',
       }));
 
-    const mkTable = (rows) => rows.map((row, i) => {
-      const mine = row.name === 'ARSENAL';
-      return {
-        pos: i + 1,
-        name: mine ? c.name : row.name,
-        gd: row.gd, pts: row.pts,
-        weight: mine ? '700' : '500',
-        bg: mine ? 'rgba(255,255,255,0.04)' : 'transparent',
-        mark: mine ? c.hex : 'transparent',
-      };
-    });
+    // Most selectable clubs are already in the table. Mark the row they own;
+    // only substitute for a club the table doesn't contain (Wolves, Fulham) —
+    // renaming a fixed placeholder duplicated the club at two positions.
+    const rows = Component.TABLE.map((r) => ({ ...r }));
+    let mineIdx = rows.findIndex((r) => r.name === c.name);
+    if (mineIdx < 0) { rows[2] = { name: c.name, gd: '+13', pts: 24 }; mineIdx = 2; }
+
+    const mkTable = (count) => rows.slice(0, count).map((row, i) => ({
+      pos: i + 1,
+      name: row.name,
+      gd: row.gd, pts: row.pts, played: 12,
+      weight: i === mineIdx ? '700' : '500',
+      bg: i === mineIdx ? 'rgba(255,255,255,0.04)' : 'transparent',
+      mark: i === mineIdx ? c.hex : 'transparent',
+    }));
 
     const form = (str) => str.split('').map((ch) => ({ c: ch === 'W' ? '#2BD97C' : ch === 'D' ? '#F5B93D' : '#F0576B' }));
 
@@ -475,6 +490,7 @@ class Component extends DCLogic {
 
       goMatch: go('match'), goHome: go('home'), goLeague: go('league'),
       goSquad: go('squad'), goTransfers: go('transfers'),
+      openSubs: () => this.setState({ speed: '1×' }),
       showPlayers: () => this.setState({ squadTab: 'players' }),
       showTactics: () => this.setState({ squadTab: 'tactics' }),
 
@@ -487,17 +503,18 @@ class Component extends DCLogic {
       navTransfers: navColor('transfers'), navLeague: navColor('league'),
 
       formHome: form('WWDWL'), formAway: form('LWWDW'),
-      tableTop: mkTable(Component.TABLE.slice(0, 4)),
-      fullTable: mkTable(Component.TABLE),
+      tableTop: mkTable(Math.max(4, mineIdx + 1)).slice(Math.max(0, mineIdx - 2)),
+      fullTable: mkTable(Component.TABLE.length),
 
       posFilters, squad,
+      squadCount: squad.length + (s.posFilter === 'All' ? ' PLAYERS' : ' OF 14'),
 
       pitchSlots: [
         { n: 'Raya',       r: 87, x: '50%', y: '88%' },
         { n: 'White',      r: 85, x: '82%', y: '70%' },
         { n: 'Saliba',     r: 91, x: '61%', y: '73%' },
         { n: 'Gabriel',    r: 88, x: '39%', y: '73%' },
-        { n: 'Lewis-Skelly', r: 78, x: '18%', y: '70%' },
+        { n: 'Calafiori',  r: 82, x: '18%', y: '70%' },
         { n: 'Rice',       r: 89, x: '50%', y: '54%' },
         { n: 'Zubimendi',  r: 86, x: '74%', y: '46%' },
         { n: 'Ødegaard',   r: 84, x: '26%', y: '46%' },
@@ -512,21 +529,22 @@ class Component extends DCLogic {
       mentalities: ['Defensive', 'Balanced', 'Possess.', 'Attacking'].map((label) => ({
         label, pick: () => this.setState({ mentality: label }), ...this.chip(s.mentality === label, c.hex, c.on),
       })),
-      speeds: ['1×', '4×', '▶|'].map((label) => ({
+      speeds: ['1×', '4×', 'SKIP'].map((label) => ({
         label, pick: () => this.setState({ speed: label }),
         bg: s.speed === label ? c.hex : '#1C2530',
         fg: s.speed === label ? c.on : '#8695A8',
       })),
 
+      opp: { name: 'Brighton', short: 'BHA' },
       score: '2 - 1', clock: '67’',
       matchStats: [
         { label: 'SHOTS', value: '14 · 7' }, { label: 'xG', value: '2.31 · 0.94' }, { label: 'CORNERS', value: '6 · 3' },
       ],
       timeline: [
         { min: '64’', minC: c.hex,   title: 'Goal — Bukayo Saka',        sub: 'Assist: Declan Rice · right foot, inside box' },
-        { min: '58’', minC: '#F5B93D', title: 'Booking — Bruno Guimarães', sub: 'Newcastle · tactical foul' },
-        { min: '51’', minC: '#5A6878', title: 'Substitution — Newcastle',  sub: 'Barnes on, Murphy off' },
-        { min: '43’', minC: '#8695A8', title: 'Goal — Anthony Gordon',     sub: 'Newcastle · counter-attack' },
+        { min: '58’', minC: '#F5B93D', title: 'Booking — Carlos Baleba',  sub: 'Brighton · tactical foul' },
+        { min: '51’', minC: '#5A6878', title: 'Substitution — Brighton',   sub: 'Welbeck on, João Pedro off' },
+        { min: '43’', minC: '#8695A8', title: 'Goal — Kaoru Mitoma',       sub: 'Brighton · counter-attack' },
       ],
 
       transferTabs: ['Search', 'Shortlist', 'Offers', 'History'].map((label) => ({
@@ -538,11 +556,11 @@ class Component extends DCLogic {
         : s.transferTab === 'Shortlist' ? '4 PLAYERS WATCHED'
         : s.transferTab === 'Offers' ? '3 OFFERS AWAITING RESPONSE' : 'THIS SEASON · 6 COMPLETED',
       targets: [
-        { n: 'Alexander Isak',   pos: 'ST',  club: 'Newcastle United', r: 88, val: '£120.0M', bar: '#2BD97C' },
-        { n: 'Bruno Guimarães',  pos: 'CM',  club: 'Newcastle United', r: 86, val: '£75.0M',  bar: '#7FD98F' },
-        { n: 'Morgan Rogers',    pos: 'CAM', club: 'Aston Villa',      r: 82, val: '£58.0M',  bar: '#F5B93D' },
-        { n: 'Antoine Semenyo',  pos: 'RW',  club: 'Bournemouth',      r: 82, val: '£52.0M',  bar: '#F5B93D' },
-        { n: 'Jarrad Branthwaite',pos: 'CB', club: 'Everton',          r: 82, val: '£60.0M',  bar: '#F5B93D' },
+        { n: 'Bryan Mbeumo',       pos: 'RW',  club: 'Brentford',      r: 87, val: '£80.0M', bar: '#2BD97C' },
+        { n: 'Jarrod Bowen',       pos: 'RW',  club: 'West Ham United', r: 84, val: '£60.0M', bar: '#7FD98F' },
+        { n: 'Mohammed Kudus',     pos: 'CAM', club: 'West Ham United', r: 83, val: '£55.0M', bar: '#7FD98F' },
+        { n: 'Murillo',            pos: 'CB',  club: 'Nottm Forest',    r: 83, val: '£48.0M', bar: '#7FD98F' },
+        { n: 'Morgan Gibbs-White', pos: 'CAM', club: 'Nottm Forest',    r: 82, val: '£50.0M', bar: '#F5B93D' },
       ],
     };
   }

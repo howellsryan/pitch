@@ -17,7 +17,7 @@
   </style>
 </helmet>
 
-<div style="width: 900px; background: #0A0E14; color: #EDF1F5; padding: 36px 40px 40px;">
+<div style="width: 980px; background: #0A0E14; color: #EDF1F5; padding: 36px 40px 40px;">
 
   <div class="mono" style="font-size: 11px; color: #5A6878; letter-spacing: 1.6px; margin-bottom: 8px;">SIGNATURE</div>
   <div class="disp" style="font-size: 40px; font-weight: 700; letter-spacing: 0.6px; line-height: 1;">THE APP WEARS YOUR CLUB</div>
@@ -61,7 +61,7 @@
     <span style="width: 150px;">ON ACCENT</span>
     <span style="width: 92px; text-align: right;">TEXT</span>
     <span style="width: 110px; text-align: right;">VS GROUND</span>
-    <span style="flex-grow: 1; text-align: right;">GUARD</span>
+    <span style="width: 92px; text-align: right;">GUARD</span>
   </div>
   <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
     <div style="display: flex; gap: 12px; align-items: center; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.045);">
@@ -76,7 +76,7 @@
       </span>
       <span class="mono" style="width: 92px; text-align: right; font-size: 12px; color: {{r.textC}};">{{r.text}}</span>
       <span class="mono" style="width: 110px; text-align: right; font-size: 12px; color: {{r.groundC}};">{{r.ground}}</span>
-      <span class="mono" style="flex-grow: 1; text-align: right; font-size: 11px; color: {{r.adjC}};">{{r.adjLabel}}</span>
+      <span class="mono" style="width: 92px; text-align: right; font-size: 11px; color: {{r.adjC}}; white-space: nowrap;">{{r.adjLabel}}</span>
     </div>
   </sc-for>
 
