@@ -3,8 +3,8 @@
 > Paste as first message in every new session.
 >
 > **Rebuild in progress.** This repo is mid-migration to a mobile-first UI on
-> Cloudflare Workers, planned in `howellsryan/footy-sim`'s `docs/plan/`. This
-> file tracks the game's invariants and anti-patterns as they stand *today*;
+> Cloudflare Workers, planned in `docs/plan/`. This file tracks the game's
+> invariants and anti-patterns as they stand *today*;
 > update it in the same commit as any change that makes a line here wrong —
 > don't let it drift, and don't let it turn into a changelog.
 

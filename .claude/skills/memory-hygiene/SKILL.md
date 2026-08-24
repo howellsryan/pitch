@@ -1,31 +1,31 @@
 ---
 name: memory-hygiene
-description: Use when writing to or reading from persistent agent memory - BRIEFING.md, .claude/skills/*, or the rebuild plan in howellsryan/footy-sim's docs/plan/ - meant for future sessions. Governs WHAT deserves persisting, HOW to write it so it survives time, and the recall rule - verify remembered facts against live state before acting on them.
+description: Use when writing to or reading from persistent agent memory - CLAUDE.md, BRIEFING.md, .claude/skills/*, or the rebuild plan in docs/plan/ - meant for future sessions. Governs WHAT deserves persisting, HOW to write it so it survives time, and the recall rule - verify remembered facts against live state before acting on them.
 ---
 
 # memory-hygiene: memory is a claim about the past, not a fact about the present
 
 ## Where memory actually lives in this repo — read this part first
 
-This repo has no `CLAUDE.md`. Its long-standing equivalent is `BRIEFING.md` —
-"paste as first message in every new session" — but that instruction predates
-Claude Code's own memory conventions, and **Claude Code does not auto-load
-`BRIEFING.md` the way it auto-loads a `CLAUDE.md`.** Skills under
-`.claude/skills/` load on demand based on their own descriptions regardless,
-but nothing currently tells a fresh session to go read `BRIEFING.md`, or states
-repo policy like "run `plan-gate` before touching the save schema" the way a
-`CLAUDE.md` would.
+Four tiers, each with a different job:
 
-That's a real gap, not a design choice — flagged per `scope-fence` rather than
-fixed here. If you're the one who closes it, do it by adding a short
-`CLAUDE.md` that orients a fresh session and points at `BRIEFING.md` for
-detail, matching the pattern in `howellsryan/footy-sim`'s own `CLAUDE.md` —
-and delete this paragraph once it's no longer true.
-
-**A second, unusual wrinkle**: the rebuild plan this repo is executing
-(`docs/plan/00-overview.md` onward) lives in a *different* repository,
-`howellsryan/footy-sim`, not in this one. Reading only what's in `pitch` will
-miss it. Say which repo a plan reference is in when you cite one.
+- **`CLAUDE.md`** — auto-loaded every session. Orientation: what this repo is,
+  where it stands in the rebuild, current-vs-target architecture, the
+  invariants worth restating rather than only linking to. Kept terse
+  deliberately — it's cost on every session.
+- **`BRIEFING.md`** — deeper gameplay/architecture reference (the event queue,
+  cup structure, watch-match constraints). Not auto-loaded the way `CLAUDE.md`
+  is; read it when a task actually needs that depth, and `CLAUDE.md` points at
+  it for exactly that reason.
+- **`.claude/skills/*`** — repeatable workflows, loaded on demand from their
+  own descriptions.
+- **`docs/plan/*.md`** — the rebuild plan itself: tech stack decision, design
+  direction, the 8-phase migration order, the data-reconciliation spec. This
+  used to live in a different repository (`howellsryan/footy-sim`, from early
+  exploration before `pitch` was identified as the actual base) — it moved
+  here once that was settled, and this copy is now authoritative. If you find
+  yourself citing the footy-sim copy, you're looking at a stale fork of this
+  one; use this one and update `footy-sim`'s if it matters.
 
 ## Writing: what deserves persistence
 
@@ -48,10 +48,10 @@ changes.
 
 ## Writing: how
 
-- **Right tier.** Every-session relevance → `BRIEFING.md` (or a future
-  `CLAUDE.md`, kept terse — it's cost on every session). A repeatable
-  workflow → a skill, here in `.claude/skills/`. Cross-cutting rebuild
-  decisions → `howellsryan/footy-sim`'s `docs/plan/`, not this repo.
+- **Right tier.** Every-session relevance → `CLAUDE.md`, kept terse — it's
+  cost on every session. Deeper gameplay/architecture detail → `BRIEFING.md`.
+  A repeatable workflow → a skill, here in `.claude/skills/`. Cross-cutting
+  rebuild decisions → `docs/plan/`, right here in this repo.
 - **Prune when you add.** If a new note supersedes a `BRIEFING.md` line, delete
   the old line in the same change — `BRIEFING.md` already carries a warning
   against letting itself drift into a changelog.
@@ -68,8 +68,8 @@ changes.
    pattern once the Vite migration starts touching it; grep for it.
 3. **Live state wins** on disagreement — and fix the memory in the same
    breath.
-4. **Say which you're using**: "per `BRIEFING.md`" vs "verified just now" vs
-   "per the footy-sim rebuild plan."
+4. **Say which you're using**: "per `CLAUDE.md`" vs "verified just now" vs
+   "per the rebuild plan (`docs/plan/`)."
 
 ## The maintenance habit
 

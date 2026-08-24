@@ -27,8 +27,8 @@ OUT OF SCOPE: <adjacent things noticed but not touched - see scope-fence>
 
 Rules:
 1. **From evidence, not memory.** Read the actual files before planning —
-   this repo is mid-migration (see `docs/plan/` in `howellsryan/footy-sim`) and
-   assumptions about where logic lives go stale fast, phase to phase.
+   this repo is mid-migration (see `docs/plan/`) and assumptions about where
+   logic lives go stale fast, phase to phase.
 2. **Every unknown gets a verification step.** "Probably reads from
    `save.pendingEvents`" is not a plan line; "check `gameweek.js`'s queue shape"
    is.
