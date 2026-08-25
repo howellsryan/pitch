@@ -4,7 +4,6 @@ import { acceptOffer, counterOffer, formAdjustedValue, rejectOffer } from '../mo
 import { getPotentialLabel, getPotentialStars } from '../modules/potential.js';
 import { fmt, formLabel, posGroup, showModal, toast } from './helpers.js';
 import { renderHome, renderTransfers } from './home_transfers.js';
-import { renderTrophies } from './renderers.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 
 // Squad and Tactics screens moved to src/lib/ui/SquadScreen.svelte and
@@ -364,9 +363,4 @@ export async function _updateOffersBadge() {
 
 // Keep old name as alias so nothing breaks if referenced elsewhere
 export async function renderOffers() { await showOffersModal(); }
-
-
-// renderCups is now merged into renderTrophies (Trophies screen).
-// Kept as a named function so any validator/reference checks still resolve.
-export async function renderCups() { await renderTrophies(); }
 

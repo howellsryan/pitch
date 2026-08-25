@@ -23,42 +23,49 @@
   blocking pieces are done — a couple of its steps stay deliberately deferred
   (see `docs/plan/04-migration-phases.md`'s Phase 3 section: no context bar,
   no `<LegacyPanel>`, no URL routing) — and Phase 4 (screen-by-screen) is
-  underway: League, Home, Squad, Tactics and Academy are migrated; Transfers,
-  Trophies and Settings are still legacy.** `src/lib/ui/TabBar.svelte`,
+  underway: League, Home, Squad, Tactics, Academy and Trophies are migrated;
+  Transfers and Settings are still legacy.** `src/lib/ui/TabBar.svelte`,
   `src/lib/ui/LeagueScreen.svelte`, `src/lib/ui/HomeScreen.svelte`,
-  `src/lib/ui/SquadScreen.svelte`, `src/lib/ui/TacticsScreen.svelte` and
-  `src/lib/ui/AcademyScreen.svelte` are real Svelte 5 components, mounted as
-  islands into the legacy shell from `src/main.js` — the bottom nav is
-  Svelte-rendered (9 legacy screens fold into 5 destinations: Home, Squad,
-  Play, Transfers, League; Tactics/Academy/Trophies/Settings/Inbox are
-  reachable via quick-links on Home and Squad instead of their own nav
-  slot), and League (`renderCompetitions`), Home (`renderHome`), Squad
-  (`renderSquad`), Tactics (`renderTactics`) and Academy (`renderAcademy`)
-  are the five fully-migrated screens — real Svelte markup and
-  data-fetching, no `innerHTML`; League has `animate:flip` on table
-  reordering, Home owns the Play/EOY/Deadline-day header flow (the
-  `id="btn-adv-header"` button stays put specifically so TabBar's Play
-  button and prematch.js's disable-during-sim logic keep finding it by id),
-  Squad uses a real bottom sheet for player detail (its own, not
-  `showModal()`) with two-line rows and one large rating per the design
-  spec, Tactics keeps the full-screen pitch graphic and tap-to-swap bottom
-  sheet with formation/mentality as dropdowns, and Academy rebuilds the old
-  8-column desktop table as youth-intake cards with their own promote/
-  release confirmation sheets (component-local state, not `showModal()`).
-  `src/ui/academy.js` is deleted outright — nothing else imported from it —
-  and removed from `build.py`'s `MODULES` list too. `openSquadPlayerModal`
-  stays in `src/ui/squad_tactics_offers.js` as legacy — it's still called
-  from the not-yet-migrated Transfers screen as a generic player-detail
-  modal, independent of the squad list it used to render alongside;
-  `showOffersModal`/`_updateOffersBadge`/`renderOffers`/`renderCups` stay
-  there too, all Transfers- or Trophies-owned, not Squad's. `renderHome`
+  `src/lib/ui/SquadScreen.svelte`, `src/lib/ui/TacticsScreen.svelte`,
+  `src/lib/ui/AcademyScreen.svelte` and `src/lib/ui/TrophiesScreen.svelte`
+  are real Svelte 5 components, mounted as islands into the legacy shell
+  from `src/main.js` — the bottom nav is Svelte-rendered (9 legacy screens
+  fold into 5 destinations: Home, Squad, Play, Transfers, League; Tactics/
+  Academy/Trophies/Settings/Inbox are reachable via quick-links on Home and
+  Squad instead of their own nav slot), and League (`renderCompetitions`),
+  Home (`renderHome`), Squad (`renderSquad`), Tactics (`renderTactics`),
+  Academy (`renderAcademy`) and Trophies (`renderTrophies`) are the six
+  fully-migrated screens — real Svelte markup and data-fetching, no
+  `innerHTML`; League has `animate:flip` on table reordering, Home owns the
+  Play/EOY/Deadline-day header flow (the `id="btn-adv-header"` button stays
+  put specifically so TabBar's Play button and prematch.js's disable-during-
+  sim logic keep finding it by id), Squad uses a real bottom sheet for
+  player detail (its own, not `showModal()`) with two-line rows and one
+  large rating per the design spec, Tactics keeps the full-screen pitch
+  graphic and tap-to-swap bottom sheet with formation/mentality as
+  dropdowns, Academy rebuilds the old 8-column desktop table as youth-intake
+  cards with their own promote/release confirmation sheets (component-local
+  state, not `showModal()`), and Trophies keeps the merged Cups + Honours
+  layout (current-season cup cards, all-time honours grid) as real markup
+  driven by `CUP_META`/`getHonorsForTeam`. `src/ui/academy.js` is deleted
+  outright — nothing else imported from it — and removed from `build.py`'s
+  `MODULES` list too; `renderTrophies`/`renderHonours`/`renderCupsLegacy`
+  and the `renderCups` alias in `squad_tactics_offers.js` are deleted the
+  same way (they were pure validator-satisfying aliases with zero real
+  callers, confirmed by grep before deletion — the migrated screens don't
+  carry a parallel legacy alias forward just to keep an old identifier
+  resolvable). `openSquadPlayerModal` stays in `src/ui/squad_tactics_offers.js`
+  as legacy — it's still called from the not-yet-migrated Transfers screen
+  as a generic player-detail modal, independent of the squad list it used
+  to render alongside; `showOffersModal`/`_updateOffersBadge`/`renderOffers`
+  stay there too, Transfers-owned, not Squad's or Trophies'. `renderHome`
   itself is now just a thin bridge (`screenTicks.home++`) kept around
   because prematch.js/watchmatch.js/squad_tactics_offers.js still call it
   imperatively; `handleEndOfSeason`/`showMatchReport` stay legacy in
   `src/ui/home_transfers.js` since they build `showModal()` sheets, not
-  screen content. Everything else in `src/ui/` (Transfers, Trophies,
-  Settings, Inbox, watch-match) is still the hand-written `innerHTML`
-  renderers, per Phase 4's screen-by-screen table. **`src/app.css`'s `@theme`
+  screen content. Everything else in `src/ui/` (Transfers, Settings, Inbox,
+  watch-match) is still the hand-written `innerHTML` renderers, per Phase
+  4's screen-by-screen table. **`src/app.css`'s `@theme`
   block needed two separate fixes before it worked at runtime, not one.**
   Phase 2 landed it without `@import "tailwindcss";`, so the Vite plugin
   never processed it at all — fixed when Phase 3's first Svelte component
@@ -153,7 +160,7 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar, League, Home, Squad, Tactics and Academy are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + five screens done, three more to go (Phase 4)** |
+| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar, League, Home, Squad, Tactics, Academy and Trophies are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + six screens done, two more to go (Phase 4)** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |

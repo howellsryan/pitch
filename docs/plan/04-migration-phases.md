@@ -260,11 +260,35 @@ player directly into IndexedDB to get a wonderkid card, an aging-out
 warning card, and the season-end warning banner on screen simultaneously,
 not just whatever a fresh save's own seeded cohort happened to produce.
 
+**Trophies (`renderTrophies`) migrated** — `src/lib/ui/TrophiesScreen.svelte`,
+mounted into `#screen-trophies`, real Svelte markup and data-fetching, no
+`innerHTML`. Kept the merged Cups + Honours layout unchanged: a "Current
+Season" grid of active-cup cards (progress bar or, for the Champions
+League's group stage specifically, matchday/points/goal-difference and a
+qualification verdict) above a "Club History" grid of all-time honours
+cards, both driven by the same `CUP_META`/`getHonorsForTeam` lookups the
+legacy renderer used — the league-title/domestic-cup-by-league lookup
+tables are display data, not simulation math, so they stayed inline in the
+component per step 2, same call as Tactics's formation tables.
+`renderTrophies`, its `renderHonours`/`renderCupsLegacy` aliases in
+`renderers.js`, and the separate `renderCups` alias in
+`squad_tactics_offers.js` are all deleted outright rather than kept as
+indirection — a repo-wide grep confirmed none of the three had any caller
+beyond satisfying `validate.js`'s old function-existence check, which was
+updated to match instead of preserving dead aliases. The `#screen-cups`/
+`#screen-honours` hidden alias `<div>`s in `shell.html` went for the same
+reason — nothing ever navigated to or queried them either.
+**Also found and fixed in the same pass:** ~150 more lines of dead CSS
+turned up in `shell.html` beyond the Trophies-specific block — a `.sq-btn-sm`/
+`.sq-btn-in`/`.sq-btn-unlist` family that Academy's migration (the previous
+row in this table) had already made unreachable, since academy.js was its
+last consumer. Verified with `npm run build` (1172/1172 validator checks +
+Vite build clean), `npm run lint`, and a Playwright screenshot at 390×844.
+
 | # | Screen | Legacy source | Notes |
 |---|---|---|---|
 | 1 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
-| 2 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
-| 3 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
+| 2 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
 
 Per-screen recipe:
 

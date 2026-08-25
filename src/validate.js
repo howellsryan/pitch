@@ -450,10 +450,14 @@ section('10. UI Functions');
   // data-fetching along with the rest of Home. renderHome IS still checked:
   // it survives as a thin bridge (bumps the tick HomeScreen.svelte watches)
   // because prematch.js/watchmatch.js/squad_tactics_offers.js still call it.
-  // renderSquad and renderTactics aren't either — Phase 4 moved them to
-  // src/lib/ui/SquadScreen.svelte and TacticsScreen.svelte, same reasoning.
-  'renderHome','renderTransfers','renderCups',
-  'renderOffers','renderHonours','renderSettings',
+  // renderSquad, renderTactics, renderAcademy, renderTrophies aren't either —
+  // Phase 4 moved them to src/lib/ui/SquadScreen.svelte, TacticsScreen.svelte,
+  // AcademyScreen.svelte and TrophiesScreen.svelte, same reasoning. renderCups
+  // and renderHonours were only ever aliases kept to satisfy this exact check
+  // list, with no other callers — deleted alongside renderTrophies rather than
+  // kept as now-pointless indirection.
+  'renderHome','renderTransfers',
+  'renderOffers','renderSettings',
   'renderNewGame','showMatchReport','showPreMatchModal','handleAdvanceOneFixture',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
   'showLoader','hideLoader','boot',
@@ -463,12 +467,15 @@ section('10. UI Functions');
 chk('screen-home in HTML', shellSrc.includes('id="screen-home"'));
 chk('screen-transfers in HTML', shellSrc.includes('id="screen-transfers"'));
 chk('screen-competitions in HTML', shellSrc.includes('id="screen-competitions"'));
-chk('screen-cups in HTML', shellSrc.includes('id="screen-cups"'));
+chk('screen-trophies in HTML', shellSrc.includes('id="screen-trophies"'));
 chk('screen-squad in HTML', shellSrc.includes('id="screen-squad"'));
 chk('screen-academy in HTML', shellSrc.includes('id="screen-academy"'));
 chk('screen-tactics in HTML', shellSrc.includes('id="screen-tactics"'));
 chk('showOffersModal in bundle', code.includes('showOffersModal'));
-chk('screen-honours in HTML', shellSrc.includes('id="screen-honours"'));
+// screen-cups/screen-honours were hidden display:none alias divs kept only so
+// this exact check list resolved — nothing ever navigated to or queried them
+// (confirmed via a repo-wide grep before removing). Dropped along with
+// renderCups/renderHonours above rather than carried forward as dead markup.
 chk('screen-settings in HTML', shellSrc.includes('id="screen-settings"'));
 chk('sidebar nav present', shellSrc.includes('class="sidebar"'));
 // Phase 3 (docs/plan/04-migration-phases.md) replaces the static 9-item

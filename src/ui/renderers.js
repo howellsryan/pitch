@@ -10,7 +10,6 @@ import { LIGUE_1_TEAMS } from '../data/ligue1.js';
 import { PL_TEAMS } from '../data/plTeams.js';
 import { SERIE_A_TEAMS } from '../data/serieA.js';
 import { deleteDB, exportSaveFile, getAllPlayers, getAllSeasons, getSave, getTeam, importSaveFile, importSaveFromCode, openDB, putPlayersBulk } from '../modules/db.js';
-import { CUP_META } from '../modules/cups.js';
 import { assignPotentials } from '../modules/potential.js';
 import { startNewGame } from '../modules/save.js';
 import { getHonorsForTeam } from '../modules/season.js';
@@ -38,158 +37,9 @@ export function _removeFullOverlay() {
 // so the mounted Svelte island knows to refetch.
 
 // ── TROPHIES (merged Cups + Honours) ─────────────────────────
-export async function renderTrophies(){
-  const save=await getSave();
-  const el=document.getElementById('trophies-content');
-  if(!el) return;
-  const team=await getTeam(save.userTeamId);
-  const league=team?.league??save.userLeague??'Premier League';
-
-  // ── Shared lookup tables ──────────────────────────────────
-  const leagueTitleKey = {
-    'Premier League':'premier_league','Championship':'championship',
-    'League One':'league_one','League Two':'league_two',
-    'La Liga':'la_liga','Bundesliga':'bundesliga',
-    'Serie A':'serie_a','Ligue 1':'ligue_1','Eredivisie':'eredivisie',
-  }[league] ?? 'premier_league';
-
-  const leagueTitleName = {
-    'Premier League':'Premier League','Championship':'Championship',
-    'League One':'League One','League Two':'League Two',
-    'La Liga':'La Liga','Bundesliga':'Bundesliga',
-    'Serie A':'Serie A','Ligue 1':'Ligue 1','Eredivisie':'Eredivisie',
-  }[league] ?? 'League Title';
-
-  const domesticCupDefs = {
-    'Premier League': [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
-    'Championship':   [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
-    'League One':     [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
-    'League Two':     [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'Carabao Cup',icon:'🥛',color:'#c084fc'}],
-    'Eredivisie':     [{key:'knvb_beker',name:'KNVB Beker',icon:'🏆',color:'#FF6600'}],
-    'La Liga':        [{key:'copa_del_rey',name:'Copa del Rey',icon:'👑',color:'#c8102e'},{key:'supercopa',name:'Supercopa de España',icon:'🔴',color:'#f5c842'}],
-    'Bundesliga':     [{key:'dfb_pokal',name:'DFB-Pokal',icon:'🏆',color:'#000000'},{key:'dfb_supercup',name:'DFL-Supercup',icon:'⚡',color:'#d4a017'}],
-    'Serie A':        [{key:'coppa_italia',name:'Coppa Italia',icon:'🏆',color:'#009246'},{key:'supercoppa',name:'Supercoppa Italiana',icon:'🔵',color:'#009246'}],
-    'Ligue 1':        [{key:'coupe_de_france',name:'Coupe de France',icon:'🏆',color:'#003189'},{key:'trophee_des_champions',name:"Trophée des Champions",icon:'🔵',color:'#e8151b'}],
-  }[league] ?? [{key:'fa_cup',name:'FA Cup',icon:'🏆',color:'#f5c842'},{key:'league_cup',name:'League Cup',icon:'🥛',color:'#c084fc'}];
-
-  const trophyDefs=[
-    {key:leagueTitleKey, name:leagueTitleName, icon:'🏆', color:'#3b82f6'},
-    ...domesticCupDefs,
-    {key:'ucl',  name:'Champions League', icon:'⭐', color:'#3b82f6'},
-    {key:'uel',  name:'Europa League',    icon:'🟠', color:'#f97316'},
-    {key:'uecl', name:'Conference Lge',   icon:'🟢', color:'#22c55e'},
-  ];
-
-  // ── SECTION 1: Current Season cups ───────────────────────
-  const cups   = save.cups ?? {};
-  const INVITATION_GATED = new Set(['dfb_supercup','supercopa','supercoppa','trophee_des_champions']);
-  const activeCupIds = Object.keys(cups).filter(cupId => {
-    const meta = CUP_META[cupId];
-    if(!meta) return false;
-    if(!INVITATION_GATED.has(cupId)) return true;
-    const st=cups[cupId];
-    if(!st) return false;
-    return (st.results??[]).length>0 || (st.roundIndex??0)>0 || (st.leaguePhase?.matchday??0)>0;
-  });
-
-  const cupsHTML = activeCupIds.length ? activeCupIds.map(cupId=>{
-    const meta=CUP_META[cupId];
-    if(!meta) return '';
-    const state=cups[cupId];
-    const badgeCls=state.status==='winner'?'won':state.status==='eliminated'?'out':'active';
-    const badgeTxt=state.status==='winner'?'WON 🏆':state.status==='eliminated'?'OUT':'ACTIVE';
-
-    let progressSection='';
-    let resultsSection='';
-
-    if(cupId==='ucl' && meta.isGroupStage && !state.leaguePhaseComplete){
-      const lp=state.leaguePhase??{};
-      const md=lp.matchday??0;
-      const pts=lp.points??0;
-      progressSection=`
-        <div style="margin-bottom:8px">
-          <div style="font-size:10px;color:var(--tx2);font-family:var(--fm);letter-spacing:1px;margin-bottom:4px">LEAGUE PHASE</div>
-          <div style="display:flex;justify-content:space-between;font-size:13px">
-            <span>MD ${md}/8</span>
-            <span style="font-family:var(--fm);color:var(--acc2)"><strong>${pts}</strong> pts</span>
-            <span style="color:var(--tx2);font-size:11px">GD: ${lp.gd>=0?'+':''}${lp.gd??0}</span>
-          </div>
-          <div class="cup-pw" style="margin-top:6px"><div class="cup-pb" style="width:${(md/8)*100}%;background:${meta.color}"></div></div>
-          <div style="font-size:10px;color:var(--tx2);margin-top:4px">
-            ${pts>=12?'✅ On course to qualify directly':pts>=8?'🔶 Likely playoff spot':md<4?'Season underway':'⚠ Need points to qualify'}
-          </div>
-        </div>`;
-    } else {
-      const roundIdx=state.roundIndex??0;
-      const roundName=state.status==='winner'?'Trophy Won!':state.status==='eliminated'?`Out (${meta.rounds[Math.max(0,roundIdx-1)]??'Early'})`:(meta.rounds[roundIdx]??'Final');
-      const progress=Math.round((roundIdx/meta.rounds.length)*100);
-      progressSection=`
-        <div class="cup-pw"><div class="cup-pb" style="width:${progress}%;background:${meta.color}"></div></div>
-        <div class="cup-round">📍 ${roundName}</div>`;
-    }
-
-    const results=state.results??[];
-    if(results.length){
-      resultsSection=`<div class="cup-results">
-        ${results.slice(-4).map(r=>{
-          const isUCLMD=r.isUCLMatchday;
-          const won=isUCLMD?r.result==='W':r.userWon;
-          const lbl=isUCLMD?`MD${r.matchday}: ${r.result} vs ${r.opponentName} (${r.userGoals}-${r.oppGoals}) [${r.points} pts]`
-                            :`${r.roundName}: ${won?'✅':'❌'} vs ${r.opponentName} (${r.userGoals}-${r.oppGoals})`;
-          return`<div class="cup-res-row ${won?'won':'lost'}">${lbl}</div>`;
-        }).join('')}
-      </div>`;
-    }
-
-    return`<div class="cup-card cup-${cupId}">
-      <div class="cup-bdg ${badgeCls}">${badgeTxt}</div>
-      <div class="cup-icon">${meta.icon}</div>
-      <div class="cup-name">${meta.name}</div>
-      <div class="cup-desc">${meta.description}</div>
-      ${progressSection}
-      ${resultsSection}
-    </div>`;
-  }).join('')
-  : `<div class="no-data" style="grid-column:1/-1;padding:40px">No cup competitions this season.</div>`;
-
-  // ── SECTION 2: Club History honours ──────────────────────
-  const {combined,earned}=await getHonorsForTeam(save.userTeamId);
-
-  const honoursHTML=trophyDefs.map(t=>{
-    const total=combined[t.key]||0;
-    const myEarned=earned.filter(h=>h.trophy===t.key);
-    return`<div class="hon-card">
-      <div class="hon-icon">${t.icon}</div>
-      <div class="hon-name">${t.name}</div>
-      <div class="hon-count" style="color:${t.color}">${total}</div>
-      <div class="hon-sub">All-time wins</div>
-      ${myEarned.length?`<div class="hon-earned">+${myEarned.length} in your save</div>
-        <div class="hon-history">${myEarned.map(h=>`<div class="hon-season">🏆 ${h.season}</div>`).join('')}</div>`:''}
-    </div>`;
-  }).join('');
-
-  el.innerHTML=`
-    <div class="trophies-layout">
-      <div class="trophies-section">
-        <div class="trophies-section-hdr">
-          <div class="trophies-section-title">Current Season</div>
-          <div class="trophies-section-sub">Active competitions</div>
-        </div>
-        <div class="trophies-grid-wrap"><div class="cups-layout">${cupsHTML}</div></div>
-      </div>
-      <div class="trophies-section">
-        <div class="trophies-section-hdr" style="border-top:1px solid var(--bdr)">
-          <div class="trophies-section-title">Club History</div>
-          <div class="trophies-section-sub">All-time trophy record</div>
-        </div>
-        <div class="trophies-grid-wrap"><div class="honours-layout">${honoursHTML}</div></div>
-      </div>
-    </div>`;
-}
-
-// Keep old names as aliases so any lingering references don't break
-export async function renderHonours(){ await renderTrophies(); }
-export async function renderCupsLegacy(){ await renderTrophies(); }
+// Migrated to src/lib/ui/TrophiesScreen.svelte (Phase 4,
+// docs/plan/04-migration-phases.md) — same reasoning as Competitions above.
+// registerScreen('trophies', ...) below just bumps screenTicks.trophies.
 
 // ── SETTINGS ──────────────────────────────────────────────────
 export async function renderSettings(){
@@ -406,7 +256,7 @@ export function initUI(){
   registerScreen('home',         renderHome);
   registerScreen('transfers',    renderTransfers);
   registerScreen('competitions', () => { screenTicks.competitions++; });
-  registerScreen('trophies',     renderTrophies);
+  registerScreen('trophies',     () => { screenTicks.trophies++; });
   registerScreen('squad',        () => { screenTicks.squad++; });
   registerScreen('academy',      () => { screenTicks.academy++; });
   registerScreen('tactics',      () => { screenTicks.tactics++; });

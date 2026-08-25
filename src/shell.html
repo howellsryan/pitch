@@ -203,18 +203,8 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .rsc{font-family:var(--fd);font-size:15px;letter-spacing:2px;min-width:42px;text-align:center;flex-shrink:0}
 .res-date{font-size:10px;color:var(--txd);font-family:var(--fm);margin-top:2px}
 
-/* ── CUPS colour accents (used by trophies section) ── */
-.cup-fa::before  {background:linear-gradient(90deg,#f5c842,#ffd966)}
-.cup-lc::before  {background:linear-gradient(90deg,#c084fc,#e879f9)}
-.cup-ucl::before {background:linear-gradient(90deg,#3b82f6,#6bbfff)}
-.cup-uel::before {background:linear-gradient(90deg,#f97316,#ffad73)}
-.cup-uecl::before{background:linear-gradient(90deg,#22c55e,#7fff9a)}
-/* ── CUPS colour accents continued ── */
 
 /* ── SQUAD — compact desktop table ── */
-.sq-btn-sm{padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid;transition:all .12s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
-.sq-btn-in{background:rgba(18,168,100,.1);color:var(--acc);border-color:rgba(18,168,100,.3)}
-.sq-btn-unlist{background:rgba(124,131,232,.1);color:#7c83e8;border-color:rgba(124,131,232,.3)}
 .inj-badge{background:rgba(232,72,85,.2);color:var(--acc3);padding:0 3px;border-radius:2px;font-size:8px;font-family:var(--fm)}
 .listed-badge{background:rgba(245,200,66,.2);color:var(--acc2);border:1px solid rgba(245,200,66,.4);padding:0 4px;border-radius:3px;font-size:8px;font-family:var(--fm)}
 /* Player detail modal */
@@ -229,62 +219,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .sq-attr-bar-w{flex:1;height:4px;background:var(--sur3);border-radius:2px;overflow:hidden}
 .sq-attr-bar{height:100%;border-radius:2px}
 .sq-attr-val{font-family:var(--fm);font-size:11px;font-weight:700;width:24px;text-align:right;flex-shrink:0}
-
-/* ── TROPHIES (merged Cups + Honours) ── */
-.trophies-layout{display:flex;flex-direction:column;height:calc(100vh - 80px);overflow:hidden;gap:0}
-.trophies-section{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
-.trophies-section-hdr{padding:10px 20px 6px;display:flex;align-items:baseline;gap:10px;flex-shrink:0;border-bottom:1px solid var(--bdr)}
-.trophies-section-title{font-family:var(--fd);font-size:17px;letter-spacing:1px}
-.trophies-section-sub{font-size:10px;color:var(--tx2);font-family:var(--fm)}
-.trophies-grid-wrap{flex:1;min-height:0;overflow:hidden;padding:10px 16px}
-
-/* Cup cards — compact horizontal rows */
-.cups-layout{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;height:100%;align-content:start}
-.cup-card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;gap:3px}
-.cup-card:hover{border-color:var(--bdr-a);transform:translateY(-1px)}
-.cup-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.cup-icon{font-size:18px;line-height:1}
-.cup-name{font-family:var(--fd);font-size:13px;letter-spacing:.3px;line-height:1.2;padding-right:40px}
-.cup-desc{font-size:10px;color:var(--tx2);margin-bottom:2px;line-height:1.3}
-.cup-pw{height:2px;background:var(--sur3);border-radius:2px;overflow:hidden;margin-bottom:2px}
-.cup-pb{height:100%;border-radius:2px;transition:width .5s}
-.cup-bdg{position:absolute;top:8px;right:8px;padding:1px 5px;border-radius:3px;font-size:8px;font-family:var(--fm);letter-spacing:.8px;font-weight:700}
-.cup-bdg.active  {background:rgba(18,168,100,.2);color:var(--acc);border:1px solid rgba(18,168,100,.4)}
-.cup-bdg.upcoming{background:rgba(245,200,66,.15);color:var(--acc2);border:1px solid rgba(245,200,66,.3)}
-.cup-bdg.out     {background:rgba(232,72,85,.1);color:var(--acc3);border:1px solid rgba(232,72,85,.2)}
-.cup-bdg.won     {background:rgba(245,200,66,.2);color:var(--acc2);border:1px solid rgba(245,200,66,.4)}
-.cup-round{font-size:10px;color:var(--tx2)}
-.cup-res{font-size:10px;color:var(--tx2)}
-.cup-res strong{color:var(--tx)}
-.cup-results{display:flex;flex-direction:column;gap:2px;margin-top:3px}
-.cup-res-row{font-size:9px;padding:2px 6px;border-radius:4px;background:var(--sur2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cup-res-row.won{border-left:2px solid var(--acc)}
-.cup-res-row.lost{border-left:2px solid var(--acc3)}
-
-/* Honours cards — compact horizontal strip */
-.honours-layout{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;height:100%;align-content:start}
-.hon-card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:2px}
-.hon-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--acc2),#ffd966)}
-.hon-icon{font-size:18px;line-height:1}
-.hon-name{font-family:var(--fb);font-size:11px;font-weight:600;line-height:1.2;color:var(--tx2)}
-.hon-count{font-family:var(--fd);font-size:28px;color:var(--acc2);line-height:1}
-.hon-sub{font-size:9px;color:var(--txd)}
-.hon-earned{font-size:9px;color:var(--acc);margin-top:2px}
-.hon-history{display:flex;flex-direction:column;gap:2px;margin-top:3px}
-.hon-season{font-size:9px;color:var(--tx2);background:var(--sur2);padding:2px 6px;border-radius:3px}
-
-@media(max-width:768px){
-  .trophies-layout{height:auto;overflow:visible}
-  .trophies-section{flex:none;overflow:visible}
-  .trophies-grid-wrap{overflow:visible;padding:8px 12px}
-  .cups-layout{grid-template-columns:1fr 1fr;gap:8px;height:auto}
-  .honours-layout{grid-template-columns:1fr 1fr;gap:8px;height:auto}
-  .trophies-section-hdr{padding:8px 12px 5px}
-}
-@media(max-width:480px){
-  .cups-layout{grid-template-columns:1fr 1fr}
-  .honours-layout{grid-template-columns:1fr 1fr}
-}
 
 /* ── SETTINGS ── */
 .set-layout{height:calc(100vh - 80px);display:grid;grid-template-columns:300px 1fr 1fr;gap:13px;padding:14px 20px;overflow:hidden}
@@ -397,7 +331,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes sUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(18,168,100,.3)}50%{box-shadow:0 0 0 4px rgba(18,168,100,.1)}}
-.tr-layout>*,.comp-layout>*,.cups-layout>*,.honours-layout>*,.set-layout>*{animation:sUp .35s ease both}
+.tr-layout>*,.comp-layout>*,.set-layout>*{animation:sUp .35s ease both}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
@@ -425,7 +359,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   /* Ensure scrollable screens can reach their last content item */
   .screen{padding-bottom:10px}
   /* Inner scroll containers in flex-column screens */
-  .pl-list,.comp-inn,.res-list,.trophies-grid-wrap,.set-grp,.comp-layout{padding-bottom:10px}
+  .pl-list,.comp-inn,.res-list,.set-grp,.comp-layout{padding-bottom:10px}
   .full-hdr,.full-row{display:grid;grid-template-columns:18px 1fr 26px 30px 1fr;gap:4px;padding:6px 8px;width:100%;box-sizing:border-box}
   .full-hdr>*:nth-child(4),.full-hdr>*:nth-child(5),.full-hdr>*:nth-child(6),
   .full-hdr>*:nth-child(7),.full-hdr>*:nth-child(8),.full-hdr>*:nth-child(9),
@@ -740,13 +674,10 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
        mounted in main.js. Replaces the legacy renderCompetitions() innerHTML entirely. -->
   <div class="screen" id="screen-competitions"></div>
 
-  <!-- CUPS / TROPHIES / HONOURS (merged screen) -->
-  <div class="screen" id="screen-trophies">
-    <div id="trophies-content"></div>
-  </div>
-  <!-- Alias IDs so validator + legacy refs resolve -->
-  <div id="screen-cups" style="display:none"></div>
-  <div id="screen-honours" style="display:none"></div>
+  <!-- TROPHIES (merged Cups + Honours) — src/lib/ui/TrophiesScreen.svelte,
+       mounted in main.js (Phase 4, docs/plan/04-migration-phases.md). Real
+       Svelte markup, no innerHTML. -->
+  <div class="screen" id="screen-trophies"></div>
 
   <!-- SQUAD — src/lib/ui/SquadScreen.svelte, mounted in main.js (Phase 4,
        docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
