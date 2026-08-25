@@ -31,8 +31,29 @@
   the bundle's raw source text and cannot read a Vite bundle. Don't delete
   `build.py`, and don't repoint the validator at Vite output. `npm run build`
   runs both.
-- **The deployed artifact is still the legacy `index.html`.** Switching the
-  Worker to `dist/` is a deliberate, untaken step.
+- **The deployed artifact is the Vite build.** `wrangler.jsonc` serves `./dist`,
+  and **Cloudflare Workers Builds — not GitHub Actions — deploys it**, straight
+  from the GitHub repo. Never re-add a deploy step to CI: two systems deploying
+  one Worker race each other. The legacy `index.html` is now built for the
+  validator only.
+
+  Its dashboard settings, which live outside this repo and are easy to get
+  wrong:
+
+  | Setting | Value |
+  |---|---|
+  | Build command | `npm run build:app` |
+  | Deploy command | `npx wrangler deploy` |
+  | Non-production branch deploy command | `npx wrangler versions upload` |
+  | Root directory | `/` |
+
+  Two traps, both already paid for once. **Root directory is `/`, not `dist/`** —
+  `dist/` is gitignored, so pointing at it fails during clone with `root
+  directory not found`, before anything installs; where output is *served* from
+  is `wrangler.jsonc`, not this field. And **`build:app`, not `build`** —
+  `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
+  which CI already gates. Cloudflare runs its own install step, so the build
+  command must not repeat one.
 - **Test coverage is still narrow.** `src/validate.js`'s 1180 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career
   and an accent-contrast check over all 186 clubs. None of it covers UI
@@ -115,12 +136,15 @@ UX spec, tokens, and the design canvas it was drafted against.
 - `.claude/skills/` — `delivery-loop`, `plan-gate`, `scope-fence`,
   `memory-hygiene`, ported from `footy-sim` and retargeted at this repo's
   actual files. Use them; see §5.
-- `wrangler.jsonc` / `.assetsignore` — Cloudflare Workers deploy config.
-  `.assetsignore` keeps `src/`, `BRIEFING.md`, `.claude/`, and repo tooling out
-  of the deployed site — only `index.html` and `README.md` are served.
-- `.github/workflows/deploy.yml` — three jobs: `build` (every push/PR, runs
-  the validator), `deploy` (main only), `preview` (everything else —
-  `wrangler versions upload`, for phone-testing before merge).
+- `wrangler.jsonc` — Cloudflare Workers config. `assets.directory` is `./dist`,
+  which must stay in step with Vite's `outDir`.
+- `.assetsignore` — **now inert.** Wrangler reads it from the assets directory,
+  and that is `dist/` now, not the repo root. It doesn't need to do anything:
+  `dist/` holds only build output, so `src/` and repo tooling can't leak into
+  the served site. Kept because it matters again if the root is ever served.
+- `.github/workflows/deploy.yml` — despite the filename, **one job and no
+  deploy**: `build` runs on every push/PR (both build paths, the validator,
+  lint, the 186-club accent check, Playwright). Deploying is Cloudflare's.
 
 ## 4) Build / Test / Deploy
 
@@ -133,7 +157,7 @@ npm run validate         # node src/validate.js — re-run just the 1180 checks
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
 npm run lint             # ESLint + eslint-plugin-svelte
-npm run deploy           # build, then wrangler deploy (needs Cloudflare creds)
+npm run deploy           # manual escape hatch — Cloudflare normally deploys
 ```
 
 `build:legacy` and `validate` shell out to system `python3`/`node` and need no
