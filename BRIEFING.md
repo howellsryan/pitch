@@ -24,7 +24,7 @@ must stay green — `npm run build` runs both.
 | Club accent contrast | `npm run check:accents` — all 186 clubs vs. the WCAG floor |
 | Browser tests | `npm run test:e2e` — Playwright at 390×844 |
 | Lint | `npm run lint` — ESLint + `eslint-plugin-svelte` |
-| Deploy | `npm run deploy` — needs `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` |
+| Deploy | **Cloudflare Workers Builds, on push to `main`** — not CI, not you. `npm run deploy` is a manual escape hatch |
 
 All paths in `src/build.py` and `src/validate.js` resolve relative to the
 script's own location — the pipeline runs identically here, in CI, or on a
@@ -53,9 +53,11 @@ is why adding real module syntax left the bundle byte-identical.
 2. `index.html` is excluded from version control (`.gitignore`) precisely so a
    stale copy can never shadow a fresh build — there is nothing to `rm -f`
    before building, because there's nothing to collide with.
-3. CI (`.github/workflows/deploy.yml`) runs the build — and therefore the 1180
-   checks — on every push and PR, before anything is deployed. A red build
-   never reaches `wrangler deploy`.
+3. CI (`.github/workflows/deploy.yml`) runs both build paths — and therefore
+   the 1180 checks — on every push and PR. It does **not** deploy: Cloudflare
+   Workers Builds watches the repo and deploys `dist/` itself. That means CI
+   being red does **not** hold back a deploy the way it used to; the two are
+   independent now.
 
 **❌** hand-editing `index.html` · committing `index.html` · trusting the bundle
 without the build's own HTML structural checks passing (`build.py`'s
@@ -78,7 +80,7 @@ step.
 ├── index.html             # BUILD OUTPUT — gitignored, never hand-edited
 ├── BRIEFING.md            # this file
 ├── wrangler.jsonc         # Cloudflare Workers deploy config
-├── .assetsignore          # keeps src/, docs, tooling out of the served site
+├── .assetsignore          # INERT — wrangler reads it from dist/, not the root
 ├── .github/workflows/     # build → validate → deploy CI
 ├── vite.config.ts         # Vite: root is web/, output dist/
 ├── svelte.config.mjs      # Svelte 5, runes: true
