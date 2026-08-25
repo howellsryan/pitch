@@ -177,13 +177,20 @@ def check_html(final: str) -> bool:
     script = final[final.index('<script>')+8 : final.rindex('</script>')]
     ob, cb = script.count('{'), script.count('}')
 
+    # 'hdrPlay.onclick wired' and 'ph-play-btn CSS' used to check here.
+    # Phase 4 (docs/plan/04-migration-phases.md) moved the Play/EOY/Deadline
+    # header buttons and their wiring into src/lib/ui/HomeScreen.svelte, a
+    # real Svelte component outside this concatenated bundle entirely — like
+    # League before it, there's no legacy identifier left in `final` to check
+    # for. 'btn-adv-header present' still holds: prematch.js's
+    # handleAdvanceOneFixture() disables that button by id directly, so the
+    # string survives in the bundle independent of the header markup.
     required = {
         'Braces balanced':           ob == cb,
         'Single <script> tag':       final.count('<script>') == 1,
         'No fmtMoney()':             'fmtMoney(' not in final,
         'No showToast()':            'showToast(' not in final,
         'btn-adv-header present':    'btn-adv-header' in final,
-        'hdrPlay.onclick wired':     'hdrPlay.onclick' in final,
         'pendingEvents queue':       'pendingEvents' in final,
         'buildPendingEvents':        'buildPendingEvents' in final,
         'pm-xi-preview present':     'pm-xi-preview' in final,
@@ -195,7 +202,6 @@ def check_html(final: str) -> bool:
         'GK scorer weight=0':        "'GK': 0" in final,
         'HOME on left in report':    '>HOME<' in final,
         'CHAMPIONSHIP_TEAMS':        'CHAMPIONSHIP_TEAMS' in final,
-        'ph-play-btn CSS':           'ph-play-btn' in final,
     }
 
     all_ok = True

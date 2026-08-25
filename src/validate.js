@@ -8,6 +8,10 @@
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const BUNDLE = process.env.PITCH_BUNDLE || path.join(__dirname, '..', '.build', 'bundle_final.js');
 const SHELL  = process.env.PITCH_SHELL  || path.join(__dirname, 'shell.html');
+// Read alongside shellSrc for checks whose markup moved into this Svelte
+// component (Phase 4, docs/plan/04-migration-phases.md) and is no longer in
+// shell.html's raw source — same reasoning as shellSrc, just a second file.
+const HOME_SCREEN = path.join(__dirname, 'lib', 'ui', 'HomeScreen.svelte');
 if (!fs.existsSync(BUNDLE)) { console.error('Bundle not found: '+BUNDLE+' — run src/build.py first, or set PITCH_BUNDLE.'); process.exit(1); }
 
 const GLOBALS = `
@@ -24,6 +28,7 @@ const requestAnimationFrame=()=>{};const setTimeout=()=>{};const clearTimeout=()
 const TESTS = `
 const code = ${JSON.stringify(fs.readFileSync(BUNDLE,'utf8'))};
 const shellSrc = require('fs').readFileSync(${JSON.stringify(SHELL)},'utf8');
+const homeScreenSrc = require('fs').readFileSync(${JSON.stringify(HOME_SCREEN)},'utf8');
 let pass=0,fail=0;
 const failures=[];
 let sec='';
@@ -196,10 +201,16 @@ chk('getInFormPlayer defined', typeof getInFormPlayer==='function');
 chk('handleAdvanceOneFixture defined', typeof handleAdvanceOneFixture==='function');
 chk('_launchWatchMatch defined', typeof _launchWatchMatch==='function');
 chk('_generateStubPlayers defined', typeof _generateStubPlayers==='function');
-chk('btn-adv-header in HTML', shellSrc.includes('btn-adv-header'));
-chk('btn-eoy-header in HTML', shellSrc.includes('btn-eoy-header'));
-chk('hdrPlay.onclick -> showPreMatchModal', /hdrPlay\.onclick/.test(code)&&code.includes('showPreMatchModal'));
-chk('hdrEOY.onclick -> handleEndOfSeason', /hdrEOY\.onclick/.test(code)&&code.includes('handleEndOfSeason'));
+// Home's header (Play/EOY/Deadline buttons, id="btn-adv-header" etc.) moved
+// into src/lib/ui/HomeScreen.svelte (Phase 4, docs/plan/04-migration-phases.md)
+// — a real Svelte component outside shell.html and this concatenated bundle
+// entirely, same reasoning as League's move in Phase 3. Check the component
+// source instead of shellSrc/code.
+chk('btn-adv-header in HomeScreen.svelte', homeScreenSrc.includes('btn-adv-header'));
+chk('btn-eoy-header in HomeScreen.svelte', homeScreenSrc.includes('btn-eoy-header'));
+chk('btn-deadline-header in HomeScreen.svelte', homeScreenSrc.includes('btn-deadline-header'));
+chk('HomeScreen Play button -> showPreMatchModal', homeScreenSrc.includes('showPreMatchModal'));
+chk('HomeScreen EOY button -> handleEndOfSeason', homeScreenSrc.includes('handleEndOfSeason'));
 chk('pm-fm-display shows formation', code.includes('pm-fm-display'));
 chk('pm-xi-preview shows lineup', code.includes('pm-xi-preview'));
 chk('Tactics screen hint in pre-match', code.includes('Tactics screen'));
@@ -428,8 +439,12 @@ section('10. UI Functions');
   // renderCompetitions isn't in this list. Phase 3 (docs/plan/04-migration-phases.md)
   // moved League to src/lib/ui/LeagueScreen.svelte — a real Svelte component
   // outside this concatenated bundle entirely, not a same-bundle rename, so
-  // there's no legacy identifier left here to check for.
-  'renderHome','renderCharts','renderTransfers','renderCups',
+  // there's no legacy identifier left here to check for. renderCharts isn't
+  // either — Phase 4 folded it into src/lib/ui/HomeScreen.svelte's own
+  // data-fetching along with the rest of Home. renderHome IS still checked:
+  // it survives as a thin bridge (bumps the tick HomeScreen.svelte watches)
+  // because prematch.js/watchmatch.js/squad_tactics_offers.js still call it.
+  'renderHome','renderTransfers','renderCups',
   'renderSquad','renderTactics','renderOffers','renderHonours','renderSettings',
   'renderNewGame','showMatchReport','showPreMatchModal','handleAdvanceOneFixture',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
@@ -456,7 +471,10 @@ chk('mobile TabBar mount point present', shellSrc.includes('id="tabbar-mount"'))
 chk('Academy in desktop sidebar', (()=>{const sb=shellSrc.indexOf('class="sidebar"');return sb>-1&&shellSrc.indexOf('data-nav="academy"',sb)<sb+3000;})());
 // Nine screens fold into five TabBar destinations on mobile; Academy moves
 // to a quick-link on Home instead of its own nav slot (same plan doc).
-chk('Academy reachable from Home screen', (()=>{const h=shellSrc.indexOf('id="screen-home"');return h>-1&&shellSrc.indexOf("navigateTo('academy')",h)<h+4000;})());
+// #screen-home is an empty mount point now (Phase 4 moved Home into
+// src/lib/ui/HomeScreen.svelte) — check that component's source instead.
+chk('Academy reachable from Home screen', homeScreenSrc.includes("navigateTo('academy')"));
+chk('Trophies reachable from Home screen', homeScreenSrc.includes("navigateTo('trophies')"));
 chk('showModal supports opts.wide', code.includes('opts.wide'));
 chk('showModal supports opts.noDismiss', code.includes('opts.noDismiss'));
 chk('modal-bd id used consistently', code.includes("'modal-bd'"));
@@ -497,8 +515,9 @@ chk('isDeadlineDay false when Aug 10 (plenty of time)', isDeadlineDay(summerEarl
 chk('isDeadlineDay false in Aug (summerSave Aug 15)', isDeadlineDay(summerSave).isDeadline === false);
 chk('isDeadlineDay false in Jan (winterSave Jan 15)', isDeadlineDay(winterSave).isDeadline === false);
 chk('isDeadlineDay false in Oct', isDeadlineDay(closedSave).isDeadline === false);
-chk('deadline day button exists in HTML', code.includes('btn-deadline-header') || shellSrc.includes('btn-deadline-header'));
-chk('deadline button css class defined', shellSrc.includes('ph-deadline-btn'));
+// Deadline button moved into src/lib/ui/HomeScreen.svelte (Phase 4,
+// docs/plan/04-migration-phases.md), styles scoped in the component itself.
+chk('deadline day button exists in HomeScreen.svelte', homeScreenSrc.includes('btn-deadline-header'));
 
 // Oct 10 → next window is Jan 1 (winter), ~83 days away — must be > 0 and labelled Winter
 chk('Closed window label mentions Winter when Oct', transferWindowStatus(closedSave).label.includes('Winter'));
@@ -627,7 +646,6 @@ chk('UCL matchday returns userIsHome', (()=>{const s=code.indexOf('function simu
 chk('UCL homeScorers respect userIsHome', (()=>{const s=code.indexOf('function buildCupMatchResult');return s>-1&&code.indexOf('userIsHome',s)<s+2000&&code.indexOf('homeScorers',s)<s+2000;})());
 chk('Design token --acc defined in CSS', shellSrc.includes('--acc:#'));
 chk('Design token --sur defined in CSS', shellSrc.includes('--sur:'));
-chk('ph-play-btn CSS defined', shellSrc.includes('ph-play-btn'));
 chk('Bebas Neue font loaded', shellSrc.includes('Bebas+Neue'));
 chk('DM Sans font loaded', shellSrc.includes('DM+Sans'));
 

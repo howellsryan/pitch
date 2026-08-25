@@ -19,18 +19,29 @@
   once that was settled. `footy-sim` still holds a copy from that point; this
   one is authoritative.)
 - **Where things stand right now**: Phase 0 (Workers), Phase 1 (portable build
-  + CI) and Phase 2 (toolchain) are done. **Phase 3 (shell + first screen) is
-  underway.** `src/lib/ui/TabBar.svelte` and `src/lib/ui/LeagueScreen.svelte`
-  are real Svelte 5 components, mounted as islands into the legacy shell from
+  + CI) and Phase 2 (toolchain) are done. **Phase 3 (shell + first screen)'s
+  blocking pieces are done — a couple of its steps stay deliberately deferred
+  (see `docs/plan/04-migration-phases.md`'s Phase 3 section: no context bar,
+  no `<LegacyPanel>`, no URL routing) — and Phase 4 (screen-by-screen) is
+  underway.** `src/lib/ui/TabBar.svelte`,
+  `src/lib/ui/LeagueScreen.svelte` and `src/lib/ui/HomeScreen.svelte` are real
+  Svelte 5 components, mounted as islands into the legacy shell from
   `src/main.js` — the bottom nav is Svelte-rendered (9 legacy screens fold
   into 5 destinations: Home, Squad, Play, Transfers, League; Tactics/Academy/
   Trophies/Settings/Inbox are reachable via quick-links on Home and Squad
-  instead of their own nav slot), and League (`renderCompetitions`) is the
-  first fully-migrated screen — real Svelte markup and data-fetching, no
-  `innerHTML`, `animate:flip` on table reordering. Everything else in
-  `src/ui/` (Home, Squad, Transfers, Tactics, Academy, Trophies, Settings,
-  Inbox, watch-match) is still the hand-written `innerHTML` renderers,
-  per Phase 4's screen-by-screen table. **`src/app.css`'s `@theme` block
+  instead of their own nav slot), and League (`renderCompetitions`) and Home
+  (`renderHome`) are the two fully-migrated screens — real Svelte markup and
+  data-fetching, no `innerHTML`; League has `animate:flip` on table
+  reordering, Home owns the Play/EOY/Deadline-day header flow (the
+  `id="btn-adv-header"` button stays put specifically so TabBar's Play button
+  and prematch.js's disable-during-sim logic keep finding it by id).
+  `renderHome` itself is now just a thin bridge (`screenTicks.home++`) kept
+  around because prematch.js/watchmatch.js/squad_tactics_offers.js still call
+  it imperatively; `handleEndOfSeason`/`showMatchReport` stay legacy in
+  `src/ui/home_transfers.js` since they build `showModal()` sheets, not
+  screen content. Everything else in `src/ui/` (Squad, Transfers, Tactics,
+  Academy, Trophies, Settings, Inbox, watch-match) is still the hand-written
+  `innerHTML` renderers, per Phase 4's screen-by-screen table. **`src/app.css`'s `@theme` block
   needed `@import "tailwindcss";` to actually work** — Phase 2 landed it
   without that import, so the Vite plugin never processed it and none of
   those custom properties existed at runtime until Phase 3's first Svelte
@@ -70,7 +81,7 @@
   `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
   which CI already gates. Cloudflare runs its own install step, so the build
   command must not repeat one.
-- **Test coverage is still narrow.** `src/validate.js`'s 1180 checks run on
+- **Test coverage is still narrow.** `src/validate.js`'s 1178 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career
   and an accent-contrast check over all 186 clubs. None of it covers UI
   correctness screen by screen. Vitest is installed but unused. See
@@ -105,11 +116,11 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar and League are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + first screen done, seven more to go (Phase 4)** |
+| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar, League and Home are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + two screens done, six more to go (Phase 4)** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
-| Tests | `src/validate.js` (1180 checks) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
+| Tests | `src/validate.js` (1178 checks) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -131,7 +142,7 @@ UX spec, tokens, and the design canvas it was drafted against.
   `fixtures` → `cups` → `transfers` → `potential` → `injuries` → `promotion` →
   `youthAcademy` → `save` → `season` → `gameweek` → `ui/*`); reordering breaks
   the build in ways that only surface at runtime.
-- `src/validate.js` — the 1180-check validator; `npm run build` runs it and
+- `src/validate.js` — the 1178-check validator; `npm run build` runs it and
   aborts on any failure.
 - `src/shell.html` — HTML/CSS shell, no JS.
 - `src/modules/` (13 files) — game logic, **no DOM access**. This boundary
@@ -169,7 +180,7 @@ npm run dev              # Vite dev server with HMR, :5173
 npm run build            # both paths: legacy bundle + validator, then the Vite app
 npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
 npm run build:app        # Vite → dist/
-npm run validate         # node src/validate.js — re-run just the 1180 checks
+npm run validate         # node src/validate.js — re-run just the 1178 checks
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
 npm run lint             # ESLint + eslint-plugin-svelte

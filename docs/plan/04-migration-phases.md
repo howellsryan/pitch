@@ -35,7 +35,7 @@ site down is a live site down.
    `/home/claude/pitch2`, `/mnt/user-data/outputs`, `/tmp/bundle_final.js`.
    Paths now resolve relative to the script. Nothing else changed.
 3. ✅ **CI**: `.github/workflows/deploy.yml` runs `npm run build` (bundles,
-   then runs `src/validate.js`) on every push and PR — 1180 checks, not the
+   then runs `src/validate.js`) on every push and PR — 1178 checks, not the
    1,190 originally estimated here; fails the build on any failure. Deploys
    to Workers on `main` only; uploads a preview version everywhere else.
 4. ✅ `index.html` is `.gitignore`d.
@@ -72,7 +72,7 @@ makes it the riskiest phase.
    CSS verbatim in `index.html`. **The UI does not change in this phase.**
 6. ~~Configure a second IIFE build target so `validate.js` still has a bundle to
    check.~~ **Corrected in implementation — this does not work.** 430 of
-   `validate.js`'s 1180 checks assert against the bundle's *raw source text*
+   `validate.js`'s 1178 checks assert against the bundle's *raw source text*
    (exact strings like `function selectEleven(players, formation` and
    `'GK': 0`). esbuild normalises quote style and tree-shakes unreferenced
    top-level code, so an IIFE Vite target fails hundreds of checks that
@@ -153,15 +153,46 @@ League (`renderCompetitions`) moved in Phase 3 already — self-contained
 enough that it made more sense as the phase's proof-of-concept than as
 Phase 4's first row. Not re-listed below.
 
+**Home (`renderHome`) migrated** — `src/lib/ui/HomeScreen.svelte`, mounted
+into `#screen-home`. Real Svelte markup and data-fetching throughout: hero
+card, previous/next fixture cards, a league-table slice with a "Full →" link
+to Competitions, stats tiles, form pills + morale, and top-scorers/assists
+charts — all real markup, no `innerHTML`. The header's Play/EOY/Deadline
+action button and the deadline-day AI-simulation flow (hour-skip,
+auto-close, the once-per-deadline inbox/toast notification) moved in too,
+ported from the deleted imperative wiring in `renderHome` and
+`_closeTransferWindow`. `handleEndOfSeason` and `showMatchReport` stay in
+`src/ui/home_transfers.js` as legacy — they build `showModal()` bottom-sheet
+content, not screen content, so they're out of this screen's scope.
+`renderHome` itself survives as a thin bridge (`screenTicks.home++`) because
+prematch.js/watchmatch.js/squad_tactics_offers.js still call it imperatively
+after a match or squad change; `HomeScreen.svelte`'s own `$effect` watches
+that tick and refetches, exactly like League's `screenTicks.competitions`
+pattern. The `id="btn-adv-header"` button survives inside the new component
+specifically so **TabBar**'s Play button (`document.getElementById(
+'btn-adv-header')?.click()`) and **prematch.js**'s `handleAdvanceOneFixture`
+(which disables that same button by id during a sim) keep working unchanged
+— verified by driving both paths in a real browser, not just by reading the
+code. The old `.ph-settings-btn`/`.ph-inbox-btn` CSS mentioned in Phase 3
+step 3 above is gone too, superseded by this component's own scoped styles.
+`src/validate.js`'s checks that asserted on the old header markup/wiring
+were updated to check the new reality (a `homeScreenSrc` read alongside
+`shellSrc`, same idea as the League checks) instead of deleted; `build.py`'s
+`check_html()` had two checks (`hdrPlay.onclick wired`, `ph-play-btn CSS`)
+that asserted on the same now-gone legacy bundle content — updated there too.
+Verified with `npm run build` (1178/1178 validator checks + Vite build
+clean), `npm run lint`, `npm run check:accents` (186/186), `npm run
+test:e2e` (6/6), plus manual screenshots at 390×844 — same pattern as
+League's Phase 3 verification, not a committed per-screen Playwright spec.
+
 | # | Screen | Legacy source | Notes |
 |---|---|---|---|
-| 1 | **Home** | `ui/home_transfers.js` `renderHome` | Next fixture, form, table snippet, inbox |
-| 2 | **Squad** | `ui/squad_tactics_offers.js` `renderSquad` | 11-column grid → two-line rows |
-| 3 | **Tactics** | same file, `renderTactics` | Pitch graphic, 7 formations, mentality. Tap-to-swap, not drag |
-| 4 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
-| 5 | **Academy** | `ui/academy.js` | Smallest. Youth intake cards |
-| 6 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
-| 7 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
+| 1 | **Squad** | `ui/squad_tactics_offers.js` `renderSquad` | 11-column grid → two-line rows |
+| 2 | **Tactics** | same file, `renderTactics` | Pitch graphic, 7 formations, mentality. Tap-to-swap, not drag |
+| 3 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
+| 4 | **Academy** | `ui/academy.js` | Smallest. Youth intake cards |
+| 5 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
+| 6 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
 
 Per-screen recipe:
 

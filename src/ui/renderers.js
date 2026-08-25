@@ -418,7 +418,6 @@ export function initUI(){
   document.querySelectorAll('[data-nav]').forEach(el=>{
     el.addEventListener('click',()=>navigateTo(el.dataset.nav));
   });
-  document.getElementById('h-tbl-link')?.addEventListener('click',()=>navigateTo('competitions'));
   document.getElementById('btn-reset')?.addEventListener('click',()=>{
     showModal('Reset Game?',
       '<p style="color:var(--tx2);line-height:1.7">Delete all progress and return to team selection. Cannot be undone.</p>',

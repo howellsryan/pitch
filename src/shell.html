@@ -81,11 +81,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .ph-left .pl{font-family:var(--fm);font-size:10px;color:var(--acc);letter-spacing:3px;text-transform:uppercase;margin-bottom:3px}
 .ph-left .pt{font-family:var(--fd);font-size:clamp(30px,5vw,40px);line-height:1;letter-spacing:1px}
 .ph-left-actions{margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ph-settings-btn{position:relative;width:36px;height:36px;border-radius:9px;border:1px solid var(--bdr);background:var(--sur2);color:var(--tx2);display:none;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
-.ph-settings-btn:hover{background:var(--sur3);color:var(--tx)}
 .ph-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-.ph-date{font-family:var(--fm);font-size:11px;color:var(--tx2)}
-.ph-badge{background:var(--sur2);border:1px solid var(--bdr);padding:3px 8px;border-radius:14px;font-size:10px;color:var(--tx2);font-family:var(--fm)}
 
 /* ── CARDS & SHARED ── */
 .card{background:var(--sur);border:1px solid var(--bdr);border-radius:14px}
@@ -113,90 +109,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
 /* ── HOME ── */
-.home-outer{display:flex;flex-direction:column;height:calc(100vh - 80px);overflow:hidden;padding:8px 16px 10px;gap:8px}
-.home-grid{display:grid;grid-template-columns:1fr 1fr 260px;grid-template-rows:auto auto auto auto 1fr auto;gap:8px;flex:1;min-height:0}
-.hero{grid-column:1/3;background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:12px 18px;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;top:-50px;right:-30px;width:160px;height:160px;background:radial-gradient(circle,rgba(18,168,100,.12) 0%,transparent 70%);pointer-events:none}
-.hero-crest{width:52px;height:52px;background:var(--sur2);border-radius:11px;border:2px solid var(--bdr-a);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-.hero-info{flex:1;min-width:0}
-.hero-name{font-family:var(--fd);font-size:clamp(16px,2.5vw,22px);letter-spacing:1px;line-height:1;margin-bottom:3px}
-.hero-sub{font-size:11px;color:var(--tx2);display:flex;gap:8px;flex-wrap:wrap}
-.hero-sub span{display:flex;align-items:center;gap:3px}
-.hero-dot{width:3px;height:3px;border-radius:50%;background:var(--txd)}
-.mgr-card{background:var(--glow);border:1px solid var(--bdr-a);border-radius:8px;padding:8px 12px;text-align:right;flex-shrink:0}
-.mgr-lbl{font-size:8px;color:var(--tx2);font-family:var(--fm);letter-spacing:2px;text-transform:uppercase;margin-bottom:1px}
-.mgr-name{font-size:12px;font-weight:600}
-.mgr-since{font-size:9px;color:var(--tx2);margin-top:1px}
-.match-card{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;position:relative;overflow:hidden}
-.match-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
-.mc-prev::before{background:linear-gradient(90deg,var(--acc),transparent)}
-.mc-next::before{background:linear-gradient(90deg,var(--acc2),transparent)}
-.mc-lbl{font-family:var(--fm);font-size:8px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
-.mc-prev .mc-lbl{color:var(--acc)}.mc-next .mc-lbl{color:var(--acc2)}
-.mc-fix{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.mc-team{font-family:var(--fd);font-size:14px;letter-spacing:.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mc-team.aw{text-align:right}
-.mc-score{background:var(--sur3);border:1px solid var(--bdr);border-radius:5px;padding:3px 8px;font-family:var(--fd);font-size:16px;letter-spacing:2px;text-align:center;min-width:44px;flex-shrink:0}
-.mc-score.win{border-color:var(--acc);color:var(--acc)}.mc-score.loss{border-color:var(--acc3);color:var(--acc3)}.mc-score.vs{font-size:10px;color:var(--tx2);letter-spacing:1px}
-.mc-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--tx2)}
-.mc-comp{display:flex;align-items:center;gap:4px}
-.mc-dot{width:4px;height:4px;border-radius:50%;background:var(--acc2)}
-.mc-scorers{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:5px;font-size:9px;color:var(--tx2)}
-.mc-scorers .aw{text-align:right}
-.league-wdg{grid-column:3;grid-row:1/7;background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:12px;overflow:hidden;display:flex;flex-direction:column}
-.wdg-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0}
-.wdg-title{font-family:var(--fd);font-size:14px;letter-spacing:1px}
-.wdg-link{font-size:10px;color:var(--acc);cursor:pointer;font-family:var(--fm);letter-spacing:.5px}
-.tbl-hdr{display:grid;grid-template-columns:20px 1fr 20px 20px 20px 28px;gap:2px;font-size:8px;color:var(--txd);font-family:var(--fm);letter-spacing:.5px;padding:0 4px;margin-bottom:4px;flex-shrink:0}
-.tbl-row{display:grid;grid-template-columns:20px 1fr 20px 20px 20px 28px;gap:2px;padding:5px 4px;border-radius:6px;font-size:11px;align-items:center;transition:background .15s;cursor:pointer}
-.tbl-row:hover{background:var(--sur2)}
-.tbl-row.hl{background:var(--glow);border:1px solid var(--bdr-a)}
-.tbl-row.hl .tc{color:var(--acc);font-weight:600}
-.tbl-scroll{flex:1;min-height:0;overflow-y:auto}
-.tbl-scroll::-webkit-scrollbar{width:2px}
-.tbl-scroll::-webkit-scrollbar-thumb{background:var(--sur3)}
-.rc{color:var(--txd);font-family:var(--fm);font-size:9px}
-.tc{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
-.sc{text-align:center;color:var(--tx2);font-family:var(--fm);font-size:10px}
-.pc{text-align:center;font-weight:700;font-family:var(--fm);font-size:11px}
-.stats-row{grid-column:1/3;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.stat-card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;position:relative;overflow:hidden}
-.stat-card::after{content:'';position:absolute;top:0;right:0;width:40px;height:40px;border-radius:0 10px 0 40px;opacity:.07}
-.stat-card:nth-child(1)::after{background:var(--acc)}
-.stat-card:nth-child(2)::after{background:#7c83e8}
-.stat-card:nth-child(3)::after{background:var(--acc2)}
-.stat-card:nth-child(4)::after{background:var(--acc3)}
-.sl{font-size:10px;color:var(--tx2);margin-bottom:3px;font-weight:500}
-.sv{font-family:var(--fd);font-size:clamp(18px,3vw,26px);line-height:1;letter-spacing:1px}
-.ss{font-size:9px;color:var(--txd);margin-top:2px}
-.form-row{grid-column:1/3;background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.fr-title{font-family:var(--fd);font-size:14px;letter-spacing:1px;flex-shrink:0}
-.fr-pills{display:flex;gap:4px}
-.fp{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:13px}
-.fp.W{background:rgba(18,168,100,.2);color:var(--acc);border:1px solid rgba(18,168,100,.4)}
-.fp.D{background:rgba(245,200,66,.15);color:var(--acc2);border:1px solid rgba(245,200,66,.3)}
-.fp.L{background:rgba(232,72,85,.15);color:var(--acc3);border:1px solid rgba(232,72,85,.3)}
-.fr-spc{flex:1}
-.morale-blk{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-.morale-lbl{font-size:9px;color:var(--tx2);font-family:var(--fm);letter-spacing:2px;text-transform:uppercase}
-.morale-w{width:100px;height:4px;background:var(--sur3);border-radius:2px;overflow:hidden}
-.morale-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--acc),#7fff9a);width:50%;transition:width .8s ease}
-.morale-txt{font-size:10px;color:var(--acc);font-weight:600}
-.charts-row{grid-column:1/3;display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:0}
-.chart-card{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;overflow:hidden;display:flex;flex-direction:column}
-.chart-title{font-family:var(--fd);font-size:14px;letter-spacing:1px;margin-bottom:8px;flex-shrink:0}
-.cbl{display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden}
-.cbl-row{display:flex;align-items:center;gap:7px}
-.cbl-name{font-size:11px;font-weight:500;width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
-.cbl-bw{flex:1;height:4px;background:var(--sur3);border-radius:2px;overflow:hidden}
-.cbl-b{height:100%;border-radius:2px;transition:width .5s var(--ease)}
-.cbl-v{font-family:var(--fm);font-size:10px;color:var(--acc2);width:18px;text-align:right;flex-shrink:0}
-.adv-row{grid-column:1/3;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
-.btn-adv{padding:9px 22px;border-radius:9px;border:none;background:var(--acc);color:white;font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.btn-adv:hover:not(:disabled){background:#14be72;transform:translateY(-1px);box-shadow:0 4px 18px rgba(18,168,100,.3)}
-.btn-adv:disabled{opacity:.5;cursor:not-allowed}
-.btn-eoy{padding:9px 22px;border-radius:9px;border:2px solid var(--acc2);background:transparent;color:var(--acc2);font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:none}
-.btn-eoy:hover{background:rgba(245,200,66,.1)}
+/* Rebuilt as src/lib/ui/HomeScreen.svelte (Phase 4,
+   docs/plan/04-migration-phases.md) — its styles are scoped in the
+   component itself, so this legacy block is gone rather than left dead. */
 
 /* ── TRANSFERS ── */
 .tr-layout{padding:0 20px 12px;display:grid;grid-template-columns:1fr 355px;gap:13px;flex:1;min-height:0}
@@ -514,11 +429,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes sUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(18,168,100,.3)}50%{box-shadow:0 0 0 4px rgba(18,168,100,.1)}}
-.home-grid>*,.tr-layout>*,.comp-layout>*,.cups-layout>*,.squad-layout>*,.honours-layout>*,.set-layout>*{animation:sUp .35s ease both}
-.home-grid>*:nth-child(1){animation-delay:.04s}.home-grid>*:nth-child(2){animation-delay:.07s}
-.home-grid>*:nth-child(3){animation-delay:.1s}.home-grid>*:nth-child(4){animation-delay:.13s}
-.home-grid>*:nth-child(5){animation-delay:.16s}.home-grid>*:nth-child(6){animation-delay:.19s}
-.home-grid>*:nth-child(7){animation-delay:.22s}.home-grid>*:nth-child(8){animation-delay:.25s}
+.tr-layout>*,.comp-layout>*,.cups-layout>*,.squad-layout>*,.honours-layout>*,.set-layout>*{animation:sUp .35s ease both}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
@@ -530,12 +441,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   .screen{bottom:0}
 
   .toast-container{bottom:74px;right:8px;left:8px;max-width:100%}
-  .home-outer{height:auto;overflow:visible;padding:8px 12px 12px}
-  .home-grid{grid-template-columns:1fr!important;gap:8px}
-  .hero,.stats-row,.form-row,.charts-row,.adv-row{grid-column:1!important}
-  .league-wdg{grid-column:1!important;grid-row:auto!important}
-  .stats-row{grid-template-columns:1fr 1fr}
-  .charts-row{grid-template-columns:1fr}
   #screen-home{overflow-y:auto!important;display:block!important}
   .tr-layout{grid-template-columns:1fr;padding:10px 12px;flex:none;height:auto}
   .tr-layout .det-panel{display:none}
@@ -550,13 +455,12 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   .modal-bd{align-items:flex-end;padding:0}
   .modal{padding-bottom:env(safe-area-inset-bottom,0px)}
   .modal-body{padding-bottom:10px}
-  .mgr-card{display:none}
   .res-side{height:auto;flex:none}
   .comp-inn{padding:6px;flex:none;height:auto}
   /* Ensure scrollable screens can reach their last content item */
   .screen{padding-bottom:10px}
   /* Inner scroll containers in flex-column screens */
-  .pl-list,.tbl-scroll,.sq-scroll,.comp-inn,.res-list,.trophies-grid-wrap,.set-grp,.comp-layout{padding-bottom:10px}
+  .pl-list,.sq-scroll,.comp-inn,.res-list,.trophies-grid-wrap,.set-grp,.comp-layout{padding-bottom:10px}
   .full-hdr,.full-row{display:grid;grid-template-columns:18px 1fr 26px 30px 1fr;gap:4px;padding:6px 8px;width:100%;box-sizing:border-box}
   .full-hdr>*:nth-child(4),.full-hdr>*:nth-child(5),.full-hdr>*:nth-child(6),
   .full-hdr>*:nth-child(7),.full-hdr>*:nth-child(8),.full-hdr>*:nth-child(9),
@@ -566,10 +470,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   .fdot{width:14px;height:14px;font-size:7px}
 }
 @media(max-width:480px){
-  .stats-row{gap:8px}
-  .hero{padding:12px 10px;gap:10px}
-  .hero-crest{width:44px;height:44px;font-size:20px}
-  .hero-name{font-size:16px}
   .full-hdr,.full-row{grid-template-columns:16px 1fr 24px 26px 1fr;gap:3px;padding:5px 6px}
   .fdot{width:13px;height:13px;font-size:7px}
 }
@@ -579,10 +479,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   .sidebar{display:flex!important}
   .bot-nav{display:none!important}
   .main{margin-left:var(--nav)!important;height:100vh;flex:1}
-  .home-outer{height:calc(100vh - 60px);overflow:hidden}
-  .home-grid{grid-template-columns:1fr 1fr 260px!important}
-  .hero,.stats-row,.form-row,.charts-row,.adv-row{grid-column:1!important}
-  .league-wdg{grid-column:3!important;grid-row:1/7!important}
 
 }
 
@@ -864,33 +760,15 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .pm-xi-name{font-size:10px;padding:2px 7px;background:var(--sur3);border-radius:4px;color:var(--tx2);font-family:var(--fm)}
 .pm-xi-name.pm-xi-inj{background:rgba(232,72,85,.18);color:var(--acc3);text-decoration:line-through}
 .wm-bench-row.wm-bench-injured{opacity:.5}
-/* ── HEADER PLAY BUTTON ── */
-.ph-play-btn{padding:9px 20px;border-radius:9px;border:none;background:var(--acc);color:white;font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent;white-space:nowrap}
-.ph-play-btn:hover:not(:disabled){background:#14be72;transform:translateY(-1px);box-shadow:0 4px 14px rgba(18,168,100,.3)}
-.ph-play-btn:disabled{opacity:.5;cursor:not-allowed}
-.ph-eoy-btn{padding:9px 20px;border-radius:9px;border:2px solid var(--acc2);background:transparent;color:var(--acc2);font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:none;-webkit-tap-highlight-color:transparent}
-.ph-eoy-btn:hover{background:rgba(245,200,66,.1)}
-.ph-deadline-btn{padding:9px 20px;border-radius:9px;border:2px solid #f97316;background:rgba(249,115,22,.12);color:#f97316;font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:none;-webkit-tap-highlight-color:transparent;animation:deadline-pulse 2s ease-in-out infinite}
-.ph-deadline-btn:hover{background:rgba(249,115,22,.25);transform:translateY(-1px)}
-.ph-deadline-btn:disabled{opacity:.5;cursor:not-allowed;animation:none}
-@keyframes deadline-pulse{0%,100%{box-shadow:0 0 0 0 rgba(249,115,22,.4)}50%{box-shadow:0 0 0 6px rgba(249,115,22,0)}}
-.ph-inbox-btn{position:relative;width:36px;height:36px;border-radius:9px;border:1px solid var(--bdr);background:var(--sur2);color:var(--tx2);display:none;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
-.ph-inbox-btn:hover{background:var(--sur3);color:var(--tx)}
-.ph-inbox-badge{position:absolute;top:-4px;right:-4px;background:var(--acc3);color:#fff;font-size:9px;font-family:var(--fm);font-weight:700;min-width:16px;height:16px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 3px}
-@media(max-width:768px){
-  /* TabBar (src/lib/ui/TabBar.svelte) only carries 5 of the 9 legacy
-     screens — Settings and Inbox are reachable from Home's header instead
-     (docs/plan/02-design-system.md: "Inbox in the context bar ... Settings
-     under Home"), so their icon buttons need to show at the mobile
-     breakpoint, not just the narrowest phones. */
-  .ph-inbox-btn{display:flex}
-  .ph-settings-btn{display:flex}
-}
+/* ── HEADER PLAY BUTTON ──
+   Home's action/quick-link/icon buttons moved into
+   src/lib/ui/HomeScreen.svelte (Phase 4, docs/plan/04-migration-phases.md)
+   with their own scoped styles — this legacy block is gone rather than
+   left dead. */
 @media(max-width:480px){
   .pm-matchup{grid-template-columns:1fr auto 1fr;gap:6px}
   .pm-crest{font-size:24px}
   .pm-tname{font-size:11px}
-  .ph-play-btn{font-size:12px;padding:8px 14px}
 }
 
 /* ── WATCH MATCH MODAL ── */
@@ -1026,50 +904,9 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 <div id="tabbar-mount"></div>
 
 <div class="main">
-  <!-- HOME -->
-  <div class="screen" id="screen-home" style="overflow:hidden;display:flex;flex-direction:column">
-    <div class="ph" style="flex-shrink:0">
-      <div class="ph-left">
-        <div class="pl">Dashboard</div><div class="pt">Overview</div>
-        <div class="ph-left-actions">
-          <button class="ph-play-btn" id="btn-adv-header">▶ Play Next Match</button>
-          <button class="ph-eoy-btn" id="btn-eoy-header">🏆 Next Season →</button>
-          <button class="ph-deadline-btn" id="btn-deadline-header" style="display:none">⏰ Skip One Hour</button>
-          <button class="btn btn-s" onclick="navigateTo('academy')">Academy</button>
-          <button class="btn btn-s" onclick="navigateTo('trophies')">Trophies</button>
-        </div>
-      </div>
-      <div class="ph-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-          <div class="ph-date" id="h-date">—</div>
-          <div class="ph-badge" id="h-season">—</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="ph-inbox-btn" id="btn-inbox-header" onclick="navigateTo('inbox')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="ph-inbox-badge" id="h-inbox-badge" style="display:none"></span></button>
-          <button class="ph-settings-btn" onclick="navigateTo('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-        </div>
-      </div>
-    </div>
-    <div class="home-outer">
-      <div class="home-grid">
-        <div class="hero" id="h-hero"></div>
-        <div class="match-card mc-prev" id="h-prev"></div>
-        <div class="match-card mc-next" id="h-next"></div>
-        <div class="league-wdg">
-          <div class="wdg-hdr"><div class="wdg-title">League Table</div><div class="wdg-link" id="h-tbl-link">Full →</div></div>
-          <div class="tbl-hdr"><div>#</div><div>Club</div><div>W</div><div>D</div><div>L</div><div>PTS</div></div>
-          <div class="tbl-scroll"><div id="h-table"></div></div>
-        </div>
-        <div class="stats-row" id="h-stats"></div>
-        <div class="form-row" id="h-form"></div>
-        <div class="charts-row" id="h-charts"></div>
-        <div class="adv-row">
-          <button class="btn-adv" id="btn-adv" style="display:none"></button>
-          <button class="btn-eoy" id="btn-eoy" style="display:none"></button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- HOME — src/lib/ui/HomeScreen.svelte, mounted in main.js (Phase 4,
+       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
+  <div class="screen" id="screen-home"></div>
 
   <!-- TRANSFERS -->
   <div class="screen" id="screen-transfers">
