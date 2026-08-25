@@ -1,11 +1,17 @@
 /**
  * Design tokens — "Broadcast Kit" (docs/plan/02-design-system.md).
  *
- * Phase 2 lands the token layer only. src/shell.html still carries the live
- * styling and its own --acc family; src/lib/theme.mjs sets both this
- * --color-club token and those legacy vars, so the club accent works on
- * today's screens and on the Phase 3 ones without a flag day.
+ * Phase 2 landed this block without `@import "tailwindcss"` — the Vite
+ * plugin never processed it, so `@theme` shipped to the browser as literal,
+ * invalid CSS and none of these custom properties actually existed at
+ * runtime. Phase 3 is the first thing that consumes them outside theme.mjs's
+ * direct `--color-club` write, which is what surfaced it. src/shell.html
+ * still carries the live styling and its own --acc family; src/lib/theme.mjs
+ * sets both this --color-club token and those legacy vars, so the club
+ * accent works on today's screens and on the Phase 3 ones without a flag day.
  */
+@import "tailwindcss";
+
 @theme {
   --color-ground:  #0A0E14;
   --color-surface: #131A23;

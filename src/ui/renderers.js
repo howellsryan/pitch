@@ -9,8 +9,7 @@ import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
 import { LIGUE_1_TEAMS } from '../data/ligue1.js';
 import { PL_TEAMS } from '../data/plTeams.js';
 import { SERIE_A_TEAMS } from '../data/serieA.js';
-import { deleteDB, exportSaveFile, getAllFixtures, getAllPlayers, getAllSeasons, getAllTeams, getSave, getTeam, importSaveFile, importSaveFromCode, openDB, putPlayersBulk } from '../modules/db.js';
-import { getLeagueTable } from '../modules/standings.js';
+import { deleteDB, exportSaveFile, getAllPlayers, getAllSeasons, getSave, getTeam, importSaveFile, importSaveFromCode, openDB, putPlayersBulk } from '../modules/db.js';
 import { CUP_META } from '../modules/cups.js';
 import { assignPotentials } from '../modules/potential.js';
 import { startNewGame } from '../modules/save.js';
@@ -20,6 +19,7 @@ import { renderHome, renderTransfers } from './home_transfers.js';
 import { renderSquad, renderTactics } from './squad_tactics_offers.js';
 import { renderAcademy } from './academy.js';
 import { _updateInboxBadge, renderInbox } from './inbox.js';
+import { screenTicks } from '../lib/state/screens.svelte.js';
 
 // ── Full-screen overlay for blocking operations ─────────────
 export function _showFullOverlay(msg) {
@@ -35,75 +35,9 @@ export function _removeFullOverlay() {
 }
 
 // ── COMPETITIONS ─────────────────────────────────────────────
-export async function renderCompetitions(){
-  const save=await getSave();
-  const table=await getLeagueTable();
-  const allTeams=await getAllTeams();
-  const byId=new Map(allTeams.map(t=>[t.id,t]));
-  const fullEl=document.getElementById('full-table');
-  // Dynamic league title
-  const compTitleEl=document.querySelector('.comp-pt');
-  if(compTitleEl) compTitleEl.textContent=`${save.userLeague||'Premier League'} ${save.season||'2025/26'}`;
-  const totalTeams = table.length;
-  const zoneInfo=(pos)=>{
-    if(totalTeams===20){
-      if(pos<=4)  return 'border-left:3px solid #3b82f6';
-      if(pos<=6)  return 'border-left:3px solid #f97316';
-      if(pos===7) return 'border-left:3px solid #22c55e';
-      if(pos>=18) return 'border-left:3px solid #e84855';
-      if(pos>=15) return 'border-left:3px solid #f5c842';
-    } else if(totalTeams===24){
-      if(pos<=2)  return 'border-left:3px solid #3b82f6';
-      if(pos<=6)  return 'border-left:3px solid #22c55e';
-      if(pos>=22) return 'border-left:3px solid #e84855';
-    } else if(totalTeams===18){
-      if(pos<=4)  return 'border-left:3px solid #3b82f6';
-      if(pos<=6)  return 'border-left:3px solid #f97316';
-      if(pos>=16) return 'border-left:3px solid #e84855';
-    }
-    return '';
-  };
-  if(fullEl) {
-    // If no games played yet, positions may be 0 — sort alphabetically as fallback
-    const displayTable = table.every(r => r.position === 0)
-      ? [...table].sort((a,b) => a.teamName.localeCompare(b.teamName)).map((r,i) => ({...r, position: i+1}))
-      : table;
-    fullEl.innerHTML=displayTable.map(row=>`
-    <div class="full-row ${row.teamId===save.userTeamId?'hl':''}" style="${zoneInfo(row.position)}">
-      <div class="rc">${row.position}</div>
-      <div class="tc">${row.crest||''} ${row.teamName}</div>
-      <div class="sc">${row.played}</div><div class="sc">${row.won}</div>
-      <div class="sc">${row.drawn}</div><div class="sc">${row.lost}</div>
-      <div class="sc">${row.goalsFor}</div><div class="sc">${row.goalsAgainst}</div>
-      <div class="sc" style="color:${row.goalDifference>=0?'var(--acc)':'var(--acc3)'}">${row.goalDifference>=0?'+':''}${row.goalDifference}</div>
-      <div class="pc">${row.points}</div>
-      <div class="form-mini">${(row.form||[]).map(f=>`<span class="fdot fd-${f}">${f}</span>`).join('')}</div>
-    </div>`).join('');
-  }
-  // Add zone legend
-  const legendEl = document.getElementById('zone-legend');
-  if(legendEl){
-    if(totalTeams===20) legendEl.innerHTML=`<div class="zone-legend"><span style="border-left:3px solid #3b82f6;padding-left:6px">UCL (Top 4)</span><span style="border-left:3px solid #f97316;padding-left:6px">UEL (5-6)</span><span style="border-left:3px solid #22c55e;padding-left:6px">UECL (7)</span><span style="border-left:3px solid #e84855;padding-left:6px">Relegated (18-20)</span></div>`;
-    else if(totalTeams===24) legendEl.innerHTML=`<div class="zone-legend"><span style="border-left:3px solid #3b82f6;padding-left:6px">Promoted (1-2)</span><span style="border-left:3px solid #22c55e;padding-left:6px">Play-offs (3-6)</span><span style="border-left:3px solid #e84855;padding-left:6px">Relegated (22-24)</span></div>`;
-    else if(totalTeams===18) legendEl.innerHTML=`<div class="zone-legend"><span style="border-left:3px solid #3b82f6;padding-left:6px">UCL (Top 4)</span><span style="border-left:3px solid #f97316;padding-left:6px">UEL (5-6)</span><span style="border-left:3px solid #e84855;padding-left:6px">Relegated (16-18)</span></div>`;
-  }
-  const fixtures=await getAllFixtures();
-  const played=fixtures.filter(f=>f.played&&f.competition==='league').sort((a,b)=>b.gameweek-a.gameweek).slice(0,30);
-  const resEl=document.getElementById('recent-res');
-  if(resEl){
-    if(!played.length){resEl.innerHTML=`<div class="no-data">No matches played yet.</div>`;return;}
-    resEl.innerHTML=played.map(f=>`
-      <div class="res-row ${f.homeTeamId===save.userTeamId||f.awayTeamId===save.userTeamId?'ur':''}">
-        <div class="res-gw">GW${f.gameweek}</div>
-        <div class="res-teams">
-          <span class="rth">${byId.get(f.homeTeamId)?.name||f.homeTeamId}</span>
-          <span class="rsc">${f.homeGoals} – ${f.awayGoals}</span>
-          <span class="rta">${byId.get(f.awayTeamId)?.name||f.awayTeamId}</span>
-        </div>
-        <div class="res-date">${fmt.dateShort(f.date)}</div>
-      </div>`).join('');
-  }
-}
+// Migrated to src/lib/ui/LeagueScreen.svelte (Phase 3, docs/plan/04-migration-phases.md).
+// registerScreen('competitions', ...) below just bumps screenTicks.competitions
+// so the mounted Svelte island knows to refetch.
 
 // ── TROPHIES (merged Cups + Honours) ─────────────────────────
 export async function renderTrophies(){
@@ -473,7 +407,7 @@ export function renderNewGame(){
 export function initUI(){
   registerScreen('home',         renderHome);
   registerScreen('transfers',    renderTransfers);
-  registerScreen('competitions', renderCompetitions);
+  registerScreen('competitions', () => { screenTicks.competitions++; });
   registerScreen('trophies',     renderTrophies);
   registerScreen('squad',        renderSquad);
   registerScreen('academy',      renderAcademy);
@@ -484,7 +418,6 @@ export function initUI(){
   document.querySelectorAll('[data-nav]').forEach(el=>{
     el.addEventListener('click',()=>navigateTo(el.dataset.nav));
   });
-  document.getElementById('h-tbl-link')?.addEventListener('click',()=>navigateTo('competitions'));
   document.getElementById('btn-reset')?.addEventListener('click',()=>{
     showModal('Reset Game?',
       '<p style="color:var(--tx2);line-height:1.7">Delete all progress and return to team selection. Cannot be undone.</p>',

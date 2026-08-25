@@ -1,263 +1,29 @@
 import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, putSave } from '../modules/db.js';
 import { primaryRating } from '../modules/matchEngine.js';
-import { getTableSliceAroundTeam } from '../modules/standings.js';
-import { getLastResultForTeam, getNextFixtureForTeam } from '../modules/fixtures.js';
 import { CUP_META } from '../modules/cups.js';
-import { _loanFee, _loanWageCost, buyPlayer, canClubSignPlayer, formAdjustedValue, generateAIOffers, generateBuyCounter, getLoanableInPlayers, isDeadlineDay, loanInPlayer, loanOutPlayer, playerMinRepToSign, sellPlayer, simulateAITransfers, transferWindowStatus } from '../modules/transfers.js';
+import { _loanFee, _loanWageCost, buyPlayer, canClubSignPlayer, formAdjustedValue, generateBuyCounter, getLoanableInPlayers, loanInPlayer, loanOutPlayer, playerMinRepToSign, sellPlayer, transferWindowStatus } from '../modules/transfers.js';
 import { getPotentialLabel, getPotentialStars } from '../modules/potential.js';
 import { injuryDurationLabel } from '../modules/injuries.js';
-import { patchSave } from '../modules/save.js';
 import { processEndOfSeason } from '../modules/season.js';
-import { advanceOneFixture, getEffectiveTotalGW } from '../modules/gameweek.js';
+import { advanceOneFixture } from '../modules/gameweek.js';
 import { fmt, formLabel, hideLoader, playerNationality, posGroup, showLoader, showModal, toast } from './helpers.js';
 import { renderSettings } from './renderers.js';
 import { _updateOffersBadge, openSquadPlayerModal, showOffersModal } from './squad_tactics_offers.js';
-import { _makeNewsItem, addNewsItem, newsMatchResult, newsPlayerSigned, newsPlayerSold, newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
-import { showPreMatchModal } from './prematch.js';
+import { newsMatchResult, newsPlayerSigned, newsPlayerSold, newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
+import { screenTicks } from '../lib/state/screens.svelte.js';
 
 // ══════════════════════════════════════════════════════════════
 // HOME SCREEN
 // ══════════════════════════════════════════════════════════════
-
-// ─── Close the transfer window after deadline day ─────────────
-export async function _closeTransferWindow(ddInfo, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = 'Closing window…'; }
-  const save = await getSave();
-  const cur = new Date(save.currentDate);
-  const afterDeadline = (ddInfo?.window === 'summer')
-    ? new Date(cur.getFullYear(), 8, 2)   // Sep 2
-    : new Date(cur.getFullYear(), 1, 2);  // Feb 2
-  // Decline all pending inbound offers — window is shut
-  const expiredOffers = (save.inboundOffers ?? []).map(o =>
-    o.status === 'pending' ? { ...o, status: 'expired' } : o
-  );
-  const expiredCount = expiredOffers.filter(o => o.status === 'expired').length - 
-    (save.inboundOffers ?? []).filter(o => o.status === 'expired').length;
-  await patchSave({ currentDate: afterDeadline.toISOString(), deadlineHoursUsed: null, inboundOffers: expiredOffers });
-  if (expiredCount > 0) {
-    toast(`⏰ Transfer window closed — ${expiredCount} pending offer${expiredCount > 1 ? 's' : ''} expired.`, 'info', 5000);
-  } else {
-    toast('⏰ Transfer window closed. Back to business!', 'info', 4000);
-  }
-  await renderHome();
-}
-
+// The screen itself is src/lib/ui/HomeScreen.svelte (Phase 4,
+// docs/plan/04-migration-phases.md) — real Svelte markup, data-fetching
+// and the deadline-day/end-of-season flow all live there now. renderHome()
+// survives as a thin bridge because it's still called imperatively from
+// prematch.js, watchmatch.js and squad_tactics_offers.js after a match,
+// squad change, etc.; it just bumps the tick HomeScreen.svelte watches,
+// regardless of whether Home is the currently visible screen.
 export async function renderHome(){
-  const save=await getSave(), team=await getTeam(save.userTeamId);
-  const players=await getPlayersByTeam(save.userTeamId);
-  const allTeams=await getAllTeams(), byId=new Map(allTeams.map(t=>[t.id,t]));
-  const [prev,next,slice]=await Promise.all([
-    getLastResultForTeam(save.userTeamId),
-    getNextFixtureForTeam(save.userTeamId),
-    getTableSliceAroundTeam(save.userTeamId,2),
-  ]);
-  const dateEl=document.getElementById('h-date');
-  if(dateEl) dateEl.textContent=fmt.date(save.currentDate);
-  const seasonEl=document.getElementById('h-season');
-  if(seasonEl) seasonEl.textContent=`Season ${save.season}`;
-  // Update sidebar avatar initials
-  const mgrName = save.managerName || 'The Manager';
-  const mgrInitials = mgrName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const mgrAvEl = document.getElementById('mgr-av');
-  if(mgrAvEl) mgrAvEl.textContent = mgrInitials;
-  const heroEl=document.getElementById('h-hero');
-  if(heroEl&&team) heroEl.innerHTML=`
-    <div class="hero-crest">${team.crest}</div>
-    <div class="hero-info">
-      <div class="hero-name">${team.name}</div>
-      <div class="hero-sub">
-        <span>${team.league||'Premier League'}</span><span class="hero-dot"></span>
-        <span>${team.stadium||''}</span>
-      </div>
-    </div>
-    <div class="mgr-card"><div class="mgr-lbl">Manager</div><div class="mgr-name">${mgrName}</div><div class="mgr-since">Season ${save.season}</div></div>`;
-  const prevEl=document.getElementById('h-prev');
-  if(prevEl){
-    if(!prev){prevEl.innerHTML=`<div class="mc-lbl">Previous Result</div><div class="no-data">No matches played yet</div>`;}
-    else{
-      const ht=byId.get(prev.homeTeamId),at=byId.get(prev.awayTeamId);
-      const isHome=prev.homeTeamId===save.userTeamId;
-      const ug=isHome?prev.homeGoals:prev.awayGoals,og=isHome?prev.awayGoals:prev.homeGoals;
-      const cls=ug>og?'win':ug<og?'loss':'';
-      const hs=(prev.homeScorers||[]).map(s=>`${s.playerName||''} ${s.minute}'`).join(', ');
-      const as=(prev.awayScorers||[]).map(s=>`${s.playerName||''} ${s.minute}'`).join(', ');
-      prevEl.innerHTML=`<div class="mc-lbl">Previous Result</div>
-        <div class="mc-fix"><div class="mc-team">${ht?.name||prev.homeTeamId}</div>
-        <div class="mc-score ${cls}">${prev.homeGoals}-${prev.awayGoals}</div>
-        <div class="mc-team aw">${at?.name||prev.awayTeamId}</div></div>
-        <div class="mc-meta"><div class="mc-comp"><span class="mc-dot"></span>GW${prev.gameweek}</div><div>${fmt.dateShort(prev.date)}</div></div>
-        ${hs||as?`<div class="mc-scorers"><div>${hs}</div><div class="aw">${as}</div></div>`:''}`;
-    }
-  }
-  const nextEl=document.getElementById('h-next');
-  if(nextEl){
-    if(!next){nextEl.innerHTML=`<div class="mc-lbl">Next Fixture</div><div class="no-data" style="color:var(--acc2)">Season Complete!</div>`;}
-    else{
-      const ht=byId.get(next.homeTeamId),at=byId.get(next.awayTeamId);
-      nextEl.innerHTML=`<div class="mc-lbl">Next Fixture</div>
-        <div class="mc-fix"><div class="mc-team">${ht?.name||next.homeTeamId}</div>
-        <div class="mc-score vs">vs</div><div class="mc-team aw">${at?.name||next.awayTeamId}</div></div>
-        <div class="mc-meta"><div class="mc-comp"><span class="mc-dot" style="background:var(--acc2)"></span>GW${next.gameweek}</div><div>${fmt.dateShort(next.date)}</div></div>`;
-    }
-  }
-  const tblEl=document.getElementById('h-table');
-  if(tblEl) tblEl.innerHTML=slice.map(r=>`
-    <div class="tbl-row ${r.isUserTeam?'hl':''}">
-      <div class="rc">${r.displayPosition||r.position}</div>
-      <div class="tc">${r.teamName}</div>
-      <div class="sc">${r.won}</div><div class="sc">${r.drawn}</div><div class="sc">${r.lost}</div>
-      <div class="pc">${r.points}</div>
-    </div>`).join('');
-  const statsEl=document.getElementById('h-stats');
-  if(statsEl) statsEl.innerHTML=`
-    <div class="stat-card"><div class="sl">Gameweek</div><div class="sv" style="color:var(--acc)">${save.currentGameweek}</div><div class="ss">of ${getEffectiveTotalGW(save)}</div></div>
-    <div class="stat-card"><div class="sl">Budget</div><div class="sv" style="color:#7c83e8">${fmt.money(team?.budget||0)}</div><div class="ss">Transfer funds</div></div>
-    <div class="stat-card"><div class="sl">Squad</div><div class="sv" style="color:var(--acc2)">${players.length}</div><div class="ss">players</div></div>
-    <div class="stat-card"><div class="sl">Season</div><div class="sv" style="color:var(--acc3)">${save.season}</div><div class="ss">${team?.league||'League'}</div></div>`;
-  const formEl=document.getElementById('h-form'),myRow=slice.find(r=>r.isUserTeam);
-  if(formEl){
-    const form=myRow?.form||[];
-    const pills=form.length?form.map(r=>`<div class="fp ${r}">${r}</div>`).join(''):`<span style="color:var(--txd);font-size:12px">No matches played</span>`;
-    const wr=myRow?.played>0?myRow.won/myRow.played:0;
-    const mt=wr>0.7?'Excellent':wr>0.5?'High':wr>0.35?'Good':myRow?.played>0?'Low':'Neutral';
-    const mp=Math.min(100,myRow?.points?myRow.points*3:50);
-    formEl.innerHTML=`<div class="fr-title">Recent Form</div><div class="fr-pills">${pills}</div><div class="fr-spc"></div>
-      <div class="morale-blk"><div class="morale-lbl">Morale</div>
-      <div class="morale-w"><div class="morale-bar" style="width:${mp}%"></div></div>
-      <div class="morale-txt">${mt}</div></div>`;
-  }
-  await renderCharts();
-  const isEnd=save.currentGameweek>getEffectiveTotalGW(save);
-
-  // Wire the VISIBLE header buttons (btn-adv-header / btn-eoy-header / btn-deadline-header)
-  const hdrPlay     = document.getElementById('btn-adv-header');
-  const hdrEOY      = document.getElementById('btn-eoy-header');
-  const hdrDeadline = document.getElementById('btn-deadline-header');
-
-  // Deadline day detection
-  const ddInfo = typeof isDeadlineDay === 'function' ? isDeadlineDay(save) : { isDeadline: false };
-  const onDeadlineDay = !isEnd && ddInfo.isDeadline;
-  const windowLabel = ddInfo.window === 'summer' ? 'Summer' : 'Winter';
-
-  // Hide/show play vs deadline vs EOY
-  if (hdrPlay)     hdrPlay.style.display     = (!isEnd && !onDeadlineDay) ? 'flex' : 'none';
-  if (hdrEOY)      hdrEOY.style.display      = isEnd ? 'flex' : 'none';
-  if (hdrDeadline) hdrDeadline.style.display  = onDeadlineDay ? 'flex' : 'none';
-
-  // Wire play button (normal mode only)
-  if (hdrPlay && !isEnd && !onDeadlineDay) {
-    hdrPlay.disabled = false;
-    hdrPlay.textContent = '▶ Play Next Match';
-    hdrPlay.onclick = () => showPreMatchModal();
-  }
-  if (hdrEOY) {
-    hdrEOY.disabled = false;
-    hdrEOY.onclick = isEnd ? handleEndOfSeason : null;
-  }
-
-  // Wire deadline button
-  if (hdrDeadline && onDeadlineDay) {
-    const hoursUsed = save.deadlineHoursUsed || 0;
-    const hoursLeft = 10 - hoursUsed;
-    hdrDeadline.disabled = false;
-    hdrDeadline.onclick = null;
-
-    if (hoursLeft <= 0) {
-      // Already done all 10 — auto-close immediately on next render
-      _closeTransferWindow(ddInfo, hdrDeadline);
-      return;
-    }
-
-    hdrDeadline.textContent = `⏰ Skip One Hour (${hoursLeft} left)`;
-    hdrDeadline.onclick = async () => {
-      hdrDeadline.disabled = true;
-      hdrDeadline.textContent = '⏳ Simulating…';
-      try {
-        const sv = await getSave();
-        const used = sv.deadlineHoursUsed || 0;
-
-        // Run AI-to-AI transfers + generate inbound offers for user
-        const [deals, newOffers] = await Promise.all([
-          typeof simulateAITransfers === 'function' ? simulateAITransfers(sv) : Promise.resolve([]),
-          typeof generateAIOffers === 'function' ? generateAIOffers() : Promise.resolve([]),
-        ]);
-        const newUsed = used + 1;
-        await patchSave({ deadlineHoursUsed: newUsed });
-
-        // Toast summary
-        const parts = [];
-        if (deals.length)     parts.push(`${deals.length} AI deal${deals.length > 1 ? 's' : ''}`);
-        if (newOffers.length) parts.push(`${newOffers.length} offer${newOffers.length > 1 ? 's' : ''} for your players`);
-        if (parts.length) {
-          toast(`⏰ Hour ${newUsed}: ${parts.join(' · ')}!`, 'success', 5000);
-        } else {
-          toast(`⏰ Hour ${newUsed}: Quiet on the market. (${10 - newUsed} left)`, 'info', 3500);
-        }
-
-        // Inbox entry if deals happened
-        if (deals.length && typeof addNewsItem === 'function') {
-          const dealList = deals.slice(0, 5).map(d => `${d.playerName}: ${d.fromTeamName} → ${d.toTeamName}`).join('\n');
-          const extra = deals.length > 5 ? `\n…and ${deals.length - 5} more` : '';
-          await addNewsItem(_makeNewsItem('transfer_in',
-            `⏰ Deadline Day — Hour ${newUsed}`,
-            `${deals.length} deal${deals.length > 1 ? 's' : ''} completed:\n${dealList}${extra}`,
-            { gw: sv.currentGameweek, date: sv.currentDate, icon: '⏰' }));
-        }
-
-        if (newUsed >= 10) {
-          // All hours done — close the window automatically
-          toast('All deadline hours done. Closing transfer window…', 'info', 3000);
-          await new Promise(r => setTimeout(r, 1200));
-          await _closeTransferWindow(ddInfo, hdrDeadline);
-        } else {
-          hdrDeadline.disabled = false;
-          hdrDeadline.textContent = `⏰ Skip One Hour (${10 - newUsed} left)`;
-        }
-      } catch (err) {
-        console.error('Deadline hour error:', err);
-        toast('Error simulating deadline hour.', 'error');
-        hdrDeadline.disabled = false;
-        const sv2 = await getSave();
-        hdrDeadline.textContent = `⏰ Skip One Hour (${10 - (sv2.deadlineHoursUsed || 0)} left)`;
-      }
-    };
-  }
-
-  // ── Deadline day inbox + toast notification (fires once per deadline) ──
-  if (onDeadlineDay) {
-    const notifyKey = `deadlineDayNotified_${windowLabel}_${save.season}`;
-    if (!save[notifyKey]) {
-      await patchSave({ [notifyKey]: true, deadlineHoursUsed: save.deadlineHoursUsed || 0 });
-      toast(`⏰ Transfer Deadline Day! The ${windowLabel} window closes after 10 hours. Keep pressing "Skip One Hour" to simulate last-minute deals.`, 'info', 7000);
-      if (typeof addNewsItem === 'function') {
-        await addNewsItem(_makeNewsItem('transfer_in',
-          `⏰ ${windowLabel} Transfer Deadline Day`,
-          `The ${windowLabel} transfer window is about to close. Press "Skip One Hour" up to 10 times to simulate last-minute AI activity — deals and inbound offers for your players. The window closes automatically after all 10 hours.`,
-          { gw: save.currentGameweek, date: save.currentDate, icon: '⏰' }));
-      }
-    }
-  }
-
-  // Keep hidden fallback buttons (used by some paths) in sync too
-  const advBtn = document.getElementById('btn-adv');
-  const eoyBtn = document.getElementById('btn-eoy');
-  if (advBtn) { advBtn.disabled=onDeadlineDay; advBtn.onclick=null; if(!isEnd&&!onDeadlineDay) advBtn.onclick=()=>showPreMatchModal(); }
-  if (eoyBtn) { eoyBtn.disabled=false; eoyBtn.onclick=null; if(isEnd) eoyBtn.onclick=handleEndOfSeason; }
-}
-
-export async function renderCharts(){
-  const el=document.getElementById('h-charts');
-  if(!el) return;
-  const all=await getAllPlayers();
-  const sc=[...all].filter(p=>(p.goals||0)>0).sort((a,b)=>b.goals-a.goals).slice(0,7);
-  const as=[...all].filter(p=>(p.assists||0)>0).sort((a,b)=>b.assists-a.assists).slice(0,7);
-  const maxG=sc[0]?.goals||1, maxA=as[0]?.assists||1;
-  const bars=(arr,attr,color,max)=>arr.length
-    ?arr.map(p=>`<div class="cbl-row"><div class="cbl-name">${p.name}</div><div class="cbl-bw"><div class="cbl-b" style="width:${Math.round((p[attr]/max)*100)}%;background:${color}"></div></div><div class="cbl-v">${p[attr]}</div></div>`).join('')
-    :`<div class="no-data" style="padding:10px;font-size:11px">Play matches to see stats</div>`;
-  el.innerHTML=`
-    <div class="chart-card"><div class="chart-title">⚽ Top Scorers</div><div class="cbl">${bars(sc,'goals','linear-gradient(90deg,var(--acc),#7fff9a)',maxG)}</div></div>
-    <div class="chart-card"><div class="chart-title">🎯 Top Assists</div><div class="cbl">${bars(as,'assists','linear-gradient(90deg,#7c83e8,#b8bcf7)',maxA)}</div></div>`;
+  screenTicks.home++;
 }
 
 // ── SIMULATE ONE FIXTURE
