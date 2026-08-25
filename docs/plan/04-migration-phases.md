@@ -97,28 +97,61 @@ makes it the riskiest phase.
 
 ---
 
-## Phase 3 — Shell and first screen (~2 days)
+## Phase 3 — Shell and first screen (~2 days) — steps 1, 3 (partial), 4 done; 2/5/6 outstanding
 
 **Ships:** the Broadcast Kit identity, five-item bottom nav, one real screen.
 
-1. `src/app.css` — the `@theme` token block from `docs/design-system.md`.
-2. Build `src/lib/ui/` from the component inventory, against real data.
-3. `App.svelte`: context bar (crest / GW / budget), screen slot, bottom nav —
-   Home, Squad, **Play**, Transfers, League. Nine nav items become five; Tactics
-   moves under Squad, Academy and Trophies under Home, Inbox to the context bar.
-4. **Migrate League (`renderCompetitions`) first** — self-contained, and table rows
-   re-ordering on `animate:flip` after a gameweek is the demo that justifies the
-   rewrite.
-5. Everything else stays in a `<LegacyPanel>` wrapper hosting the old renderer.
-6. Add URL routing and switch `not_found_handling` to `single-page-application`.
+1. ✅ `src/app.css` — the `@theme` token block from `docs/design-system.md`.
+   **Landed without `@import "tailwindcss";`, so the Vite plugin never
+   processed it — every custom property in that block was dead on arrival.**
+   Fixed in the same change that built the first component that actually
+   needed one (theme.mjs's direct `--color-club` write papered over it until
+   then). Any future `@theme` edit should double-check the built CSS actually
+   contains a `:root` block, not a literal `@theme{...}` the browser ignores.
+2. ⏳ Not done. `src/lib/ui/` has `TabBar.svelte` and `LeagueScreen.svelte`
+   only — not yet the full component inventory (`02-design-system.md`).
+3. **Partial.** No `App.svelte` — no context bar (crest/GW/budget). Doing
+   that properly needs a height-calc audit across every legacy screen still
+   sized off `100vh` (`.home-outer`, `.squad-layout`, `.tactics-layout`,
+   `.trophies-layout`, `.set-layout`), since a persistent top bar eats into
+   all of them; blind edits there risk clipping content on screens this pass
+   couldn't visually re-verify one by one. ✅ Bottom nav done instead, as a
+   Svelte island (`TabBar.svelte`) mounted into `#tabbar-mount`, replacing
+   the static 9-item `<nav class="bot-nav">` — same CSS classes reused, so no
+   layout-math changes were needed for it. Nine → five, Play centred and
+   elevated (reuses the existing `#btn-adv-header` handler in
+   `home_transfers.js` rather than touching event-queue code). Tactics
+   (quick-link on Squad), Academy/Trophies (quick-links on Home), Settings/
+   Inbox (Home's header icons, existing `.ph-settings-btn`/`.ph-inbox-btn`,
+   widened from their old 480px-only breakpoint to 768px) are reachable but
+   not "in the context bar" as spec'd — no context bar exists yet. Desktop
+   sidebar (9 icons) is untouched.
+4. ✅ **League (`renderCompetitions`) migrated** — `src/lib/ui/LeagueScreen.svelte`,
+   mounted into `#screen-competitions`. Real Svelte markup and data-fetching
+   (no `innerHTML`), `animate:flip` on table-row reordering, Broadcast Kit
+   tokens throughout. `renderCompetitions` and its raw markup are deleted, not
+   wrapped — `src/validate.js`'s three checks that asserted on the old
+   function/markup were updated to check the new reality instead of deleted.
+5. ⏳ Not done — no `<LegacyPanel>` wrapper exists. The seven remaining
+   screens still mount straight off `src/ui/*.js`'s `registerScreen()` calls,
+   which is fine as-is (that's exactly Phase 4's per-screen recipe) but there's
+   no shared wrapper component abstracting it yet. Add one if a second or
+   third screen shows it'd actually save duplication — not preemptively.
+6. ⏳ Not done. No URL routing yet; `not_found_handling` is still whatever
+   Phase 0/1 set it to.
 
 **Watch:** the **Play** button pops one event off `save.pendingEvents` — it does
 not advance a gameweek. Get this wrong and cups and Europe silently stop working.
-Put a comment on it.
+The TabBar's Play button does not reimplement this: it navigates to Home and
+clicks the existing `#btn-adv-header`, so the queue logic never moved.
 
 ---
 
 ## Phase 4 — Screen by screen (~1 day each)
+
+League (`renderCompetitions`) moved in Phase 3 already — self-contained
+enough that it made more sense as the phase's proof-of-concept than as
+Phase 4's first row. Not re-listed below.
 
 | # | Screen | Legacy source | Notes |
 |---|---|---|---|

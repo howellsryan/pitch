@@ -877,14 +877,20 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .ph-inbox-btn{position:relative;width:36px;height:36px;border-radius:9px;border:1px solid var(--bdr);background:var(--sur2);color:var(--tx2);display:none;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .ph-inbox-btn:hover{background:var(--sur3);color:var(--tx)}
 .ph-inbox-badge{position:absolute;top:-4px;right:-4px;background:var(--acc3);color:#fff;font-size:9px;font-family:var(--fm);font-weight:700;min-width:16px;height:16px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 3px}
+@media(max-width:768px){
+  /* TabBar (src/lib/ui/TabBar.svelte) only carries 5 of the 9 legacy
+     screens — Settings and Inbox are reachable from Home's header instead
+     (docs/plan/02-design-system.md: "Inbox in the context bar ... Settings
+     under Home"), so their icon buttons need to show at the mobile
+     breakpoint, not just the narrowest phones. */
+  .ph-inbox-btn{display:flex}
+  .ph-settings-btn{display:flex}
+}
 @media(max-width:480px){
   .pm-matchup{grid-template-columns:1fr auto 1fr;gap:6px}
   .pm-crest{font-size:24px}
   .pm-tname{font-size:11px}
   .ph-play-btn{font-size:12px;padding:8px 14px}
-  .ph-inbox-btn{display:flex}
-  .ph-settings-btn{display:flex}
-  .bot-nav .bn[data-nav="settings"]{display:none}
 }
 
 /* ── WATCH MATCH MODAL ── */
@@ -1013,19 +1019,11 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   <div class="mgr-av" id="mgr-av">JD</div>
 </nav>
 
-<!-- MOBILE NAV -->
-<nav class="bot-nav">
-  <div class="bot-nav-inner">
-    <button class="bn" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></button>
-    <button class="bn" data-nav="squad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Squad</span></button>
-    <button class="bn" data-nav="tactics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>Tactics</span></button>
-    <button class="bn" data-nav="transfers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span>Transfers</span></button>
-    <button class="bn" data-nav="competitions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg><span>League</span></button>
-    <button class="bn" data-nav="trophies"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8m-4-4v4M5 3H3a1 1 0 0 0-1 1v5a6 6 0 0 0 6 6h8a6 6 0 0 0 6-6V4a1 1 0 0 0-1-1h-2M5 3V1m14 2V1"/><path d="M12 12v-2m-2 2h4"/></svg><span>Trophies</span></button>
-    <button class="bn" data-nav="academy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><span>Academy</span></button>
-    <button class="bn" data-nav="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></button>
-  </div>
-</nav>
+<!-- MOBILE NAV — Svelte TabBar (src/lib/ui/TabBar.svelte), mounted in main.js.
+     Nine legacy screens fold into five destinations here (Broadcast Kit,
+     docs/plan/02-design-system.md): Tactics/Academy/Trophies/Settings/Inbox
+     are reachable via quick-links on Home and Squad instead of a nav slot. -->
+<div id="tabbar-mount"></div>
 
 <div class="main">
   <!-- HOME -->
@@ -1037,6 +1035,8 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
           <button class="ph-play-btn" id="btn-adv-header">▶ Play Next Match</button>
           <button class="ph-eoy-btn" id="btn-eoy-header">🏆 Next Season →</button>
           <button class="ph-deadline-btn" id="btn-deadline-header" style="display:none">⏰ Skip One Hour</button>
+          <button class="btn btn-s" onclick="navigateTo('academy')">Academy</button>
+          <button class="btn btn-s" onclick="navigateTo('trophies')">Trophies</button>
         </div>
       </div>
       <div class="ph-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
@@ -1103,21 +1103,9 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
       </div>
   </div>
 
-  <!-- COMPETITIONS -->
-  <div class="screen" id="screen-competitions">
-    <div class="ph" style="flex-shrink:0"><div class="ph-left"><div class="pl">Competitions</div><div class="pt">League Table</div></div></div>
-    <div class="comp-layout">
-      <div class="comp-tbl">
-        <div class="comp-ph"><div class="comp-pt">Premier League 2025/26</div></div>
-        <div class="comp-inn">
-          <div class="full-hdr"><div>#</div><div>Club</div><div>P</div><div>W</div><div>D</div><div>L</div><div>GF</div><div>GA</div><div>GD</div><div>PTS</div><div>Form</div></div>
-          <div id="full-table"></div>
-        </div>
-        <div id="zone-legend" style="padding:6px 10px;border-top:1px solid var(--bdr)"></div>
-      </div>
-      <div class="res-side"><div class="comp-ph"><div class="comp-pt">Recent Results</div></div><div class="res-list" id="recent-res"></div></div>
-    </div>
-  </div>
+  <!-- COMPETITIONS — Phase 3's first real Svelte screen (src/lib/ui/LeagueScreen.svelte),
+       mounted in main.js. Replaces the legacy renderCompetitions() innerHTML entirely. -->
+  <div class="screen" id="screen-competitions"></div>
 
   <!-- CUPS / TROPHIES / HONOURS (merged screen) -->
   <div class="screen" id="screen-trophies">
@@ -1129,7 +1117,9 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 
   <!-- SQUAD -->
   <div class="screen" id="screen-squad" style="overflow:hidden;display:flex;flex-direction:column">
-    <div class="ph" style="flex-shrink:0"><div class="ph-left"><div class="pl">Squad Management</div><div class="pt">My Squad</div></div><div class="ph-right" id="sq-hdr"></div></div>
+    <div class="ph" style="flex-shrink:0"><div class="ph-left"><div class="pl">Squad Management</div><div class="pt">My Squad</div>
+      <div class="ph-left-actions"><button class="btn btn-s" onclick="navigateTo('tactics')">Tactics</button></div>
+    </div><div class="ph-right" id="sq-hdr"></div></div>
     <div id="sq-list" style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column"></div>
   </div>
 

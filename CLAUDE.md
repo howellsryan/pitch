@@ -19,13 +19,29 @@
   once that was settled. `footy-sim` still holds a copy from that point; this
   one is authoritative.)
 - **Where things stand right now**: Phase 0 (Workers), Phase 1 (portable build
-  + CI) and **Phase 2 (toolchain)** are done. `src/modules/`, `src/data/` and
-  `src/ui/` are **real ES modules**, built by **Vite**; Svelte 5 and Tailwind v4
-  are installed and configured, and the `@theme` tokens live in `src/app.css`.
-  **No Svelte component exists yet** — the UI is still the hand-written
-  `innerHTML` renderers in `src/ui/`, and Phase 3 (shell + first screen) has not
-  started. The club accent layer (`src/lib/theme.mjs`) landed early with Phase 2
-  and already drives the live UI.
+  + CI) and Phase 2 (toolchain) are done. **Phase 3 (shell + first screen) is
+  underway.** `src/lib/ui/TabBar.svelte` and `src/lib/ui/LeagueScreen.svelte`
+  are real Svelte 5 components, mounted as islands into the legacy shell from
+  `src/main.js` — the bottom nav is Svelte-rendered (9 legacy screens fold
+  into 5 destinations: Home, Squad, Play, Transfers, League; Tactics/Academy/
+  Trophies/Settings/Inbox are reachable via quick-links on Home and Squad
+  instead of their own nav slot), and League (`renderCompetitions`) is the
+  first fully-migrated screen — real Svelte markup and data-fetching, no
+  `innerHTML`, `animate:flip` on table reordering. Everything else in
+  `src/ui/` (Home, Squad, Transfers, Tactics, Academy, Trophies, Settings,
+  Inbox, watch-match) is still the hand-written `innerHTML` renderers,
+  per Phase 4's screen-by-screen table. **`src/app.css`'s `@theme` block
+  needed `@import "tailwindcss";` to actually work** — Phase 2 landed it
+  without that import, so the Vite plugin never processed it and none of
+  those custom properties existed at runtime until Phase 3's first Svelte
+  component surfaced it (theme.mjs's direct `--color-club` write worked
+  regardless, which is why it went unnoticed). The desktop sidebar (9 icons)
+  is untouched — the 5-tab regroup is mobile-first per the design spec, and a
+  persistent cross-screen context bar (crest/GW/budget) is deferred: it needs
+  a real height-calc audit across every legacy screen's `100vh`-based layout,
+  which wants its own pass rather than a blind one. The club accent layer
+  (`src/lib/theme.mjs`) landed early with Phase 2 and already drives the live
+  UI.
 - **Two build paths run side by side.** Vite builds the app; `src/build.py`'s
   concatenation survives *only* to feed `src/validate.js`, which asserts against
   the bundle's raw source text and cannot read a Vite bundle. Don't delete
@@ -89,7 +105,7 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | Hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS | Svelte 5 (runes) — **installed, no component written yet** |
+| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar and League are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + first screen done, seven more to go (Phase 4)** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |

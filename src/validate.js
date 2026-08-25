@@ -425,7 +425,11 @@ console.log('    '+reps.map((r,i)=>'Rep'+r+'=GBP'+(bgs[i]/1e6).toFixed(0)+'m').j
 // ══ 10. UI FUNCTIONS ═════════════════════════════════════════
 section('10. UI Functions');
 [
-  'renderHome','renderCharts','renderTransfers','renderCompetitions','renderCups',
+  // renderCompetitions isn't in this list. Phase 3 (docs/plan/04-migration-phases.md)
+  // moved League to src/lib/ui/LeagueScreen.svelte — a real Svelte component
+  // outside this concatenated bundle entirely, not a same-bundle rename, so
+  // there's no legacy identifier left here to check for.
+  'renderHome','renderCharts','renderTransfers','renderCups',
   'renderSquad','renderTactics','renderOffers','renderHonours','renderSettings',
   'renderNewGame','showMatchReport','showPreMatchModal','handleAdvanceOneFixture',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
@@ -444,9 +448,15 @@ chk('showOffersModal in bundle', code.includes('showOffersModal'));
 chk('screen-honours in HTML', shellSrc.includes('id="screen-honours"'));
 chk('screen-settings in HTML', shellSrc.includes('id="screen-settings"'));
 chk('sidebar nav present', shellSrc.includes('class="sidebar"'));
-chk('mobile bot-nav present', shellSrc.includes('class="bot-nav"'));
+// Phase 3 (docs/plan/04-migration-phases.md) replaces the static 9-item
+// bot-nav with src/lib/ui/TabBar.svelte, mounted at runtime into
+// #tabbar-mount — so shellSrc (the raw, pre-Svelte shell) no longer
+// contains literal bot-nav or nav-item markup to check.
+chk('mobile TabBar mount point present', shellSrc.includes('id="tabbar-mount"'));
 chk('Academy in desktop sidebar', (()=>{const sb=shellSrc.indexOf('class="sidebar"');return sb>-1&&shellSrc.indexOf('data-nav="academy"',sb)<sb+3000;})());
-chk('Academy in mobile bottom nav', (()=>{const bn=shellSrc.indexOf('<nav class="bot-nav">');return bn>-1&&shellSrc.indexOf('data-nav="academy"',bn)<bn+3000;})());
+// Nine screens fold into five TabBar destinations on mobile; Academy moves
+// to a quick-link on Home instead of its own nav slot (same plan doc).
+chk('Academy reachable from Home screen', (()=>{const h=shellSrc.indexOf('id="screen-home"');return h>-1&&shellSrc.indexOf("navigateTo('academy')",h)<h+4000;})());
 chk('showModal supports opts.wide', code.includes('opts.wide'));
 chk('showModal supports opts.noDismiss', code.includes('opts.noDismiss'));
 chk('modal-bd id used consistently', code.includes("'modal-bd'"));
