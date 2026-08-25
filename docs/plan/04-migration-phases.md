@@ -285,10 +285,43 @@ row in this table) had already made unreachable, since academy.js was its
 last consumer. Verified with `npm run build` (1172/1172 validator checks +
 Vite build clean), `npm run lint`, and a Playwright screenshot at 390×844.
 
+**Settings (`renderSettings`) migrated** — `src/lib/ui/SettingsScreen.svelte`,
+mounted into `#screen-settings`, real Svelte markup and data-fetching, no
+`innerHTML`. Save Data (export/import/reset/recalculate-potentials), About,
+Manager Trophies and Season History all carried over; export/import/reset
+became real bottom sheets (component-local state) in place of their three
+`showModal()` calls, matching Squad/Academy's precedent rather than keeping
+`showModal()` for a freshly-authored screen. The one real wrinkle: the
+export/import/reset buttons weren't wired inside `renderSettings()` itself —
+they were wired in `initUI()` (`src/ui/renderers.js`), which runs once at
+boot via `document.getElementById()` against shell.html's *static* markup.
+Once those buttons only exist once `SettingsScreen.svelte` mounts and
+renders them, a boot-time `getElementById()` in `initUI()` would sometimes
+find nothing (mount timing isn't guaranteed to precede `initUI()`, since
+`load()`'s data fetch is async) — so the wiring moved into the component
+too, not just the markup. `getAllSeasons`/`getHonorsForTeam`/
+`assignPotentials`/`getAllPlayers`/`putPlayersBulk`/`exportSaveFile`/
+`deleteDB` imports were dropped from `renderers.js` once nothing there used
+them any more (`importSaveFile`/`importSaveFromCode` stayed — the New Game
+screen's own import flow, untouched, still needs them). A stray fourth
+caller turned up during the build, not the initial read-through:
+`home_transfers.js`'s `handleEndOfSeason` called `renderSettings()`
+directly after an end-of-season roll-over to refresh the now-stale Season
+History/Manager Trophies data — became `screenTicks.settings++`, same
+pattern as `renderHome()`'s other imperative call sites. `src/validate.js`'s
+REG-27/REG-29 save export/import regression checks (about a dozen) were
+updated to read `settingsScreenSrc` instead of `shellSrc`/the bundle's
+`initUI` substring. Verified with `npm run build` (1171/1171 validator
+checks + Vite build clean), `npm run lint`, and a Playwright run driving
+the real flow — recalc potentials, export a real save code, open and
+cancel the import and reset sheets — end to end.
+
+**Phase 4 is now feature-complete except Transfers**, the biggest and most
+self-contained remaining screen.
+
 | # | Screen | Legacy source | Notes |
 |---|---|---|---|
 | 1 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
-| 2 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
 
 Per-screen recipe:
 

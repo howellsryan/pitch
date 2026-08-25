@@ -7,7 +7,6 @@ import { injuryDurationLabel } from '../modules/injuries.js';
 import { processEndOfSeason } from '../modules/season.js';
 import { advanceOneFixture } from '../modules/gameweek.js';
 import { fmt, formLabel, hideLoader, playerNationality, posGroup, showLoader, showModal, toast } from './helpers.js';
-import { renderSettings } from './renderers.js';
 import { _updateOffersBadge, openSquadPlayerModal, showOffersModal } from './squad_tactics_offers.js';
 import { newsMatchResult, newsPlayerSigned, newsPlayerSold, newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
@@ -281,7 +280,7 @@ export async function handleEndOfSeason(){
       const wks=newYouthCohort.filter(p=>p.isWonderkid).length;
       newsYouthIntake(newYouthCohort.length,wks,newSave).catch(()=>{});
     }
-    if(typeof renderSettings==='function') renderSettings().catch(()=>{});
+    screenTicks.settings++;
   }catch(err){
     hideLoader(); toast(`Error: ${err.message}`,'error'); console.error(err);
     const b=document.getElementById('btn-eoy'); if(b) b.disabled=false;

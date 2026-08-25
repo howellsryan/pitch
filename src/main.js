@@ -22,6 +22,7 @@ import SquadScreen from './lib/ui/SquadScreen.svelte';
 import TacticsScreen from './lib/ui/TacticsScreen.svelte';
 import AcademyScreen from './lib/ui/AcademyScreen.svelte';
 import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
+import SettingsScreen from './lib/ui/SettingsScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
 // these for their side effects is what starts the game. Order mirrors
@@ -64,3 +65,6 @@ if (academyMount) mount(AcademyScreen, { target: academyMount });
 
 const trophiesMount = document.getElementById('screen-trophies');
 if (trophiesMount) mount(TrophiesScreen, { target: trophiesMount });
+
+const settingsMount = document.getElementById('screen-settings');
+if (settingsMount) mount(SettingsScreen, { target: settingsMount });

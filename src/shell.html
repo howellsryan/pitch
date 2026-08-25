@@ -220,35 +220,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .sq-attr-bar{height:100%;border-radius:2px}
 .sq-attr-val{font-family:var(--fm);font-size:11px;font-weight:700;width:24px;text-align:right;flex-shrink:0}
 
-/* ── SETTINGS ── */
-.set-layout{height:calc(100vh - 80px);display:grid;grid-template-columns:300px 1fr 1fr;gap:13px;padding:14px 20px;overflow:hidden}
-.set-card{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:18px 20px;overflow:hidden;display:flex;flex-direction:column}
-.set-card-full{grid-column:1/-1}
-.set-title{font-family:var(--fd);font-size:18px;letter-spacing:1px;margin-bottom:12px;flex-shrink:0}
-.set-glbl{font-size:9px;color:var(--txd);font-family:var(--fm);letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;flex-shrink:0}
-.set-grp{margin-bottom:0;flex:1;min-height:0;display:flex;flex-direction:column}
-.set-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bdr);gap:12px}
-.set-row:last-child{border-bottom:none}
-.set-nm{font-size:13px;font-weight:500;margin-bottom:2px}
-.set-desc{font-size:11px;color:var(--tx2)}
-/* Left panel: stacked actions + about */
-.set-left{display:flex;flex-direction:column;gap:10px;overflow:hidden}
-.set-actions-card{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:16px 18px;flex-shrink:0}
-.set-about-card{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:16px 18px;flex:1;display:flex;flex-direction:column;justify-content:center}
-/* History panel fills right col */
-.set-history-card{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;overflow:hidden;height:100%}
-.season-hist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin-top:4px}
-.sh-row{background:var(--sur2);border-radius:8px;padding:9px 12px;font-size:12px;flex-shrink:0}
-.sh-season{font-family:var(--fd);font-size:14px;letter-spacing:.5px;margin-bottom:3px}
-.sh-detail{color:var(--tx2);font-size:11px}
-@media(max-width:768px){
-  #screen-settings{overflow-y:auto!important;display:block!important}
-  .set-layout{height:auto;grid-template-columns:1fr;overflow:visible;padding:10px 12px}
-  .set-left{overflow:visible}
-  .set-history-card{height:auto;max-height:300px}
-  .season-hist{max-height:200px}
-}
-
 /* ── MODAL ── */
 .modal-bd{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .25s;padding:0}
 .modal-bd.open{opacity:1}
@@ -331,7 +302,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes sUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(18,168,100,.3)}50%{box-shadow:0 0 0 4px rgba(18,168,100,.1)}}
-.tr-layout>*,.comp-layout>*,.set-layout>*{animation:sUp .35s ease both}
+.tr-layout>*,.comp-layout>*{animation:sUp .35s ease both}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
@@ -359,7 +330,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   /* Ensure scrollable screens can reach their last content item */
   .screen{padding-bottom:10px}
   /* Inner scroll containers in flex-column screens */
-  .pl-list,.comp-inn,.res-list,.set-grp,.comp-layout{padding-bottom:10px}
+  .pl-list,.comp-inn,.res-list,.comp-layout{padding-bottom:10px}
   .full-hdr,.full-row{display:grid;grid-template-columns:18px 1fr 26px 30px 1fr;gap:4px;padding:6px 8px;width:100%;box-sizing:border-box}
   .full-hdr>*:nth-child(4),.full-hdr>*:nth-child(5),.full-hdr>*:nth-child(6),
   .full-hdr>*:nth-child(7),.full-hdr>*:nth-child(8),.full-hdr>*:nth-child(9),
@@ -694,59 +665,9 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   <!-- INBOX -->
   <div class="screen" id="screen-inbox"></div>
 
-  <!-- SETTINGS -->
-  <div class="screen" id="screen-settings">
-    <div class="set-layout">
-
-      <!-- Left col: save actions + about -->
-      <div class="set-left">
-        <div class="set-actions-card">
-          <div class="set-title">Save Data</div>
-          <div class="set-glbl">Manage Career</div>
-          <div class="set-row">
-            <div><div class="set-nm">Export Save</div><div class="set-desc">Download your career to a .pitch file</div></div>
-            <button class="btn btn-p" id="btn-export-save" style="white-space:nowrap;flex-shrink:0">💾 Export</button>
-          </div>
-          <div class="set-row">
-            <div><div class="set-nm">Import Save</div><div class="set-desc">Load a .pitch file to resume a career</div></div>
-            <button class="btn btn-s" id="btn-import-save" style="white-space:nowrap;flex-shrink:0">📂 Import</button>
-            <input type="file" id="import-save-input" accept=".pitch" style="display:none">
-          </div>
-          <div class="set-row">
-            <div><div class="set-nm">New Game</div><div class="set-desc">Reset all progress and choose a new team</div></div>
-            <button class="btn btn-d" id="btn-reset" style="white-space:nowrap;flex-shrink:0">Reset</button>
-          </div>
-          <div class="set-row">
-            <div><div class="set-nm">Recalculate Potentials</div><div class="set-desc">Refresh all player potential ratings using the latest formula — fixes saves from earlier versions</div></div>
-            <button class="btn btn-s" id="btn-recalc-potentials" style="white-space:nowrap;flex-shrink:0">🔄 Recalculate</button>
-          </div>
-        </div>
-        <div class="set-about-card">
-          <div class="set-title">About</div>
-          <div style="font-family:var(--fd);font-size:32px;color:var(--acc);letter-spacing:4px;margin-bottom:6px">PITCH</div>
-          <div style="font-size:12px;color:var(--tx2);line-height:1.8">Football Career Simulator · v3.5</div>
-          <div style="font-size:11px;color:var(--txd);margin-top:8px;line-height:1.8">
-            PL · Championship · League One · League Two<br>
-            La Liga · Bundesliga · Serie A · Ligue 1 · Eredivisie<br>
-            Cup competitions · Youth academy · Multi-season
-          </div>
-        </div>
-      </div>
-
-      <!-- Middle col: manager trophy cabinet -->
-      <div class="set-history-card">
-        <div class="set-title">Manager Trophies</div>
-        <div id="manager-trophies" class="season-hist"><div class="no-data">Loading…</div></div>
-      </div>
-
-      <!-- Right col: season history -->
-      <div class="set-history-card">
-        <div class="set-title">Season History</div>
-        <div id="season-history" class="season-hist"><div class="no-data">No completed seasons yet.</div></div>
-      </div>
-
-    </div>
-  </div>
+  <!-- SETTINGS — src/lib/ui/SettingsScreen.svelte, mounted in main.js (Phase 4,
+       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
+  <div class="screen" id="screen-settings"></div>
 </div><!-- .main -->
 </div><!-- #app -->
 

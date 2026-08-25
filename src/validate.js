@@ -15,6 +15,7 @@ const HOME_SCREEN = path.join(__dirname, 'lib', 'ui', 'HomeScreen.svelte');
 const SQUAD_SCREEN = path.join(__dirname, 'lib', 'ui', 'SquadScreen.svelte');
 const TACTICS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TacticsScreen.svelte');
 const ACADEMY_SCREEN = path.join(__dirname, 'lib', 'ui', 'AcademyScreen.svelte');
+const SETTINGS_SCREEN = path.join(__dirname, 'lib', 'ui', 'SettingsScreen.svelte');
 if (!fs.existsSync(BUNDLE)) { console.error('Bundle not found: '+BUNDLE+' — run src/build.py first, or set PITCH_BUNDLE.'); process.exit(1); }
 
 const GLOBALS = `
@@ -35,6 +36,7 @@ const homeScreenSrc = require('fs').readFileSync(${JSON.stringify(HOME_SCREEN)},
 const squadScreenSrc = require('fs').readFileSync(${JSON.stringify(SQUAD_SCREEN)},'utf8');
 const tacticsScreenSrc = require('fs').readFileSync(${JSON.stringify(TACTICS_SCREEN)},'utf8');
 const academyScreenSrc = require('fs').readFileSync(${JSON.stringify(ACADEMY_SCREEN)},'utf8');
+const settingsScreenSrc = require('fs').readFileSync(${JSON.stringify(SETTINGS_SCREEN)},'utf8');
 let pass=0,fail=0;
 const failures=[];
 let sec='';
@@ -450,14 +452,15 @@ section('10. UI Functions');
   // data-fetching along with the rest of Home. renderHome IS still checked:
   // it survives as a thin bridge (bumps the tick HomeScreen.svelte watches)
   // because prematch.js/watchmatch.js/squad_tactics_offers.js still call it.
-  // renderSquad, renderTactics, renderAcademy, renderTrophies aren't either —
-  // Phase 4 moved them to src/lib/ui/SquadScreen.svelte, TacticsScreen.svelte,
-  // AcademyScreen.svelte and TrophiesScreen.svelte, same reasoning. renderCups
+  // renderSquad, renderTactics, renderAcademy, renderTrophies and
+  // renderSettings aren't either — Phase 4 moved them to
+  // src/lib/ui/SquadScreen.svelte, TacticsScreen.svelte, AcademyScreen.svelte,
+  // TrophiesScreen.svelte and SettingsScreen.svelte, same reasoning. renderCups
   // and renderHonours were only ever aliases kept to satisfy this exact check
   // list, with no other callers — deleted alongside renderTrophies rather than
   // kept as now-pointless indirection.
   'renderHome','renderTransfers',
-  'renderOffers','renderSettings',
+  'renderOffers',
   'renderNewGame','showMatchReport','showPreMatchModal','handleAdvanceOneFixture',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
   'showLoader','hideLoader','boot',
@@ -1424,9 +1427,12 @@ chk('REG: import validates snapshot has players', importSrc.includes('snapshot.p
 chk('REG: import deletes old DB before restore', importSrc.includes('deleteDatabase'));
 
 // --- REG-27: UI elements present ---
-chk('REG: export button in HTML', shellSrc.includes('btn-export-save'));
-chk('REG: import button in HTML', shellSrc.includes('btn-import-save'));
-chk('REG: file input for import in HTML', shellSrc.includes('import-save-input'));
+// Phase 4 (docs/plan/04-migration-phases.md) moved the Settings screen's
+// export/import buttons into src/lib/ui/SettingsScreen.svelte, out of
+// shell.html's static markup — same reasoning as the other *ScreenSrc reads.
+chk('REG: export button in SettingsScreen.svelte', settingsScreenSrc.includes('openExport'));
+chk('REG: import button in SettingsScreen.svelte', settingsScreenSrc.includes('openImport'));
+chk('REG: file input for import in SettingsScreen.svelte', settingsScreenSrc.includes('type="file"'));
 chk('REG: file input accepts .pitch', shellSrc.includes('.pitch'));
 chk('REG: new game screen has import button', shellSrc.includes('btn-import-ng'));
 chk('REG: new game screen has file input', shellSrc.includes('import-save-ng'));
@@ -1437,13 +1443,16 @@ chk('REG: export produces saveCode string', exportSrc.includes('saveCode'));
 chk('REG: export uses Web Share API for mobile', exportSrc.includes('navigator.share') || exportSrc.includes('canShare'));
 chk('REG: export uses base64 encoding', exportSrc.includes('btoa'));
 
-// --- REG-29: Import wired in initUI ---
-const initSrc = (()=>{const s=code.indexOf('function initUI');return s>-1?code.slice(s,s+8000):'';})();
-chk('REG: initUI wires export button', initSrc.includes('btn-export-save') || initSrc.includes('btn-save-home'));
-chk('REG: initUI wires import button', initSrc.includes('btn-import-save') || initSrc.includes('btn-load-home'));
-chk('REG: import shows save code textarea', initSrc.includes('save-code-input'));
-chk('REG: export shows save code output', initSrc.includes('save-code-output'));
-chk('REG: export has copy to clipboard', initSrc.includes('clipboard.writeText') || initSrc.includes('execCommand'));
+// --- REG-29: Import/export wired in SettingsScreen.svelte ---
+// initUI() (src/ui/renderers.js) used to wire these directly against static
+// shell.html elements at boot time; Phase 4 moved the wiring into the
+// component itself (querying its own dynamically-rendered elements would
+// have raced boot-time initUI(), see the comment above renderNewGame there).
+chk('REG: SettingsScreen wires export', settingsScreenSrc.includes('exportSaveFile'));
+chk('REG: SettingsScreen wires import', settingsScreenSrc.includes('importSaveFromCode') && settingsScreenSrc.includes('importSaveFile'));
+chk('REG: import shows save code textarea', settingsScreenSrc.includes('save-code-input'));
+chk('REG: export shows save code output', settingsScreenSrc.includes('save-code-output'));
+chk('REG: export has copy to clipboard', settingsScreenSrc.includes('clipboard.writeText'));
 
 // ══ REGRESSION: Promotion, Relegation & Playoffs ═══════════════
 section('Regression: Promotion, Relegation & Playoffs');
