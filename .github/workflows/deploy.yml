@@ -1,4 +1,4 @@
-name: Build, validate, and deploy
+name: Build and validate
 
 on:
   push:
@@ -10,8 +10,14 @@ jobs:
   # Runs on every push and PR. Both build paths are exercised: build.py's
   # concatenation (which runs validate.js's 1180 checks) and the Vite build,
   # plus lint, the club-accent contrast floor, and a Playwright career smoke
-  # test. Deploy still ships the legacy index.html — switching the Worker to
-  # dist/ is a separate, deliberate step.
+  # test.
+  #
+  # This workflow does NOT deploy. Cloudflare Workers Builds is connected to
+  # this repo and owns both production deploys and per-branch previews —
+  # having both systems deploy the same Worker races them against each other.
+  # Its build command is `npm ci && npm run build:app`, which deliberately
+  # skips build:legacy: that path exists only to feed validate.js, it is
+  # gated here, and it needs python3 in the build image.
   build:
     runs-on: ubuntu-latest
     steps:
@@ -41,40 +47,10 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
 
+      # Kept for debugging — the legacy single-file build, downloadable from
+      # the run. Nothing deploys from it.
       - uses: actions/upload-artifact@v4
         with:
           name: index.html
           path: index.html
           retention-days: 7
-
-  # Pushes to main go live at pitch-sim.com (once the custom domain is
-  # attached — see docs/plan/03-cloudflare-workers.md, Phase 0).
-  deploy:
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: index.html
-      - run: npx wrangler@4 deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-  # Every other push and PR gets its own preview URL, without touching
-  # production traffic. Open it on a phone before merging.
-  preview:
-    needs: build
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: index.html
-      - run: npx wrangler@4 versions upload
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

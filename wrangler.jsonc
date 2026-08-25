@@ -1,15 +1,19 @@
 // Cloudflare Workers config for pitch-sim.com.
 //
-// Phase 0 of the rebuild plan (docs/plan/03-cloudflare-workers.md in
-// howellsryan/footy-sim): serves the repo root exactly as GitHub Pages does
-// today, so the game goes live on Workers unchanged before anything is
-// rewritten. Phase 2 replaces "directory": "./" with a real Vite build output
-// once the toolchain lands.
+// Serves the Vite build (Phase 2). Cloudflare Workers Builds is connected to
+// the GitHub repo and runs `npm ci && npm run build:app` to produce dist/,
+// then `npx wrangler deploy` — so this directory must match Vite's outDir in
+// vite.config.ts. Non-production branches get `wrangler versions upload`
+// instead, which is the phone-testable preview URL.
+//
+// Note: .assetsignore is read from the assets directory, so the one at the
+// repo root no longer applies. It doesn't need to: dist/ contains only build
+// output, so src/, docs/ and repo tooling can't leak into the served site.
 {
 	"name": "pitch",
 	"compatibility_date": "2026-08-24",
 	"assets": {
-		"directory": "./",
+		"directory": "./dist",
 		"not_found_handling": "404-page"
 	},
 	"observability": {
