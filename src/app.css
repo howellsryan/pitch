@@ -9,10 +9,22 @@
  * still carries the live styling and its own --acc family; src/lib/theme.mjs
  * sets both this --color-club token and those legacy vars, so the club
  * accent works on today's screens and on the Phase 3 ones without a flag day.
+ *
+ * `@theme` alone only emits a `:root` custom property for a token Tailwind's
+ * scanner sees referenced by an actual utility class (e.g. `bg-surface`).
+ * Every screen here consumes these purely as raw `var(--color-surface)`
+ * inside a component's own <style> block, which the scanner can't see as
+ * "used" — so every token except --font-mono (a name Tailwind already ships
+ * a built-in default for) was silently absent from :root, and anything that
+ * referenced one fell back to the property's CSS-initial value (background:
+ * var(--color-surface) → transparent). `@theme static` forces Tailwind to
+ * emit the whole block regardless of scanned usage — found via a real
+ * getComputedStyle() check that came up empty on a Squad-screen bottom sheet
+ * that should have been opaque, not by inspecting the built CSS on faith.
  */
 @import "tailwindcss";
 
-@theme {
+@theme static {
   --color-ground:  #0A0E14;
   --color-surface: #131A23;
   --color-raised:  #1C2530;

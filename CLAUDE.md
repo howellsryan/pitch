@@ -23,34 +23,65 @@
   blocking pieces are done — a couple of its steps stay deliberately deferred
   (see `docs/plan/04-migration-phases.md`'s Phase 3 section: no context bar,
   no `<LegacyPanel>`, no URL routing) — and Phase 4 (screen-by-screen) is
-  underway.** `src/lib/ui/TabBar.svelte`,
-  `src/lib/ui/LeagueScreen.svelte` and `src/lib/ui/HomeScreen.svelte` are real
-  Svelte 5 components, mounted as islands into the legacy shell from
+  underway: League, Home, Squad and Tactics are migrated; Transfers, Academy,
+  Trophies and Settings are still legacy.** `src/lib/ui/TabBar.svelte`,
+  `src/lib/ui/LeagueScreen.svelte`, `src/lib/ui/HomeScreen.svelte`,
+  `src/lib/ui/SquadScreen.svelte` and `src/lib/ui/TacticsScreen.svelte` are
+  real Svelte 5 components, mounted as islands into the legacy shell from
   `src/main.js` — the bottom nav is Svelte-rendered (9 legacy screens fold
   into 5 destinations: Home, Squad, Play, Transfers, League; Tactics/Academy/
   Trophies/Settings/Inbox are reachable via quick-links on Home and Squad
-  instead of their own nav slot), and League (`renderCompetitions`) and Home
-  (`renderHome`) are the two fully-migrated screens — real Svelte markup and
-  data-fetching, no `innerHTML`; League has `animate:flip` on table
-  reordering, Home owns the Play/EOY/Deadline-day header flow (the
-  `id="btn-adv-header"` button stays put specifically so TabBar's Play button
-  and prematch.js's disable-during-sim logic keep finding it by id).
+  instead of their own nav slot), and League (`renderCompetitions`), Home
+  (`renderHome`), Squad (`renderSquad`) and Tactics (`renderTactics`) are the
+  four fully-migrated screens — real Svelte markup and data-fetching, no
+  `innerHTML`; League has `animate:flip` on table reordering, Home owns the
+  Play/EOY/Deadline-day header flow (the `id="btn-adv-header"` button stays
+  put specifically so TabBar's Play button and prematch.js's disable-during-
+  sim logic keep finding it by id), Squad uses a real bottom sheet for player
+  detail (its own, not `showModal()`) with two-line rows and one large
+  rating per the design spec, and Tactics keeps the full-screen pitch graphic
+  and tap-to-swap bottom sheet, formation/mentality as dropdowns.
+  `openSquadPlayerModal` stays in `src/ui/squad_tactics_offers.js` as legacy —
+  it's still called from the not-yet-migrated Transfers screen as a generic
+  player-detail modal, independent of the squad list it used to render
+  alongside; `showOffersModal`/`_updateOffersBadge`/`renderOffers`/
+  `renderCups` stay there too, all Transfers- or Trophies-owned, not Squad's.
   `renderHome` itself is now just a thin bridge (`screenTicks.home++`) kept
   around because prematch.js/watchmatch.js/squad_tactics_offers.js still call
   it imperatively; `handleEndOfSeason`/`showMatchReport` stay legacy in
   `src/ui/home_transfers.js` since they build `showModal()` sheets, not
-  screen content. Everything else in `src/ui/` (Squad, Transfers, Tactics,
-  Academy, Trophies, Settings, Inbox, watch-match) is still the hand-written
-  `innerHTML` renderers, per Phase 4's screen-by-screen table. **`src/app.css`'s `@theme` block
-  needed `@import "tailwindcss";` to actually work** — Phase 2 landed it
-  without that import, so the Vite plugin never processed it and none of
-  those custom properties existed at runtime until Phase 3's first Svelte
-  component surfaced it (theme.mjs's direct `--color-club` write worked
-  regardless, which is why it went unnoticed). The desktop sidebar (9 icons)
-  is untouched — the 5-tab regroup is mobile-first per the design spec, and a
-  persistent cross-screen context bar (crest/GW/budget) is deferred: it needs
-  a real height-calc audit across every legacy screen's `100vh`-based layout,
-  which wants its own pass rather than a blind one. The club accent layer
+  screen content. Everything else in `src/ui/` (Transfers, Academy, Trophies,
+  Settings, Inbox, watch-match) is still the hand-written `innerHTML`
+  renderers, per Phase 4's screen-by-screen table. **`src/app.css`'s `@theme`
+  block needed two separate fixes before it worked at runtime, not one.**
+  Phase 2 landed it without `@import "tailwindcss";`, so the Vite plugin
+  never processed it at all — fixed when Phase 3's first Svelte component
+  needed it. That fix alone wasn't enough: plain `@theme { … }` only emits a
+  `:root` custom property for a token Tailwind's scanner sees referenced by
+  an actual utility class (`bg-surface`, say) — every screen here consumes
+  these tokens purely as raw `var(--color-surface)` inside a component's own
+  `<style>` block, which the scanner never counts as "used", so every token
+  except `--font-mono` (a name Tailwind already ships a built-in default for)
+  was silently absent from `:root` and anything referencing one fell back to
+  the property's CSS-initial value — `background: var(--color-surface)`
+  quietly became `transparent`. League and Home had shipped with this bug
+  live (their cards just read as slightly flat, easy to miss); it surfaced
+  when Squad's bottom sheet rendered fully see-through and a
+  `getComputedStyle()` check showed `--color-surface` empty even at `:root`.
+  Fixed by switching to `@theme static { … }`, which forces Tailwind to emit
+  the whole block regardless of scanned usage — verified by checking the
+  built CSS's `:root,:host{…}` rule actually lists all twelve color/font
+  tokens now, not just the one Tailwind already knew. theme.mjs's direct
+  `--color-club` write on `documentElement.style` was never affected either
+  way, since it's an inline style, not a stylesheet rule — which is why nothing
+  caught this sooner. **When building a new screen, verify a background/
+  border/color token actually renders opaque in a real screenshot before
+  calling the screen done — don't infer it from the component's own CSS
+  reading correctly.** The desktop sidebar (9 icons) is untouched — the
+  5-tab regroup is mobile-first per the design spec, and a persistent
+  cross-screen context bar (crest/GW/budget) is deferred: it needs a real
+  height-calc audit across every legacy screen's `100vh`-based layout, which
+  wants its own pass rather than a blind one. The club accent layer
   (`src/lib/theme.mjs`) landed early with Phase 2 and already drives the live
   UI.
 - **Two build paths run side by side.** Vite builds the app; `src/build.py`'s
@@ -116,7 +147,7 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar, League and Home are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + two screens done, six more to go (Phase 4)** |
+| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar, League, Home, Squad and Tactics are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + four screens done, four more to go (Phase 4)** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |

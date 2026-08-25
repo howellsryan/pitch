@@ -18,6 +18,8 @@ import { navigateTo } from './ui/helpers.js';
 import TabBar from './lib/ui/TabBar.svelte';
 import LeagueScreen from './lib/ui/LeagueScreen.svelte';
 import HomeScreen from './lib/ui/HomeScreen.svelte';
+import SquadScreen from './lib/ui/SquadScreen.svelte';
+import TacticsScreen from './lib/ui/TacticsScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
 // these for their side effects is what starts the game. Order mirrors
@@ -49,3 +51,9 @@ if (leagueMount) mount(LeagueScreen, { target: leagueMount });
 
 const homeMount = document.getElementById('screen-home');
 if (homeMount) mount(HomeScreen, { target: homeMount });
+
+const squadMount = document.getElementById('screen-squad');
+if (squadMount) mount(SquadScreen, { target: squadMount });
+
+const tacticsMount = document.getElementById('screen-tactics');
+if (tacticsMount) mount(TacticsScreen, { target: tacticsMount });

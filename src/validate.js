@@ -12,6 +12,8 @@ const SHELL  = process.env.PITCH_SHELL  || path.join(__dirname, 'shell.html');
 // component (Phase 4, docs/plan/04-migration-phases.md) and is no longer in
 // shell.html's raw source — same reasoning as shellSrc, just a second file.
 const HOME_SCREEN = path.join(__dirname, 'lib', 'ui', 'HomeScreen.svelte');
+const SQUAD_SCREEN = path.join(__dirname, 'lib', 'ui', 'SquadScreen.svelte');
+const TACTICS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TacticsScreen.svelte');
 if (!fs.existsSync(BUNDLE)) { console.error('Bundle not found: '+BUNDLE+' — run src/build.py first, or set PITCH_BUNDLE.'); process.exit(1); }
 
 const GLOBALS = `
@@ -29,6 +31,8 @@ const TESTS = `
 const code = ${JSON.stringify(fs.readFileSync(BUNDLE,'utf8'))};
 const shellSrc = require('fs').readFileSync(${JSON.stringify(SHELL)},'utf8');
 const homeScreenSrc = require('fs').readFileSync(${JSON.stringify(HOME_SCREEN)},'utf8');
+const squadScreenSrc = require('fs').readFileSync(${JSON.stringify(SQUAD_SCREEN)},'utf8');
+const tacticsScreenSrc = require('fs').readFileSync(${JSON.stringify(TACTICS_SCREEN)},'utf8');
 let pass=0,fail=0;
 const failures=[];
 let sec='';
@@ -444,8 +448,10 @@ section('10. UI Functions');
   // data-fetching along with the rest of Home. renderHome IS still checked:
   // it survives as a thin bridge (bumps the tick HomeScreen.svelte watches)
   // because prematch.js/watchmatch.js/squad_tactics_offers.js still call it.
+  // renderSquad and renderTactics aren't either — Phase 4 moved them to
+  // src/lib/ui/SquadScreen.svelte and TacticsScreen.svelte, same reasoning.
   'renderHome','renderTransfers','renderCups',
-  'renderSquad','renderTactics','renderOffers','renderHonours','renderSettings',
+  'renderOffers','renderHonours','renderSettings',
   'renderNewGame','showMatchReport','showPreMatchModal','handleAdvanceOneFixture',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
   'showLoader','hideLoader','boot',
@@ -1089,10 +1095,11 @@ chk('simulateMatch returns homeMentality', mRes.homeMentality === 'attacking');
 chk('simulateMatch returns awayMentality', mRes.awayMentality === 'defensive');
 // save.js mentality default
 chk('mentality key in save state (via startNewGame logic)', typeof startNewGame === 'function');
-// UI: mentality-pill buttons present in tactics HTML
-chk('mentality-pill class used in squad_tactics_offers', code.includes('mentality-pill'));
-chk('data-mentality attribute in tactics', code.includes('data-mentality'));
-chk('MENTALITIES array in renderTactics', code.includes('MENTALITIES'));
+// UI: mentality picker present in TacticsScreen.svelte (Phase 4 moved
+// renderTactics's markup there — same reasoning as the homeScreenSrc checks).
+chk('mentality picker wired in TacticsScreen.svelte', tacticsScreenSrc.includes('pickMentality'));
+chk('mentality saved via putSave in TacticsScreen.svelte', tacticsScreenSrc.includes('mentality: m.id'));
+chk('MENTALITIES array in TacticsScreen.svelte', tacticsScreenSrc.includes('MENTALITIES'));
 // Pre-match modal shows mentality
 chk('mentality shown in pre-match modal', code.includes('mentality') && code.includes('pm-section'));
 
@@ -1740,7 +1747,7 @@ chk('INJ: match report shows injury events', code.includes("e.type==='injury'") 
 chk('INJ: recovery toast shown (green)', code.includes("is fit and available again"));
 chk('INJ: injury toast shown on match result', code.includes("injuryGWsLeft ?? 1"));
 chk('INJ: injuryBlock in match report modal', code.includes('injuryBlock'));
-chk('INJ: squad screen shows INJ badge', code.includes('inj-badge') && code.includes('sq-row-inj'));
+chk('INJ: squad screen shows INJ badge', squadScreenSrc.includes('sq-inj-badge') && squadScreenSrc.includes('is-injured'));
 chk('INJ: pm-xi-inj CSS for injured in lineup preview', code.includes('pm-xi-inj'));
 chk('INJ: wm-bench-injured CSS defined in shell', shellSrc.includes('wm-bench-injured'));
 

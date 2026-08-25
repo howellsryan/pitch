@@ -185,14 +185,58 @@ clean), `npm run lint`, `npm run check:accents` (186/186), `npm run
 test:e2e` (6/6), plus manual screenshots at 390×844 — same pattern as
 League's Phase 3 verification, not a committed per-screen Playwright spec.
 
+**Squad (`renderSquad`) and Tactics (`renderTactics`) migrated** —
+`src/lib/ui/SquadScreen.svelte` (mounted into `#screen-squad`) and
+`src/lib/ui/TacticsScreen.svelte` (mounted into `#screen-tactics`), both real
+Svelte markup and data-fetching, no `innerHTML`. Squad: the old 11-column
+desktop grid became two-line rows (rating, position, name/badges on line
+one; age/fitness/potential on line two) with one large rating, per the
+design spec — tapping a row opens a real bottom sheet (component-local
+`$state`, not `showModal()`) with position-specific attribute bars and stat
+cards, ported from `openSquadPlayerModal`'s layout logic but rebuilt as
+markup instead of an HTML-string template. `openSquadPlayerModal` itself
+stays in `squad_tactics_offers.js` as legacy, unmodified — the not-yet-
+migrated Transfers screen still calls it directly as a generic player-detail
+modal, so deleting it wasn't this screen's call to make; its two
+`renderSquad()` refresh calls became `screenTicks.squad++` instead.
+`handleSquadAction` (squad-list-only) was deleted outright along with
+`renderSquad`, matching the recipe's step 3. Tactics: the full-screen pitch
+graphic, all 13 formations, the four mentalities and tap-to-swap bottom
+sheet all carried over; the formation-group/slot-position/swap-candidate-
+scoring logic is layout data and categorisation, not simulation math, so it
+stayed inline in the component rather than moving to `src/game/` — nothing
+in either screen turned out to be exportable game logic per step 2. Both
+screens' `registerScreen()` entries in `renderers.js` became
+`screenTicks.squad++`/`screenTicks.tactics++`, same pattern as League and
+Home. `src/validate.js` gained `squadScreenSrc`/`tacticsScreenSrc` reads
+alongside `homeScreenSrc`; checks that asserted on the old bundle-string
+markup (`MENTALITIES`, the mentality-picker wiring, the squad INJ-badge
+classes) were repointed at the new component sources instead of deleted.
+**Found and fixed in the same pass, not scope creep:** `src/shell.html` had
+~180 lines of now-dead Squad/Tactics CSS left behind — including a
+`.tac-dd-list{opacity:0}` rule from the old vanilla-JS dropdown (which
+toggled a `.open` class the new component never adds) that silently made
+the formation/mentality dropdowns invisible, and a `.sheet{background:...}`
+collision was never at risk because that class name wasn't reused, but
+`.inj-badge`/`.listed-badge` were — `openSquadPlayerModal` and the Transfers
+buy-list still use those globally-styled classes, so SquadScreen.svelte's
+own versions were renamed `sq-inj-badge`/`sq-listed-badge`/`sq-wonderkid-tag`
+rather than colliding. Deleting shell.html's dead rules turned up a second,
+much bigger bug in the same verification pass — see §0's `@theme static`
+note in `CLAUDE.md`; `src/app.css` was fixed in this same change since
+Squad's bottom sheet rendering fully transparent is what surfaced it.
+Verified with `npm run build` (1176/1176 validator checks + Vite build
+clean), `npm run lint`, and Playwright screenshots at 390×844 driving the
+real flow (open a player sheet, toggle squad/list status, change formation,
+open the swap sheet, swap a player) — same pattern as Home's Phase 4
+verification, not a committed per-screen Playwright spec.
+
 | # | Screen | Legacy source | Notes |
 |---|---|---|---|
-| 1 | **Squad** | `ui/squad_tactics_offers.js` `renderSquad` | 11-column grid → two-line rows |
-| 2 | **Tactics** | same file, `renderTactics` | Pitch graphic, 7 formations, mentality. Tap-to-swap, not drag |
-| 3 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
-| 4 | **Academy** | `ui/academy.js` | Smallest. Youth intake cards |
-| 5 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
-| 6 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
+| 1 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
+| 2 | **Academy** | `ui/academy.js` | Smallest. Youth intake cards |
+| 3 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
+| 4 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
 
 Per-screen recipe:
 
