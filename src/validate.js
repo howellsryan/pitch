@@ -14,6 +14,7 @@ const SHELL  = process.env.PITCH_SHELL  || path.join(__dirname, 'shell.html');
 const HOME_SCREEN = path.join(__dirname, 'lib', 'ui', 'HomeScreen.svelte');
 const SQUAD_SCREEN = path.join(__dirname, 'lib', 'ui', 'SquadScreen.svelte');
 const TACTICS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TacticsScreen.svelte');
+const ACADEMY_SCREEN = path.join(__dirname, 'lib', 'ui', 'AcademyScreen.svelte');
 if (!fs.existsSync(BUNDLE)) { console.error('Bundle not found: '+BUNDLE+' — run src/build.py first, or set PITCH_BUNDLE.'); process.exit(1); }
 
 const GLOBALS = `
@@ -33,6 +34,7 @@ const shellSrc = require('fs').readFileSync(${JSON.stringify(SHELL)},'utf8');
 const homeScreenSrc = require('fs').readFileSync(${JSON.stringify(HOME_SCREEN)},'utf8');
 const squadScreenSrc = require('fs').readFileSync(${JSON.stringify(SQUAD_SCREEN)},'utf8');
 const tacticsScreenSrc = require('fs').readFileSync(${JSON.stringify(TACTICS_SCREEN)},'utf8');
+const academyScreenSrc = require('fs').readFileSync(${JSON.stringify(ACADEMY_SCREEN)},'utf8');
 let pass=0,fail=0;
 const failures=[];
 let sec='';
@@ -661,7 +663,9 @@ chk('runYouthIntake defined', typeof runYouthIntake==='function');
 chk('promoteYouthPlayer defined', typeof promoteYouthPlayer==='function');
 chk('releaseYouthPlayer defined', typeof releaseYouthPlayer==='function');
 chk('getAcademyInfo defined', typeof getAcademyInfo==='function');
-chk('renderAcademy defined', typeof renderAcademy==='function');
+// renderAcademy isn't checked here — Phase 4 (docs/plan/04-migration-phases.md)
+// moved it to src/lib/ui/AcademyScreen.svelte, same reasoning as renderSquad/
+// renderTactics above: a real Svelte component outside this bundle entirely.
 chk('generateCohort in bundle', code.includes('generateCohort'));
 chk('generateYouthPlayer in bundle', code.includes('generateYouthPlayer'));
 chk('youthCohort in save shape', code.includes('youthCohort'));
@@ -688,10 +692,10 @@ const aiAvg=getAcademyInfo(60);
 chk('Rep60 -> average tier', aiAvg.tier==='average');
 chk('Average has 2 stars', aiAvg.stars===2);
 chk('Higher rep -> more stars', aiElite.stars>=aiTop.stars&&aiTop.stars>=aiGood.stars&&aiGood.stars>=aiAvg.stars&&aiAvg.stars>=aiPoor.stars);
-chk('academy-card CSS present', shellSrc.includes('academy-card'));
-chk('youth-action in UI', code.includes('youth-action'));
-chk('releaseYouthPlayer in UI', code.includes('releaseYouthPlayer'));
-chk('WONDERKID badge', code.includes('WONDERKID'));
+chk('academy card markup in AcademyScreen.svelte', academyScreenSrc.includes('ac-card'));
+chk('promote/release wired in AcademyScreen.svelte', academyScreenSrc.includes('askPromote') && academyScreenSrc.includes('askRelease'));
+chk('releaseYouthPlayer called from AcademyScreen.svelte', academyScreenSrc.includes('releaseYouthPlayer'));
+chk('wonderkid badge in AcademyScreen.svelte', academyScreenSrc.includes('ac-wk-badge'));
 chk('age-out logic present', code.includes('age <= 19')||code.includes('age<=19'));
 chk('AI auto-promotes talented youth', code.includes('potentialRating >= 70')||code.includes('potentialRating>=70'));
 chk('runYouthIntake called in processEndOfSeason', (()=>{const s=code.indexOf('function processEndOfSeason');return s>-1&&code.indexOf('runYouthIntake',s)<s+5500;})());

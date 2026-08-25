@@ -60,7 +60,6 @@ MODULES += [
     ('ui/home_transfers.js',      'HOME & TRANSFERS'),
     ('ui/renderers.js',           'RENDERERS'),
     ('ui/squad_tactics_offers.js','SQUAD TACTICS OFFERS'),
-    ('ui/academy.js',             'ACADEMY'),
     ('ui/inbox.js',               'INBOX'),
     ('ui/prematch.js',            'PRE-MATCH'),
     ('ui/watchmatch.js',          'WATCH MATCH'),

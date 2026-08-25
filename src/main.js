@@ -20,6 +20,7 @@ import LeagueScreen from './lib/ui/LeagueScreen.svelte';
 import HomeScreen from './lib/ui/HomeScreen.svelte';
 import SquadScreen from './lib/ui/SquadScreen.svelte';
 import TacticsScreen from './lib/ui/TacticsScreen.svelte';
+import AcademyScreen from './lib/ui/AcademyScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
 // these for their side effects is what starts the game. Order mirrors
@@ -29,7 +30,6 @@ import './ui/helpers.js';
 import './ui/home_transfers.js';
 import './ui/renderers.js';
 import './ui/squad_tactics_offers.js';
-import './ui/academy.js';
 import './ui/inbox.js';
 import './ui/prematch.js';
 import './ui/watchmatch.js';
@@ -57,3 +57,6 @@ if (squadMount) mount(SquadScreen, { target: squadMount });
 
 const tacticsMount = document.getElementById('screen-tactics');
 if (tacticsMount) mount(TacticsScreen, { target: tacticsMount });
+
+const academyMount = document.getElementById('screen-academy');
+if (academyMount) mount(AcademyScreen, { target: academyMount });

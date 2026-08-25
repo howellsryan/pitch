@@ -16,7 +16,6 @@ import { startNewGame } from '../modules/save.js';
 import { getHonorsForTeam } from '../modules/season.js';
 import { fmt, navigateTo, registerScreen, showModal, toast } from './helpers.js';
 import { renderHome, renderTransfers } from './home_transfers.js';
-import { renderAcademy } from './academy.js';
 import { _updateInboxBadge, renderInbox } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 
@@ -409,7 +408,7 @@ export function initUI(){
   registerScreen('competitions', () => { screenTicks.competitions++; });
   registerScreen('trophies',     renderTrophies);
   registerScreen('squad',        () => { screenTicks.squad++; });
-  registerScreen('academy',      renderAcademy);
+  registerScreen('academy',      () => { screenTicks.academy++; });
   registerScreen('tactics',      () => { screenTicks.tactics++; });
   registerScreen('inbox',        renderInbox);
   registerScreen('settings',     renderSettings);

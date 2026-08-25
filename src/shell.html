@@ -465,47 +465,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 
 
 
-/* ── ACADEMY ── */
-.academy-layout{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;padding:0 20px 12px}
-.academy-info-bar{display:grid;grid-template-columns:auto 1fr repeat(3,auto);gap:0;background:var(--sur);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;flex-shrink:0;margin-bottom:10px}
-.academy-info-brand{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--sur2);border-right:1px solid var(--bdr)}
-.academy-info-desc{padding:10px 16px;font-size:11px;color:var(--tx2);display:flex;align-items:center;border-right:1px solid var(--bdr)}
-.academy-info-stat{padding:10px 16px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--bdr)}
-.academy-info-stat:last-child{border-right:none}
-.academy-info-stat-lbl{font-family:var(--fm);font-size:8px;color:var(--txd);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px}
-.academy-info-stat-val{font-family:var(--fd);font-size:16px}
-.academy-warning{background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.25);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--acc3);display:flex;align-items:center;gap:7px;flex-shrink:0;margin-bottom:8px}
-.academy-table-hdr{display:grid;grid-template-columns:32px 36px 1fr 60px 80px 60px 90px 90px;gap:6px;padding:5px 10px;font-size:9px;font-family:var(--fm);color:var(--txd);letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;border-bottom:1px solid var(--bdr)}
-.academy-rows{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
-.academy-row{display:grid;grid-template-columns:32px 36px 1fr 60px 80px 60px 90px 90px;gap:6px;padding:6px 10px;align-items:center;border-bottom:1px solid rgba(255,255,255,.03);transition:background .12s}
-.academy-row:hover{background:var(--sur2)}
-.academy-row-wk{background:rgba(245,200,66,.04);border-left:2px solid rgba(245,200,66,.5)}
-.academy-row-wk:hover{background:rgba(245,200,66,.08)}
-.academy-row-warn{opacity:.75}
-.academy-row-btns{display:flex;gap:4px}
-.academy-card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
-@media(max-width:768px){
-  #screen-academy{overflow-y:auto!important;display:block!important}
-  .academy-layout{flex:none;overflow:visible;padding:0 12px 12px}
-  .academy-info-bar{grid-template-columns:1fr;border-radius:10px}
-  .academy-info-brand,.academy-info-desc,.academy-info-stat{border-right:none;border-bottom:1px solid var(--bdr)}
-  .academy-info-stat:last-child{border-bottom:none}
-  .academy-table-hdr{display:none}
-  .academy-rows{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0;flex:none;overflow:visible;height:auto}
-  .academy-row{position:relative;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:var(--sur);border:1px solid var(--bdr)}
-  .academy-row-wk{border-color:rgba(245,200,66,.5);background:rgba(245,200,66,.04)}
-  .academy-row>*:nth-child(1){order:1;font-size:26px!important;text-align:left!important}
-  .academy-row>*:nth-child(2){order:2;position:absolute;top:10px;right:10px}
-  .academy-row>*:nth-child(3){order:3}
-  .academy-row>*:nth-child(4){order:4;text-align:left!important}
-  .academy-row>*:nth-child(5){order:5}
-  .academy-row>*:nth-child(6){order:6;display:block!important}
-  .academy-row>*:nth-child(7){order:7;display:flex!important;width:100%}
-  .academy-row>*:nth-child(8){order:8;display:flex!important;width:100%}
-  .academy-row .academy-row-btns{width:100%}
-  .academy-row .sq-btn-sm{width:100%;justify-content:center;padding:6px 4px!important;font-size:10px!important}
-}
-
 /* ── OFFERS v2 ── */
 .offer-card-v2{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:18px;margin-bottom:12px;transition:border-color .15s}
 .offer-card-v2:hover{border-color:var(--bdr-a)}
@@ -793,11 +752,9 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
        docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
   <div class="screen" id="screen-squad"></div>
 
-  <!-- ACADEMY -->
-  <div class="screen" id="screen-academy">
-    <div class="ph" style="flex-shrink:0"><div class="ph-left"><div class="pl">Youth Development</div><div class="pt">Academy</div></div><div class="ph-right" id="academy-hdr"></div></div>
-    <div id="academy-content" style="flex:1;min-height:0;overflow:hidden"></div>
-  </div>
+  <!-- ACADEMY — src/lib/ui/AcademyScreen.svelte, mounted in main.js (Phase 4,
+       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
+  <div class="screen" id="screen-academy"></div>
 
   <!-- TACTICS — src/lib/ui/TacticsScreen.svelte, mounted in main.js (Phase 4,
        docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->

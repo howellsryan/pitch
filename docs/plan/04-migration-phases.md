@@ -231,12 +231,40 @@ real flow (open a player sheet, toggle squad/list status, change formation,
 open the swap sheet, swap a player) — same pattern as Home's Phase 4
 verification, not a committed per-screen Playwright spec.
 
+**Academy (`renderAcademy`) migrated** — `src/lib/ui/AcademyScreen.svelte`,
+mounted into `#screen-academy`, real Svelte markup and data-fetching, no
+`innerHTML`. The old 8-column desktop table (`academy-table-hdr`/
+`academy-row`) became youth-intake cards — one per player, rating/position/
+name/badges on top, promote/release actions below — per the plan's "Smallest.
+Youth intake cards" note; the tier info bar became three `stat-tile`s
+matching Home's own stat-tile pattern instead of a bespoke grid. Promote and
+release both got their own confirmation bottom sheet (component-local
+`$state`, not `showModal()`) in place of the two `showModal()` calls
+`handleYouthAction` used to build. `src/ui/academy.js` had exactly two
+exports (`renderAcademy`, `handleYouthAction`) and no other importers once
+`renderers.js`'s import was dropped, so the file was deleted outright rather
+than emptied — also removed from `build.py`'s `MODULES` list, since a
+concatenation step for a file that no longer exists is a build break waiting
+to happen, not a no-op. `registerScreen('academy', …)` became
+`screenTicks.academy++`, same pattern as the other four migrated screens.
+`src/validate.js` gained an `academyScreenSrc` read; the three checks that
+asserted on the old bundle-string markup (`academy-card` CSS presence,
+`youth-action` wiring, the WONDERKID badge) were repointed at the new
+component source. The now-dead `.academy-*` CSS block in `shell.html`
+(unused by anything else — confirmed the same way as the Squad/Tactics
+sweep) was deleted in the same pass, ~40 lines including its own
+`@media(max-width:768px)` override block. Verified with `npm run build`
+(1175/1175 validator checks + Vite build clean), `npm run lint`, and a
+Playwright run driving the real flow — including seeding a second youth
+player directly into IndexedDB to get a wonderkid card, an aging-out
+warning card, and the season-end warning banner on screen simultaneously,
+not just whatever a fresh save's own seeded cohort happened to produce.
+
 | # | Screen | Legacy source | Notes |
 |---|---|---|---|
 | 1 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
-| 2 | **Academy** | `ui/academy.js` | Smallest. Youth intake cards |
-| 3 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
-| 4 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
+| 2 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
+| 3 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
 
 Per-screen recipe:
 
