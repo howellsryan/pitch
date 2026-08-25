@@ -10,6 +10,7 @@
     "build:app": "node tools/make-entry.mjs && vite build",
     "preview": "npm run build:app && vite preview --port 4173 --strictPort",
     "validate": "node src/validate.js",
+    "test": "vitest run",
     "check:accents": "node tools/check-club-accents.mjs",
     "test:e2e": "playwright test --config=playwright.config.mjs",
     "check:svelte": "svelte-check --tsconfig ./tsconfig.json",

@@ -24,6 +24,7 @@ import AcademyScreen from './lib/ui/AcademyScreen.svelte';
 import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
 import SettingsScreen from './lib/ui/SettingsScreen.svelte';
 import TransfersScreen from './lib/ui/TransfersScreen.svelte';
+import MatchScreen from './lib/ui/MatchScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
 // these for their side effects is what starts the game. Order mirrors
@@ -34,8 +35,6 @@ import './ui/home_transfers.js';
 import './ui/renderers.js';
 import './ui/squad_tactics_offers.js';
 import './ui/inbox.js';
-import './ui/prematch.js';
-import './ui/watchmatch.js';
 
 // src/shell.html has two inline onclick="navigateTo(...)" handlers, which
 // resolve against the global scope rather than this module's. Everything else
@@ -72,3 +71,6 @@ if (settingsMount) mount(SettingsScreen, { target: settingsMount });
 
 const transfersMount = document.getElementById('screen-transfers');
 if (transfersMount) mount(TransfersScreen, { target: transfersMount });
+
+const matchMount = document.getElementById('screen-match');
+if (matchMount) mount(MatchScreen, { target: matchMount });

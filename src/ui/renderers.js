@@ -176,6 +176,7 @@ export function renderNewGame(){
 // ── INIT UI ────────────────────────────────────────────────────
 export function initUI(){
   registerScreen('home',         renderHome);
+  registerScreen('match',        () => { screenTicks.match++; });
   registerScreen('transfers',    () => { screenTicks.transfers++; });
   registerScreen('competitions', () => { screenTicks.competitions++; });
   registerScreen('trophies',     () => { screenTicks.trophies++; });

@@ -6,7 +6,6 @@
   import { patchSave } from '../../modules/save.js';
   import { getEffectiveTotalGW } from '../../modules/gameweek.js';
   import { fmt, navigateTo, toast } from '../../ui/helpers.js';
-  import { showPreMatchModal } from '../../ui/prematch.js';
   import { handleEndOfSeason } from '../../ui/home_transfers.js';
   import { _makeNewsItem, addNewsItem } from '../../ui/inbox.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -169,9 +168,9 @@
 
   $effect(() => {
     // renderHome() (src/ui/home_transfers.js) is still called imperatively
-    // from prematch.js, watchmatch.js and squad_tactics_offers.js after a
-    // match, a squad change, etc. — it now just bumps this tick, regardless
-    // of whether Home is the visible screen, matching the old behaviour of
+    // from MatchScreen.svelte and squad_tactics_offers.js after a match, a
+    // squad change, etc. — it now just bumps this tick, regardless of
+    // whether Home is the visible screen, matching the old behaviour of
     // always writing into #screen-home's (always-mounted) DOM.
     void screenTicks.home;
     load();
@@ -199,7 +198,7 @@
     </div>
     <div class="home-hdr-actions">
       {#if loaded && !isEnd && !onDeadlineDay}
-        <button id="btn-adv-header" class="action-btn play" onclick={() => showPreMatchModal()}>▶ Play Next Match</button>
+        <button id="btn-adv-header" class="action-btn play" onclick={() => navigateTo('match')}>▶ Play Next Match</button>
       {/if}
       {#if loaded && isEnd}
         <button id="btn-eoy-header" class="action-btn eoy" disabled={eoyBusy} onclick={doEndOfSeason}>🏆 Next Season →</button>

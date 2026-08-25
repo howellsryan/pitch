@@ -1,10 +1,8 @@
 import { getAllTeams, getSave, getTeam } from '../modules/db.js';
 import { CUP_META } from '../modules/cups.js';
-import { injuryDurationLabel } from '../modules/injuries.js';
 import { processEndOfSeason } from '../modules/season.js';
-import { advanceOneFixture } from '../modules/gameweek.js';
 import { fmt, hideLoader, showLoader, showModal, toast } from './helpers.js';
-import { newsMatchResult, newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
+import { newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 
 // ══════════════════════════════════════════════════════════════
@@ -14,183 +12,29 @@ import { screenTicks } from '../lib/state/screens.svelte.js';
 // docs/plan/04-migration-phases.md) — real Svelte markup, data-fetching
 // and the deadline-day/end-of-season flow all live there now. renderHome()
 // survives as a thin bridge because it's still called imperatively from
-// prematch.js, watchmatch.js and squad_tactics_offers.js after a match,
-// squad change, etc.; it just bumps the tick HomeScreen.svelte watches,
-// regardless of whether Home is the currently visible screen.
+// src/lib/ui/MatchScreen.svelte (Phase 5) and squad_tactics_offers.js after
+// a match, squad change, etc.; it just bumps the tick HomeScreen.svelte
+// watches, regardless of whether Home is the currently visible screen.
 //
-// TRANSFERS — moved to src/lib/ui/TransfersScreen.svelte in the same phase.
-// This file's renderTransfers/_renderAdvancedFilters/_applyAndRenderBuyList/
+// TRANSFERS — moved to src/lib/ui/TransfersScreen.svelte in Phase 4. This
+// file's renderTransfers/_renderAdvancedFilters/_applyAndRenderBuyList/
 // renderBuyList/renderPlayerDetail/renderLoanMarket/_renderLoanInList/
 // _renderLoanOutList/_showLoanInDetail/_showLoanOutDetail/renderSellList and
 // their module-level state (_buyTargets/_selPid/_trFilters/_loanMode/etc.)
-// are all deleted, not carried forward — the new component owns that state
+// were deleted, not carried forward — the new component owns that state
 // as real Svelte $state instead. squad_tactics_offers.js's
 // openSquadPlayerModal lost its only caller (the desktop-width branch in the
-// old renderBuyList row click) and is deleted too — TransfersScreen.svelte
+// old renderBuyList row click) and was deleted too — TransfersScreen.svelte
 // uses its own bottom sheet on every viewport instead of that split.
+//
+// MATCH REPORT — showMatchReport() and the dead _handleAdvanceOneFixtureStub
+// (never wired to anything — it disabled a #btn-adv id that hasn't existed
+// since Home's own migration) were deleted in Phase 5
+// (docs/plan/04-migration-phases.md): MatchScreen.svelte's Full Time/After
+// beats now own that content, built as real Svelte markup instead of a
+// showModal() HTML-string template.
 export async function renderHome(){
   screenTicks.home++;
-}
-
-// ── SIMULATE ONE FIXTURE
-// handleAdvanceOneFixture is defined in prematch.js
-export async function _handleAdvanceOneFixtureStub(){
-  const btn=document.getElementById('btn-adv');
-  if(!btn||btn.disabled) return;
-  const save=await getSave();
-  btn.disabled=true; btn.textContent='Simulating…';
-  showLoader('Simulating match…');
-  try{
-    const res=await advanceOneFixture();
-    hideLoader();
-    if(res.finished){await renderHome();return;}
-    const r=res.singleResult;
-    if(r) { showMatchReport(r,save); if(typeof newsMatchResult==='function') newsMatchResult(r,save).catch(()=>{}); }
-    if(res.cupResults?.length){
-      for(const cr of res.cupResults){
-        if(cr.isUCLMatchday){
-          toast(`⭐ UCL MD${cr.matchday}: ${cr.result} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals}) +${cr.points}pts`,cr.result==='W'?'success':cr.result==='D'?'info':'error',6000);
-          if(typeof newsMatchResult==='function'){
-            const fakeR={homeTeamId:save.userTeamId,homeGoals:cr.userGoals,awayGoals:cr.oppGoals,awayTeamName:cr.opponentName,homeTeamName:(await getTeam(save.userTeamId))?.name||'You',homeScorers:[],awayScorers:[],competition:'UCL',gameweek:save.currentGameweek};
-            newsMatchResult(fakeR,save).catch(()=>{});
-          }
-        } else if(!cr.eliminated){
-          const meta=CUP_META[cr.cupId];
-          const isFirstLeg=(cr.roundName||'').includes('1st leg');
-          const lossLabel=isFirstLeg?'❌ Lost':'❌ Out';
-          toast(`${meta?.icon||'🏆'} ${meta?.name} ${cr.roundName}: ${cr.userWon?'✅ Won':lossLabel} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,cr.userWon?'success':'error',6000);
-          if(typeof newsMatchResult==='function'){
-            const fakeR={homeTeamId:save.userTeamId,homeGoals:cr.userGoals,awayGoals:cr.oppGoals,awayTeamName:cr.opponentName,homeTeamName:(await getTeam(save.userTeamId))?.name||'You',homeScorers:[],awayScorers:[],competition:(meta?.name||cr.cupId),gameweek:save.currentGameweek};
-            newsMatchResult(fakeR,save).catch(()=>{});
-          }
-        }
-      }
-    }
-    await renderHome();
-  }catch(err){
-    hideLoader(); toast(`Error: ${err.message}`,'error'); console.error(err);
-    btn.disabled=false;
-    const sv=await getSave();
-    btn.textContent=`▶ Play My Match (GW ${sv.currentGameweek})`;
-  }
-}
-
-// ── MATCH REPORT
-// Layout: HOME team always on LEFT, AWAY always on RIGHT (real football convention)
-// User's team highlighted. Stats bar: home=left/green, away=right/red.
-export function showMatchReport(r,save){
-  const isHome = r.homeTeamId === save.userTeamId;
-  const userResult = r.homeTeamId===save.userTeamId
-    ? (r.homeGoals>r.awayGoals?'WIN':r.homeGoals<r.awayGoals?'LOSS':'DRAW')
-    : (r.awayGoals>r.homeGoals?'WIN':r.awayGoals<r.homeGoals?'LOSS':'DRAW');
-  const resCol = userResult==='WIN'?'var(--acc)':userResult==='LOSS'?'var(--acc3)':'var(--acc2)';
-
-  // Always home on left, away on right
-  const hCrest = r.homeTeamCrest || '⚽';
-  const aCrest = r.awayTeamCrest || '⚽';
-  const hName  = r.homeTeamName;
-  const aName  = r.awayTeamName;
-  const hG = r.homeGoals, aG = r.awayGoals;
-  const hScorers = r.homeScorers || [];
-  const aScorers = r.awayScorers || [];
-
-  const s  = r.stats || {};
-  const P  = s.possession    || {home:50,away:50};
-  const S  = s.shots         || {home:0,away:0};
-  const OT = s.shotsOnTarget || {home:0,away:0};
-  const XG = s.xG            || {home:0,away:0};
-  const YC = s.yellowCards   || {home:0,away:0};
-  const FL = s.fouls         || {home:0,away:0};
-  const CO = s.corners       || {home:0,away:0};
-
-  const isUserHome = r.homeTeamId === save.userTeamId;
-  const evts = (r.events||[]).sort((a,b)=>a.minute-b.minute);
-  const userSubs = evts.filter(e=>e.type==='sub'&&e.teamId===save.userTeamId);
-
-  // Score row badges: show goal scorers under each team
-  const scorerBadges = (arr, teamId) => arr.length
-    ? arr.map(e=>`<div class="mr-scorer">⚽ <strong>${e.playerName||'?'}</strong> <span style="color:var(--txd)">${e.minute}'</span>${e.assistName?` <span style="opacity:.55;font-size:10px">▸${e.assistName}</span>`:''}</div>`).join('')
-    : '';
-
-  // Timeline shows all goal/card/injury events, user events highlighted
-  const timeline = evts.filter(e=>e.type==='goal'||e.type==='yellow'||e.type==='injury').map(e=>{
-    const isU = e.teamId===save.userTeamId;
-    const isH = e.teamId===r.homeTeamId;
-    let icon = e.type==='goal' ? '⚽' : e.type==='yellow' ? '🟨' : '🚑';
-    return`<div class="mr-ev ${isU?'mr-ev-us':'mr-ev-op'}" style="align-self:${isH?'flex-start':'flex-end'}">
-      ${isH?`<span class="mr-ev-min">${e.minute}'</span>`:''}<span>${icon}</span><span class="mr-ev-nm">${e.playerName||'?'}</span>${e.type==='injury'?`<span style="font-size:9px;color:var(--acc3);margin-left:3px">${e.injuryName||'Injury'}</span>`:''}${!isH?`<span class="mr-ev-min">${e.minute}'</span>`:''}
-    </div>`;
-  }).join('');
-
-  // Injuries this match
-  const userInjuries = evts.filter(e => e.type === 'injury' && e.teamId === save.userTeamId);
-  const injuryBlock = userInjuries.length
-    ? `<div class="mr-subs" style="border-color:var(--acc3)30">
-        <div class="mr-subs-title" style="color:var(--acc3)">🚑 Injuries</div>
-        ${userInjuries.map(inj => `<div class="mr-sub"><span style="color:var(--acc3);font-weight:700">${inj.playerName||'?'}</span> — ${inj.injuryName||'Injury'} <span style="color:var(--txd)">(${injuryDurationLabel(inj.injuryGWsLeft)})</span></div>`).join('')}
-      </div>`
-    : '';
-
-  // Stat rows: home stat on LEFT, label in centre, away stat on RIGHT
-  const sr = (lbl, hv, av, bar=true) => {
-    const tot = (parseFloat(hv)||0)+(parseFloat(av)||0)||1;
-    const hp  = Math.round(((parseFloat(hv)||0)/tot)*100);
-    const userHighH = isUserHome ? 'color:var(--acc)' : '';
-    const userHighA = !isUserHome ? 'color:var(--acc)' : '';
-    return`<div class="mr-sr">
-      <span class="mr-sv" style="${userHighH}">${hv}</span>
-      <div class="mr-sm">
-        <span class="mr-sl">${lbl}</span>
-        ${bar?`<div class="mr-bw"><div class="mr-bu" style="width:${hp}%"></div><div class="mr-bo" style="width:${100-hp}%"></div></div>`:''}
-      </div>
-      <span class="mr-sv" style="${userHighA}">${av}</span>
-    </div>`;
-  };
-
-  // Home/away indicator with user highlight
-  const hIsUser = r.homeTeamId===save.userTeamId;
-  const aIsUser = r.awayTeamId===save.userTeamId;
-  const hBorder = hIsUser?'border-bottom:2px solid var(--acc)':'';
-  const aBorder = aIsUser?'border-bottom:2px solid var(--acc)':'';
-
-  showModal(`GW${r.gameweek||''} Match Report`,`
-    <div class="mr-wrap">
-      <div class="mr-header">
-        <div class="mr-side" style="padding-bottom:6px;${hBorder}">
-          <div class="mr-crest">${hCrest}</div>
-          <div class="mr-tname" style="${hIsUser?'color:var(--acc)':''}">${hName}</div>
-          <div style="font-size:10px;color:var(--txd);font-family:var(--fm);margin-bottom:4px">HOME</div>
-          <div class="mr-scorers">${scorerBadges(hScorers)}</div>
-        </div>
-        <div class="mr-centre">
-          <div class="mr-result" style="color:${resCol}">${userResult}</div>
-          <div class="mr-score">${hG}<span style="opacity:.35;margin:0 8px">–</span>${aG}</div>
-        </div>
-        <div class="mr-side mr-side-r" style="padding-bottom:6px;${aBorder}">
-          <div class="mr-crest">${aCrest}</div>
-          <div class="mr-tname" style="${aIsUser?'color:var(--acc)':''}">${aName}</div>
-          <div style="font-size:10px;color:var(--txd);font-family:var(--fm);margin-bottom:4px">AWAY</div>
-          <div class="mr-scorers">${scorerBadges(aScorers)}</div>
-        </div>
-      </div>
-      ${timeline?`<div class="mr-timeline" style="flex-direction:column;gap:4px">${timeline}</div>`:''}
-      <div class="mr-stats-lbl" style="display:flex;justify-content:space-between;font-size:10px;color:var(--txd);font-family:var(--fm);padding:0 2px;margin-bottom:2px">
-        <span>${hName.split(' ')[0]}</span><span>${aName.split(' ')[0]}</span>
-      </div>
-      <div class="mr-stats-grid">
-        ${sr('Possession %',P.home,P.away)}
-        ${sr('Shots',S.home,S.away)}
-        ${sr('On Target',OT.home,OT.away)}
-        ${sr('xG',typeof XG.home==='number'?XG.home.toFixed(2):XG.home, typeof XG.away==='number'?XG.away.toFixed(2):XG.away,false)}
-        ${sr('Corners',CO.home,CO.away)}
-        ${sr('Fouls',FL.home,FL.away)}
-        ${sr('Yellow Cards',YC.home,YC.away)}
-      </div>
-      ${userSubs.length?`<div class="mr-subs"><div class="mr-subs-title">🔄 Your Substitutions</div>${userSubs.map(s=>`<div class="mr-sub">↑ <strong>${s.inName}</strong> ↓ ${s.outName} <span style="color:var(--txd)">(${s.minute}')</span></div>`).join('')}</div>`:''}
-      ${injuryBlock}
-    </div>`,
-    [{id:'close',label:'Continue →',cls:'btn-p'}]
-  );
 }
 
 // ── END OF SEASON
@@ -293,4 +137,3 @@ export async function handleEndOfSeason(){
     const b=document.getElementById('btn-eoy'); if(b) b.disabled=false;
   }
 }
-

@@ -109,9 +109,6 @@ export function playerNationality(player, teamLeague) {
   return _NAT[player.id] || _LEAGUE_FLAG[teamLeague] || '🌍';
 }
 
-// Keep for any legacy calls
-export function flagEmoji(name) { return '🌍'; }
-
 // ─── Toast ───────────────────────────────────────────────────
 export function toast(msg, type = 'info', duration = 3500) {
   const container = document.getElementById('toast-container');

@@ -147,7 +147,7 @@ clicks the existing `#btn-adv-header`, so the queue logic never moved.
 
 ---
 
-## Phase 4 — Screen by screen (~1 day each)
+## Phase 4 — Screen by screen (~1 day each) — ✅ done
 
 League (`renderCompetitions`) moved in Phase 3 already — self-contained
 enough that it made more sense as the phase's proof-of-concept than as
@@ -399,25 +399,106 @@ one session.
 
 ---
 
-## Phase 5 — Live match (~2 days)
+## Phase 5 — Live match (~2 days) — ✅ done
 
-**Ships:** the matchday flow, rebuilt rather than ported.
+**Shipped:** the matchday flow, rebuilt rather than ported, as
+`src/lib/ui/MatchScreen.svelte` — a route (reached only via Play: TabBar's
+FAB, or Home's `#btn-adv-header`, through the same `registerScreen()`/
+`navigateTo()` mechanism every other screen uses), not a TabBar destination
+of its own. `ui/prematch.js`'s pre-match modal and `ui/watchmatch.js`'s
+innerHTML live viewer (`_openInlinePanel` and its z-index 10500 overlay
+included) are both deleted outright, along with `home_transfers.js`'s
+`showMatchReport()` and a `_handleAdvanceOneFixtureStub` that turned out to
+be dead code — confirmed via repo-wide grep before deleting, same discipline
+as every prior phase's `render*` removals.
 
-`ui/watchmatch.js` (32KB) works around a constraint that disappears in Svelte: a
-match becomes a route, and a substitution sheet a sibling component, so
-`_openInlinePanel` and its z-index 10500 overlay go away.
+**Sub rules moved to `src/game/` first, with tests, exactly as planned.**
+`_wmSubClick`/`_applyUserSub`'s GK↔GK / outfield↔outfield guards and 3-sub
+limit became `src/game/substitutions.js`'s `validateSubstitution()`/
+`applySubstitution()`; `_applyFormationChange`'s mid-match XI recompute
+became `src/game/formationChange.js`'s `applyFormationChange()`; European-
+opponent stub-squad generation (`_generateStubPlayers`) became
+`src/game/opponents.js`'s `generateStubPlayers()`. All three are pure,
+DOM-free, and covered by real Vitest tests (`src/game/*.test.js`,
+`npm run test` — newly wired into CI in this phase, since Vitest was
+installed but unused before) instead of only being reachable by hand-wiring
+a `_watchState` bundle global inside `validate.js`, which is how the old
+GK-sub-rule and formation-change regression checks worked. Those checks —
+and the rest of `validate.js`'s old "Watch Match" section — moved to Vitest
+or were removed outright where the underlying identifier no longer exists in
+the concatenated bundle at all (same "no legacy identifier left in `final`
+to check for" reasoning as every prior screen's move to a real Svelte
+component); a `matchScreenSrc` read was added alongside the other
+`<name>ScreenSrc` reads for what's left as string-presence checks.
+`TacticsScreen.svelte`'s formation pitch-slot layout (`SLOT_LAYOUT`/
+`SLOT_POS_MAP`, ~15 formations of x/y coordinates) was extracted to
+`src/game/formationLayout.js` too, not because it's simulation logic, but so
+MatchScreen's Team News XI-on-pitch preview and Tactics' lineup editor share
+one source of truth instead of two independently-drifting copies of the
+same magic numbers.
 
-1. Move the sub rules into `src/game/` first, with tests. Then build the UI.
-2. Five beats: team news → kickoff → live → full time → after
-   (`02-design-system.md`).
-3. Keep speed control (1× / 4× / skip) — `ui-ux-pro-max`'s immersive-pattern rule
-   requires a skip and it's right.
-4. Keep the auto-pause-on-intervention behaviour. It is correct and players will
-   expect it.
+**Five beats, all in one component, state machine style (`beat` ∈
+'teamNews' | 'kickoff' | 'live' | 'fulltime' | 'after'):** team news
+(opponent form, key player card, XI-on-pitch preview, lineup-block
+warnings, Kick Off / Sim Instantly) → kickoff (a brief crest-vs-crest
+transition, tap or ~900ms to skip) → live (tick engine ported from
+`watchmatch.js` almost unchanged, score bug, event feed, fitness/bench,
+1×/2×/4×/skip, pause, sub and tactics bottom sheets replacing the old
+inline-panel overlay) → full time (score, scorers, one-line verdict,
+shown from the live sim's own result before it's committed) → after (stats
+grid, substitutions, injuries, and — new, not in the original modal — a
+3-row league-position slice keyed by `teamId` and driven by
+`animate:flip`, seeded with a pre-match snapshot so entering the beat
+actually animates the reorder rather than rendering a static post-match
+table). Quick Sim (`advanceOneFixture`, no live tick) and Watch Match
+(`buildLiveMatchState`/`simulateMatchSegment`/`finaliseLiveMatch`/
+`advanceOneFixtureWithResult`, all untouched `matchEngine.js`/`gameweek.js`
+exports) converge on the exact same Full Time/After rendering — one
+`result` object either way — rather than the old code's two separate
+report paths (`showMatchReport` for Quick Sim, `_commitResult` +
+`showMatchReport` again for Watch Match). Speed control and auto-pause-on-
+intervention (also on injury, matching the original) both kept, as
+planned.
 
-**Watch:** the tick loop drives from `matchEngine`. Do not let the UI's clock
-become the source of truth for match state — the engine decides, the UI plays it
-back.
+**Two real bugs surfaced only by driving the route end-to-end in a real
+browser** — `npm run build`/`lint`/`test`/`check:svelte` all passed first,
+none of them would have caught either:
+- `MatchScreen.svelte`'s `$effect` fires on the component's own initial
+  mount, same as every other screen's — meaning `loadMatch()` ran, and
+  crashed on `save.currentGameweek`, the instant the app booted, well
+  before any career exists or Play is ever pressed. Fixed with the exact
+  same `if (!save || save._deleted) return;` guard every other screen's
+  `load()` already has — `openDB()` alone (which this file did have from
+  the start) isn't the whole story, as Transfers' Phase 4 bug already
+  established; this is the sibling bug, "no save yet" rather than "DB not
+  open yet."
+- `live`/`result`/`matchCtx` were declared with plain `$state()`, which
+  deep-proxies anything assigned to it. `result` (built from `live`'s
+  proxied tree) got passed into `advanceOneFixtureWithResult` →
+  `putFixture`, and IndexedDB's structured-clone algorithm cannot
+  serialize a Svelte 5 reactive Proxy — `DataCloneError: [object Array]
+  could not be cloned`, only on a *watched* match's commit (Quick Sim's
+  `result` comes straight from a DB read, never touches `live`, so it
+  never hit this). Fixed by switching all three to `$state.raw()` — none
+  of the three are ever deep-mutated in place (every update is `live =
+  {...live, x}`, never `live.x = ...`), which is exactly the case
+  `$state.raw` exists for. No other screen in this codebase writes a
+  `$state`-derived object back to IndexedDB with array/object sub-fields
+  deep enough for this to bite — Squad's `putPlayer({ ...p, inSquad: ... })`
+  and similar spread-and-save calls elsewhere stay correct because a
+  player/save record's own fields are flat primitives. Worth remembering
+  if a future screen's local state ever holds something IndexedDB-bound and
+  less flat than a player row.
+
+Verified with `npm run build` (1067/1067 validator checks + Vite build
+clean), `npm run test` (21/21 Vitest), `npm run lint`, `npm run
+check:accents` (186/186), `npm run test:e2e` (6/6, unchanged), and two full
+manual Playwright runs driving a real career at 390×844 end to end — one
+through Watch Match (team news → kickoff → live with a manual substitution
+and a mid-match formation change → skip → full time → after, league
+position slice rendered and animated, back to Home) and one through Sim
+Instantly (team news → full time → after → Home) — confirming both
+converge on the same report UI and neither throws.
 
 ---
 
@@ -463,3 +544,10 @@ that regenerates league data from CSVs. See `03-cloudflare-workers.md`.
 - **Deploy every phase.** A preview URL on your phone is the only real review.
 - **`ui/` shrinks monotonically; `modules/` doesn't shrink at all.** If a phase
   adds to `ui/`, something went wrong.
+- **`src/game/` (new in Phase 5) is where UI-adjacent rules that aren't
+  simulation math live** — the substitution and formation-change validation a
+  screen needs but that isn't itself rendering, and doesn't belong in
+  `modules/` either. Pure, DOM-free, covered by Vitest. Small so far
+  (`substitutions.js`, `formationChange.js`, `opponents.js`,
+  `formationLayout.js`) — grows the same deliberate way `modules/` does, not
+  a dumping ground.

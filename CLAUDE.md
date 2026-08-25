@@ -19,14 +19,15 @@
   once that was settled. `footy-sim` still holds a copy from that point; this
   one is authoritative.)
 - **Where things stand right now**: Phase 0 (Workers), Phase 1 (portable build
-  + CI), Phase 2 (toolchain) and **Phase 4 (screen-by-screen) are done — every
-  screen is a real Svelte component now.** Phase 3 (shell + first screen)'s
-  blocking pieces are done too — a couple of its steps stay deliberately
-  deferred (see `docs/plan/04-migration-phases.md`'s Phase 3 section: no
-  context bar, no `<LegacyPanel>`, no URL routing) — **Phase 5 (live match) is
+  + CI), Phase 2 (toolchain), **Phase 4 (screen-by-screen) and Phase 5 (live
+  match) are done.** Phase 3 (shell + first screen)'s blocking pieces are
+  done too — a couple of its steps stay deliberately deferred (see
+  `docs/plan/04-migration-phases.md`'s Phase 3 section: no context bar, no
+  `<LegacyPanel>`, no URL routing) — **Phase 6 (data reconciliation) is
   next.** `src/lib/ui/` holds one real Svelte 5 component per screen
   (`TabBar`, `LeagueScreen`, `HomeScreen`, `SquadScreen`, `TacticsScreen`,
-  `AcademyScreen`, `TrophiesScreen`, `SettingsScreen`, `TransfersScreen`),
+  `AcademyScreen`, `TrophiesScreen`, `SettingsScreen`, `TransfersScreen`,
+  `MatchScreen`),
   each mounted as an island into the legacy shell from `src/main.js` — real
   markup and data-fetching, no `innerHTML`. The bottom nav is Svelte-rendered
   (9 legacy screens fold into 5 destinations: Home, Squad, Play, Transfers,
@@ -109,6 +110,46 @@
   wants its own pass rather than a blind one. The club accent layer
   (`src/lib/theme.mjs`) landed early with Phase 2 and already drives the live
   UI.
+- **Live match (`src/lib/ui/MatchScreen.svelte`) is a route, not a modal** —
+  reached only via Play (TabBar's FAB, or Home's `#btn-adv-header`), same
+  `registerScreen()`/`navigateTo()` mechanism as every other screen, not a
+  TabBar destination of its own. Five beats in one component: team news
+  (opponent form, key player, XI-on-pitch preview reusing
+  `src/game/formationLayout.js`'s `SLOT_LAYOUT`/`SLOT_POS_MAP` — now shared
+  with `TacticsScreen.svelte` instead of each holding its own copy) → a
+  brief kickoff transition → live (tick engine, score bug, event feed, 1×/
+  2×/4×/skip, pause, sub and tactics bottom sheets) → full time (score,
+  scorers, one-line verdict) → after (stats, subs, injuries, a 3-row league
+  slice with `animate:flip` seeded from a pre-match snapshot so the reveal
+  actually animates the reorder, not just a static post-match table).
+  Replaces `ui/prematch.js`'s modal and `ui/watchmatch.js`'s innerHTML
+  viewer outright — both deleted, along with `home_transfers.js`'s
+  `showMatchReport()` and a dead `_handleAdvanceOneFixtureStub` that never
+  had a live caller. The GK↔GK/outfield↔outfield/3-sub-limit substitution
+  rule and the mid-match formation-change recompute — both previously
+  hand-rolled inline in `watchmatch.js` — moved to `src/game/
+  substitutions.js`/`formationChange.js`: pure, DOM-free, and covered by
+  real Vitest tests (`src/game/*.test.js`, `npm run test`) instead of only
+  being reachable by wiring up a bundle-global by hand in `validate.js`.
+  European-opponent stub-squad generation moved the same way, to
+  `src/game/opponents.js`. Two real bugs surfaced only once the route was
+  driven end-to-end in a browser, not by the checks above: MatchScreen's
+  `$effect` fires on its own initial mount (same as every screen's) —
+  before any save exists — so `loadMatch()` needed the same `if (!save ||
+  save._deleted) return;` guard every other screen's `load()` already has,
+  not just an `openDB()` call; and `live`/`result`/`matchCtx` needed
+  `$state.raw()`, not plain `$state()` — Svelte 5 deep-proxies anything
+  assigned to plain `$state`, and IndexedDB's structured-clone algorithm
+  cannot serialize a reactive Proxy, so `putFixture` threw `DataCloneError`
+  the moment a *watched* (not quick-simmed) match tried to commit its
+  result. All three are reassigned wholesale, never deep-mutated in place,
+  which is exactly what `$state.raw` is for. `src/validate.js`'s old
+  "Watch Match" section and five "Regression" sections drove
+  `_applyUserSub`/`_applyFormationChange` directly against a hand-wired
+  `_watchState` bundle global — that's gone with `watchmatch.js`, so those
+  became real Vitest tests instead of bundle-eval checks; a `matchScreenSrc`
+  read was added alongside the other `<name>ScreenSrc` reads for the
+  string-presence checks that still make sense post-move.
 - **Two build paths run side by side.** Vite builds the app; `src/build.py`'s
   concatenation survives *only* to feed `src/validate.js`, which asserts against
   the bundle's raw source text and cannot read a Vite bundle. Don't delete
@@ -137,11 +178,12 @@
   `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
   which CI already gates. Cloudflare runs its own install step, so the build
   command must not repeat one.
-- **Test coverage is still narrow.** `src/validate.js`'s 1167 checks run on
-  every push and PR, joined by a Playwright smoke test that drives a real career
-  and an accent-contrast check over all 186 clubs. None of it covers UI
-  correctness screen by screen. Vitest is installed but unused. See
-  `scope-fence`.
+- **Test coverage is still narrow.** `src/validate.js`'s 1067 checks run on
+  every push and PR, joined by a Playwright smoke test that drives a real career,
+  an accent-contrast check over all 186 clubs, and — since Phase 5 —
+  `npm run test` (Vitest) for `src/game/`'s pure substitution/formation-change/
+  opponent-generation logic. None of it covers UI correctness screen by
+  screen. See `scope-fence`.
 
 ## 1) Snapshot
 
@@ -172,11 +214,12 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | **All 9 screens are real Svelte islands** (`src/lib/ui/`: TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `prematch.js`, `watchmatch.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain | Svelte 5 (runes) — **Phase 4 done; Phase 5 (live match) is next** |
+| UI | **All 9 screens + the live-match route are real Svelte islands** (`src/lib/ui/`: TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen, MatchScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain, and `prematch.js`/`watchmatch.js` are deleted outright | Svelte 5 (runes) — **Phases 4 and 5 done; Phase 6 (data reconciliation) is next** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
-| Tests | `src/validate.js` (1167 checks) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
+| Game logic (non-DOM) | `src/modules/` (simulation, data) + `src/game/` (pure UI-adjacent rules: substitution/formation-change validation, opponent stub generation) — the latter is new in Phase 5, covered by Vitest instead of `validate.js`'s bundle-eval checks | same |
+| Tests | `src/validate.js` (1067 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -198,14 +241,23 @@ UX spec, tokens, and the design canvas it was drafted against.
   `fixtures` → `cups` → `transfers` → `potential` → `injuries` → `promotion` →
   `youthAcademy` → `save` → `season` → `gameweek` → `ui/*`); reordering breaks
   the build in ways that only surface at runtime.
-- `src/validate.js` — the 1167-check validator; `npm run build` runs it and
+- `src/validate.js` — the 1067-check validator; `npm run build` runs it and
   aborts on any failure.
 - `src/shell.html` — HTML/CSS shell, no JS.
 - `src/modules/` (13 files) — game logic, **no DOM access**. This boundary
   matters: it's what makes the planned UI rebuild tractable without touching
   the simulation.
-- `src/ui/` (7 files) — DOM rendering. This is what gets replaced by Svelte
-  components, screen by screen, from Phase 3 onward.
+- `src/game/` (4 files, new in Phase 5) — UI-adjacent pure logic that isn't
+  simulation math (substitution/formation-change validation, opponent stub
+  generation) and isn't rendering either. **No DOM access**, same rule as
+  `modules/`. Covered by Vitest (`*.test.js` alongside each file, `npm run
+  test`) instead of `validate.js`, since it's consumed by Svelte components
+  via real imports and never enters `build.py`'s concatenated bundle.
+- `src/ui/` (5 files) — DOM rendering. What's left after Phase 4/5 replaced
+  every screen-level renderer with a Svelte component: bridge code
+  (`home_transfers.js`'s `renderHome`/`handleEndOfSeason`), legacy modals
+  (`squad_tactics_offers.js`'s Offers, `inbox.js`), and shared helpers
+  (`helpers.js`, `renderers.js`).
 - `src/data/` (10 league files + `csv/`) — team and player data. **Do not
   assume this is final** — the plan's Phase 6 reconciles it against
   `footy-sim`'s CSVs (deeper rosters, full names, nationality across all
@@ -236,7 +288,8 @@ npm run dev              # Vite dev server with HMR, :5173
 npm run build            # both paths: legacy bundle + validator, then the Vite app
 npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
 npm run build:app        # Vite → dist/
-npm run validate         # node src/validate.js — re-run just the 1167 checks
+npm run validate         # node src/validate.js — re-run just the 1067 checks
+npm run test             # Vitest — src/game/*.test.js (pure logic, no bundle needed)
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
 npm run lint             # ESLint + eslint-plugin-svelte

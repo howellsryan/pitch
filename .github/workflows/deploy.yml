@@ -8,8 +8,10 @@ on:
 
 jobs:
   # Runs on every push and PR. Both build paths are exercised: build.py's
-  # concatenation (which runs validate.js's 1180 checks) and the Vite build,
-  # plus lint, the club-accent contrast floor, and a Playwright career smoke
+  # concatenation (which runs validate.js's 1067 checks) and the Vite build,
+  # plus lint, Vitest (src/game/*.test.js — pure logic that moved out of
+  # validate.js's bundle-eval reach in Phase 5, docs/plan/04-migration-
+  # phases.md), the club-accent contrast floor, and a Playwright career smoke
   # test.
   #
   # This workflow does NOT deploy. Cloudflare Workers Builds is connected to
@@ -31,7 +33,7 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # The legacy concatenation path: bundles and runs validate.js's 1180
+      # The legacy concatenation path: bundles and runs validate.js's 1067
       # checks. Still the gate nothing bypasses.
       # NOTE: the "Home win rate >20% over 30 games" check is stochastic and
       # fails roughly 1 run in 8 independently of the change under test.
@@ -40,6 +42,7 @@ jobs:
       # The Vite path: real ES modules, the app that Phase 3 builds on.
       - run: npm run build:app
       - run: npm run lint
+      - run: npm run test
       - run: npm run check:accents
 
       # A passing Vite build proves the module graph resolves, not that it is
