@@ -33,10 +33,27 @@
   runs both.
 - **The deployed artifact is the Vite build.** `wrangler.jsonc` serves `./dist`,
   and **Cloudflare Workers Builds — not GitHub Actions — deploys it**, straight
-  from the GitHub repo (`npm ci && npm run build:app`, then `npx wrangler
-  deploy`; other branches get `wrangler versions upload` for phone testing).
-  Never re-add a deploy step to CI: two systems deploying one Worker race each
-  other. The legacy `index.html` is now built for the validator only.
+  from the GitHub repo. Never re-add a deploy step to CI: two systems deploying
+  one Worker race each other. The legacy `index.html` is now built for the
+  validator only.
+
+  Its dashboard settings, which live outside this repo and are easy to get
+  wrong:
+
+  | Setting | Value |
+  |---|---|
+  | Build command | `npm run build:app` |
+  | Deploy command | `npx wrangler deploy` |
+  | Non-production branch deploy command | `npx wrangler versions upload` |
+  | Root directory | `/` |
+
+  Two traps, both already paid for once. **Root directory is `/`, not `dist/`** —
+  `dist/` is gitignored, so pointing at it fails during clone with `root
+  directory not found`, before anything installs; where output is *served* from
+  is `wrangler.jsonc`, not this field. And **`build:app`, not `build`** —
+  `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
+  which CI already gates. Cloudflare runs its own install step, so the build
+  command must not repeat one.
 - **Test coverage is still narrow.** `src/validate.js`'s 1180 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career
   and an accent-contrast check over all 186 clubs. None of it covers UI
