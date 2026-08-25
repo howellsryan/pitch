@@ -1,14 +1,14 @@
 <script>
   import { navigateTo } from '../../ui/helpers.js';
 
-  // Play reuses the existing gameweek-advance button that renderHome() wires
-  // up inside #screen-home (src/ui/home_transfers.js) — the queue-draining
-  // logic (docs/plan/04-migration-phases.md, Phase 3 watch note) stays
-  // exactly where it is; this just gives it a one-tap entry point from
-  // anywhere, matching the design's "always one thumb away" Play action.
+  // Play navigates straight to the Match route (src/lib/ui/MatchScreen.svelte,
+  // Phase 5, docs/plan/04-migration-phases.md), which pops the next event off
+  // save.pendingEvents itself on entry — the queue-draining logic (Phase 3
+  // watch note) stays exactly where it is, just reached directly now instead
+  // of via Home's button, matching the design's "always one thumb away" Play
+  // action.
   async function play() {
-    await navigateTo('home');
-    document.getElementById('btn-adv-header')?.click();
+    await navigateTo('match');
   }
 </script>
 

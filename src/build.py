@@ -60,10 +60,7 @@ MODULES += [
     ('ui/home_transfers.js',      'HOME & TRANSFERS'),
     ('ui/renderers.js',           'RENDERERS'),
     ('ui/squad_tactics_offers.js','SQUAD TACTICS OFFERS'),
-    ('ui/academy.js',             'ACADEMY'),
     ('ui/inbox.js',               'INBOX'),
-    ('ui/prematch.js',            'PRE-MATCH'),
-    ('ui/watchmatch.js',          'WATCH MATCH'),
 ]
 
 # ── Naming fixes: old name → correct name ───────────────────────────────────
@@ -182,25 +179,26 @@ def check_html(final: str) -> bool:
     # header buttons and their wiring into src/lib/ui/HomeScreen.svelte, a
     # real Svelte component outside this concatenated bundle entirely — like
     # League before it, there's no legacy identifier left in `final` to check
-    # for. 'btn-adv-header present' still holds: prematch.js's
-    # handleAdvanceOneFixture() disables that button by id directly, so the
-    # string survives in the bundle independent of the header markup.
+    # for. 'btn-adv-header present', 'pm-xi-preview present' and 'HOME on
+    # left in report' held only because ui/prematch.js's
+    # handleAdvanceOneFixture()/showPreMatchModal() and ui/home_transfers.js's
+    # showMatchReport() referenced those strings directly — Phase 5 deleted
+    # both files (their UI moved into src/lib/ui/MatchScreen.svelte, same as
+    # Home before it), so all three checks are gone too rather than left
+    # passing on a stale comment match.
     required = {
         'Braces balanced':           ob == cb,
         'Single <script> tag':       final.count('<script>') == 1,
         'No fmtMoney()':             'fmtMoney(' not in final,
         'No showToast()':            'showToast(' not in final,
-        'btn-adv-header present':    'btn-adv-header' in final,
         'pendingEvents queue':       'pendingEvents' in final,
         'buildPendingEvents':        'buildPendingEvents' in final,
-        'pm-xi-preview present':     'pm-xi-preview' in final,
         'selectEleven lineup param': 'lineup' in final,
         'No processCupRounds':       'processCupRounds' not in final,
         'No finaliseGW':             'finaliseGW' not in final,
         'Cup roundGWs present':      'roundGWs' in final,
         'Potential system present':  'assignPotentials' in final,
         'GK scorer weight=0':        "'GK': 0" in final,
-        'HOME on left in report':    '>HOME<' in final,
         'CHAMPIONSHIP_TEAMS':        'CHAMPIONSHIP_TEAMS' in final,
     }
 

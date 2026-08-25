@@ -18,6 +18,13 @@ import { navigateTo } from './ui/helpers.js';
 import TabBar from './lib/ui/TabBar.svelte';
 import LeagueScreen from './lib/ui/LeagueScreen.svelte';
 import HomeScreen from './lib/ui/HomeScreen.svelte';
+import SquadScreen from './lib/ui/SquadScreen.svelte';
+import TacticsScreen from './lib/ui/TacticsScreen.svelte';
+import AcademyScreen from './lib/ui/AcademyScreen.svelte';
+import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
+import SettingsScreen from './lib/ui/SettingsScreen.svelte';
+import TransfersScreen from './lib/ui/TransfersScreen.svelte';
+import MatchScreen from './lib/ui/MatchScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
 // these for their side effects is what starts the game. Order mirrors
@@ -27,10 +34,7 @@ import './ui/helpers.js';
 import './ui/home_transfers.js';
 import './ui/renderers.js';
 import './ui/squad_tactics_offers.js';
-import './ui/academy.js';
 import './ui/inbox.js';
-import './ui/prematch.js';
-import './ui/watchmatch.js';
 
 // src/shell.html has two inline onclick="navigateTo(...)" handlers, which
 // resolve against the global scope rather than this module's. Everything else
@@ -49,3 +53,24 @@ if (leagueMount) mount(LeagueScreen, { target: leagueMount });
 
 const homeMount = document.getElementById('screen-home');
 if (homeMount) mount(HomeScreen, { target: homeMount });
+
+const squadMount = document.getElementById('screen-squad');
+if (squadMount) mount(SquadScreen, { target: squadMount });
+
+const tacticsMount = document.getElementById('screen-tactics');
+if (tacticsMount) mount(TacticsScreen, { target: tacticsMount });
+
+const academyMount = document.getElementById('screen-academy');
+if (academyMount) mount(AcademyScreen, { target: academyMount });
+
+const trophiesMount = document.getElementById('screen-trophies');
+if (trophiesMount) mount(TrophiesScreen, { target: trophiesMount });
+
+const settingsMount = document.getElementById('screen-settings');
+if (settingsMount) mount(SettingsScreen, { target: settingsMount });
+
+const transfersMount = document.getElementById('screen-transfers');
+if (transfersMount) mount(TransfersScreen, { target: transfersMount });
+
+const matchMount = document.getElementById('screen-match');
+if (matchMount) mount(MatchScreen, { target: matchMount });

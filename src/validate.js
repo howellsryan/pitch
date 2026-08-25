@@ -12,6 +12,15 @@ const SHELL  = process.env.PITCH_SHELL  || path.join(__dirname, 'shell.html');
 // component (Phase 4, docs/plan/04-migration-phases.md) and is no longer in
 // shell.html's raw source — same reasoning as shellSrc, just a second file.
 const HOME_SCREEN = path.join(__dirname, 'lib', 'ui', 'HomeScreen.svelte');
+const SQUAD_SCREEN = path.join(__dirname, 'lib', 'ui', 'SquadScreen.svelte');
+const TACTICS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TacticsScreen.svelte');
+const ACADEMY_SCREEN = path.join(__dirname, 'lib', 'ui', 'AcademyScreen.svelte');
+const SETTINGS_SCREEN = path.join(__dirname, 'lib', 'ui', 'SettingsScreen.svelte');
+const TRANSFERS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TransfersScreen.svelte');
+const MATCH_SCREEN = path.join(__dirname, 'lib', 'ui', 'MatchScreen.svelte');
+const SUBSTITUTIONS = path.join(__dirname, 'game', 'substitutions.js');
+const FORMATION_CHANGE = path.join(__dirname, 'game', 'formationChange.js');
+const OPPONENTS = path.join(__dirname, 'game', 'opponents.js');
 if (!fs.existsSync(BUNDLE)) { console.error('Bundle not found: '+BUNDLE+' — run src/build.py first, or set PITCH_BUNDLE.'); process.exit(1); }
 
 const GLOBALS = `
@@ -29,6 +38,15 @@ const TESTS = `
 const code = ${JSON.stringify(fs.readFileSync(BUNDLE,'utf8'))};
 const shellSrc = require('fs').readFileSync(${JSON.stringify(SHELL)},'utf8');
 const homeScreenSrc = require('fs').readFileSync(${JSON.stringify(HOME_SCREEN)},'utf8');
+const squadScreenSrc = require('fs').readFileSync(${JSON.stringify(SQUAD_SCREEN)},'utf8');
+const tacticsScreenSrc = require('fs').readFileSync(${JSON.stringify(TACTICS_SCREEN)},'utf8');
+const academyScreenSrc = require('fs').readFileSync(${JSON.stringify(ACADEMY_SCREEN)},'utf8');
+const settingsScreenSrc = require('fs').readFileSync(${JSON.stringify(SETTINGS_SCREEN)},'utf8');
+const transfersScreenSrc = require('fs').readFileSync(${JSON.stringify(TRANSFERS_SCREEN)},'utf8');
+const matchScreenSrc = require('fs').readFileSync(${JSON.stringify(MATCH_SCREEN)},'utf8');
+const substitutionsSrc = require('fs').readFileSync(${JSON.stringify(SUBSTITUTIONS)},'utf8');
+const formationChangeSrc = require('fs').readFileSync(${JSON.stringify(FORMATION_CHANGE)},'utf8');
+const opponentsSrc = require('fs').readFileSync(${JSON.stringify(OPPONENTS)},'utf8');
 let pass=0,fail=0;
 const failures=[];
 let sec='';
@@ -193,14 +211,21 @@ chk('cup event has roundName string', typeof (pe2.find(e=>e.type==='cup')||{}).r
 const pe3=buildPendingEvents(20,'user',mockFix20,{fa_cup:{status:'eliminated',roundIndex:0,results:[]}},[]);
 chk('eliminated cup not added', pe3.length===1);
 
-// ══ 4. PRE-MATCH MODAL & BUTTON WIRING ═══════════════════════
-section('4. Pre-Match Modal & Button Wiring');
-chk('showPreMatchModal defined', typeof showPreMatchModal==='function');
-chk('getTeamRecentForm defined', typeof getTeamRecentForm==='function');
-chk('getInFormPlayer defined', typeof getInFormPlayer==='function');
-chk('handleAdvanceOneFixture defined', typeof handleAdvanceOneFixture==='function');
-chk('_launchWatchMatch defined', typeof _launchWatchMatch==='function');
-chk('_generateStubPlayers defined', typeof _generateStubPlayers==='function');
+// ══ 4. MATCH ROUTE — TEAM NEWS / KICKOFF ═════════════════════
+section('4. Match Route — Team News / Kickoff');
+// ui/prematch.js is gone (Phase 5, docs/plan/04-migration-phases.md) — its
+// pre-match modal became src/lib/ui/MatchScreen.svelte's Team News beat, a
+// real Svelte component outside shell.html and this concatenated bundle
+// entirely, same reasoning as League's move in Phase 3. Check the component
+// source instead of code/shellSrc. Behavioural coverage for the pure logic
+// that moved out to src/game/ (opponent stub generation, sub/formation
+// rules) now lives in src/game/*.test.js (Vitest), not here — see the
+// "Regression" sections below for what was removed and why.
+chk('buildMatchCtx defined in MatchScreen.svelte', matchScreenSrc.includes('async function buildMatchCtx'));
+chk('getTeamRecentForm defined in MatchScreen.svelte', matchScreenSrc.includes('async function getTeamRecentForm'));
+chk('getInFormPlayer defined in MatchScreen.svelte', matchScreenSrc.includes('async function getInFormPlayer'));
+chk('resolveMatchTeams defined in MatchScreen.svelte', matchScreenSrc.includes('async function resolveMatchTeams'));
+chk('generateStubPlayers imported from src/game/opponents.js', matchScreenSrc.includes("from '../../game/opponents.js'"));
 // Home's header (Play/EOY/Deadline buttons, id="btn-adv-header" etc.) moved
 // into src/lib/ui/HomeScreen.svelte (Phase 4, docs/plan/04-migration-phases.md)
 // — a real Svelte component outside shell.html and this concatenated bundle
@@ -209,37 +234,20 @@ chk('_generateStubPlayers defined', typeof _generateStubPlayers==='function');
 chk('btn-adv-header in HomeScreen.svelte', homeScreenSrc.includes('btn-adv-header'));
 chk('btn-eoy-header in HomeScreen.svelte', homeScreenSrc.includes('btn-eoy-header'));
 chk('btn-deadline-header in HomeScreen.svelte', homeScreenSrc.includes('btn-deadline-header'));
-chk('HomeScreen Play button -> showPreMatchModal', homeScreenSrc.includes('showPreMatchModal'));
+chk("HomeScreen Play button -> navigateTo('match')", homeScreenSrc.includes("navigateTo('match')"));
 chk('HomeScreen EOY button -> handleEndOfSeason', homeScreenSrc.includes('handleEndOfSeason'));
-chk('pm-fm-display shows formation', code.includes('pm-fm-display'));
-chk('pm-xi-preview shows lineup', code.includes('pm-xi-preview'));
-chk('Tactics screen hint in pre-match', code.includes('Tactics screen'));
+chk('Team News XI preview on pitch slots', matchScreenSrc.includes('teamNewsAssignment'));
+chk('Team News uses shared SLOT_LAYOUT (not a re-declared copy)', matchScreenSrc.includes("from '../../game/formationLayout.js'"));
+chk('Tactics screen hint in Team News', matchScreenSrc.includes('Tactics screen') || matchScreenSrc.includes('Tactics'));
 chk('selectEleven accepts lineup param', code.includes('function selectEleven(players, formation') && code.includes('lineup'));
 chk('simulateMatch passes lineup', code.includes('simulateMatch(') && code.includes('hLineup') && code.includes('aLineup'));
 chk('buildLiveMatchState passes lineup', code.includes('buildLiveMatchState(') && code.includes('homeLineup') && code.includes('awayLineup'));
 chk('advanceOneFixture reads save.lineup', code.includes('save.lineup'));
-chk('No pm-change-tactics (removed)', !code.includes('pm-change-tactics'));
-chk('No pm-fm-picker (removed)', !code.includes('pm-fm-picker'));
-chk('No pm-tactic-warning (removed)', !code.includes('pm-tactic-warning'));
-chk('pm-form-pill for opponent form', code.includes('pm-form-pill'));
-chk('pm-inform-card for key player', code.includes('pm-inform-card'));
-chk('pm-comp-badge competition label', code.includes('pm-comp-badge'));
-chk('Quick Sim button label', code.includes('Quick Sim'));
-chk('Watch Match button label', code.includes('Watch Match'));
-chk("quick-sim button id", code.includes("id: 'quick-sim'"));
-chk("watch-match button id", code.includes("id: 'watch-match'"));
-// _generateStubPlayers smoke
-const stubs=_generateStubPlayers({id:'stub_club',name:'Test',crest:'T'},85);
-chk('Stub players: 16 generated', stubs.length===16);
-chk('Stub: GK present', stubs.some(p=>p.position==='GK'));
-chk('Stub: ST present', stubs.some(p=>p.position==='ST'));
-chk('Stub: CB present', stubs.some(p=>p.position==='CB'));
-chk('Stub: no null ids', stubs.every(p=>p.id&&p.id.length>0));
-chk('Stub: fitness=90', stubs.every(p=>p.fitness===90));
-chk('Stub: inSquad=true', stubs.every(p=>p.inSquad===true));
-chk('Stub: teamId=stub_club', stubs.every(p=>p.teamId==='stub_club'));
-chk('Stub: GK has goalkeeping>=55', stubs.filter(p=>p.position==='GK').every(p=>p.goalkeeping>=55));
-chk('Stub: ratings sane (0-99)', stubs.every(p=>[p.attack,p.midfield,p.defence,p.goalkeeping].every(v=>v>=0&&v<=99)));
+chk('Opponent form pills in Team News', matchScreenSrc.includes('tn-form-pill'));
+chk('Key player card in Team News', matchScreenSrc.includes('tn-inform-card'));
+chk('Competition badge in Team News', matchScreenSrc.includes('tn-comp-badge'));
+chk('Sim Instantly action', matchScreenSrc.includes('Sim Instantly') && matchScreenSrc.includes('function simInstant'));
+chk('Kick Off action', matchScreenSrc.includes('Kick Off') && matchScreenSrc.includes('function startWatch'));
 
 // ══ 5. MATCH ENGINE ══════════════════════════════════════════
 section('5. Match Engine');
@@ -279,8 +287,14 @@ chk('outcome field valid', ['home_win','away_win','draw'].includes(mr.outcome));
 chk('events sorted by minute', mr.events.every((e,i)=>i===0||e.minute>=mr.events[i-1].minute));
 chk('homeTeamName present', typeof mr.homeTeamName==='string');
 chk('GK scorer weight=0 in code', code.includes("'GK': 0")||code.includes('"GK": 0'));
-chk('HOME on left in match report', code.includes('>HOME<'));
-chk('AWAY on right in match report', code.includes('>AWAY<'));
+// home_transfers.js's showMatchReport() is gone (Phase 5, docs/plan/
+// 04-migration-phases.md) — MatchScreen.svelte's Team News beat carries the
+// same "home team always on the left, labelled HOME; away always on the
+// right, labelled AWAY" invariant now, checked in full (including the
+// "label text never depends on user identity, only the colour does" part)
+// under "Regression: Live Match HOME/AWAY Labels" below.
+chk('HOME on left in Team News', matchScreenSrc.includes('>HOME</div>'));
+chk('AWAY on right in Team News', matchScreenSrc.includes('>AWAY</div>'));
 // Home advantage
 let homeWins=0;
 for(let i=0;i<30;i++){const r=simulateMatch({id:'h',name:'H',crest:'H'},{id:'a',name:'A',crest:'A'},lpl,mcp,'4-3-3','4-3-3');if(r.outcome==='home_win')homeWins++;}
@@ -444,23 +458,41 @@ section('10. UI Functions');
   // data-fetching along with the rest of Home. renderHome IS still checked:
   // it survives as a thin bridge (bumps the tick HomeScreen.svelte watches)
   // because prematch.js/watchmatch.js/squad_tactics_offers.js still call it.
-  'renderHome','renderTransfers','renderCups',
-  'renderSquad','renderTactics','renderOffers','renderHonours','renderSettings',
-  'renderNewGame','showMatchReport','showPreMatchModal','handleAdvanceOneFixture',
+  // renderSquad, renderTactics, renderAcademy, renderTrophies,
+  // renderSettings and renderTransfers aren't either — Phase 4 moved them to
+  // src/lib/ui/SquadScreen.svelte, TacticsScreen.svelte, AcademyScreen.svelte,
+  // TrophiesScreen.svelte, SettingsScreen.svelte and TransfersScreen.svelte,
+  // same reasoning. renderCups and renderHonours were only ever aliases kept
+  // to satisfy this exact check list, with no other callers — deleted
+  // alongside renderTrophies rather than kept as now-pointless indirection.
+  // showMatchReport/showPreMatchModal/handleAdvanceOneFixture/
+  // showWatchMatchModal/_launchWatchMatch/_generateStubPlayers aren't
+  // checked here either, for the same crash-risk reason renderTransfers
+  // was dropped in Phase 4: typeof eval(fn)==='function' throws
+  // ReferenceError for an undeclared identifier before typeof can
+  // suppress it, and ui/prematch.js/ui/watchmatch.js (Phase 5,
+  // docs/plan/04-migration-phases.md) are gone — their UI moved into
+  // src/lib/ui/MatchScreen.svelte, checked via matchScreenSrc in
+  // section 4 instead.
+  'renderHome',
+  'renderOffers',
+  'renderNewGame',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
   'showLoader','hideLoader','boot',
-  'showWatchMatchModal','_launchWatchMatch','_generateStubPlayers'
 ].forEach(fn=>chk(fn+' defined', typeof eval(fn)==='function'));
 // Shell structure
 chk('screen-home in HTML', shellSrc.includes('id="screen-home"'));
 chk('screen-transfers in HTML', shellSrc.includes('id="screen-transfers"'));
 chk('screen-competitions in HTML', shellSrc.includes('id="screen-competitions"'));
-chk('screen-cups in HTML', shellSrc.includes('id="screen-cups"'));
+chk('screen-trophies in HTML', shellSrc.includes('id="screen-trophies"'));
 chk('screen-squad in HTML', shellSrc.includes('id="screen-squad"'));
 chk('screen-academy in HTML', shellSrc.includes('id="screen-academy"'));
 chk('screen-tactics in HTML', shellSrc.includes('id="screen-tactics"'));
 chk('showOffersModal in bundle', code.includes('showOffersModal'));
-chk('screen-honours in HTML', shellSrc.includes('id="screen-honours"'));
+// screen-cups/screen-honours were hidden display:none alias divs kept only so
+// this exact check list resolved — nothing ever navigated to or queried them
+// (confirmed via a repo-wide grep before removing). Dropped along with
+// renderCups/renderHonours above rather than carried forward as dead markup.
 chk('screen-settings in HTML', shellSrc.includes('id="screen-settings"'));
 chk('sidebar nav present', shellSrc.includes('class="sidebar"'));
 // Phase 3 (docs/plan/04-migration-phases.md) replaces the static 9-item
@@ -543,7 +575,7 @@ chk('simulateAITransfers called in advanceOneFixture', code.includes('simulateAI
 // WINDOW_CLOSED error handled in UI
 chk('WINDOW_CLOSED error handled in buy UI', code.includes('WINDOW_CLOSED'));
 // Window banner in shell
-chk('Transfer window banner div in shell', code.includes('tr-window-banner'));
+chk('Transfer window banner in TransfersScreen.svelte', transfersScreenSrc.includes('tr-window-banner'));
 
 const basePl={value:50000000,goals:0,assists:0,cleanSheets:0,form:50};
 const hotPl={...basePl,goals:18,assists:10,form:85};
@@ -557,11 +589,15 @@ chk('inboundOffers in save', code.includes('inboundOffers'));
 // --- REG-31: Collapsed Deals — block re-offers after deal breaks down ---
 chk('collapsedDeals array in save shape', code.includes('collapsedDeals'));
 chk('collapsedDeals initialized as empty array in startNewGame', code.includes("collapsedDeals:  []") || code.includes("collapsedDeals:[]"));
-chk('collapsedDeals checked in renderPlayerDetail', code.includes('_isCollapsed'));
-chk('collapsedDeals recorded on counter-offer rejection', code.includes('collapsedDeals||[]),player.id'));
+// The renderPlayerDetail/_applyAndRenderBuyList/renderBuyList function names
+// below moved to src/lib/ui/TransfersScreen.svelte (Phase 4,
+// docs/plan/04-migration-phases.md) — checked against transfersScreenSrc
+// instead of the bundle, same reasoning as the other *ScreenSrc reads.
+chk('collapsedDeals checked in TransfersScreen.svelte', transfersScreenSrc.includes('detailIsCollapsed'));
+chk('collapsedDeals recorded on counter-offer rejection', transfersScreenSrc.includes('collapsedDeals || []), player.id'));
 chk('collapsedDeals cleared at season rollover', (()=>{const s=code.indexOf('processEndOfSeason');const chunk=s>-1?code.slice(s,s+70000):'';return chunk.includes('collapsedDeals');})());
-chk('Deal Collapsed UI shown when blocked', code.includes('Deal Collapsed'));
-chk('Offer controls hidden when collapsed (early return)', code.includes('if(_isCollapsed) return'));
+chk('Deal Collapsed UI shown when blocked', transfersScreenSrc.includes('Deal Collapsed'));
+chk('Offer controls hidden when collapsed', transfersScreenSrc.includes('{#if detailIsCollapsed}'));
 
 // --- REG-32: Reputation Gate — players won't join clubs below rep threshold ---
 chk('playerMinRepToSign defined', typeof playerMinRepToSign==='function');
@@ -605,16 +641,16 @@ chk('simulateAITransfers stamps signedThisSeason', (()=>{const s=code.indexOf('a
 chk('processEndOfSeason clears signedThisSeason', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+4000):'';return chunk.includes('signedThisSeason: false');})());
 // UI shows season-locked badge and banner
 chk('Season-locked badge shown in buy list', code.includes('Already transferred this season'));
-chk('Season-locked banner shown in detail panel', code.includes('Already Transferred') && code.includes('cannot transfer again until next season'));
+chk('Season-locked banner shown in detail panel', transfersScreenSrc.includes('Already Transferred') && transfersScreenSrc.includes('cannot transfer again until next season'));
 // Rep lock icon shown in buy list
-chk('Rep lock icon shown in buy list rows', code.includes('rep-locked'));
+chk('Rep lock icon shown in buy list rows', transfersScreenSrc.includes('lock-badge') && transfersScreenSrc.includes('rep.blocked'));
 // canSign toggle present
-chk('canSign filter toggle in transfer UI', code.includes('tr-can-sign'));
-chk('canSign filter applied in _applyAndRenderBuyList', (()=>{const s=code.indexOf('function _applyAndRenderBuyList');const chunk=s>-1?code.slice(s,s+2000):'';return chunk.includes('canSign');})());
+chk('canSign filter toggle in transfer UI', transfersScreenSrc.includes('tr-can-sign'));
+chk('canSign filter applied in filteredBuyList', (()=>{const s=transfersScreenSrc.indexOf('filteredBuyList = $derived.by');const chunk=s>-1?transfersScreenSrc.slice(s,s+2000):'';return chunk.includes('f.canSign');})());
 // maxPrice=0 means no limit (not filtered)
-chk('maxPrice 0 means no limit in filter', (()=>{const s=code.indexOf('function _applyAndRenderBuyList');const chunk=s>-1?code.slice(s,s+2000):'';return chunk.includes('maxPrice>0');})());
+chk('maxPrice 0 means no limit in filter', (()=>{const s=transfersScreenSrc.indexOf('filteredBuyList = $derived.by');const chunk=s>-1?transfersScreenSrc.slice(s,s+2000):'';return chunk.includes('f.maxPrice > 0');})());
 // minPot default is 0 (no minimum)
-chk('minPot initialises to 0 (no minimum)', code.includes('minPot:0'));
+chk('minPot initialises to 0 (no minimum)', transfersScreenSrc.includes('minPot: 0'));
 
 // ══ 12. STALE REFERENCE & CODE QUALITY ═══════════════════════
 section('12. Stale Reference & Code Quality');
@@ -629,15 +665,18 @@ section('12. Stale Reference & Code Quality');
   ["name: 'Unknown Opponent'",'cup opponent must be pre-drawn'],
 ].forEach(([r,reason])=>chk('No stale ref: '+r.trim(), !code.includes(r), reason));
 chk('Braces balanced', code.split('{').length===code.split('}').length);
-const bpcStart=code.indexOf('function renderBuyList');
-const bpcSrc=bpcStart>-1?code.slice(bpcStart,bpcStart+12000):'';
-chk('potDisp defined before use', bpcSrc.length>0&&bpcSrc.indexOf('potDisp=') <bpcSrc.indexOf('potDisp?'));
-chk('potColor defined before use', bpcSrc.length>0&&bpcSrc.indexOf('potColor=')>-1);
-chk('potLabel defined before use', bpcSrc.length>0&&bpcSrc.indexOf('potLabel=')>-1);
+// potDisp/potColor/potLabel "defined before use" doesn't have a meaningful
+// equivalent in TransfersScreen.svelte (Phase 4, docs/plan/04-migration-
+// phases.md) — that was a real risk in the old renderBuyList's hand-built
+// template strings (a variable read before its own assignment silently
+// stringifies to "undefined"), but Svelte's {@const potStars = ...} runs
+// before anything in the same block can reference it, enforced by the
+// compiler, not by source-order discipline. Dropped rather than kept as a
+// check with no failure mode left to catch.
 chk('Domestic cup filters by userLeague', code.includes('userLeague')&&code.includes("'Premier League'")&&code.includes('league_cup'));
 chk('Cup event carries opponentName', code.includes('opponentName:')&&(code.includes("type: 'cup'")||code.includes("type:'cup'")));
 chk('simulateCupRound receives event', code.includes('simulateCupRound')&&code.includes('event.opponentId'));
-chk('Pre-match userIsHome computed', code.includes('userIsHome')&&code.includes('showPreMatchModal'));
+chk('Pre-match userIsHome computed', matchScreenSrc.includes('userIsHome')&&matchScreenSrc.includes('buildMatchCtx'));
 chk('No hardcoded Unknown Opponent', !code.includes("'Unknown Opponent'"));
 chk('buildUCLOpponents excludes user', code.includes('excludeTeamId')&&code.includes('buildUCLOpponents'));
 chk('buildInitialCupState accepts userTeamId', (()=>{const s=code.indexOf('function buildInitialCupState');return s>-1&&code.slice(s,s+100).includes('userTeamId');})());
@@ -655,7 +694,9 @@ chk('runYouthIntake defined', typeof runYouthIntake==='function');
 chk('promoteYouthPlayer defined', typeof promoteYouthPlayer==='function');
 chk('releaseYouthPlayer defined', typeof releaseYouthPlayer==='function');
 chk('getAcademyInfo defined', typeof getAcademyInfo==='function');
-chk('renderAcademy defined', typeof renderAcademy==='function');
+// renderAcademy isn't checked here — Phase 4 (docs/plan/04-migration-phases.md)
+// moved it to src/lib/ui/AcademyScreen.svelte, same reasoning as renderSquad/
+// renderTactics above: a real Svelte component outside this bundle entirely.
 chk('generateCohort in bundle', code.includes('generateCohort'));
 chk('generateYouthPlayer in bundle', code.includes('generateYouthPlayer'));
 chk('youthCohort in save shape', code.includes('youthCohort'));
@@ -682,10 +723,10 @@ const aiAvg=getAcademyInfo(60);
 chk('Rep60 -> average tier', aiAvg.tier==='average');
 chk('Average has 2 stars', aiAvg.stars===2);
 chk('Higher rep -> more stars', aiElite.stars>=aiTop.stars&&aiTop.stars>=aiGood.stars&&aiGood.stars>=aiAvg.stars&&aiAvg.stars>=aiPoor.stars);
-chk('academy-card CSS present', shellSrc.includes('academy-card'));
-chk('youth-action in UI', code.includes('youth-action'));
-chk('releaseYouthPlayer in UI', code.includes('releaseYouthPlayer'));
-chk('WONDERKID badge', code.includes('WONDERKID'));
+chk('academy card markup in AcademyScreen.svelte', academyScreenSrc.includes('ac-card'));
+chk('promote/release wired in AcademyScreen.svelte', academyScreenSrc.includes('askPromote') && academyScreenSrc.includes('askRelease'));
+chk('releaseYouthPlayer called from AcademyScreen.svelte', academyScreenSrc.includes('releaseYouthPlayer'));
+chk('wonderkid badge in AcademyScreen.svelte', academyScreenSrc.includes('ac-wk-badge'));
 chk('age-out logic present', code.includes('age <= 19')||code.includes('age<=19'));
 chk('AI auto-promotes talented youth', code.includes('potentialRating >= 70')||code.includes('potentialRating>=70'));
 chk('runYouthIntake called in processEndOfSeason', (()=>{const s=code.indexOf('function processEndOfSeason');return s>-1&&code.indexOf('runYouthIntake',s)<s+5500;})());
@@ -694,57 +735,69 @@ chk('youthCohort seeded in startNewGame', (()=>{const ng=code.indexOf('function 
 chk('youthTeamId field present', code.includes('youthTeamId'));
 chk('isYouth field present', code.includes('isYouth'));
 
-// ══ 14. WATCH MATCH ══════════════════════════════════════════
-section('14. Watch Match');
-// Core engine exports
+// ══ 14. LIVE MATCH ═══════════════════════════════════════════
+section('14. Live Match');
+// ui/watchmatch.js is gone (Phase 5, docs/plan/04-migration-phases.md) —
+// its live viewer became src/lib/ui/MatchScreen.svelte's Live/Full-Time/
+// After beats, and the user-intervention rules it hand-rolled inline
+// (_applyUserSub's GK<->GK/outfield<->outfield guards and 3-sub limit,
+// _applyFormationChange's XI recompute) moved to src/game/substitutions.js
+// and src/game/formationChange.js — pure, DOM-free, and covered by real
+// Vitest tests (src/game/*.test.js) instead of the eval'd-bundle-plus-
+// module-global hackery this section used to need (_watchState wired up by
+// hand, _applyUserSub/_applyFormationChange called directly). Everything
+// below that isn't a matchEngine.js/gameweek.js export — _wmSubClick,
+// _applyUserSub, _applyFormationChange, _togglePause,
+// _showInterventionPanel, _commitResult, _finishMatch, showWatchMatchModal,
+// _launchWatchMatch, the wm-* CSS classes, WATCH_PHASES_PER_TICK/
+// WATCH_TICK_MS as bundle constants — no longer exists in this concatenated
+// bundle at all (MatchScreen.svelte is a real Svelte component outside it,
+// same as every other Phase 3/4 screen), so those checks are gone rather
+// than left to fail on a deleted identifier.
+// Core engine exports (modules/matchEngine.js, modules/gameweek.js — untouched)
 chk('simulateMatchSegment defined', typeof simulateMatchSegment==='function');
 chk('buildLiveMatchState defined', typeof buildLiveMatchState==='function');
 chk('finaliseLiveMatch defined', typeof finaliseLiveMatch==='function');
 chk('advanceOneFixtureWithResult defined', typeof advanceOneFixtureWithResult==='function');
-// UI
-chk('showWatchMatchModal defined', typeof showWatchMatchModal==='function');
-chk('_launchWatchMatch defined', typeof _launchWatchMatch==='function');
-// Button wiring
-chk('quick-sim id present', code.includes("id: 'quick-sim'"));
-chk('watch-match id present', code.includes("id: 'watch-match'"));
-chk('_launchWatchMatch called from watch-match', (()=>{const s=code.indexOf("id: 'watch-match'");return s>-1&&code.indexOf('_launchWatchMatch',s)<s+500;})());
-// Constants
-chk('WATCH_PHASES_PER_TICK defined', code.includes('WATCH_PHASES_PER_TICK'));
-chk('WATCH_TICK_MS defined', code.includes('WATCH_TICK_MS'));
-chk('TOTAL_PHASES=120 in watch code', code.includes('TOTAL_PHASES')&&code.includes('120'));
-chk('Speed buttons 1x/2x/4x', code.includes('data-speed="1"')&&code.includes('data-speed="2"')&&code.includes('data-speed="4"'));
-chk('speedMultiplier in delay calc', code.includes('speedMultiplier'));
-// Intervention
-chk('_wmSubClick defined', code.includes('_wmSubClick'));
-chk('_applyUserSub defined', code.includes('_applyUserSub'));
-chk('_applyFormationChange defined', code.includes('_applyFormationChange'));
-chk('_togglePause defined', code.includes('_togglePause'));
-chk('_showInterventionPanel defined', code.includes('_showInterventionPanel'));
-chk('_commitResult defined', code.includes('_commitResult'));
-chk('_finishMatch defined', code.includes('_finishMatch'));
-// Strength recalculated after intervention
-chk('teamStrength called in _applyUserSub', (()=>{const s=code.indexOf('function _applyUserSub')||code.indexOf('_applyUserSub');return s>-1&&code.indexOf('teamStrength',s)<s+1500;})());
-chk('hMidShare recalculated after sub', code.includes('hMidShare')&&code.includes('hStr.midfield + ls.aStr.midfield'));
-chk('teamStrength called in _applyFormationChange', (()=>{const s=code.indexOf('_applyFormationChange');return s>-1&&code.indexOf('teamStrength',s)<s+2500;})());
-// CSS in shell
-chk('wm-scoreboard CSS', shellSrc.includes('wm-scoreboard'));
-chk('wm-progress-bar CSS', shellSrc.includes('wm-progress-bar'));
-chk('wm-ctrl-btn CSS', shellSrc.includes('wm-ctrl-btn'));
-chk('wm-speed-btn CSS', shellSrc.includes('wm-speed-btn'));
-chk('wm-ev-user CSS', shellSrc.includes('wm-ev-user'));
-chk('wm-ev-opp CSS', shellSrc.includes('wm-ev-opp'));
-chk('wm-fit-high CSS', shellSrc.includes('wm-fit-high'));
-chk('wm-fit-mid CSS', shellSrc.includes('wm-fit-mid'));
-chk('wm-fit-low CSS', shellSrc.includes('wm-fit-low'));
-chk('wm-bench-row CSS', shellSrc.includes('wm-bench-row'));
-chk('wm-sub-btn CSS', shellSrc.includes('wm-sub-btn'));
-chk('wm-ev-in animation CSS', shellSrc.includes('wm-ev-in'));
-chk('modal-xl CSS', shellSrc.includes('modal-xl'));
-chk('modal-wide CSS', shellSrc.includes('modal-wide'));
+// MatchScreen.svelte wiring
+chk('Live tick engine ported (runTick/scheduleTick)', matchScreenSrc.includes('function runTick')&&matchScreenSrc.includes('function scheduleTick'));
+chk('WATCH_PHASES_PER_TICK defined', matchScreenSrc.includes('WATCH_PHASES_PER_TICK'));
+chk('WATCH_TICK_MS defined', matchScreenSrc.includes('WATCH_TICK_MS'));
+chk('TOTAL_PHASES=120 in Live beat', matchScreenSrc.includes('TOTAL_PHASES')&&matchScreenSrc.includes('120'));
+chk('Speed control 1x/2x/4x', matchScreenSrc.includes('[1, 2, 4]'));
+chk('Pause/resume wired', matchScreenSrc.includes('function togglePause'));
+chk('Skip wired', matchScreenSrc.includes('function skipMatch'));
+chk('Substitution sheet uses src/game/substitutions.js', matchScreenSrc.includes("from '../../game/substitutions.js'")&&matchScreenSrc.includes('applySubstitution'));
+chk('Tactics sheet uses src/game/formationChange.js', matchScreenSrc.includes("from '../../game/formationChange.js'")&&matchScreenSrc.includes('applyFormationChange'));
+chk('Sub sheet pauses while open', matchScreenSrc.includes('subSheetWasPaused'));
+chk('Tactics sheet pauses while open', matchScreenSrc.includes('tacticsSheetWasPaused'));
+chk('Injury auto-pauses the match', matchScreenSrc.includes("ev.type === 'injury'")&&matchScreenSrc.includes('togglePause()'));
+chk('Full Time beat shows scorers + verdict', matchScreenSrc.includes('ft-verdict')&&matchScreenSrc.includes('homeScorers'));
+chk('After beat commits via advanceOneFixtureWithResult', matchScreenSrc.includes('advanceOneFixtureWithResult'));
+chk('After beat shows league position with animate:flip', matchScreenSrc.includes('animate:flip')&&matchScreenSrc.includes('getTableSliceAroundTeam'));
 // buildLiveMatchState smoke
 const mkSt=(tid)=>[
   {id:tid+'_gk',name:'GK0',position:'GK',teamId:tid,attack:30,midfield:40,defence:55,goalkeeping:78,fitness:90,inSquad:true,injured:false,suspended:false},
   ...['CB','CB','RB','LB','CM','CM','CDM','RW','LW','ST','CB','CM','ST','LW','GK'].map((pos,i)=>({id:tid+'_'+i,name:pos+i,position:pos,teamId:tid,attack:65,midfield:65,defence:65,goalkeeping:20,fitness:90,inSquad:true,injured:false,suspended:false}))
+];
+// Shared fixture builder — 11 outfield + 1 GK + 3 bench, used by several
+// regression sections below (goal attribution, fitness drain, player
+// development) that need a full realistic squad, not just mkSt's flat list.
+const subTestPlayers=(tid)=>[
+  {id:tid+'_gk', name:'GK',  position:'GK', teamId:tid,attack:30,midfield:40,defence:55,goalkeeping:78,fitness:90,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_cb1',name:'CB1', position:'CB', teamId:tid,attack:40,midfield:45,defence:72,goalkeeping:20,fitness:75,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_cb2',name:'CB2', position:'CB', teamId:tid,attack:40,midfield:45,defence:70,goalkeeping:20,fitness:80,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_rb', name:'RB',  position:'RB', teamId:tid,attack:55,midfield:58,defence:68,goalkeeping:20,fitness:85,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_lb', name:'LB',  position:'LB', teamId:tid,attack:55,midfield:58,defence:67,goalkeeping:20,fitness:60,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_cm1',name:'CM1', position:'CM', teamId:tid,attack:60,midfield:74,defence:55,goalkeeping:20,fitness:50,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_cm2',name:'CM2', position:'CM', teamId:tid,attack:62,midfield:76,defence:54,goalkeeping:20,fitness:55,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_cdm',name:'CDM', position:'CDM',teamId:tid,attack:50,midfield:70,defence:65,goalkeeping:20,fitness:88,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_rw', name:'RW',  position:'RW', teamId:tid,attack:80,midfield:65,defence:40,goalkeeping:20,fitness:70,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_lw', name:'LW',  position:'LW', teamId:tid,attack:78,midfield:64,defence:38,goalkeeping:20,fitness:72,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_st', name:'ST',  position:'ST', teamId:tid,attack:85,midfield:60,defence:30,goalkeeping:20,fitness:65,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_sub1',name:'Sub1',position:'CM',teamId:tid,attack:58,midfield:72,defence:50,goalkeeping:20,fitness:100,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_sub2',name:'Sub2',position:'ST',teamId:tid,attack:82,midfield:58,defence:28,goalkeeping:20,fitness:100,inSquad:true,injured:false,suspended:false},
+  {id:tid+'_sub3',name:'Sub3',position:'CB',teamId:tid,attack:38,midfield:42,defence:69,goalkeeping:20,fitness:100,inSquad:true,injured:false,suspended:false},
 ];
 const sH={id:'h',name:'Home',crest:'H',reputation:80};
 const sA={id:'a',name:'Away',crest:'A',reputation:75};
@@ -800,137 +853,6 @@ chk('advanceOneFixtureWithResult calls applyResult', (()=>{const s=code.indexOf(
 chk('advanceOneFixtureWithResult handles ucl_md', (()=>{const s=code.indexOf('function advanceOneFixtureWithResult');return s>-1&&code.indexOf("'ucl_md'",s)<s+4500;})());
 chk('advanceOneFixtureWithResult handles cup type', (()=>{const s=code.indexOf('function advanceOneFixtureWithResult');return s>-1&&code.indexOf("'cup'",s)<s+4500;})());
 chk('advanceOneFixtureWithResult calls generateAIOffers', (()=>{const s=code.indexOf('function advanceOneFixtureWithResult');return s>-1&&code.indexOf('generateAIOffers',s)<s+5000;})());
-// Stub players edge cases
-const weakSt=_generateStubPlayers({id:'w',name:'Weak',crest:'W'},40);
-const strongSt=_generateStubPlayers({id:'s',name:'Strong',crest:'S'},95);
-chk('Stub: weak ST attack <= strong ST attack+35', weakSt.filter(p=>p.position==='ST')[0].attack<=strongSt.filter(p=>p.position==='ST')[0].attack+35);
-chk('Stub: GK goalkeeping sanely capped', weakSt.some(p=>p.position==='GK'&&p.goalkeeping>=35&&p.goalkeeping<=99));
-chk('Stub: all stub ids contain _stub_', weakSt.every(p=>p.id.includes('_stub_')));
-
-// ── SUB FLOW: Architecture safety ─────────────────────────────
-// The most important invariant: _wmSubClick must NEVER call showModal()
-// because showModal() replaces #modal-bd which IS the watch match modal.
-// It must use the inline wm-inline-panel approach instead.
-const wmSubClickSrc=(()=>{
-  const start=code.indexOf('window._wmSubClick = function');
-  if(start===-1)return '';
-  let depth=0,i=start,inFn=false;
-  while(i<code.length){
-    if(code[i]==='{'){depth++;inFn=true;}
-    else if(code[i]==='}'){depth--;if(inFn&&depth===0){return code.slice(start,i+2);}}
-    i++;
-  }
-  return code.slice(start,start+3000);
-})();
-chk('_wmSubClick does NOT call showModal', !wmSubClickSrc.includes('showModal('));
-chk('_wmSubClick uses _openInlinePanel', wmSubClickSrc.includes('_openInlinePanel'));
-chk('_wmSubClick uses fixed-position panel helper', code.includes('_openInlinePanel'));
-chk('_openInlinePanel appends to document.body', (()=>{const s=code.indexOf('function _openInlinePanel');return s>-1&&code.indexOf('document.body.appendChild',s)<s+1500;})());
-chk('_openInlinePanel has close button', (()=>{const s=code.indexOf('function _openInlinePanel');return s>-1&&code.indexOf('wm-panel-close',s)<s+1500;})());
-chk('_wmSubClick wires row onclick directly', wmSubClickSrc.includes('row.onclick'));
-chk('_wmSubClick calls _applyUserSub', wmSubClickSrc.includes('_applyUserSub'));
-chk('_wmSubClick calls close() from _openInlinePanel', wmSubClickSrc.includes('close()'));
-
-// _showInterventionPanel likewise must not call showModal
-const interventionSrc=(()=>{
-  const start=code.indexOf('function _showInterventionPanel');
-  return start>-1?code.slice(start,start+3000):'';
-})();
-chk('_showInterventionPanel does NOT call showModal', !interventionSrc.includes('showModal('));
-chk('_showInterventionPanel uses _openInlinePanel', interventionSrc.includes('_openInlinePanel'));
-chk('_showInterventionPanel wires apply button', interventionSrc.includes('wm-panel-apply'));
-chk('GKs on bench allowed (backup GK visible)', code.includes("GKs remain on bench")||!code.includes("hBenchLeft.filter(p => p.position !== 'GK')"));
-chk('_applyUserSub guards GK↔outfield cross-sub', (()=>{const s=code.indexOf('function _applyUserSub');return s>-1&&code.indexOf("position === 'GK'",s)<s+800&&code.indexOf("position !== 'GK'",s)<s+800;})());
-chk('_openInlinePanel defined', typeof _openInlinePanel==='function'||code.includes('function _openInlinePanel'));
-chk('_openInlinePanel uses position:fixed', (()=>{const s=code.indexOf('function _openInlinePanel');return s>-1&&code.indexOf('position:fixed',s)<s+1500;})());
-chk('corners stat bar in modal', code.includes('wm-stat-corners'));
-chk('fouls stat bar in modal', code.includes('wm-stat-fouls'));
-chk('wm-team-labels row in modal', code.includes('wm-team-labels'));
-chk('wm-col-bench column in modal', code.includes('wm-col-bench'));
-
-// ── SUB FLOW: Behavioural smoke tests on _applyUserSub ────────
-// Build a fresh liveState and directly call _applyUserSub to verify
-// it correctly mutates bench, active, subsLeft, strength, and allEvents.
-const subTestPlayers=(tid)=>[
-  {id:tid+'_gk', name:'GK',  position:'GK', teamId:tid,attack:30,midfield:40,defence:55,goalkeeping:78,fitness:90,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_cb1',name:'CB1', position:'CB', teamId:tid,attack:40,midfield:45,defence:72,goalkeeping:20,fitness:75,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_cb2',name:'CB2', position:'CB', teamId:tid,attack:40,midfield:45,defence:70,goalkeeping:20,fitness:80,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_rb', name:'RB',  position:'RB', teamId:tid,attack:55,midfield:58,defence:68,goalkeeping:20,fitness:85,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_lb', name:'LB',  position:'LB', teamId:tid,attack:55,midfield:58,defence:67,goalkeeping:20,fitness:60,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_cm1',name:'CM1', position:'CM', teamId:tid,attack:60,midfield:74,defence:55,goalkeeping:20,fitness:50,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_cm2',name:'CM2', position:'CM', teamId:tid,attack:62,midfield:76,defence:54,goalkeeping:20,fitness:55,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_cdm',name:'CDM', position:'CDM',teamId:tid,attack:50,midfield:70,defence:65,goalkeeping:20,fitness:88,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_rw', name:'RW',  position:'RW', teamId:tid,attack:80,midfield:65,defence:40,goalkeeping:20,fitness:70,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_lw', name:'LW',  position:'LW', teamId:tid,attack:78,midfield:64,defence:38,goalkeeping:20,fitness:72,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_st', name:'ST',  position:'ST', teamId:tid,attack:85,midfield:60,defence:30,goalkeeping:20,fitness:65,inSquad:true,injured:false,suspended:false},
-  // bench players
-  {id:tid+'_sub1',name:'Sub1',position:'CM',teamId:tid,attack:58,midfield:72,defence:50,goalkeeping:20,fitness:100,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_sub2',name:'Sub2',position:'ST',teamId:tid,attack:82,midfield:58,defence:28,goalkeeping:20,fitness:100,inSquad:true,injured:false,suspended:false},
-  {id:tid+'_sub3',name:'Sub3',position:'CB',teamId:tid,attack:38,midfield:42,defence:69,goalkeeping:20,fitness:100,inSquad:true,injured:false,suspended:false},
-];
-const subH={id:'subH',name:'SubHome',crest:'S',reputation:80};
-const subA={id:'subA',name:'SubAway',crest:'S',reputation:75};
-const subLs=buildLiveMatchState(subH,subA,subTestPlayers('h'),subTestPlayers('a'),'4-3-3','4-3-3');
-const subBenchBefore=subLs.hBenchLeft.length;
-const subActiveBefore=[...subLs.hActive];
-const subLeftBefore=subLs.hSubsLeft;
-const midShareBefore=subLs.hMidShare;
-const hStrBefore={...subLs.hStr};
-// Find a valid sub: first bench player in, first non-GK outfield player out
-const subInPlayer=subLs.hBenchLeft[0];
-const subOutPlayer=subLs.hActive.find(p=>p.position!=='GK');
-chk('Sub smoke: bench has players', subBenchBefore>0);
-chk('Sub smoke: subInPlayer found', !!subInPlayer);
-chk('Sub smoke: subOutPlayer found', !!subOutPlayer);
-// Set up _watchState so _applyUserSub can run
-_watchState={liveState:subLs,allEvents:[],homeTeam:subH,awayTeam:subA,userTeam:subH,oppTeam:subA,userPlayers:subTestPlayers('h'),oppPlayers:subTestPlayers('a'),userIsHome:true,save:{},matchEvent:{},tickTimer:null,paused:true,currentPhase:60,speedMultiplier:1};
-_applyUserSub(subInPlayer.id, subOutPlayer.id);
-const subLsAfter=_watchState.liveState;
-chk('Sub smoke: bench shrinks by 1', subLsAfter.hBenchLeft.length===subBenchBefore-1);
-chk('Sub smoke: subIn no longer on bench', !subLsAfter.hBenchLeft.some(p=>p.id===subInPlayer.id));
-chk('Sub smoke: subIn now in active XI', subLsAfter.hActive.some(p=>p.id===subInPlayer.id));
-chk('Sub smoke: subOut no longer in active', !subLsAfter.hActive.some(p=>p.id===subOutPlayer.id));
-chk('Sub smoke: active XI still 11 players', subLsAfter.hActive.length===11);
-chk('Sub smoke: subsLeft decremented', subLsAfter.hSubsLeft===subLeftBefore-1);
-chk('Sub smoke: subIn fitness set from player', subLsAfter.hFitness.get(subInPlayer.id)===Math.min(100, subInPlayer.fitness ?? 90));
-chk('Sub smoke: sub event recorded in allEvents', _watchState.allEvents.some(e=>e.type==='sub'&&e.inId===subInPlayer.id&&e.outId===subOutPlayer.id));
-chk('Sub smoke: hStr recalculated after sub', subLsAfter.hStr!==hStrBefore||(typeof subLsAfter.hStr.midfield==='number'));
-chk('Sub smoke: hMidShare is valid number [0,1]', subLsAfter.hMidShare>=0&&subLsAfter.hMidShare<=1);
-// Make a 2nd sub
-const subIn2=subLsAfter.hBenchLeft[0];
-const subOut2=subLsAfter.hActive.find(p=>p.position!=='GK'&&p.id!==subInPlayer.id);
-if(subIn2&&subOut2){
-  _applyUserSub(subIn2.id,subOut2.id);
-  chk('Sub smoke 2: subsLeft now 1', _watchState.liveState.hSubsLeft===subLeftBefore-2);
-  chk('Sub smoke 2: active still 11', _watchState.liveState.hActive.length===11);
-  chk('Sub smoke 2: 2 sub events recorded', _watchState.allEvents.filter(e=>e.type==='sub').length===2);
-}else{chk('Sub smoke 2: bench available for 2nd sub',false,'not enough bench');}
-// subsLeft=0 guard lives in _wmSubClick (not _applyUserSub).
-// Verify _wmSubClick source contains the guard.
-chk('_wmSubClick guards subsLeft<=0', wmSubClickSrc.includes('subsLeft <= 0')||wmSubClickSrc.includes('subsLeft<=0'));
-// Clean up _watchState so other tests aren't affected
-_watchState=null;
-
-// ── FORMATION CHANGE: Behavioural smoke tests ─────────────────
-const fmTestPlayers=(tid)=>subTestPlayers(tid); // reuse same shape
-const fmH={id:'fmH',name:'FmHome',crest:'F',reputation:80};
-const fmA={id:'fmA',name:'FmAway',crest:'F',reputation:75};
-const fmLs=buildLiveMatchState(fmH,fmA,fmTestPlayers('h'),fmTestPlayers('a'),'4-3-3','4-3-3');
-const fmStrBefore={...fmLs.hStr};
-const fmActiveBefore=[...fmLs.hActive];
-// Wire _watchState for _applyFormationChange
-_watchState={liveState:fmLs,allEvents:[],homeTeam:fmH,awayTeam:fmA,userTeam:fmH,oppTeam:fmA,userPlayers:fmTestPlayers('h'),oppPlayers:fmTestPlayers('a'),userIsHome:true,save:{},matchEvent:{},tickTimer:null,paused:true,currentPhase:45,speedMultiplier:1};
-_applyFormationChange('4-4-2');
-const fmLsAfter=_watchState.liveState;
-chk('Formation smoke: homeFormation updated', fmLsAfter.homeFormation==='4-4-2');
-chk('Formation smoke: hActive still 11', fmLsAfter.hActive.length===11);
-chk('Formation smoke: hStr recalculated', typeof fmLsAfter.hStr.attack==='number');
-chk('Formation smoke: hMidShare valid [0,1]', fmLsAfter.hMidShare>=0&&fmLsAfter.hMidShare<=1);
-chk('Formation smoke: awayFormation unchanged', fmLsAfter.awayFormation===fmLs.awayFormation);
-// Change back to 4-3-3
-_applyFormationChange('4-3-3');
-chk('Formation smoke: can change back', _watchState.liveState.homeFormation==='4-3-3');
-_watchState=null;
 
 // ══════════════════════════════════════════════════════════
 //  15. CORE SYSTEMS COVERAGE
@@ -1089,12 +1011,13 @@ chk('simulateMatch returns homeMentality', mRes.homeMentality === 'attacking');
 chk('simulateMatch returns awayMentality', mRes.awayMentality === 'defensive');
 // save.js mentality default
 chk('mentality key in save state (via startNewGame logic)', typeof startNewGame === 'function');
-// UI: mentality-pill buttons present in tactics HTML
-chk('mentality-pill class used in squad_tactics_offers', code.includes('mentality-pill'));
-chk('data-mentality attribute in tactics', code.includes('data-mentality'));
-chk('MENTALITIES array in renderTactics', code.includes('MENTALITIES'));
-// Pre-match modal shows mentality
-chk('mentality shown in pre-match modal', code.includes('mentality') && code.includes('pm-section'));
+// UI: mentality picker present in TacticsScreen.svelte (Phase 4 moved
+// renderTactics's markup there — same reasoning as the homeScreenSrc checks).
+chk('mentality picker wired in TacticsScreen.svelte', tacticsScreenSrc.includes('pickMentality'));
+chk('mentality saved via putSave in TacticsScreen.svelte', tacticsScreenSrc.includes('mentality: m.id'));
+chk('MENTALITIES array in TacticsScreen.svelte', tacticsScreenSrc.includes('MENTALITIES'));
+// Team News beat shows mentality
+chk('mentality shown in Team News beat', matchScreenSrc.includes('save.mentality') && matchScreenSrc.includes('tn-mentality'));
 
 // ══════════════════════════════════════════════════════════
 //  REGRESSION TESTS — Bugs reported in session
@@ -1135,17 +1058,19 @@ chk('REG: awayGoals count matches away goal events', regFin.awayGoals===regGoalE
 
 section('Regression: User Home/Away Player Mapping');
 
-// --- REG-2: When user is AWAY, _launchWatchMatch must pass userPlayers correctly ---
-// This tests the code path, not the async function. We verify the source code
-// resolves userPl/oppPl based on patchedEvent.userIsHome.
+// --- REG-2: When user is AWAY, startWatch() must pass userPlayers correctly ---
+// This tests the code path, not the async function. ui/prematch.js's
+// _launchWatchMatch became MatchScreen.svelte's resolveMatchTeams()/
+// startWatch() (Phase 5, docs/plan/04-migration-phases.md) — check that
+// source instead. We verify the source code resolves userPlayers/oppPlayers
+// based on resolved.userIsHome, not hardcoded to the home side.
 const launchSrc = (()=>{
-  const start=code.indexOf('async function _launchWatchMatch');
+  const start=matchScreenSrc.indexOf('async function startWatch');
   if(start===-1) return '';
-  return code.slice(start, start+3000);
+  return matchScreenSrc.slice(start, start+3000);
 })();
-chk('REG: _launchWatchMatch resolves userPl from isUserHome', launchSrc.includes('isUserHome ? homePlayers : awayPlayers') || launchSrc.includes('isUserHome?homePlayers:awayPlayers'));
-chk('REG: _launchWatchMatch resolves oppPl from isUserHome', launchSrc.includes('isUserHome ? awayPlayers : homePlayers') || launchSrc.includes('isUserHome?awayPlayers:homePlayers'));
-chk('REG: _launchWatchMatch does NOT pass raw homePlayers as userPlayers', !launchSrc.includes('patchedEvent, userTeam, homeTeam === userTeam'));
+chk('REG: startWatch resolves userPlayers from resolved.userIsHome', launchSrc.includes('userPlayers: resolved.userIsHome ? resolved.homePlayers : resolved.awayPlayers'));
+chk('REG: startWatch resolves oppPlayers from resolved.userIsHome', launchSrc.includes('oppPlayers:  resolved.userIsHome ? resolved.awayPlayers : resolved.homePlayers') || launchSrc.includes('oppPlayers: resolved.userIsHome ? resolved.awayPlayers : resolved.homePlayers'));
 
 // --- REG-3: Behavioural test — user away, bench/active must be user's players ---
 const regH2={id:'reg_h2',name:'RegHome2',crest:'H',reputation:85};
@@ -1177,51 +1102,25 @@ chk('REG: backup GK on home bench', gkLs.hBenchLeft.some(p=>p.position==='GK'));
 chk('REG: backup GK on away bench', gkLs.aBenchLeft.some(p=>p.position==='GK'));
 chk('REG: starting GK in active XI', gkLs.hActive.filter(p=>p.position==='GK').length===1);
 
-// --- REG-5: GK sub rules — GK can replace GK, outfield cannot replace GK ---
-_watchState={liveState:gkLs,allEvents:[],homeTeam:gkH,awayTeam:gkA,userTeam:gkH,oppTeam:gkA,userPlayers:gkTestPlayers('gk_h'),oppPlayers:gkTestPlayers('gk_a'),userIsHome:true,save:{},matchEvent:{},tickTimer:null,paused:true,currentPhase:60,speedMultiplier:1};
-const benchGK = gkLs.hBenchLeft.find(p=>p.position==='GK');
-const activeGK = gkLs.hActive.find(p=>p.position==='GK');
-const activeOutfield = gkLs.hActive.find(p=>p.position!=='GK');
-const benchOutfield = gkLs.hBenchLeft.find(p=>p.position!=='GK');
-// GK→GK sub should work
-if(benchGK && activeGK){
-  const beforeSubs = _watchState.liveState.hSubsLeft;
-  _applyUserSub(benchGK.id, activeGK.id);
-  chk('REG: GK↔GK sub allowed — subsLeft decremented', _watchState.liveState.hSubsLeft===beforeSubs-1);
-  chk('REG: GK↔GK sub — backup GK now in active XI', _watchState.liveState.hActive.some(p=>p.id===benchGK.id));
-  chk('REG: GK↔GK sub — original GK no longer active', !_watchState.liveState.hActive.some(p=>p.id===activeGK.id));
-} else { chk('REG: GK↔GK sub data available', false); }
-// Reset for next test
-const gkLs2=buildLiveMatchState(gkH,gkA,gkTestPlayers('gk_h'),gkTestPlayers('gk_a'),'4-3-3','4-3-3');
-_watchState={liveState:gkLs2,allEvents:[],homeTeam:gkH,awayTeam:gkA,userTeam:gkH,oppTeam:gkA,userPlayers:gkTestPlayers('gk_h'),oppPlayers:gkTestPlayers('gk_a'),userIsHome:true,save:{},matchEvent:{},tickTimer:null,paused:true,currentPhase:60,speedMultiplier:1};
-const benchGK2 = gkLs2.hBenchLeft.find(p=>p.position==='GK');
-const activeOutfield2 = gkLs2.hActive.find(p=>p.position!=='GK');
-const benchOutfield2 = gkLs2.hBenchLeft.find(p=>p.position!=='GK');
-const activeGK2 = gkLs2.hActive.find(p=>p.position==='GK');
-// GK→outfield should be BLOCKED
-if(benchGK2 && activeOutfield2){
-  const beforeSubs2 = _watchState.liveState.hSubsLeft;
-  _applyUserSub(benchGK2.id, activeOutfield2.id);
-  chk('REG: GK→outfield sub BLOCKED', _watchState.liveState.hSubsLeft===beforeSubs2);
-} else { chk('REG: GK→outfield test data available', false); }
-// Outfield→GK should be BLOCKED
-if(benchOutfield2 && activeGK2){
-  const beforeSubs3 = _watchState.liveState.hSubsLeft;
-  _applyUserSub(benchOutfield2.id, activeGK2.id);
-  chk('REG: outfield→GK sub BLOCKED', _watchState.liveState.hSubsLeft===beforeSubs3);
-} else { chk('REG: outfield→GK test data available', false); }
-_watchState=null;
+// REG-5 (GK sub rules — GK can replace GK, outfield cannot replace GK) used
+// to run here against the module-level _watchState global ui/watchmatch.js
+// exposed to this eval'd bundle. That file is gone (Phase 5, docs/plan/
+// 04-migration-phases.md) — the rule itself moved to src/game/
+// substitutions.js's validateSubstitution(), a pure ES module this
+// CommonJS runner can't require() directly (no build step turns it back
+// into eval-able plain JS the way build.py does for modules/*.js). Real
+// coverage — GK<->GK allowed, GK->outfield blocked, outfield->GK blocked,
+// backup GK never subbed as a bench player is filtered out — now lives in
+// src/game/substitutions.test.js (Vitest, 'npm run test'), which exercises
+// the actual function directly instead of a hand-wired global.
 
-section('Regression: Stub Player Names');
-
-// --- REG-6: Stub players should have realistic names, not "Player N" ---
-const stubTeam = {id:'stub_test',name:'StubFC',crest:'S'};
-const regStubs = _generateStubPlayers(stubTeam, 75);
-chk('REG: stubs have 16 players', regStubs.length===16);
-chk('REG: no stub named "Player 1"', !regStubs.some(p=>p.name==='Player 1'));
-chk('REG: no stub named "Player 2"', !regStubs.some(p=>p.name==='Player 2'));
-chk('REG: stub names contain surnames (have a dot)', regStubs.every(p=>p.name.includes('.')||p.name.includes(' ')));
-chk('REG: all stubs have unique names', new Set(regStubs.map(p=>p.name)).size===regStubs.length);
+// REG-6 (stub players should have realistic names, not "Player N") used
+// _generateStubPlayers, which lived in ui/prematch.js. That file is gone
+// (Phase 5, docs/plan/04-migration-phases.md) — the function moved to
+// src/game/opponents.js's generateStubPlayers(), a pure ES module this
+// CommonJS runner can't require() directly. Real coverage (16 players,
+// no "Player N" placeholder names, unique names, sane rating spread) now
+// lives in src/game/opponents.test.js (Vitest, 'npm run test').
 
 section('Regression: Fitness Drain Consistency');
 
@@ -1258,26 +1157,29 @@ chk('REG: played players get +20 recovery', recoverySrc.includes('baseRecovery =
 chk('REG: rested players restore to 100', recoverySrc.includes('fitness = 100')||recoverySrc.includes('fitness=100'));
 chk('REG: old +8 only-for-rested removed', !recoverySrc.includes('+ 8;')||!recoverySrc.includes('+8;'));
 
-section('Regression: Formation Change Keeps GKs');
+// REG-9 (after formation change, backup GK still on bench) used
+// _watchState/_applyFormationChange, which lived in ui/watchmatch.js. That
+// file is gone (Phase 5, docs/plan/04-migration-phases.md) — the rule moved
+// to src/game/formationChange.js's applyFormationChange(), a pure ES module
+// this CommonJS runner can't require() directly. Real coverage now lives in
+// src/game/formationChange.test.js's "keeps the backup GK on the bench"
+// test (Vitest, 'npm run test').
 
-// --- REG-9: After formation change, backup GK still on bench ---
-const fmGkLs=buildLiveMatchState(gkH,gkA,gkTestPlayers('gk_h'),gkTestPlayers('gk_a'),'4-3-3','4-3-3');
-_watchState={liveState:fmGkLs,allEvents:[],homeTeam:gkH,awayTeam:gkA,userTeam:gkH,oppTeam:gkA,userPlayers:gkTestPlayers('gk_h'),oppPlayers:gkTestPlayers('gk_a'),userIsHome:true,save:{},matchEvent:{},tickTimer:null,paused:true,currentPhase:45,speedMultiplier:1};
-_applyFormationChange('4-4-2');
-chk('REG: formation change keeps GK on bench', _watchState.liveState.hBenchLeft.some(p=>p.position==='GK'));
-chk('REG: formation change active still has 1 GK', _watchState.liveState.hActive.filter(p=>p.position==='GK').length===1);
-_watchState=null;
-
-section('Regression: Watch Match HOME/AWAY Labels');
+section('Regression: Live Match HOME/AWAY Labels');
 
 // --- REG-10: HOME/AWAY labels must reflect venue, not user identity ---
-const wmRenderSrc = (()=>{
-  const start=code.indexOf('function _renderWatchModal');
-  return start>-1?code.slice(start,start+3000):'';
+// ui/watchmatch.js's _renderWatchModal is gone — this is now
+// MatchScreen.svelte's Team News beat, which shows the same static-text
+// invariant: the left team block always renders the literal string "HOME"
+// and the right always renders "AWAY" (only the accent colour is
+// conditional on m.userIsHome), never a dynamic per-user label.
+const tnMatchupSrc = (()=>{
+  const start=matchScreenSrc.indexOf('class="tn-matchup"');
+  return start>-1?matchScreenSrc.slice(start,start+1400):'';
 })();
-chk('REG: left team label is always HOME', wmRenderSrc.includes('>HOME<'));
-chk('REG: right team label is always AWAY', wmRenderSrc.includes('>AWAY<'));
-chk('REG: no dynamic userLbl/oppLbl in render', !wmRenderSrc.includes('userLbl')&&!wmRenderSrc.includes('oppLbl'));
+chk('REG: left team label is always HOME', tnMatchupSrc.includes('>HOME</div>'));
+chk('REG: right team label is always AWAY', tnMatchupSrc.includes('>AWAY</div>'));
+chk('REG: only colour, not the label text, depends on userIsHome', tnMatchupSrc.includes("m.userIsHome ? 'var(--color-club)'"));
 
 section('Regression: Player Development System');
 
@@ -1406,9 +1308,12 @@ chk('REG: import validates snapshot has players', importSrc.includes('snapshot.p
 chk('REG: import deletes old DB before restore', importSrc.includes('deleteDatabase'));
 
 // --- REG-27: UI elements present ---
-chk('REG: export button in HTML', shellSrc.includes('btn-export-save'));
-chk('REG: import button in HTML', shellSrc.includes('btn-import-save'));
-chk('REG: file input for import in HTML', shellSrc.includes('import-save-input'));
+// Phase 4 (docs/plan/04-migration-phases.md) moved the Settings screen's
+// export/import buttons into src/lib/ui/SettingsScreen.svelte, out of
+// shell.html's static markup — same reasoning as the other *ScreenSrc reads.
+chk('REG: export button in SettingsScreen.svelte', settingsScreenSrc.includes('openExport'));
+chk('REG: import button in SettingsScreen.svelte', settingsScreenSrc.includes('openImport'));
+chk('REG: file input for import in SettingsScreen.svelte', settingsScreenSrc.includes('type="file"'));
 chk('REG: file input accepts .pitch', shellSrc.includes('.pitch'));
 chk('REG: new game screen has import button', shellSrc.includes('btn-import-ng'));
 chk('REG: new game screen has file input', shellSrc.includes('import-save-ng'));
@@ -1419,13 +1324,16 @@ chk('REG: export produces saveCode string', exportSrc.includes('saveCode'));
 chk('REG: export uses Web Share API for mobile', exportSrc.includes('navigator.share') || exportSrc.includes('canShare'));
 chk('REG: export uses base64 encoding', exportSrc.includes('btoa'));
 
-// --- REG-29: Import wired in initUI ---
-const initSrc = (()=>{const s=code.indexOf('function initUI');return s>-1?code.slice(s,s+8000):'';})();
-chk('REG: initUI wires export button', initSrc.includes('btn-export-save') || initSrc.includes('btn-save-home'));
-chk('REG: initUI wires import button', initSrc.includes('btn-import-save') || initSrc.includes('btn-load-home'));
-chk('REG: import shows save code textarea', initSrc.includes('save-code-input'));
-chk('REG: export shows save code output', initSrc.includes('save-code-output'));
-chk('REG: export has copy to clipboard', initSrc.includes('clipboard.writeText') || initSrc.includes('execCommand'));
+// --- REG-29: Import/export wired in SettingsScreen.svelte ---
+// initUI() (src/ui/renderers.js) used to wire these directly against static
+// shell.html elements at boot time; Phase 4 moved the wiring into the
+// component itself (querying its own dynamically-rendered elements would
+// have raced boot-time initUI(), see the comment above renderNewGame there).
+chk('REG: SettingsScreen wires export', settingsScreenSrc.includes('exportSaveFile'));
+chk('REG: SettingsScreen wires import', settingsScreenSrc.includes('importSaveFromCode') && settingsScreenSrc.includes('importSaveFile'));
+chk('REG: import shows save code textarea', settingsScreenSrc.includes('save-code-input'));
+chk('REG: export shows save code output', settingsScreenSrc.includes('save-code-output'));
+chk('REG: export has copy to clipboard', settingsScreenSrc.includes('clipboard.writeText'));
 
 // ══ REGRESSION: Promotion, Relegation & Playoffs ═══════════════
 section('Regression: Promotion, Relegation & Playoffs');
@@ -1730,19 +1638,20 @@ chk('INJ: recoveredPlayers returned from advanceOneFixture', (() => {
   return idx !== -1 && code.slice(idx, idx + 200).includes('recoveredPlayers');
 })());
 
-// Verify UI blocks
-chk('INJ: pre-match blocks injured lineup (injuredInLineup)', code.includes('injuredInLineup'));
-chk('INJ: pre-match shows injury warning html', code.includes('warningHtml') || code.includes('injuredWarningHtml'));
-chk('INJ: watch match shows 🚑 in events', code.includes("'🚑 INJ'") || code.includes("type === 'injury'"));
-chk('INJ: sub-on guard for injured bench players', code.includes('subIn.injured'));
-chk('INJ: injured bench row CSS class', code.includes('wm-bench-injured'));
-chk('INJ: match report shows injury events', code.includes("e.type==='injury'") || code.includes("type==='injury'"));
-chk('INJ: recovery toast shown (green)', code.includes("is fit and available again"));
-chk('INJ: injury toast shown on match result', code.includes("injuryGWsLeft ?? 1"));
-chk('INJ: injuryBlock in match report modal', code.includes('injuryBlock'));
-chk('INJ: squad screen shows INJ badge', code.includes('inj-badge') && code.includes('sq-row-inj'));
-chk('INJ: pm-xi-inj CSS for injured in lineup preview', code.includes('pm-xi-inj'));
-chk('INJ: wm-bench-injured CSS defined in shell', shellSrc.includes('wm-bench-injured'));
+// Verify UI blocks — Team News/Live/Full-Time/After beats
+// (src/lib/ui/MatchScreen.svelte, Phase 5, docs/plan/04-migration-phases.md)
+// own this UI now; ui/prematch.js and ui/watchmatch.js are gone.
+chk('INJ: Team News blocks injured lineup (injuredInLineup)', matchScreenSrc.includes('injuredInLineup'));
+chk('INJ: Team News shows injury warning block', matchScreenSrc.includes('tn-warning-bad'));
+chk('INJ: Live beat shows 🚑 in events', matchScreenSrc.includes("ev.type === 'injury'"));
+chk('INJ: sub-on guard for injured bench players', substitutionsSrc.includes('subIn.injured'));
+chk('INJ: injured bench row CSS class', matchScreenSrc.includes('bench-injured'));
+chk('INJ: After beat shows injury events', matchScreenSrc.includes("e.type === 'injury'"));
+chk('INJ: recovery toast shown (green)', matchScreenSrc.includes('is fit and available again'));
+chk('INJ: injury toast shown on match result', matchScreenSrc.includes('injuryGWsLeft ?? 1'));
+chk('INJ: After beat shows injuries section', matchScreenSrc.includes('userInjuries') && matchScreenSrc.includes('after-section-bad'));
+chk('INJ: squad screen shows INJ badge', squadScreenSrc.includes('sq-inj-badge') && squadScreenSrc.includes('is-injured'));
+chk('INJ: injured marker in Team News pitch preview', matchScreenSrc.includes('tn-slot-inj'));
 
 // ─── Regression: injury duration label must use weeks/months correctly ─────
 chk('INJ: injuryDurationLabel uses months for exact multiples of 4', (() => {
@@ -1757,16 +1666,16 @@ chk('INJ: injuryDurationLabel shows weeks for non-multiples of 4', (() => {
   const fn = code.slice(fnStart, fnStart + 400);
   return fn.includes('weeks');
 })());
-chk('INJ: no inline week formatting in match report (uses injuryDurationLabel)', (() => {
-  const mrStart = code.indexOf('🚑 Injuries');
+chk('INJ: no inline week formatting in After beat (uses injuryDurationLabel)', (() => {
+  const mrStart = matchScreenSrc.indexOf('🚑 Injuries');
   if (mrStart === -1) return false;
-  const mrBlock = code.slice(mrStart, mrStart + 500);
+  const mrBlock = matchScreenSrc.slice(mrStart, mrStart + 500);
   return mrBlock.includes('injuryDurationLabel') && !mrBlock.includes('week' + String.fromCharCode(36) + '{');
 })());
-chk('INJ: no inline week formatting in prematch injured warning (uses injuryDurationLabel)', (() => {
-  const pmStart = code.indexOf('Injured Players in Lineup');
+chk('INJ: no inline week formatting in Team News injured warning (uses injuryDurationLabel)', (() => {
+  const pmStart = matchScreenSrc.indexOf('Injured Players in Lineup');
   if (pmStart === -1) return false;
-  const pmBlock = code.slice(pmStart, pmStart + 500);
+  const pmBlock = matchScreenSrc.slice(pmStart, pmStart + 500);
   return pmBlock.includes('injuryDurationLabel') && !pmBlock.includes('week' + String.fromCharCode(36) + '{');
 })());
 
@@ -1825,11 +1734,11 @@ chk('INBOX: screen-inbox element in HTML',         code.includes('screen-inbox')
 chk('INBOX: inbox registered as screen',           code.includes("registerScreen('inbox'"));
 chk('INBOX: _updateInboxBadge called on boot',     code.includes('_updateInboxBadge()'));
 chk('INBOX: inbox initialised in startNewGame',    code.includes('inbox:           []') || code.includes("inbox:[]") || code.includes("inbox: []"));
-chk('INBOX: newsMatchResult wired after match',    code.includes('newsMatchResult(r,save)'));
+chk('INBOX: newsMatchResult wired after match',    matchScreenSrc.includes('newsMatchResult(result, matchCtx.save)'));
 chk('INBOX: newsPlayerSigned wired after buy',     code.includes('newsPlayerSigned(player'));
 chk('INBOX: newsPlayerSold wired after sell',      code.includes('newsPlayerSold(pl'));
-chk('INBOX: newsInjury wired in prematch',         code.includes('newsInjury('));
-chk('INBOX: newsAIBid wired in prematch',          code.includes('newsAIBid('));
+chk('INBOX: newsInjury wired in MatchScreen.svelte', matchScreenSrc.includes('newsInjury({ name: inj.playerName'));
+chk('INBOX: newsAIBid wired in MatchScreen.svelte',  matchScreenSrc.includes('newsAIBid({ name: o.playerName'));
 chk('INBOX: newsSeasonEnd wired in handleEOS',     code.includes('newsSeasonEnd('));
 chk('INBOX: newsYouthPromotion wired in academy',  code.includes('newsYouthPromotion('));
 chk('INBOX: inbox tab CSS defined',               code.includes('inbox-tab'));
@@ -1878,13 +1787,16 @@ chk('LOAN: AI only loans fringe youth (age ≤22)',    code.includes('<= 22') &&
 chk('LOAN: AI protects top-11 players',              code.includes('sorted.slice(11)'));
 chk('LOAN: AI loans only DOWN in reputation',        code.includes('>= (lender.reputation') || code.includes('>= lender.reputation'));
 // UI presence
-chk('LOAN: Loans tab in shell HTML',                 shellSrc.includes('tt-loans'));
-chk('LOAN: Loans panel in shell HTML',               shellSrc.includes('tp-loans'));
-chk('LOAN: loan-list element in shell HTML',         shellSrc.includes('loan-list'));
-chk('LOAN: renderLoanMarket function defined',       code.includes('async function renderLoanMarket('));
-chk('LOAN: loan-in detail modal defined',            code.includes('_showLoanInDetail'));
-chk('LOAN: loan-out detail modal defined',           code.includes('_showLoanOutDetail'));
-chk('LOAN: Loans tab wired in renderTransfers',      code.includes('tt-loans') && code.includes('renderLoanMarket'));
+// The loan market UI moved to src/lib/ui/TransfersScreen.svelte (Phase 4,
+// docs/plan/04-migration-phases.md) — checked against transfersScreenSrc
+// instead of shellSrc/the bundle, same reasoning as the section above.
+chk('LOAN: Loans tab in TransfersScreen.svelte',      transfersScreenSrc.includes("tab === 'loans'"));
+chk('LOAN: Loan In/Out sub-tabs in TransfersScreen.svelte', transfersScreenSrc.includes("loanTab = 'in'") && transfersScreenSrc.includes("loanTab = 'out'"));
+chk('LOAN: loan list rendered in TransfersScreen.svelte', transfersScreenSrc.includes('loanInList') && transfersScreenSrc.includes('loanOutList'));
+chk('LOAN: loadLoans function defined',               transfersScreenSrc.includes('async function loadLoans('));
+chk('LOAN: loan-in detail sheet defined',             transfersScreenSrc.includes('confirmLoanIn'));
+chk('LOAN: loan-out detail sheet defined',            transfersScreenSrc.includes('confirmLoanOut'));
+chk('LOAN: Loans tab wired to loadLoans',             transfersScreenSrc.includes("selectTab") && transfersScreenSrc.includes('loadLoans'));
 // Anti-patterns
 chk('LOAN: no loan of already-loaned player',        code.includes('ALREADY_ON_LOAN'));
 chk('LOAN: no loan during closed window (error)',    (code.match(/WINDOW_CLOSED/g)||[]).length >= 3);

@@ -147,7 +147,7 @@ clicks the existing `#btn-adv-header`, so the queue logic never moved.
 
 ---
 
-## Phase 4 — Screen by screen (~1 day each)
+## Phase 4 — Screen by screen (~1 day each) — ✅ done
 
 League (`renderCompetitions`) moved in Phase 3 already — self-contained
 enough that it made more sense as the phase's proof-of-concept than as
@@ -185,16 +185,202 @@ clean), `npm run lint`, `npm run check:accents` (186/186), `npm run
 test:e2e` (6/6), plus manual screenshots at 390×844 — same pattern as
 League's Phase 3 verification, not a committed per-screen Playwright spec.
 
-| # | Screen | Legacy source | Notes |
-|---|---|---|---|
-| 1 | **Squad** | `ui/squad_tactics_offers.js` `renderSquad` | 11-column grid → two-line rows |
-| 2 | **Tactics** | same file, `renderTactics` | Pitch graphic, 7 formations, mentality. Tap-to-swap, not drag |
-| 3 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
-| 4 | **Academy** | `ui/academy.js` | Smallest. Youth intake cards |
-| 5 | **Trophies** | `ui/renderers.js` `renderHonours` | Honours cabinet |
-| 6 | **Settings** | `ui/renderers.js` | Save export/import as first-class actions |
+**Squad (`renderSquad`) and Tactics (`renderTactics`) migrated** —
+`src/lib/ui/SquadScreen.svelte` (mounted into `#screen-squad`) and
+`src/lib/ui/TacticsScreen.svelte` (mounted into `#screen-tactics`), both real
+Svelte markup and data-fetching, no `innerHTML`. Squad: the old 11-column
+desktop grid became two-line rows (rating, position, name/badges on line
+one; age/fitness/potential on line two) with one large rating, per the
+design spec — tapping a row opens a real bottom sheet (component-local
+`$state`, not `showModal()`) with position-specific attribute bars and stat
+cards, ported from `openSquadPlayerModal`'s layout logic but rebuilt as
+markup instead of an HTML-string template. `openSquadPlayerModal` itself
+stays in `squad_tactics_offers.js` as legacy, unmodified — the not-yet-
+migrated Transfers screen still calls it directly as a generic player-detail
+modal, so deleting it wasn't this screen's call to make; its two
+`renderSquad()` refresh calls became `screenTicks.squad++` instead.
+`handleSquadAction` (squad-list-only) was deleted outright along with
+`renderSquad`, matching the recipe's step 3. Tactics: the full-screen pitch
+graphic, all 13 formations, the four mentalities and tap-to-swap bottom
+sheet all carried over; the formation-group/slot-position/swap-candidate-
+scoring logic is layout data and categorisation, not simulation math, so it
+stayed inline in the component rather than moving to `src/game/` — nothing
+in either screen turned out to be exportable game logic per step 2. Both
+screens' `registerScreen()` entries in `renderers.js` became
+`screenTicks.squad++`/`screenTicks.tactics++`, same pattern as League and
+Home. `src/validate.js` gained `squadScreenSrc`/`tacticsScreenSrc` reads
+alongside `homeScreenSrc`; checks that asserted on the old bundle-string
+markup (`MENTALITIES`, the mentality-picker wiring, the squad INJ-badge
+classes) were repointed at the new component sources instead of deleted.
+**Found and fixed in the same pass, not scope creep:** `src/shell.html` had
+~180 lines of now-dead Squad/Tactics CSS left behind — including a
+`.tac-dd-list{opacity:0}` rule from the old vanilla-JS dropdown (which
+toggled a `.open` class the new component never adds) that silently made
+the formation/mentality dropdowns invisible, and a `.sheet{background:...}`
+collision was never at risk because that class name wasn't reused, but
+`.inj-badge`/`.listed-badge` were — `openSquadPlayerModal` and the Transfers
+buy-list still use those globally-styled classes, so SquadScreen.svelte's
+own versions were renamed `sq-inj-badge`/`sq-listed-badge`/`sq-wonderkid-tag`
+rather than colliding. Deleting shell.html's dead rules turned up a second,
+much bigger bug in the same verification pass — see §0's `@theme static`
+note in `CLAUDE.md`; `src/app.css` was fixed in this same change since
+Squad's bottom sheet rendering fully transparent is what surfaced it.
+Verified with `npm run build` (1176/1176 validator checks + Vite build
+clean), `npm run lint`, and Playwright screenshots at 390×844 driving the
+real flow (open a player sheet, toggle squad/list status, change formation,
+open the swap sheet, swap a player) — same pattern as Home's Phase 4
+verification, not a committed per-screen Playwright spec.
 
-Per-screen recipe:
+**Academy (`renderAcademy`) migrated** — `src/lib/ui/AcademyScreen.svelte`,
+mounted into `#screen-academy`, real Svelte markup and data-fetching, no
+`innerHTML`. The old 8-column desktop table (`academy-table-hdr`/
+`academy-row`) became youth-intake cards — one per player, rating/position/
+name/badges on top, promote/release actions below — per the plan's "Smallest.
+Youth intake cards" note; the tier info bar became three `stat-tile`s
+matching Home's own stat-tile pattern instead of a bespoke grid. Promote and
+release both got their own confirmation bottom sheet (component-local
+`$state`, not `showModal()`) in place of the two `showModal()` calls
+`handleYouthAction` used to build. `src/ui/academy.js` had exactly two
+exports (`renderAcademy`, `handleYouthAction`) and no other importers once
+`renderers.js`'s import was dropped, so the file was deleted outright rather
+than emptied — also removed from `build.py`'s `MODULES` list, since a
+concatenation step for a file that no longer exists is a build break waiting
+to happen, not a no-op. `registerScreen('academy', …)` became
+`screenTicks.academy++`, same pattern as the other four migrated screens.
+`src/validate.js` gained an `academyScreenSrc` read; the three checks that
+asserted on the old bundle-string markup (`academy-card` CSS presence,
+`youth-action` wiring, the WONDERKID badge) were repointed at the new
+component source. The now-dead `.academy-*` CSS block in `shell.html`
+(unused by anything else — confirmed the same way as the Squad/Tactics
+sweep) was deleted in the same pass, ~40 lines including its own
+`@media(max-width:768px)` override block. Verified with `npm run build`
+(1175/1175 validator checks + Vite build clean), `npm run lint`, and a
+Playwright run driving the real flow — including seeding a second youth
+player directly into IndexedDB to get a wonderkid card, an aging-out
+warning card, and the season-end warning banner on screen simultaneously,
+not just whatever a fresh save's own seeded cohort happened to produce.
+
+**Trophies (`renderTrophies`) migrated** — `src/lib/ui/TrophiesScreen.svelte`,
+mounted into `#screen-trophies`, real Svelte markup and data-fetching, no
+`innerHTML`. Kept the merged Cups + Honours layout unchanged: a "Current
+Season" grid of active-cup cards (progress bar or, for the Champions
+League's group stage specifically, matchday/points/goal-difference and a
+qualification verdict) above a "Club History" grid of all-time honours
+cards, both driven by the same `CUP_META`/`getHonorsForTeam` lookups the
+legacy renderer used — the league-title/domestic-cup-by-league lookup
+tables are display data, not simulation math, so they stayed inline in the
+component per step 2, same call as Tactics's formation tables.
+`renderTrophies`, its `renderHonours`/`renderCupsLegacy` aliases in
+`renderers.js`, and the separate `renderCups` alias in
+`squad_tactics_offers.js` are all deleted outright rather than kept as
+indirection — a repo-wide grep confirmed none of the three had any caller
+beyond satisfying `validate.js`'s old function-existence check, which was
+updated to match instead of preserving dead aliases. The `#screen-cups`/
+`#screen-honours` hidden alias `<div>`s in `shell.html` went for the same
+reason — nothing ever navigated to or queried them either.
+**Also found and fixed in the same pass:** ~150 more lines of dead CSS
+turned up in `shell.html` beyond the Trophies-specific block — a `.sq-btn-sm`/
+`.sq-btn-in`/`.sq-btn-unlist` family that Academy's migration (the previous
+row in this table) had already made unreachable, since academy.js was its
+last consumer. Verified with `npm run build` (1172/1172 validator checks +
+Vite build clean), `npm run lint`, and a Playwright screenshot at 390×844.
+
+**Settings (`renderSettings`) migrated** — `src/lib/ui/SettingsScreen.svelte`,
+mounted into `#screen-settings`, real Svelte markup and data-fetching, no
+`innerHTML`. Save Data (export/import/reset/recalculate-potentials), About,
+Manager Trophies and Season History all carried over; export/import/reset
+became real bottom sheets (component-local state) in place of their three
+`showModal()` calls, matching Squad/Academy's precedent rather than keeping
+`showModal()` for a freshly-authored screen. The one real wrinkle: the
+export/import/reset buttons weren't wired inside `renderSettings()` itself —
+they were wired in `initUI()` (`src/ui/renderers.js`), which runs once at
+boot via `document.getElementById()` against shell.html's *static* markup.
+Once those buttons only exist once `SettingsScreen.svelte` mounts and
+renders them, a boot-time `getElementById()` in `initUI()` would sometimes
+find nothing (mount timing isn't guaranteed to precede `initUI()`, since
+`load()`'s data fetch is async) — so the wiring moved into the component
+too, not just the markup. `getAllSeasons`/`getHonorsForTeam`/
+`assignPotentials`/`getAllPlayers`/`putPlayersBulk`/`exportSaveFile`/
+`deleteDB` imports were dropped from `renderers.js` once nothing there used
+them any more (`importSaveFile`/`importSaveFromCode` stayed — the New Game
+screen's own import flow, untouched, still needs them). A stray fourth
+caller turned up during the build, not the initial read-through:
+`home_transfers.js`'s `handleEndOfSeason` called `renderSettings()`
+directly after an end-of-season roll-over to refresh the now-stale Season
+History/Manager Trophies data — became `screenTicks.settings++`, same
+pattern as `renderHome()`'s other imperative call sites. `src/validate.js`'s
+REG-27/REG-29 save export/import regression checks (about a dozen) were
+updated to read `settingsScreenSrc` instead of `shellSrc`/the bundle's
+`initUI` substring. Verified with `npm run build` (1171/1171 validator
+checks + Vite build clean), `npm run lint`, and a Playwright run driving
+the real flow — recalc potentials, export a real save code, open and
+cancel the import and reset sheets — end to end.
+
+**Transfers (`renderTransfers`) migrated** — `src/lib/ui/TransfersScreen.svelte`,
+mounted into `#screen-transfers`, real Svelte markup and data-fetching, no
+`innerHTML`. The biggest and most self-contained of the six Phase 4 screens
+(~1000 lines across Buy/Sell/Loans, against the legacy `home_transfers.js`'s
+83KB). Buy is windowed rather than paginated — `bind:clientHeight` on the
+scroll container plus a `scrollTop` `$state` drive `$derived` start/end
+indices over the full filtered/sorted player list, with only the visible
+rows (~14 at a time) absolute-positioned inside a spacer sized to
+`totalCount * ROW_H`, per the plan's "Virtualize" note above and the design
+spec's callout that the transfer list is the only unbounded list in the
+game. The offer → rejected → counter-offer → accept negotiation flow, and
+the sell/loan-out/loan-in confirmations, all became stacked bottom sheets
+(component-local `$state`) in place of `home_transfers.js`'s desktop-modal
+and mobile-panel branches — collapsing that branch also removed the need
+for `openSquadPlayerModal` as a shared player-detail modal (Squad's own
+bottom sheet, from earlier in Phase 4, covers that role now), so it was
+deleted outright from `squad_tactics_offers.js` once a repo-wide grep
+confirmed no remaining callers. `showOffersModal`/`_updateOffersBadge`/
+`renderOffers` stay in `squad_tactics_offers.js` as legacy — the Offers
+button on Transfers still calls them directly, and folding Offers into a
+bottom sheet of its own is a follow-up, not part of this screen's move.
+`home_transfers.js` itself shrank from 1152 to 289 lines: only the Home
+bridge (`renderHome`, still called imperatively by prematch.js/
+watchmatch.js/squad_tactics_offers.js — see Home's entry above) and the two
+`showModal()`-based end-of-season/match-report flows remain, since those
+build bottom-sheet content rather than screen content.
+
+**Two real bugs, not scope creep, found and fixed during verification:**
+first, `TransfersScreen.svelte`'s `load()` was missing the `await
+openDB()` guard every other migrated screen has (Svelte islands can mount
+before `boot()`'s own `openDB()` resolves) — surfaced as `TypeError: Cannot
+read properties of null (reading 'transaction')` on mount, fixed by adding
+it. Second, and much harder to see: virtualization rendered all ~3,000 buy
+rows instead of the expected ~14, because `src/shell.html`'s shared mobile
+media query forced `#screen-transfers` to `display:block!important` (a
+leftover from when the screen had no internal flex layout worth
+preserving) — that broke the flex-height chain
+(`.transfers-screen`→`.tr-panel`→`.buy-scroll`) `bind:clientHeight` depends
+on, so `clientHeight` came back equal to the full unclipped `scrollHeight`.
+Diagnosed via a Playwright `evaluate()` inspecting `clientHeight`/
+`scrollHeight`/`display`/`overflowY` directly, fixed by dropping
+`#screen-transfers` from that shared selector (left in place for
+`#screen-competitions`/`#screen-trophies`/`#screen-inbox`, which don't
+virtualize and don't need it). `src/validate.js` gained a
+`transfersScreenSrc` read; ~19 checks in the "Transfer System" and "Loan
+System" sections were repointed at it instead of `shellSrc`/the bundle
+string, 3 "defined before use" checks (`potDisp`/`potColor`/`potLabel`)
+were removed as structurally impossible once `{@const}` replaced manual
+ordering, and the `'renderTransfers'` entry was dropped from the
+UI-functions-exist check array — `typeof eval('renderTransfers')` throws
+`ReferenceError` for an undeclared identifier before `typeof` can suppress
+it, so leaving it in didn't just fail one check, it crashed the whole
+validator run. Verified with `npm run build` (1167/1167 validator checks +
+Vite build clean), `npm run lint`, and a Playwright run driving the real
+flow at 390×844: filtering and buying a player (funds correctly deducted),
+a rejected offer on insufficient funds, selling a player with its confirm
+sheet, and both Loan In and Loan Out with their detail sheets showing
+accurate cost/relief breakdowns.
+
+**Phase 4 is now fully complete** — all six screens (Squad, Tactics,
+Academy, Trophies, Settings, Transfers) plus League and Home from Phase 3
+are real Svelte components; no screen still renders via `innerHTML`. Phase
+5 (live match) is next.
+
+Per-screen recipe (for reference — the recipe this phase's screens followed):
 
 1. Read the legacy renderer end to end first.
 2. Anything that computes rather than renders moves into `src/game/`, not into a
@@ -213,25 +399,106 @@ one session.
 
 ---
 
-## Phase 5 — Live match (~2 days)
+## Phase 5 — Live match (~2 days) — ✅ done
 
-**Ships:** the matchday flow, rebuilt rather than ported.
+**Shipped:** the matchday flow, rebuilt rather than ported, as
+`src/lib/ui/MatchScreen.svelte` — a route (reached only via Play: TabBar's
+FAB, or Home's `#btn-adv-header`, through the same `registerScreen()`/
+`navigateTo()` mechanism every other screen uses), not a TabBar destination
+of its own. `ui/prematch.js`'s pre-match modal and `ui/watchmatch.js`'s
+innerHTML live viewer (`_openInlinePanel` and its z-index 10500 overlay
+included) are both deleted outright, along with `home_transfers.js`'s
+`showMatchReport()` and a `_handleAdvanceOneFixtureStub` that turned out to
+be dead code — confirmed via repo-wide grep before deleting, same discipline
+as every prior phase's `render*` removals.
 
-`ui/watchmatch.js` (32KB) works around a constraint that disappears in Svelte: a
-match becomes a route, and a substitution sheet a sibling component, so
-`_openInlinePanel` and its z-index 10500 overlay go away.
+**Sub rules moved to `src/game/` first, with tests, exactly as planned.**
+`_wmSubClick`/`_applyUserSub`'s GK↔GK / outfield↔outfield guards and 3-sub
+limit became `src/game/substitutions.js`'s `validateSubstitution()`/
+`applySubstitution()`; `_applyFormationChange`'s mid-match XI recompute
+became `src/game/formationChange.js`'s `applyFormationChange()`; European-
+opponent stub-squad generation (`_generateStubPlayers`) became
+`src/game/opponents.js`'s `generateStubPlayers()`. All three are pure,
+DOM-free, and covered by real Vitest tests (`src/game/*.test.js`,
+`npm run test` — newly wired into CI in this phase, since Vitest was
+installed but unused before) instead of only being reachable by hand-wiring
+a `_watchState` bundle global inside `validate.js`, which is how the old
+GK-sub-rule and formation-change regression checks worked. Those checks —
+and the rest of `validate.js`'s old "Watch Match" section — moved to Vitest
+or were removed outright where the underlying identifier no longer exists in
+the concatenated bundle at all (same "no legacy identifier left in `final`
+to check for" reasoning as every prior screen's move to a real Svelte
+component); a `matchScreenSrc` read was added alongside the other
+`<name>ScreenSrc` reads for what's left as string-presence checks.
+`TacticsScreen.svelte`'s formation pitch-slot layout (`SLOT_LAYOUT`/
+`SLOT_POS_MAP`, ~15 formations of x/y coordinates) was extracted to
+`src/game/formationLayout.js` too, not because it's simulation logic, but so
+MatchScreen's Team News XI-on-pitch preview and Tactics' lineup editor share
+one source of truth instead of two independently-drifting copies of the
+same magic numbers.
 
-1. Move the sub rules into `src/game/` first, with tests. Then build the UI.
-2. Five beats: team news → kickoff → live → full time → after
-   (`02-design-system.md`).
-3. Keep speed control (1× / 4× / skip) — `ui-ux-pro-max`'s immersive-pattern rule
-   requires a skip and it's right.
-4. Keep the auto-pause-on-intervention behaviour. It is correct and players will
-   expect it.
+**Five beats, all in one component, state machine style (`beat` ∈
+'teamNews' | 'kickoff' | 'live' | 'fulltime' | 'after'):** team news
+(opponent form, key player card, XI-on-pitch preview, lineup-block
+warnings, Kick Off / Sim Instantly) → kickoff (a brief crest-vs-crest
+transition, tap or ~900ms to skip) → live (tick engine ported from
+`watchmatch.js` almost unchanged, score bug, event feed, fitness/bench,
+1×/2×/4×/skip, pause, sub and tactics bottom sheets replacing the old
+inline-panel overlay) → full time (score, scorers, one-line verdict,
+shown from the live sim's own result before it's committed) → after (stats
+grid, substitutions, injuries, and — new, not in the original modal — a
+3-row league-position slice keyed by `teamId` and driven by
+`animate:flip`, seeded with a pre-match snapshot so entering the beat
+actually animates the reorder rather than rendering a static post-match
+table). Quick Sim (`advanceOneFixture`, no live tick) and Watch Match
+(`buildLiveMatchState`/`simulateMatchSegment`/`finaliseLiveMatch`/
+`advanceOneFixtureWithResult`, all untouched `matchEngine.js`/`gameweek.js`
+exports) converge on the exact same Full Time/After rendering — one
+`result` object either way — rather than the old code's two separate
+report paths (`showMatchReport` for Quick Sim, `_commitResult` +
+`showMatchReport` again for Watch Match). Speed control and auto-pause-on-
+intervention (also on injury, matching the original) both kept, as
+planned.
 
-**Watch:** the tick loop drives from `matchEngine`. Do not let the UI's clock
-become the source of truth for match state — the engine decides, the UI plays it
-back.
+**Two real bugs surfaced only by driving the route end-to-end in a real
+browser** — `npm run build`/`lint`/`test`/`check:svelte` all passed first,
+none of them would have caught either:
+- `MatchScreen.svelte`'s `$effect` fires on the component's own initial
+  mount, same as every other screen's — meaning `loadMatch()` ran, and
+  crashed on `save.currentGameweek`, the instant the app booted, well
+  before any career exists or Play is ever pressed. Fixed with the exact
+  same `if (!save || save._deleted) return;` guard every other screen's
+  `load()` already has — `openDB()` alone (which this file did have from
+  the start) isn't the whole story, as Transfers' Phase 4 bug already
+  established; this is the sibling bug, "no save yet" rather than "DB not
+  open yet."
+- `live`/`result`/`matchCtx` were declared with plain `$state()`, which
+  deep-proxies anything assigned to it. `result` (built from `live`'s
+  proxied tree) got passed into `advanceOneFixtureWithResult` →
+  `putFixture`, and IndexedDB's structured-clone algorithm cannot
+  serialize a Svelte 5 reactive Proxy — `DataCloneError: [object Array]
+  could not be cloned`, only on a *watched* match's commit (Quick Sim's
+  `result` comes straight from a DB read, never touches `live`, so it
+  never hit this). Fixed by switching all three to `$state.raw()` — none
+  of the three are ever deep-mutated in place (every update is `live =
+  {...live, x}`, never `live.x = ...`), which is exactly the case
+  `$state.raw` exists for. No other screen in this codebase writes a
+  `$state`-derived object back to IndexedDB with array/object sub-fields
+  deep enough for this to bite — Squad's `putPlayer({ ...p, inSquad: ... })`
+  and similar spread-and-save calls elsewhere stay correct because a
+  player/save record's own fields are flat primitives. Worth remembering
+  if a future screen's local state ever holds something IndexedDB-bound and
+  less flat than a player row.
+
+Verified with `npm run build` (1067/1067 validator checks + Vite build
+clean), `npm run test` (21/21 Vitest), `npm run lint`, `npm run
+check:accents` (186/186), `npm run test:e2e` (6/6, unchanged), and two full
+manual Playwright runs driving a real career at 390×844 end to end — one
+through Watch Match (team news → kickoff → live with a manual substitution
+and a mid-match formation change → skip → full time → after, league
+position slice rendered and animated, back to Home) and one through Sim
+Instantly (team news → full time → after → Home) — confirming both
+converge on the same report UI and neither throws.
 
 ---
 
@@ -277,3 +544,10 @@ that regenerates league data from CSVs. See `03-cloudflare-workers.md`.
 - **Deploy every phase.** A preview URL on your phone is the only real review.
 - **`ui/` shrinks monotonically; `modules/` doesn't shrink at all.** If a phase
   adds to `ui/`, something went wrong.
+- **`src/game/` (new in Phase 5) is where UI-adjacent rules that aren't
+  simulation math live** — the substitution and formation-change validation a
+  screen needs but that isn't itself rendering, and doesn't belong in
+  `modules/` either. Pure, DOM-free, covered by Vitest. Small so far
+  (`substitutions.js`, `formationChange.js`, `opponents.js`,
+  `formationLayout.js`) — grows the same deliberate way `modules/` does, not
+  a dumping ground.
