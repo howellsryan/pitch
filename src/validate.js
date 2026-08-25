@@ -16,6 +16,7 @@ const SQUAD_SCREEN = path.join(__dirname, 'lib', 'ui', 'SquadScreen.svelte');
 const TACTICS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TacticsScreen.svelte');
 const ACADEMY_SCREEN = path.join(__dirname, 'lib', 'ui', 'AcademyScreen.svelte');
 const SETTINGS_SCREEN = path.join(__dirname, 'lib', 'ui', 'SettingsScreen.svelte');
+const TRANSFERS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TransfersScreen.svelte');
 if (!fs.existsSync(BUNDLE)) { console.error('Bundle not found: '+BUNDLE+' — run src/build.py first, or set PITCH_BUNDLE.'); process.exit(1); }
 
 const GLOBALS = `
@@ -37,6 +38,7 @@ const squadScreenSrc = require('fs').readFileSync(${JSON.stringify(SQUAD_SCREEN)
 const tacticsScreenSrc = require('fs').readFileSync(${JSON.stringify(TACTICS_SCREEN)},'utf8');
 const academyScreenSrc = require('fs').readFileSync(${JSON.stringify(ACADEMY_SCREEN)},'utf8');
 const settingsScreenSrc = require('fs').readFileSync(${JSON.stringify(SETTINGS_SCREEN)},'utf8');
+const transfersScreenSrc = require('fs').readFileSync(${JSON.stringify(TRANSFERS_SCREEN)},'utf8');
 let pass=0,fail=0;
 const failures=[];
 let sec='';
@@ -452,14 +454,14 @@ section('10. UI Functions');
   // data-fetching along with the rest of Home. renderHome IS still checked:
   // it survives as a thin bridge (bumps the tick HomeScreen.svelte watches)
   // because prematch.js/watchmatch.js/squad_tactics_offers.js still call it.
-  // renderSquad, renderTactics, renderAcademy, renderTrophies and
-  // renderSettings aren't either — Phase 4 moved them to
+  // renderSquad, renderTactics, renderAcademy, renderTrophies,
+  // renderSettings and renderTransfers aren't either — Phase 4 moved them to
   // src/lib/ui/SquadScreen.svelte, TacticsScreen.svelte, AcademyScreen.svelte,
-  // TrophiesScreen.svelte and SettingsScreen.svelte, same reasoning. renderCups
-  // and renderHonours were only ever aliases kept to satisfy this exact check
-  // list, with no other callers — deleted alongside renderTrophies rather than
-  // kept as now-pointless indirection.
-  'renderHome','renderTransfers',
+  // TrophiesScreen.svelte, SettingsScreen.svelte and TransfersScreen.svelte,
+  // same reasoning. renderCups and renderHonours were only ever aliases kept
+  // to satisfy this exact check list, with no other callers — deleted
+  // alongside renderTrophies rather than kept as now-pointless indirection.
+  'renderHome',
   'renderOffers',
   'renderNewGame','showMatchReport','showPreMatchModal','handleAdvanceOneFixture',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
@@ -561,7 +563,7 @@ chk('simulateAITransfers called in advanceOneFixture', code.includes('simulateAI
 // WINDOW_CLOSED error handled in UI
 chk('WINDOW_CLOSED error handled in buy UI', code.includes('WINDOW_CLOSED'));
 // Window banner in shell
-chk('Transfer window banner div in shell', code.includes('tr-window-banner'));
+chk('Transfer window banner in TransfersScreen.svelte', transfersScreenSrc.includes('tr-window-banner'));
 
 const basePl={value:50000000,goals:0,assists:0,cleanSheets:0,form:50};
 const hotPl={...basePl,goals:18,assists:10,form:85};
@@ -575,11 +577,15 @@ chk('inboundOffers in save', code.includes('inboundOffers'));
 // --- REG-31: Collapsed Deals — block re-offers after deal breaks down ---
 chk('collapsedDeals array in save shape', code.includes('collapsedDeals'));
 chk('collapsedDeals initialized as empty array in startNewGame', code.includes("collapsedDeals:  []") || code.includes("collapsedDeals:[]"));
-chk('collapsedDeals checked in renderPlayerDetail', code.includes('_isCollapsed'));
-chk('collapsedDeals recorded on counter-offer rejection', code.includes('collapsedDeals||[]),player.id'));
+// The renderPlayerDetail/_applyAndRenderBuyList/renderBuyList function names
+// below moved to src/lib/ui/TransfersScreen.svelte (Phase 4,
+// docs/plan/04-migration-phases.md) — checked against transfersScreenSrc
+// instead of the bundle, same reasoning as the other *ScreenSrc reads.
+chk('collapsedDeals checked in TransfersScreen.svelte', transfersScreenSrc.includes('detailIsCollapsed'));
+chk('collapsedDeals recorded on counter-offer rejection', transfersScreenSrc.includes('collapsedDeals || []), player.id'));
 chk('collapsedDeals cleared at season rollover', (()=>{const s=code.indexOf('processEndOfSeason');const chunk=s>-1?code.slice(s,s+70000):'';return chunk.includes('collapsedDeals');})());
-chk('Deal Collapsed UI shown when blocked', code.includes('Deal Collapsed'));
-chk('Offer controls hidden when collapsed (early return)', code.includes('if(_isCollapsed) return'));
+chk('Deal Collapsed UI shown when blocked', transfersScreenSrc.includes('Deal Collapsed'));
+chk('Offer controls hidden when collapsed', transfersScreenSrc.includes('{#if detailIsCollapsed}'));
 
 // --- REG-32: Reputation Gate — players won't join clubs below rep threshold ---
 chk('playerMinRepToSign defined', typeof playerMinRepToSign==='function');
@@ -623,16 +629,16 @@ chk('simulateAITransfers stamps signedThisSeason', (()=>{const s=code.indexOf('a
 chk('processEndOfSeason clears signedThisSeason', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+4000):'';return chunk.includes('signedThisSeason: false');})());
 // UI shows season-locked badge and banner
 chk('Season-locked badge shown in buy list', code.includes('Already transferred this season'));
-chk('Season-locked banner shown in detail panel', code.includes('Already Transferred') && code.includes('cannot transfer again until next season'));
+chk('Season-locked banner shown in detail panel', transfersScreenSrc.includes('Already Transferred') && transfersScreenSrc.includes('cannot transfer again until next season'));
 // Rep lock icon shown in buy list
-chk('Rep lock icon shown in buy list rows', code.includes('rep-locked'));
+chk('Rep lock icon shown in buy list rows', transfersScreenSrc.includes('lock-badge') && transfersScreenSrc.includes('rep.blocked'));
 // canSign toggle present
-chk('canSign filter toggle in transfer UI', code.includes('tr-can-sign'));
-chk('canSign filter applied in _applyAndRenderBuyList', (()=>{const s=code.indexOf('function _applyAndRenderBuyList');const chunk=s>-1?code.slice(s,s+2000):'';return chunk.includes('canSign');})());
+chk('canSign filter toggle in transfer UI', transfersScreenSrc.includes('tr-can-sign'));
+chk('canSign filter applied in filteredBuyList', (()=>{const s=transfersScreenSrc.indexOf('filteredBuyList = $derived.by');const chunk=s>-1?transfersScreenSrc.slice(s,s+2000):'';return chunk.includes('f.canSign');})());
 // maxPrice=0 means no limit (not filtered)
-chk('maxPrice 0 means no limit in filter', (()=>{const s=code.indexOf('function _applyAndRenderBuyList');const chunk=s>-1?code.slice(s,s+2000):'';return chunk.includes('maxPrice>0');})());
+chk('maxPrice 0 means no limit in filter', (()=>{const s=transfersScreenSrc.indexOf('filteredBuyList = $derived.by');const chunk=s>-1?transfersScreenSrc.slice(s,s+2000):'';return chunk.includes('f.maxPrice > 0');})());
 // minPot default is 0 (no minimum)
-chk('minPot initialises to 0 (no minimum)', code.includes('minPot:0'));
+chk('minPot initialises to 0 (no minimum)', transfersScreenSrc.includes('minPot: 0'));
 
 // ══ 12. STALE REFERENCE & CODE QUALITY ═══════════════════════
 section('12. Stale Reference & Code Quality');
@@ -647,11 +653,14 @@ section('12. Stale Reference & Code Quality');
   ["name: 'Unknown Opponent'",'cup opponent must be pre-drawn'],
 ].forEach(([r,reason])=>chk('No stale ref: '+r.trim(), !code.includes(r), reason));
 chk('Braces balanced', code.split('{').length===code.split('}').length);
-const bpcStart=code.indexOf('function renderBuyList');
-const bpcSrc=bpcStart>-1?code.slice(bpcStart,bpcStart+12000):'';
-chk('potDisp defined before use', bpcSrc.length>0&&bpcSrc.indexOf('potDisp=') <bpcSrc.indexOf('potDisp?'));
-chk('potColor defined before use', bpcSrc.length>0&&bpcSrc.indexOf('potColor=')>-1);
-chk('potLabel defined before use', bpcSrc.length>0&&bpcSrc.indexOf('potLabel=')>-1);
+// potDisp/potColor/potLabel "defined before use" doesn't have a meaningful
+// equivalent in TransfersScreen.svelte (Phase 4, docs/plan/04-migration-
+// phases.md) — that was a real risk in the old renderBuyList's hand-built
+// template strings (a variable read before its own assignment silently
+// stringifies to "undefined"), but Svelte's {@const potStars = ...} runs
+// before anything in the same block can reference it, enforced by the
+// compiler, not by source-order discipline. Dropped rather than kept as a
+// check with no failure mode left to catch.
 chk('Domestic cup filters by userLeague', code.includes('userLeague')&&code.includes("'Premier League'")&&code.includes('league_cup'));
 chk('Cup event carries opponentName', code.includes('opponentName:')&&(code.includes("type: 'cup'")||code.includes("type:'cup'")));
 chk('simulateCupRound receives event', code.includes('simulateCupRound')&&code.includes('event.opponentId'));
@@ -1905,13 +1914,16 @@ chk('LOAN: AI only loans fringe youth (age ≤22)',    code.includes('<= 22') &&
 chk('LOAN: AI protects top-11 players',              code.includes('sorted.slice(11)'));
 chk('LOAN: AI loans only DOWN in reputation',        code.includes('>= (lender.reputation') || code.includes('>= lender.reputation'));
 // UI presence
-chk('LOAN: Loans tab in shell HTML',                 shellSrc.includes('tt-loans'));
-chk('LOAN: Loans panel in shell HTML',               shellSrc.includes('tp-loans'));
-chk('LOAN: loan-list element in shell HTML',         shellSrc.includes('loan-list'));
-chk('LOAN: renderLoanMarket function defined',       code.includes('async function renderLoanMarket('));
-chk('LOAN: loan-in detail modal defined',            code.includes('_showLoanInDetail'));
-chk('LOAN: loan-out detail modal defined',           code.includes('_showLoanOutDetail'));
-chk('LOAN: Loans tab wired in renderTransfers',      code.includes('tt-loans') && code.includes('renderLoanMarket'));
+// The loan market UI moved to src/lib/ui/TransfersScreen.svelte (Phase 4,
+// docs/plan/04-migration-phases.md) — checked against transfersScreenSrc
+// instead of shellSrc/the bundle, same reasoning as the section above.
+chk('LOAN: Loans tab in TransfersScreen.svelte',      transfersScreenSrc.includes("tab === 'loans'"));
+chk('LOAN: Loan In/Out sub-tabs in TransfersScreen.svelte', transfersScreenSrc.includes("loanTab = 'in'") && transfersScreenSrc.includes("loanTab = 'out'"));
+chk('LOAN: loan list rendered in TransfersScreen.svelte', transfersScreenSrc.includes('loanInList') && transfersScreenSrc.includes('loanOutList'));
+chk('LOAN: loadLoans function defined',               transfersScreenSrc.includes('async function loadLoans('));
+chk('LOAN: loan-in detail sheet defined',             transfersScreenSrc.includes('confirmLoanIn'));
+chk('LOAN: loan-out detail sheet defined',            transfersScreenSrc.includes('confirmLoanOut'));
+chk('LOAN: Loans tab wired to loadLoans',             transfersScreenSrc.includes("selectTab") && transfersScreenSrc.includes('loadLoans'));
 // Anti-patterns
 chk('LOAN: no loan of already-loaned player',        code.includes('ALREADY_ON_LOAN'));
 chk('LOAN: no loan during closed window (error)',    (code.match(/WINDOW_CLOSED/g)||[]).length >= 3);

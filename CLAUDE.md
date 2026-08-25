@@ -19,45 +19,64 @@
   once that was settled. `footy-sim` still holds a copy from that point; this
   one is authoritative.)
 - **Where things stand right now**: Phase 0 (Workers), Phase 1 (portable build
-  + CI) and Phase 2 (toolchain) are done. **Phase 3 (shell + first screen)'s
-  blocking pieces are done — a couple of its steps stay deliberately deferred
-  (see `docs/plan/04-migration-phases.md`'s Phase 3 section: no context bar,
-  no `<LegacyPanel>`, no URL routing) — and Phase 4 (screen-by-screen) is
-  underway: League, Home, Squad, Tactics, Academy, Trophies and Settings are
-  migrated; only Transfers is still legacy.** `src/lib/ui/` holds one real
-  Svelte 5 component per migrated screen (`TabBar`, `LeagueScreen`,
-  `HomeScreen`, `SquadScreen`, `TacticsScreen`, `AcademyScreen`,
-  `TrophiesScreen`, `SettingsScreen`), each mounted as an island into the
-  legacy shell from `src/main.js` — real markup and data-fetching, no
-  `innerHTML`. The bottom nav is Svelte-rendered (9 legacy screens fold into
-  5 destinations: Home, Squad, Play, Transfers, League; Tactics/Academy/
-  Trophies/Settings/Inbox are reachable via quick-links on Home and Squad
-  instead of their own nav slot). Per-screen notes worth knowing: League has
-  `animate:flip` on table reordering; Home owns the Play/EOY/Deadline-day
-  header flow (the `id="btn-adv-header"` button stays put specifically so
-  TabBar's Play button and prematch.js's disable-during-sim logic keep
-  finding it by id) and survives as a thin bridge (`renderHome`,
-  `screenTicks.home++`) because prematch.js/watchmatch.js/
-  squad_tactics_offers.js/home_transfers.js still call it imperatively after
+  + CI), Phase 2 (toolchain) and **Phase 4 (screen-by-screen) are done — every
+  screen is a real Svelte component now.** Phase 3 (shell + first screen)'s
+  blocking pieces are done too — a couple of its steps stay deliberately
+  deferred (see `docs/plan/04-migration-phases.md`'s Phase 3 section: no
+  context bar, no `<LegacyPanel>`, no URL routing) — **Phase 5 (live match) is
+  next.** `src/lib/ui/` holds one real Svelte 5 component per screen
+  (`TabBar`, `LeagueScreen`, `HomeScreen`, `SquadScreen`, `TacticsScreen`,
+  `AcademyScreen`, `TrophiesScreen`, `SettingsScreen`, `TransfersScreen`),
+  each mounted as an island into the legacy shell from `src/main.js` — real
+  markup and data-fetching, no `innerHTML`. The bottom nav is Svelte-rendered
+  (9 legacy screens fold into 5 destinations: Home, Squad, Play, Transfers,
+  League; Tactics/Academy/Trophies/Settings/Inbox are reachable via
+  quick-links on Home and Squad instead of their own nav slot). Per-screen
+  notes worth knowing: League has `animate:flip` on table reordering; Home
+  owns the Play/EOY/Deadline-day header flow (the `id="btn-adv-header"`
+  button stays put specifically so TabBar's Play button and prematch.js's
+  disable-during-sim logic keep finding it by id) and survives as a thin
+  bridge (`renderHome`, `screenTicks.home++`) because prematch.js/
+  watchmatch.js/squad_tactics_offers.js still call it imperatively after
   match/squad/save events; Squad and Academy use real bottom sheets
   (component-local state, not `showModal()`) for player detail and
   promote/release; Settings moved its export/import/reset button wiring out
   of `initUI()` (src/ui/renderers.js) and into the component itself, since
   querying static shell.html elements at boot time would have raced the
-  Svelte island's own mount — the pattern to follow for any future screen
-  whose buttons used to be wired from outside its own render function, not
-  just from within it. Each migration deletes its `render*` function and any
+  Svelte island's own mount — the pattern to follow for any screen whose
+  buttons used to be wired from outside its own render function, not just
+  from within it; Transfers — the biggest screen, ~1000 lines across Buy/
+  Sell/Loans — virtualizes its Buy list (a windowed scroll over `$derived`
+  filtered/sorted results, not pagination: the design spec calls out the
+  transfer list as "the only unbounded list in the game") and rebuilt the
+  offer → rejected → counter-offer → accept/collapse negotiation flow as
+  stacked bottom sheets. Getting Transfers' virtualization to actually clip
+  (rather than render all ~3,000 rows) needed a real fix, not a tweak: the
+  shared mobile-viewport rule forcing `#screen-transfers` to
+  `display:block!important` (a leftover from when the screen had no
+  internal flex layout to preserve) broke the flex-height chain the
+  windowed scroll depends on end to end — removed for `#screen-transfers`
+  specifically, left alone for the sibling screens still in that shared
+  rule since they don't depend on it. `openSquadPlayerModal` — Squad's old
+  player-detail modal, kept alive through the Squad/Tactics/Academy/
+  Trophies/Settings phases solely because Transfers' desktop-width branch
+  still called it — lost that caller once Transfers got its own bottom
+  sheet and was deleted outright, along with `squad_tactics_offers.js`'s
+  `renderCups`/`renderHonours`-style validator-only aliases pattern (see
+  below). Each migration deletes its `render*` function and any
   validator-only aliases kept solely to satisfy old `typeof x === 'function'`
   checks (confirmed dead via repo-wide grep first, never assumed) — `src/ui/`
   shrinks accordingly (`academy.js` is gone outright, also dropped from
   `build.py`'s `MODULES` list) and `src/validate.js` gets a `<name>ScreenSrc`
   read for each migrated component, repointing checks that used to assert on
-  bundle-string markup. `openSquadPlayerModal`/`showOffersModal`/
-  `_updateOffersBadge`/`renderOffers` all stay in
-  `src/ui/squad_tactics_offers.js` as legacy — Transfers still calls them
-  directly and hasn't moved yet; `handleEndOfSeason`/`showMatchReport` stay
-  in `src/ui/home_transfers.js` since they build `showModal()` bottom-sheet
-  content, not screen content. **`src/app.css`'s `@theme` block needed two
+  bundle-string markup. `showOffersModal`/`_updateOffersBadge`/`renderOffers`
+  stay in `src/ui/squad_tactics_offers.js` as legacy — the Offers button on
+  Transfers still calls them directly, and moving Offers into a bottom sheet
+  of its own wasn't this phase's call to make; `handleEndOfSeason`/
+  `showMatchReport` stay in `src/ui/home_transfers.js` since they build
+  `showModal()` bottom-sheet content, not screen content, and are triggered
+  from Home, not any screen migrated in this phase. **`src/app.css`'s
+  `@theme` block needed two
   separate fixes before it worked at runtime, not one.** Phase 2 landed it
   without `@import "tailwindcss";`, so the Vite plugin never processed it at
   all — fixed when Phase 3's first Svelte component needed it. That fix
@@ -118,7 +137,7 @@
   `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
   which CI already gates. Cloudflare runs its own install step, so the build
   command must not repeat one.
-- **Test coverage is still narrow.** `src/validate.js`'s 1178 checks run on
+- **Test coverage is still narrow.** `src/validate.js`'s 1167 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career
   and an accent-contrast check over all 186 clubs. None of it covers UI
   correctness screen by screen. Vitest is installed but unused. See
@@ -153,11 +172,11 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | Mostly hand-written `innerHTML` strings in `src/ui/*.js`, styled via `src/shell.html`'s inline CSS. TabBar, League, Home, Squad, Tactics, Academy, Trophies and Settings are real Svelte islands (`src/lib/ui/`), mounted from `src/main.js` | Svelte 5 (runes) — **shell nav + seven screens done, one more to go (Phase 4)** |
+| UI | **All 9 screens are real Svelte islands** (`src/lib/ui/`: TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `prematch.js`, `watchmatch.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain | Svelte 5 (runes) — **Phase 4 done; Phase 5 (live match) is next** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
-| Tests | `src/validate.js` (1178 checks) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
+| Tests | `src/validate.js` (1167 checks) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -179,7 +198,7 @@ UX spec, tokens, and the design canvas it was drafted against.
   `fixtures` → `cups` → `transfers` → `potential` → `injuries` → `promotion` →
   `youthAcademy` → `save` → `season` → `gameweek` → `ui/*`); reordering breaks
   the build in ways that only surface at runtime.
-- `src/validate.js` — the 1178-check validator; `npm run build` runs it and
+- `src/validate.js` — the 1167-check validator; `npm run build` runs it and
   aborts on any failure.
 - `src/shell.html` — HTML/CSS shell, no JS.
 - `src/modules/` (13 files) — game logic, **no DOM access**. This boundary
@@ -217,7 +236,7 @@ npm run dev              # Vite dev server with HMR, :5173
 npm run build            # both paths: legacy bundle + validator, then the Vite app
 npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
 npm run build:app        # Vite → dist/
-npm run validate         # node src/validate.js — re-run just the 1178 checks
+npm run validate         # node src/validate.js — re-run just the 1167 checks
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
 npm run lint             # ESLint + eslint-plugin-svelte

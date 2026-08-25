@@ -12,7 +12,7 @@ import { SERIE_A_TEAMS } from '../data/serieA.js';
 import { getSave, getTeam, importSaveFile, importSaveFromCode, openDB } from '../modules/db.js';
 import { startNewGame } from '../modules/save.js';
 import { fmt, navigateTo, registerScreen, showModal, toast } from './helpers.js';
-import { renderHome, renderTransfers } from './home_transfers.js';
+import { renderHome } from './home_transfers.js';
 import { _updateInboxBadge, renderInbox } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 
@@ -176,7 +176,7 @@ export function renderNewGame(){
 // ── INIT UI ────────────────────────────────────────────────────
 export function initUI(){
   registerScreen('home',         renderHome);
-  registerScreen('transfers',    renderTransfers);
+  registerScreen('transfers',    () => { screenTicks.transfers++; });
   registerScreen('competitions', () => { screenTicks.competitions++; });
   registerScreen('trophies',     () => { screenTicks.trophies++; });
   registerScreen('squad',        () => { screenTicks.squad++; });

@@ -23,6 +23,7 @@ import TacticsScreen from './lib/ui/TacticsScreen.svelte';
 import AcademyScreen from './lib/ui/AcademyScreen.svelte';
 import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
 import SettingsScreen from './lib/ui/SettingsScreen.svelte';
+import TransfersScreen from './lib/ui/TransfersScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
 // these for their side effects is what starts the game. Order mirrors
@@ -68,3 +69,6 @@ if (trophiesMount) mount(TrophiesScreen, { target: trophiesMount });
 
 const settingsMount = document.getElementById('screen-settings');
 if (settingsMount) mount(SettingsScreen, { target: settingsMount });
+
+const transfersMount = document.getElementById('screen-transfers');
+if (transfersMount) mount(TransfersScreen, { target: transfersMount });

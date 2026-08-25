@@ -316,14 +316,71 @@ checks + Vite build clean), `npm run lint`, and a Playwright run driving
 the real flow — recalc potentials, export a real save code, open and
 cancel the import and reset sheets — end to end.
 
-**Phase 4 is now feature-complete except Transfers**, the biggest and most
-self-contained remaining screen.
+**Transfers (`renderTransfers`) migrated** — `src/lib/ui/TransfersScreen.svelte`,
+mounted into `#screen-transfers`, real Svelte markup and data-fetching, no
+`innerHTML`. The biggest and most self-contained of the six Phase 4 screens
+(~1000 lines across Buy/Sell/Loans, against the legacy `home_transfers.js`'s
+83KB). Buy is windowed rather than paginated — `bind:clientHeight` on the
+scroll container plus a `scrollTop` `$state` drive `$derived` start/end
+indices over the full filtered/sorted player list, with only the visible
+rows (~14 at a time) absolute-positioned inside a spacer sized to
+`totalCount * ROW_H`, per the plan's "Virtualize" note above and the design
+spec's callout that the transfer list is the only unbounded list in the
+game. The offer → rejected → counter-offer → accept negotiation flow, and
+the sell/loan-out/loan-in confirmations, all became stacked bottom sheets
+(component-local `$state`) in place of `home_transfers.js`'s desktop-modal
+and mobile-panel branches — collapsing that branch also removed the need
+for `openSquadPlayerModal` as a shared player-detail modal (Squad's own
+bottom sheet, from earlier in Phase 4, covers that role now), so it was
+deleted outright from `squad_tactics_offers.js` once a repo-wide grep
+confirmed no remaining callers. `showOffersModal`/`_updateOffersBadge`/
+`renderOffers` stay in `squad_tactics_offers.js` as legacy — the Offers
+button on Transfers still calls them directly, and folding Offers into a
+bottom sheet of its own is a follow-up, not part of this screen's move.
+`home_transfers.js` itself shrank from 1152 to 289 lines: only the Home
+bridge (`renderHome`, still called imperatively by prematch.js/
+watchmatch.js/squad_tactics_offers.js — see Home's entry above) and the two
+`showModal()`-based end-of-season/match-report flows remain, since those
+build bottom-sheet content rather than screen content.
 
-| # | Screen | Legacy source | Notes |
-|---|---|---|---|
-| 1 | **Transfers** | `ui/home_transfers.js` (83KB) | **Biggest.** Split into Search / Shortlist / Offers / History. Virtualize |
+**Two real bugs, not scope creep, found and fixed during verification:**
+first, `TransfersScreen.svelte`'s `load()` was missing the `await
+openDB()` guard every other migrated screen has (Svelte islands can mount
+before `boot()`'s own `openDB()` resolves) — surfaced as `TypeError: Cannot
+read properties of null (reading 'transaction')` on mount, fixed by adding
+it. Second, and much harder to see: virtualization rendered all ~3,000 buy
+rows instead of the expected ~14, because `src/shell.html`'s shared mobile
+media query forced `#screen-transfers` to `display:block!important` (a
+leftover from when the screen had no internal flex layout worth
+preserving) — that broke the flex-height chain
+(`.transfers-screen`→`.tr-panel`→`.buy-scroll`) `bind:clientHeight` depends
+on, so `clientHeight` came back equal to the full unclipped `scrollHeight`.
+Diagnosed via a Playwright `evaluate()` inspecting `clientHeight`/
+`scrollHeight`/`display`/`overflowY` directly, fixed by dropping
+`#screen-transfers` from that shared selector (left in place for
+`#screen-competitions`/`#screen-trophies`/`#screen-inbox`, which don't
+virtualize and don't need it). `src/validate.js` gained a
+`transfersScreenSrc` read; ~19 checks in the "Transfer System" and "Loan
+System" sections were repointed at it instead of `shellSrc`/the bundle
+string, 3 "defined before use" checks (`potDisp`/`potColor`/`potLabel`)
+were removed as structurally impossible once `{@const}` replaced manual
+ordering, and the `'renderTransfers'` entry was dropped from the
+UI-functions-exist check array — `typeof eval('renderTransfers')` throws
+`ReferenceError` for an undeclared identifier before `typeof` can suppress
+it, so leaving it in didn't just fail one check, it crashed the whole
+validator run. Verified with `npm run build` (1167/1167 validator checks +
+Vite build clean), `npm run lint`, and a Playwright run driving the real
+flow at 390×844: filtering and buying a player (funds correctly deducted),
+a rejected offer on insufficient funds, selling a player with its confirm
+sheet, and both Loan In and Loan Out with their detail sheets showing
+accurate cost/relief breakdowns.
 
-Per-screen recipe:
+**Phase 4 is now fully complete** — all six screens (Squad, Tactics,
+Academy, Trophies, Settings, Transfers) plus League and Home from Phase 3
+are real Svelte components; no screen still renders via `innerHTML`. Phase
+5 (live match) is next.
+
+Per-screen recipe (for reference — the recipe this phase's screens followed):
 
 1. Read the legacy renderer end to end first.
 2. Anything that computes rather than renders moves into `src/game/`, not into a
