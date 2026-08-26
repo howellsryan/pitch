@@ -5,7 +5,7 @@ description: Use before starting novel or multi-module work - anything touching 
 
 # plan-gate: no edits until the plan exists
 
-CI's 1180 checks catch a known set of regressions, not the shape of a bad idea.
+CI's 1078 checks catch a known set of regressions, not the shape of a bad idea.
 A mistake in the save schema, the event queue, or the module load order isn't
 something a red check flags cleanly — it's the game breaking for whoever loads
 it next, or a save that silently stops opening. This gate forces "what does

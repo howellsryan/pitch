@@ -100,10 +100,9 @@
   tokens now, not just the one Tailwind already knew. theme.mjs's direct
   `--color-club` write on `documentElement.style` was never affected either
   way, since it's an inline style, not a stylesheet rule — which is why nothing
-  caught this sooner. **When building a new screen, verify a background/
-  border/color token actually renders opaque in a real screenshot before
-  calling the screen done — don't infer it from the component's own CSS
-  reading correctly.** The desktop sidebar (9 icons) is untouched — the
+  caught this sooner. The screenshot rule this bought is now
+  `verification-before-completion`'s to enforce, not this file's.
+  The desktop sidebar (9 icons) is untouched — the
   5-tab regroup is mobile-first per the design spec, and a persistent
   cross-screen context bar (crest/GW/budget) is deferred: it needs a real
   height-calc audit across every legacy screen's `100vh`-based layout, which
@@ -212,7 +211,8 @@
   an accent-contrast check over all 186 clubs, and — since Phase 5 —
   `npm run test` (Vitest) for `src/game/`'s pure substitution/formation-change/
   opponent-generation logic. None of it covers UI correctness screen by
-  screen. See `scope-fence`.
+  screen — which is why a green build is not evidence a screen works. See
+  `verification-before-completion`.
 
 ## 1) Snapshot
 
@@ -311,7 +311,9 @@ UX spec, tokens, and the design canvas it was drafted against.
   CLAUDE.md should.
 - `.claude/skills/` — `delivery-loop`, `plan-gate`, `scope-fence`,
   `memory-hygiene`, ported from `footy-sim` and retargeted at this repo's
-  actual files. Use them; see §5.
+  actual files, plus `systematic-debugging` and
+  `verification-before-completion`, adapted from `obra/superpowers` (MIT).
+  Use them; see §5.
 - `wrangler.jsonc` — Cloudflare Workers config. `assets.directory` is `./dist`,
   which must stay in step with Vite's `outDir`.
 - `.assetsignore` — **now inert.** Wrangler reads it from the assets directory,
@@ -355,10 +357,22 @@ before investigating; seeding the RNG is simulation math and needs `plan-gate`.
   event queue, simulation math, the module load order, the data pipeline, or
   the footy-sim attribute-mapping step.
 - **`.claude/skills/delivery-loop`** for every implementation task — triages
-  checklist vs. stepped, runs Plan → Build → Self-Review → Verify.
+  spike vs. checklist vs. stepped, runs Plan → Build → Self-Review → Verify.
+  A spike answers a question and ships no code; don't let one drift into an
+  implementation without re-triaging.
 - **`.claude/skills/scope-fence`** on every edit to existing code — this repo
   will accumulate a lot of "old way / new way" adjacent mess as the migration
   proceeds. Flag it, don't fix it inline, unless it's the phase you're on.
+  It now also carries a diff-vs-intent check to run before committing.
+- **`.claude/skills/systematic-debugging`** the moment the task is a broken
+  thing rather than a new one. Root cause before fix; stop and question the
+  architecture after three failed attempts rather than trying a fourth. It
+  also holds the rule for what may be called a flake (essentially: only the
+  home-win-rate check).
+- **`.claude/skills/verification-before-completion`** before claiming anything
+  works, passes, or is done. A green build proves no known regression in what
+  the 1078 checks cover — never that a screen renders. Includes the screenshot
+  rule for any new or restyled screen.
 - **`.claude/skills/memory-hygiene`** when updating this file, `BRIEFING.md`,
   or a skill. Note its flagged gap: this file closes it, but keep both docs
   honest as the migration changes what's true.
