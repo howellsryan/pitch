@@ -345,8 +345,13 @@ const adjYoung=agingValueAdjust({age:19,potentialRating:85});
 const adjOld=agingValueAdjust({age:34,potentialRating:85});
 chk('agingValueAdjust: young >= old multiplier', adjYoung>=adjOld);
 
-// ══ 7. SQUAD DATA 2025/26 ════════════════════════════════════
-section('7. Squad Data (2025/26)');
+// ══ 7. SQUAD DATA 2026/27 ════════════════════════════════════
+// Phase 6 (data reconciliation) replaced these leagues' rosters with
+// footy-sim's, and confirmed footy-sim's club-to-league placement against
+// real 2026/27 promotion/relegation results - see docs/plan/
+// 06-data-reconciliation.md. That's a full season's turnover past this
+// section's previous (2025/26) assumptions.
+section('7. Squad Data (2026/27)');
 chk('PL_TEAMS has 20 teams', PL_TEAMS.length===20);
 chk('All PL teams have id', PL_TEAMS.every(t=>t.id&&t.id.length>0));
 chk('All PL teams have name', PL_TEAMS.every(t=>t.name&&t.name.length>0));
@@ -366,37 +371,58 @@ chk('CHAMPIONSHIP_TEAMS >=6', Array.isArray(CHAMPIONSHIP_TEAMS)&&CHAMPIONSHIP_TE
 chk('Liverpool has Isak', (PL_TEAMS.find(t=>t.id==='liverpool')||{players:[]}).players.some(p=>p.name.includes('Isak')));
 chk('Liverpool has Wirtz', (PL_TEAMS.find(t=>t.id==='liverpool')||{players:[]}).players.some(p=>p.name.includes('Wirtz')));
 chk('Newcastle does NOT have Isak', !(PL_TEAMS.find(t=>t.id==='newcastle')||{players:[]}).players.some(p=>p.name.includes('Isak')));
-chk('Aston Villa has Sancho', (PL_TEAMS.find(t=>t.id==='aston_villa')||{players:[]}).players.some(p=>p.name.includes('Sancho')));
+chk('Aston Villa has Watkins', (PL_TEAMS.find(t=>t.id==='aston_villa')||{players:[]}).players.some(p=>p.name.includes('Watkins')));
 
-// --- REG-30: 2025/26 League Composition (promoted/relegated correctly) ---
+// --- REG-30: 2026/27 League Composition (promoted/relegated correctly) ---
+// Verified against real results (see docs/plan/06-data-reconciliation.md):
+// Coventry/Ipswich/Hull promoted to the PL; Burnley/West Ham/Wolves relegated
+// from it; Leicester/Oxford/Sheffield Wednesday relegated from the
+// Championship to League One. Leeds and Sunderland, promoted the season
+// before, stayed up.
 // PL must have the 3 promoted teams
-chk('PL has Leeds United (promoted 2025)', PL_TEAMS.some(t=>t.id==='leeds'&&t.name==='Leeds United'));
-chk('PL has Burnley (promoted 2025)', PL_TEAMS.some(t=>t.id==='burnley'&&t.name==='Burnley'));
-chk('PL has Sunderland (promoted 2025)', PL_TEAMS.some(t=>t.id==='sunderland'&&t.name==='Sunderland'));
+chk('PL has Coventry City (promoted 2026)', PL_TEAMS.some(t=>t.id==='coventry'&&t.name==='Coventry City'));
+chk('PL has Ipswich Town (promoted 2026)', PL_TEAMS.some(t=>t.id==='ipswich'&&t.name==='Ipswich Town'));
+chk('PL has Hull City (promoted 2026)', PL_TEAMS.some(t=>t.id==='hull'&&t.name==='Hull City'));
 // PL must NOT have the 3 relegated teams
-chk('PL does NOT have Leicester City (relegated 2025)', !PL_TEAMS.some(t=>t.id==='leicester'));
-chk('PL does NOT have Ipswich Town (relegated 2025)', !PL_TEAMS.some(t=>t.id==='ipswich'));
-chk('PL does NOT have Southampton (relegated 2025)', !PL_TEAMS.some(t=>t.id==='southampton'));
+chk('PL does NOT have Burnley (relegated 2026)', !PL_TEAMS.some(t=>t.id==='burnley'));
+chk('PL does NOT have West Ham United (relegated 2026)', !PL_TEAMS.some(t=>t.id==='west_ham'));
+chk('PL does NOT have Wolverhampton Wanderers (relegated 2026)', !PL_TEAMS.some(t=>t.id==='wolves'));
 // Championship must have the 3 relegated PL teams
-chk('Championship has Leicester City', CHAMPIONSHIP_TEAMS.some(t=>t.id==='leicester'&&t.league==='Championship'));
-chk('Championship has Ipswich Town', CHAMPIONSHIP_TEAMS.some(t=>t.id==='ipswich'&&t.league==='Championship'));
-chk('Championship has Southampton', CHAMPIONSHIP_TEAMS.some(t=>t.id==='southampton'&&t.league==='Championship'));
-// Championship must NOT have the 3 promoted-to-PL teams
-chk('Championship does NOT have Leeds', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='leeds'));
-chk('Championship does NOT have Burnley', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='burnley'));
-chk('Championship does NOT have Sunderland', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='sunderland'));
+chk('Championship has Burnley', CHAMPIONSHIP_TEAMS.some(t=>t.id==='burnley'&&t.league==='Championship'));
+chk('Championship has West Ham United', CHAMPIONSHIP_TEAMS.some(t=>t.id==='west_ham'&&t.league==='Championship'));
+chk('Championship has Wolverhampton Wanderers', CHAMPIONSHIP_TEAMS.some(t=>t.id==='wolves'&&t.league==='Championship'));
+// Championship must NOT have the 3 promoted-to-PL teams, nor the 3 teams
+// it just sent down to League One
+chk('Championship does NOT have Coventry', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='coventry'));
+chk('Championship does NOT have Ipswich', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='ipswich'));
+chk('Championship does NOT have Hull', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='hull'));
+chk('Championship does NOT have Leicester City (relegated 2026)', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='leicester'));
+chk('Championship does NOT have Oxford United (relegated 2026)', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='oxford'));
+chk('Championship does NOT have Sheffield Wednesday (relegated 2026)', !CHAMPIONSHIP_TEAMS.some(t=>t.id==='sheffield_wed'));
+// League One must have the 3 teams the Championship sent down
+chk('League One has Leicester City', LEAGUE_ONE_TEAMS.some(t=>t.id==='leicester'&&t.league==='League One'));
+chk('League One has Oxford United', LEAGUE_ONE_TEAMS.some(t=>t.id==='oxford'&&t.league==='League One'));
+chk('League One has Sheffield Wednesday', LEAGUE_ONE_TEAMS.some(t=>t.id==='sheffield_wed'&&t.league==='League One'));
+// Leeds and Sunderland (promoted 2025) stayed up
+chk('PL has Leeds United', PL_TEAMS.some(t=>t.id==='leeds'&&t.name==='Leeds United'));
+chk('PL has Sunderland', PL_TEAMS.some(t=>t.id==='sunderland'&&t.name==='Sunderland'));
 // Verify promoted team squad basics
 const leedsT=PL_TEAMS.find(t=>t.id==='leeds');
 chk('Leeds has Calvert-Lewin', leedsT&&leedsT.players.some(p=>p.name.includes('Calvert-Lewin')));
-chk('Leeds has Aaronson', leedsT&&leedsT.players.some(p=>p.name.includes('Aaronson')));
+chk('Leeds has Gnonto', leedsT&&leedsT.players.some(p=>p.name.includes('Gnonto')));
 chk('Leeds league is Premier League', leedsT&&leedsT.league==='Premier League');
-const burT=PL_TEAMS.find(t=>t.id==='burnley');
-chk('Burnley has Ward-Prowse', burT&&burT.players.some(p=>p.name.includes('Ward-Prowse')));
-chk('Burnley has Florentino', burT&&burT.players.some(p=>p.name.includes('Florentino')));
-chk('Burnley league is Premier League', burT&&burT.league==='Premier League');
+const covT=PL_TEAMS.find(t=>t.id==='coventry');
+chk('Coventry has Haji Wright', covT&&covT.players.some(p=>p.name.includes('Wright')));
+chk('Coventry league is Premier League', covT&&covT.league==='Premier League');
+const ipsT=PL_TEAMS.find(t=>t.id==='ipswich');
+chk('Ipswich has Hutchinson', ipsT&&ipsT.players.some(p=>p.name.includes('Hutchinson')));
+chk('Ipswich league is Premier League', ipsT&&ipsT.league==='Premier League');
+const hulT=PL_TEAMS.find(t=>t.id==='hull');
+chk('Hull has Philogene', hulT&&hulT.players.some(p=>p.name.includes('Philogene')));
+chk('Hull league is Premier League', hulT&&hulT.league==='Premier League');
 const sunT=PL_TEAMS.find(t=>t.id==='sunderland');
-chk('Sunderland has Xhaka', sunT&&sunT.players.some(p=>p.name.includes('Xhaka')));
-chk('Sunderland has Isidor', sunT&&sunT.players.some(p=>p.name.includes('Isidor')));
+chk('Sunderland has Le Fée', sunT&&sunT.players.some(p=>p.name.includes('Le Fée')));
+chk('Sunderland has Diarra', sunT&&sunT.players.some(p=>p.name.includes('Diarra')));
 chk('Sunderland league is Premier League', sunT&&sunT.league==='Premier League');
 // All leagues correct count
 chk('PL exactly 20 teams', PL_TEAMS.length===20);

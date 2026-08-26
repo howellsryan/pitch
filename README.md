@@ -82,8 +82,8 @@ BRIEFING.md    → Full architecture docs, invariants, anti-patterns
 Leagues are added via a CSV pipeline — no hand-editing JS files:
 
 ```bash
-# Create CSVs, run converter, build
-python3 src/csv_to_league.py src/data/csv/teams.csv src/data/csv/players.csv src/data/output.js ARRAY_NAME helper
+# Add/edit src/data/csv/<league>_teams.csv and <league>_players.csv, then:
+node tools/csv-to-league.mjs --league=<key>   # e.g. --league=prem; omit for all 7 footy-sim leagues
 npm run build
 ```
 

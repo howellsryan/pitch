@@ -502,7 +502,7 @@ converge on the same report UI and neither throws.
 
 ---
 
-## Phase 6 — Data reconciliation (~2 days)
+## Phase 6 — Data reconciliation (~2 days) — ✅ done
 
 Full detail in `06-data-reconciliation.md`. footy-sim wins for every overlapping
 league — no per-league audit gate. Sequence: sanity-check diff → converter →
@@ -515,6 +515,40 @@ against a squad screen you can actually read.
 
 **Watch:** import one league, play a full season, then do the next. A bad wage
 regression doesn't show up until a club goes bankrupt in March.
+
+**Status, and where delivery diverged from this doc's literal text (with reason):**
+- footy-sim's club-to-league placement turned out to be *more* current than
+  pitch's own team CSVs, not just its rosters — verified against real 2026/27
+  results (Coventry/Ipswich/Hull promoted to the Prem, Burnley/West Ham/Wolves
+  down, Leicester/Oxford/Sheffield Wednesday down to League One). `reconcile.mjs`
+  treats footy-sim's per-league club list as authoritative (it matches real
+  division sizes exactly in every one of the 7 leagues) rather than only
+  trusting it for rosters within pitch's existing team-to-league assignment.
+  A club footy-sim never claims for a tracked league is dropped, not carried
+  forward stale; a club it claims that pitch has no record of anywhere gets
+  synthesized metadata (`tools/lib/teamSynthesis.mjs`), scaled off that
+  league's existing clubs.
+- The Step 3 gate (≥16 players, ≥2 GK per club) is enforced as a **warning**,
+  not a write-blocking gate, and only against the rows a club's footy-sim
+  conversion is actually substituting — several already-live clubs (Wolves at
+  14, Ipswich at 1 GK, Le Havre at 12) predate this gate and would fail it
+  applied retroactively, which would make it unpassable. A thin footy-sim
+  squad (Mansfield Town: 1 row, Paris FC: 6) is topped up from that club's
+  existing roster first — real transfers/departures elsewhere in the tracked
+  universe are excluded from the top-up pool, so padding a thin squad can't
+  accidentally undo Step 5's departures mechanism for exactly the clubs most
+  likely to still be carrying a stale row.
+- Departures can only be computed against footy-sim's *own* previous output
+  (`tools/footysim-snapshot.json`, written each run), not against pitch's
+  pre-migration data — diffing footy-sim against independently-curated pitch
+  data produces thousands of "departures" that are really just two datasets
+  disagreeing, not players leaving football. The first run establishes the
+  baseline with zero departures reported; every run after that gets real
+  detection.
+- `src/validate.js`'s "Squad Data" regression section (§7) was rewritten from
+  2025/26 to 2026/27 facts in the same change — it hard-codes specific
+  player/club facts that a season's roster turnover invalidates by
+  construction, whichever data source is authoritative.
 
 ---
 

@@ -1,19 +1,19 @@
 team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
-bayern,Bayern Munich,BAY,🔴,Bundesliga,Allianz Arena,75000,230,97,#DC052D
 dortmund,Borussia Dortmund,BVB,🟡⚫,Bundesliga,Signal Iduna Park,81365,150,92,#FDE100
+stuttgart,VfB Stuttgart,VFB,⚪🔴,Bundesliga,MHPArena,60449,65,80,#E32219
+frankfurt,Eintracht Frankfurt,SGE,⚫🔴,Bundesliga,Deutsche Bank Park,51500,80,82,#E1000F
+union_berlin,1. FC Union Berlin,FCU,🔴⚪,Bundesliga,Stadion An der Alten Försterei,22012,35,72,#EB1923
+freiburg,SC Freiburg,SCF,⚫🔴,Bundesliga,Europa-Park Stadion,34700,45,76,#000000
+mainz,1. FSV Mainz 05,M05,🔴⚪,Bundesliga,MEWA Arena,34034,35,71,#C3141E
+hoffenheim,TSG Hoffenheim,TSG,🔵⚪,Bundesliga,PreZero Arena,30150,50,73,#1961B5
+bremen,Werder Bremen,SVW,🟢⚪,Bundesliga,Weserstadion,42100,42,73,#1D9053
+gladbach,Borussia M'gladbach,BMG,🟢⚫⚪,Bundesliga,Borussia-Park,54042,50,75,#000000
+augsburg,FC Augsburg,FCA,🔴🟢⚪,Bundesliga,WWK Arena,30660,30,68,#BA3733
+hamburg,Hamburger SV,HSV,🔵⚪🔴,Bundesliga,Volksparkstadion,57000,40,73,#005B9E
+bayern,Bayern Munich,BAY,🔴,Bundesliga,Allianz Arena,75000,230,97,#DC052D
 leverkusen,Bayer Leverkusen,LEV,🔴⚫,Bundesliga,BayArena,30210,120,91,#E32221
 leipzig,RB Leipzig,RBL,🔴⚪,Bundesliga,Red Bull Arena,47069,120,88,#DD0741
-frankfurt,Eintracht Frankfurt,SGE,⚫🔴,Bundesliga,Deutsche Bank Park,51500,80,82,#E1000F
-stuttgart,VfB Stuttgart,VFB,⚪🔴,Bundesliga,MHPArena,60449,65,80,#E32219
-gladbach,Borussia M'gladbach,BMG,🟢⚫⚪,Bundesliga,Borussia-Park,54042,50,75,#000000
-bremen,Werder Bremen,SVW,🟢⚪,Bundesliga,Weserstadion,42100,42,73,#1D9053
-freiburg,SC Freiburg,SCF,⚫🔴,Bundesliga,Europa-Park Stadion,34700,45,76,#000000
-union_berlin,1. FC Union Berlin,FCU,🔴⚪,Bundesliga,Stadion An der Alten Försterei,22012,35,72,#EB1923
-augsburg,FC Augsburg,FCA,🔴🟢⚪,Bundesliga,WWK Arena,30660,30,68,#BA3733
-wolfsburg,VfL Wolfsburg,WOB,🟢⚪,Bundesliga,Volkswagen Arena,30000,60,74,#65B32E
-hoffenheim,TSG Hoffenheim,TSG,🔵⚪,Bundesliga,PreZero Arena,30150,50,73,#1961B5
-mainz,1. FSV Mainz 05,M05,🔴⚪,Bundesliga,MEWA Arena,34034,35,71,#C3141E
-hamburg,Hamburger SV,HSV,🔵⚪🔴,Bundesliga,Volksparkstadion,57000,40,73,#005B9E
+schalke_04,Schalke 04,S0,🔵🟡,Bundesliga,Schalke 04 Stadium,29546,30,68,#034694
+sv_elversberg,SV Elversberg,SE,🔵,Bundesliga,SV Elversberg Stadium,29546,30,68,#034694
+sc_paderborn,SC Paderborn,SP,🟡,Bundesliga,SC Paderborn Stadium,29546,30,68,#FDB913
 koln,1. FC Köln,KOE,🔴⚪,Bundesliga,RheinEnergieStadion,50000,35,71,#ED1C24
-st_pauli,FC St. Pauli,STP,🟤⚪,Bundesliga,Millerntor-Stadion,29546,25,67,#6F4E37
-heidenheim,1. FC Heidenheim,HDH,🔴🔵,Bundesliga,Voith-Arena,15000,20,64,#E30613

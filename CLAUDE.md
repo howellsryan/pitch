@@ -19,11 +19,11 @@
   once that was settled. `footy-sim` still holds a copy from that point; this
   one is authoritative.)
 - **Where things stand right now**: Phase 0 (Workers), Phase 1 (portable build
-  + CI), Phase 2 (toolchain), **Phase 4 (screen-by-screen) and Phase 5 (live
-  match) are done.** Phase 3 (shell + first screen)'s blocking pieces are
-  done too — a couple of its steps stay deliberately deferred (see
-  `docs/plan/04-migration-phases.md`'s Phase 3 section: no context bar, no
-  `<LegacyPanel>`, no URL routing) — **Phase 6 (data reconciliation) is
+  + CI), Phase 2 (toolchain), **Phase 4 (screen-by-screen), Phase 5 (live
+  match) and Phase 6 (data reconciliation) are done.** Phase 3 (shell + first
+  screen)'s blocking pieces are done too — a couple of its steps stay
+  deliberately deferred (see `docs/plan/04-migration-phases.md`'s Phase 3
+  section: no context bar, no `<LegacyPanel>`, no URL routing) — **Phase 7 is
   next.** `src/lib/ui/` holds one real Svelte 5 component per screen
   (`TabBar`, `LeagueScreen`, `HomeScreen`, `SquadScreen`, `TacticsScreen`,
   `AcademyScreen`, `TrophiesScreen`, `SettingsScreen`, `TransfersScreen`,
@@ -150,6 +150,35 @@
   became real Vitest tests instead of bundle-eval checks; a `matchScreenSrc`
   read was added alongside the other `<name>ScreenSrc` reads for the
   string-presence checks that still make sense post-move.
+- **Data reconciliation (Phase 6) replaced 7 of the 9 leagues' rosters with
+  footy-sim's**, and along the way found the reconciliation's own premise
+  half-wrong: `docs/plan/06-data-reconciliation.md`'s evidence section
+  checked player *freshness* per club but never checked whether footy-sim's
+  *club list* for a league matched pitch's — it didn't, and not because of a
+  footy-sim data error. footy-sim's Prem file has Coventry/Ipswich/Hull and
+  not Burnley/West Ham/Wolves; verified against real results, that's the
+  correct 2026/27 top flight — pitch's own team CSVs were the ones a season
+  stale. `tools/reconcile.mjs` therefore trusts footy-sim for club-to-league
+  placement too, not just roster content: a club footy-sim places in a
+  tracked league gets that club's existing pitch metadata (crest, stadium,
+  budget) if pitch has it anywhere, or synthesized metadata scaled off that
+  league's other clubs if it doesn't (`tools/lib/teamSynthesis.mjs`); a pitch
+  club no footy-sim league ever claims has left the tracked tier and is
+  dropped, not carried forward stale. Every one of the 7 leagues' footy-sim
+  club count matched its real division size exactly once this was applied
+  (20/24/24/24/18/20/18) — the prior per-club matching (before this was
+  understood) left several clubs on 0 players and would have failed any
+  literal reading of the plan's Step 3 gate for every single league. The
+  6-attribute → 4-aggregate weights (`tools/lib/rating.mjs`) are calibrated,
+  not the plan doc's starting values verbatim — `tools/calibrate-weights.mjs`
+  fits them by least squares against the ~700 players present in both
+  datasets, landing mean absolute error at 3.84 (starting weights: 11.92)
+  against the plan's ~4-point threshold; rerun it if the calibrated weights
+  in `tools/weights.json` ever look off, don't hand-tune them. A thin
+  footy-sim squad (Mansfield Town: 1 row, Paris FC: 6) gets topped up from
+  its existing pitch roster rather than shipped unplayable — see
+  `docs/plan/04-migration-phases.md`'s Phase 6 status note for the fuller
+  list of where delivery diverged from the plan doc's literal text, and why.
 - **Two build paths run side by side.** Vite builds the app; `src/build.py`'s
   concatenation survives *only* to feed `src/validate.js`, which asserts against
   the bundle's raw source text and cannot read a Vite bundle. Don't delete
@@ -178,7 +207,7 @@
   `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
   which CI already gates. Cloudflare runs its own install step, so the build
   command must not repeat one.
-- **Test coverage is still narrow.** `src/validate.js`'s 1067 checks run on
+- **Test coverage is still narrow.** `src/validate.js`'s 1078 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career,
   an accent-contrast check over all 186 clubs, and — since Phase 5 —
   `npm run test` (Vitest) for `src/game/`'s pure substitution/formation-change/
@@ -214,12 +243,12 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | **All 9 screens + the live-match route are real Svelte islands** (`src/lib/ui/`: TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen, MatchScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain, and `prematch.js`/`watchmatch.js` are deleted outright | Svelte 5 (runes) — **Phases 4 and 5 done; Phase 6 (data reconciliation) is next** |
+| UI | **All 9 screens + the live-match route are real Svelte islands** (`src/lib/ui/`: TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen, MatchScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain, and `prematch.js`/`watchmatch.js` are deleted outright | Svelte 5 (runes) — **Phases 4, 5 and 6 done; Phase 7 (PWA and polish) is next** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
 | Game logic (non-DOM) | `src/modules/` (simulation, data) + `src/game/` (pure UI-adjacent rules: substitution/formation-change validation, opponent stub generation) — the latter is new in Phase 5, covered by Vitest instead of `validate.js`'s bundle-eval checks | same |
-| Tests | `src/validate.js` (1067 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
+| Tests | `src/validate.js` (1078 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -241,7 +270,7 @@ UX spec, tokens, and the design canvas it was drafted against.
   `fixtures` → `cups` → `transfers` → `potential` → `injuries` → `promotion` →
   `youthAcademy` → `save` → `season` → `gameweek` → `ui/*`); reordering breaks
   the build in ways that only surface at runtime.
-- `src/validate.js` — the 1067-check validator; `npm run build` runs it and
+- `src/validate.js` — the 1078-check validator; `npm run build` runs it and
   aborts on any failure.
 - `src/shell.html` — HTML/CSS shell, no JS.
 - `src/modules/` (13 files) — game logic, **no DOM access**. This boundary
@@ -258,12 +287,24 @@ UX spec, tokens, and the design canvas it was drafted against.
   (`home_transfers.js`'s `renderHome`/`handleEndOfSeason`), legacy modals
   (`squad_tactics_offers.js`'s Offers, `inbox.js`), and shared helpers
   (`helpers.js`, `renderers.js`).
-- `src/data/` (10 league files + `csv/`) — team and player data. **Do not
-  assume this is final** — the plan's Phase 6 reconciles it against
-  `footy-sim`'s CSVs (deeper rosters, full names, nationality across all
-  leagues) and adds a "player departures" mechanism for real-world transfers
-  out of the tracked leagues. Hand-edit via the CSV pipeline
-  (`src/csv_to_league.py`) only, never the generated `.js` files directly.
+- `src/data/` (10 league files + `csv/`) — team and player data. **Phase 6
+  reconciled 7 of the 9 leagues against `footy-sim`'s CSVs**: deeper rosters,
+  full names, nationality everywhere (not just the PL), and footy-sim's
+  club-to-league placement trusted outright (verified against real 2026/27
+  promotion/relegation results — see `docs/plan/06-data-reconciliation.md`'s
+  Phase 6 status note in `04-migration-phases.md`). Serie A and Eredivisie
+  stay pitch-native — footy-sim has no CSVs for either. Hand-edit via the CSV
+  pipeline only, never the generated `.js` files directly:
+  `tools/csv-to-league.mjs` (CSV → `.js`, replaces the retired
+  `src/csv_to_league.py`) for a manual edit to an existing league's CSVs, or
+  `tools/reconcile.mjs` (footy-sim CSV → pitch CSV, then feed that into
+  `csv-to-league.mjs`) to re-pull from footy-sim after its data changes —
+  `tools/audit-rosters.mjs` is a read-only sanity diff worth running first.
+  All three live in `tools/`, backed by shared helpers in `tools/lib/`
+  (CSV parsing, fuzzy team-name matching, the calibrated attribute-mapping
+  weights in `tools/weights.json`, the Step 3 validation gate, JS generation,
+  and the footy-sim-vs-footy-sim departures diff against
+  `tools/footysim-snapshot.json`).
 - `BRIEFING.md` — the older, still-accurate architecture/invariants doc
   (event queue, cup structure, watch-match constraints). Read it alongside
   this file, not instead of it — it goes deeper on gameplay mechanics than a
@@ -288,7 +329,7 @@ npm run dev              # Vite dev server with HMR, :5173
 npm run build            # both paths: legacy bundle + validator, then the Vite app
 npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
 npm run build:app        # Vite → dist/
-npm run validate         # node src/validate.js — re-run just the 1067 checks
+npm run validate         # node src/validate.js — re-run just the 1078 checks
 npm run test             # Vitest — src/game/*.test.js (pure logic, no bundle needed)
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
