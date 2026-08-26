@@ -261,7 +261,7 @@
   .sq-hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   .sq-team-name { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.5px; }
   .sq-team-count { font-size: 10px; color: var(--color-tx-3); }
-  .quick-btn { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-surface); color: var(--color-tx-2); font-size: 11px; font-weight: 600; cursor: pointer; min-height: 30px; }
+  .quick-btn { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-surface); color: var(--color-tx-2); font-size: 11px; font-weight: 600; cursor: pointer; min-height: 44px; }
   .quick-btn:hover { color: var(--color-tx); background: var(--color-raised); }
 
   .sq-empty { color: var(--color-tx-3); font-size: 12px; padding: 24px; text-align: center; }
@@ -293,11 +293,12 @@
   .row-rating { font-family: var(--font-display); font-size: 26px; line-height: 1; min-width: 34px; text-align: center; flex-shrink: 0; }
 
   .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .row-name-line { display: flex; align-items: center; gap: 6px; }
-  .row-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-name-line { line-height: 1.5; word-break: break-word; }
+  .row-name { font-size: 14px; font-weight: 600; vertical-align: middle; }
   .row-meta-line { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--color-tx-2); font-family: var(--font-mono); }
 
   .pos-badge {
+    display: inline-block; vertical-align: middle; margin-right: 6px;
     font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
     padding: 2px 6px; border-radius: 5px; flex-shrink: 0;
     background: var(--color-raised); color: var(--color-tx-2); border: 1px solid var(--color-line);
@@ -308,13 +309,15 @@
   .pos-badge.pos-FWD { color: var(--color-bad); }
 
   .sq-inj-badge, .sq-listed-badge, .sq-wonderkid-tag {
+    display: inline-block; vertical-align: middle;
     font-size: 9px; font-family: var(--font-mono); font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0;
   }
   .sq-inj-badge { background: color-mix(in oklch, var(--color-bad) 20%, transparent); color: var(--color-bad); }
   .sq-listed-badge { background: color-mix(in oklch, var(--color-warn) 20%, transparent); color: var(--color-warn); }
   .sq-wonderkid-tag { background: linear-gradient(135deg, var(--color-warn), var(--color-bad)); color: #14171c; }
-  .wk-star { color: var(--color-warn); font-size: 11px; }
+  .wk-star { display: inline-block; vertical-align: middle; color: var(--color-warn); font-size: 11px; }
   .pot-stars { font-size: 10px; }
+  .row-name-line .sq-inj-badge, .row-name-line .sq-listed-badge, .row-name-line .wk-star { margin-left: 6px; }
 
   .row-value { font-family: var(--font-mono); font-size: 12px; color: var(--color-tx-2); text-align: right; flex-shrink: 0; min-width: 54px; }
 

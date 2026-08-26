@@ -304,7 +304,7 @@
   .set-row:first-of-type { border-top: none; }
   .set-nm { font-size: 13px; font-weight: 600; }
   .set-desc { font-size: 11px; color: var(--color-tx-2); margin-top: 2px; }
-  .btn-set { flex-shrink: 0; min-height: 38px; padding: 0 16px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font-body); white-space: nowrap; }
+  .btn-set { flex-shrink: 0; min-height: 44px; padding: 0 16px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font-body); white-space: nowrap; }
   .btn-set:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .set-brand { font-family: var(--font-display); font-size: 32px; color: var(--color-club); letter-spacing: 4px; margin-bottom: 6px; }

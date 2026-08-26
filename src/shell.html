@@ -27,9 +27,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .ng-logo{font-family:var(--fd);font-size:clamp(52px,12vw,88px);color:var(--acc);letter-spacing:8px;margin-bottom:4px;line-height:1}
 .ng-sub{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
 .ng-label{font-family:var(--fd);font-size:clamp(20px,4vw,26px);letter-spacing:1px;margin-bottom:14px;text-align:center}
-.ng-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;margin-bottom:14px;padding:4px 8px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;align-self:stretch;box-sizing:border-box}
+.ng-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;margin-bottom:14px;padding:4px 8px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;align-self:stretch;box-sizing:border-box;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)}
 .ng-filters::-webkit-scrollbar{display:none}
-.ng-f{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:20px;font-size:12px;font-weight:500;line-height:1;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;box-sizing:border-box}
+.ng-f{display:inline-flex;align-items:center;height:44px;padding:0 14px;border-radius:22px;font-size:12px;font-weight:500;line-height:1;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;box-sizing:border-box}
 .ng-f.on{background:var(--glow);color:var(--acc);border-color:var(--bdr-a)}
 #team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:100%;max-width:1100px;padding:4px}
 .team-card{background:var(--sur);border:2px solid var(--bdr);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
@@ -60,11 +60,12 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
 /* ── BOTTOM NAV (mobile) ── */
 .bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--sur);border-top:1px solid var(--bdr);padding:6px 0 env(safe-area-inset-bottom,4px)}
-.bot-nav-inner{display:flex;justify-content:space-around}
-.bn{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 4px;color:var(--txd);transition:color .15s;background:none;border:none;-webkit-tap-highlight-color:transparent}
+.bot-nav-inner{display:flex;align-items:center}
+.bn{display:flex;flex:1 1 0;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:6px 2px;min-height:44px;color:var(--txd);transition:color .15s;background:none;border:none;-webkit-tap-highlight-color:transparent}
+.bn.play-btn{flex:0 0 auto}
 .bn.active{color:var(--acc)}
 .bn svg{width:20px;height:20px}
-.bn span{font-size:9px;font-family:var(--fm);letter-spacing:.5px}
+.bn span{font-size:11px;font-family:var(--fm);letter-spacing:.5px}
 
 /* ── MAIN ── */
 #app{display:flex;width:100%;height:100%}
@@ -345,7 +346,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   <div class="ng-logo">PITCH</div>
   <div class="ng-sub">Football Career Simulator · 2025/26</div>
   <div style="display:flex;justify-content:center;margin-bottom:12px">
-    <button class="btn btn-s" id="btn-import-ng" style="font-size:12px;padding:6px 16px;display:flex;align-items:center;gap:6px">📂 Import Save File</button>
+    <button class="btn btn-s" id="btn-import-ng" style="font-size:12px;padding:6px 16px;min-height:44px;display:flex;align-items:center;gap:6px">📂 Import Save File</button>
     <input type="file" id="import-save-ng" accept=".pitch" style="display:none">
   </div>
   <div style="width:100%;max-width:360px;margin-bottom:20px">
