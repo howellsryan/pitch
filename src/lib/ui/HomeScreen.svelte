@@ -373,6 +373,7 @@
   .home-hdr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   .action-btn {
     padding: 10px 20px;
+    min-height: 44px;
     border-radius: 9px;
     border: none;
     font-family: var(--font-body);
@@ -388,6 +389,7 @@
 
   .quick-btn {
     padding: 9px 14px;
+    min-height: 44px;
     border-radius: 9px;
     border: 1px solid var(--color-line);
     background: var(--color-surface);
@@ -400,7 +402,7 @@
 
   .icon-btn {
     position: relative;
-    width: 38px; height: 38px;
+    width: 44px; height: 44px;
     border-radius: 9px;
     border: 1px solid var(--color-line);
     background: var(--color-surface);
