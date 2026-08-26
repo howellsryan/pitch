@@ -5,7 +5,7 @@ description: Use at the start of any implementation task, before the first edit 
 
 # delivery-loop: one session, four mindsets
 
-CI runs `npm run build` (which bundles and then runs `src/validate.js`'s 1180
+CI runs `npm run build` (which bundles and then runs `src/validate.js`'s 1078
 checks) on every push and PR — a real safety net, but a narrow one. It doesn't
 know whether a screen looks right, whether a new UI interaction works, or
 whether a plan-gate-worthy change is actually sound. The discipline below still
@@ -16,6 +16,13 @@ mindsets you switch between, not agents you spawn.
 
 State the tier and a one-line reason, then act:
 
+- **`delivery-loop: spike`** — the ask is a *question*, not a change: is this
+  feasible, what would it cost, does the engine already do this, why is this
+  screen slow. **The deliverable is an answer, not code.** Investigate as
+  cheaply as possible, report what you found, and stop. Anything you wrote to
+  get the answer is throwaway — say so, and do not let it become the
+  implementation by default. If the answer turns out to be "yes, and here's
+  how", that's a new task: re-triage it.
 - **`delivery-loop: checklist`** — a single file/module with an obvious way to
   check it (a roster/team-data CSV edit run through the existing pipeline, a
   `shell.html` CSS/copy tweak, a self-contained one-function fix).
@@ -25,6 +32,8 @@ State the tier and a one-line reason, then act:
   to the module load order or the build/deploy pipeline. Run the loop below.
 
 When in doubt, start checklist and escalate the moment the task surprises you.
+A spike that starts producing code you want to keep has stopped being a spike —
+stop and re-triage rather than quietly shipping exploration.
 
 ## The loop (stepped tier)
 
@@ -43,12 +52,16 @@ When in doubt, start checklist and escalate the moment the task surprises you.
    mirrored everywhere `db.js` reads/writes that store, a module added in the
    wrong load-order slot, an event-queue change that could let the gameweek
    advance with `pendingEvents` non-empty.
-4. **Verify** — run `npm run build` (bundles, then runs the 1180 checks; fails
+4. **Verify** — run `npm run build` (bundles, then runs the 1078 checks; fails
    loudly on the first problem) before anything else. That's necessary, not
    sufficient: open the built `index.html` in a browser and exercise the
    changed feature by hand — play a gameweek, open the affected screen or
    modal, watch a match if match logic changed, check the console for errors.
    Say explicitly what you checked and what you didn't.
+
+   `verification-before-completion` is the standard this step has to meet —
+   fresh evidence from an actual run, never inference from the code reading
+   correctly. It also carries the screenshot rule for anything that renders.
 
    (This step will change shape as the rebuild progresses — `npm run dev` once
    Vite lands in Phase 2, then a proper mobile-viewport check once there's a
@@ -56,3 +69,8 @@ When in doubt, start checklist and escalate the moment the task surprises you.
    that makes the current wording wrong.)
 
 Commit once Verify passes.
+
+Related: `plan-gate` (when a written plan is mandatory first), `scope-fence`
+(staying inside the boundary while editing), `systematic-debugging` (when the
+task is a broken thing rather than a new one), `verification-before-completion`
+(the evidence bar for step 4).

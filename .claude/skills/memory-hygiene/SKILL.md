@@ -58,6 +58,30 @@ changes.
 - **Write the trigger with the fact**: "when touching the save schema,
   remember X" — not just X.
 
+## Writing a skill: the description is the whole contract
+
+A skill's body is worthless if the description never fires, and actively
+harmful if the description fires *instead* of the body. Rules:
+
+- **Start with "Use when…"** and describe **triggering conditions only** — the
+  situation, the symptom, the file being touched.
+- **Never summarize the workflow.** A description that explains what the skill
+  does gives a future session a shortcut it will take, and the body becomes
+  documentation it skips. "Use when a screen renders wrong" fires the skill.
+  "Runs a four-phase root-cause process" invites reading the summary and moving
+  on.
+- **State the non-trigger too.** Every description ends with a "Do not use
+  for …" clause. Without it the skill fires on adjacent work and gets ignored
+  by habit.
+- **Keep it under ~500 characters.** Descriptions are always-visible cost,
+  once per skill, every session.
+- **Third person, concrete symptoms.** Name the error, the file, the screen —
+  the words a future session will actually be thinking.
+
+Audit an existing description by asking: could a session read *only* this and
+believe it now knows what to do? If yes, it is summarizing the workflow. Cut it
+back to the trigger.
+
 ## Recall: the verification rule
 
 1. **Grade the staleness risk.** Decisions age slowly; file locations, module
