@@ -1,25 +1,25 @@
 team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
-birmingham,Birmingham City,BIR,🔵,Championship,St Andrew's,29409,14,66,#0000FF
-blackburn,Blackburn Rovers,BLB,🔵⚪,Championship,Ewood Park,31367,10,64,#009EE0
-bristol_city,Bristol City,BRC,🔴,Championship,Ashton Gate,26462,12,65,#E21937
-charlton,Charlton Athletic,CHA,🔴,Championship,The Valley,27111,9,62,#D4021D
-coventry,Coventry City,COV,🔵,Championship,Coventry Building Society Arena,32609,16,72,#87CEEB
-derby,Derby County,DER,⚪⚫,Championship,Pride Park,32926,13,67,#FFFFFF
-hull,Hull City,HUL,🟠⚫,Championship,MKM Stadium,25586,12,66,#F5A623
-ipswich,Ipswich Town,IPS,🔵,Championship,Portman Road,30056,22,74,#3A64A3
-leicester,Leicester City,LEI,🔵,Championship,King Power Stadium,32259,20,73,#003090
-middlesbrough,Middlesbrough FC,MID,🔴,Championship,Riverside Stadium,34742,16,71,#E21937
-millwall,Millwall,MIL,🔵,Championship,The Den,20146,10,65,#001D5E
+southampton,Southampton,SOU,🔴⚪,Championship,St Mary's Stadium,32384,22,73,#D71920
 norwich,Norwich City,NOR,🟡🟢,Championship,Carrow Road,27359,14,68,#00A650
-oxford,Oxford United,OXF,🟡,Championship,Kassam Stadium,12500,8,60,#F7E300
-portsmouth,Portsmouth,POR,🔵,Championship,Fratton Park,20867,10,63,#001489
+middlesbrough,Middlesbrough FC,MID,🔴,Championship,Riverside Stadium,34742,16,71,#E21937
+west_brom,West Bromwich Albion,WBA,🔵⚪,Championship,The Hawthorns,26850,14,66,#122F67
+derby,Derby County,DER,⚪⚫,Championship,Pride Park,32926,13,67,#FFFFFF
+birmingham,Birmingham City,BIR,🔵,Championship,St Andrew's,29409,14,66,#0000FF
+bristol_city,Bristol City,BRC,🔴,Championship,Ashton Gate,26462,12,65,#E21937
+cardiff,Cardiff City,CAR,🔵,Championship,Cardiff City Stadium,33280,18,68,#0070B5
+millwall,Millwall,MIL,🔵,Championship,The Den,20146,10,65,#001D5E
 preston,Preston North End,PRE,⚪,Championship,Deepdale,23408,10,64,#FFFFFF
 qpr,Queens Park Rangers,QPR,🔵⚪,Championship,Loftus Road,18439,10,63,#1D5BA4
-sheffield_utd,Sheffield United,SHU,🔴,Championship,Bramall Lane,32050,16,70,#EE2737
-sheffield_wed,Sheffield Wednesday,SHW,🔵⚪,Championship,Hillsborough,39732,8,58,#0033A0
-southampton,Southampton,SOU,🔴⚪,Championship,St Mary's Stadium,32384,22,73,#D71920
 stoke,Stoke City,STK,🔴⚪,Championship,bet365 Stadium,30089,12,65,#E03A3E
-swansea,Swansea City,SWA,⚪⚫,Championship,Swansea.com Stadium,21088,10,63,#FFFFFF
 watford,Watford,WAT,🟡⚫,Championship,Vicarage Road,22200,14,66,#FBEE23
-west_brom,West Bromwich Albion,WBA,🔵⚪,Championship,The Hawthorns,26850,14,66,#122F67
+blackburn,Blackburn Rovers,BLB,🔵⚪,Championship,Ewood Park,31367,10,64,#009EE0
+wolves,Wolverhampton Wanderers,WOL,🐺,Championship,Molineux Stadium,32050,40,70,#FDB913
+burnley,Burnley,BUR,🟤,Championship,Turf Moor,22546,42,68,#6C1D45
+west_ham,West Ham United,WHU,⚒️,Championship,London Stadium,62500,62,77,#7A263A
+lincoln,Lincoln City,LIN,🔴,Championship,LNER Stadium,10669,8,62,#E2001A
+bolton,Bolton Wanderers,BOL,⚪,Championship,Toughsheet Community Stadium,28723,12,65,#263C6F
+charlton,Charlton Athletic,CHA,🔴,Championship,The Valley,27111,9,62,#D4021D
+portsmouth,Portsmouth,POR,🔵,Championship,Fratton Park,20867,10,63,#001489
 wrexham,Wrexham,WRE,🔴,Championship,Racecourse Ground,10771,12,67,#E3000B
+sheffield_utd,Sheffield United,SHU,🔴,Championship,Bramall Lane,32050,16,70,#EE2737
+swansea,Swansea City,SWA,⚪⚫,Championship,Swansea.com Stadium,21088,10,63,#FFFFFF

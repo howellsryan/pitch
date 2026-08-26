@@ -1,21 +1,21 @@
 team_id,name,short_name,crest,league,stadium,stadium_capacity,budget_millions,reputation,primary_color
-arsenal,Arsenal,ARS,🔴,Premier League,Emirates Stadium,60704,130,88,#EF0107
-aston_villa,Aston Villa,AVL,🦁,Premier League,Villa Park,42095,90,82,#670E36
-bournemouth,Bournemouth,BOU,🍒,Premier League,Vitality Stadium,11307,38,68,#DA291C
-brentford,Brentford,BRE,🐝,Premier League,Gtech Community Stadium,17250,55,71,#D20000
-brighton,Brighton,BHA,🕊️,Premier League,Amex Stadium,31800,72,77,#0057B8
-burnley,Burnley,BUR,🟤,Premier League,Turf Moor,22546,42,68,#6C1D45
-chelsea,Chelsea,CHE,🔵,Premier League,Stamford Bridge,40343,160,86,#034694
-crystal_palace,Crystal Palace,CRY,🦅,Premier League,Selhurst Park,25486,42,72,#1B458F
-everton,Everton,EVE,💙,Premier League,Hill Dickinson Stadium,52888,35,73,#003399
-fulham,Fulham,FUL,⚫,Premier League,Craven Cottage,25700,48,71,#FFFFFF
-leeds,Leeds United,LEE,⚪,Premier League,Elland Road,37645,55,72,#FFFFFF
-liverpool,Liverpool,LIV,❤️,Premier League,Anfield,61276,80,95,#C8102E
 man_city,Manchester City,MCI,🩵,Premier League,Etihad Stadium,55017,200,96,#6CABDD
+everton,Everton,EVE,💙,Premier League,Hill Dickinson Stadium,52888,35,73,#003399
 man_utd,Manchester United,MUN,🔴,Premier League,Old Trafford,74140,95,88,#DA291C
 newcastle,Newcastle United,NEW,⚫,Premier League,St. James' Park,52258,120,85,#241F20
-nottm_forest,Nottm Forest,NFO,🌲,Premier League,City Ground,30455,52,73,#DD0000
-sunderland,Sunderland,SUN,🔴⚪,Premier League,Stadium of Light,48707,48,70,#FF0000
 tottenham,Tottenham Hotspur,TOT,🐓,Premier League,Tottenham Hotspur Stadium,62850,110,84,#132257
-west_ham,West Ham United,WHU,⚒️,Premier League,London Stadium,62500,62,77,#7A263A
-wolves,Wolverhampton Wanderers,WOL,🐺,Premier League,Molineux Stadium,32050,40,70,#FDB913
+arsenal,Arsenal,ARS,🔴,Premier League,Emirates Stadium,60704,130,88,#EF0107
+liverpool,Liverpool,LIV,❤️,Premier League,Anfield,61276,80,95,#C8102E
+brentford,Brentford,BRE,🐝,Premier League,Gtech Community Stadium,17250,55,71,#D20000
+nottm_forest,Nottm Forest,NFO,🌲,Premier League,City Ground,30455,52,73,#DD0000
+aston_villa,Aston Villa,AVL,🦁,Premier League,Villa Park,42095,90,82,#670E36
+bournemouth,Bournemouth,BOU,🍒,Premier League,Vitality Stadium,11307,38,68,#DA291C
+brighton,Brighton,BHA,🕊️,Premier League,Amex Stadium,31800,72,77,#0057B8
+chelsea,Chelsea,CHE,🔵,Premier League,Stamford Bridge,40343,160,86,#034694
+leeds,Leeds United,LEE,⚪,Premier League,Elland Road,37645,55,72,#FFFFFF
+crystal_palace,Crystal Palace,CRY,🦅,Premier League,Selhurst Park,25486,42,72,#1B458F
+fulham,Fulham,FUL,⚫,Premier League,Craven Cottage,25700,48,71,#FFFFFF
+sunderland,Sunderland,SUN,🔴⚪,Premier League,Stadium of Light,48707,48,70,#FF0000
+coventry,Coventry City,COV,🔵,Premier League,Coventry Building Society Arena,32609,16,72,#87CEEB
+ipswich,Ipswich Town,IPS,🔵,Premier League,Portman Road,30056,22,74,#3A64A3
+hull,Hull City,HUL,🟠⚫,Premier League,MKM Stadium,25586,12,66,#F5A623

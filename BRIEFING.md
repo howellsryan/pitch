@@ -89,14 +89,17 @@ step.
 ├── dist/                  # Vite build output — gitignored
 ├── tools/
 │   ├── make-entry.mjs         # src/shell.html → web/index.html
-│   └── check-club-accents.mjs # contrast floor for all 186 clubs
+│   ├── check-club-accents.mjs # contrast floor for all 186 clubs
+│   ├── audit-rosters.mjs      # footy-sim vs pitch roster diff (read-only sanity check)
+│   ├── reconcile.mjs          # footy-sim CSV → pitch CSV (Steps 2/5 of the Phase 6 plan)
+│   ├── csv-to-league.mjs      # pitch CSV → src/data/<league>.js (Steps 3/4; replaced csv_to_league.py)
+│   └── lib/                   # shared CSV/team-match/rating/validate/generate helpers for the above
 ├── tests/                 # Playwright, 390×844
 └── src/
     ├── main.js                # Vite entry module
     ├── app.css                # @theme design tokens
     ├── lib/theme.mjs          # club accent — oklch contrast guard
     ├── build.py               # Bundle → validate → assemble (validator only)
-    ├── csv_to_league.py       # CSV→JS converter
     ├── populate_potentials.py
     ├── validate.js            # 1180 checks / 21 sections + 11 regression suites
     ├── shell.html             # HTML/CSS only — still the single source of markup
@@ -402,16 +405,17 @@ Reputation on movement:
 
 ```
 1. Create data/csv/<league>_teams.csv + data/csv/<league>_players.csv
-2. python3 csv_to_league.py data/csv/<league>_teams.csv \
-                             data/csv/<league>_players.csv \
-                             data/<league>.js \
-                             <ARRAY_NAME> <helper_fn>
+2. node tools/csv-to-league.mjs --league=<key>   # or omit --league for all 7 footy-sim leagues
 3. python3 build.py  (must pass 0 failures)
 ```
 `build.py` auto-discovers all `data/*.js`. New leagues need a cup mapping in `cups.js`.
+`tools/csv-to-league.mjs` is the Node replacement for the old `csv_to_league.py` (retired in
+Phase 6) — same CSV shape, plus footy-sim-style validate+diff output. Populating a league from
+footy-sim's own CSVs (rather than a hand-written one) is `tools/reconcile.mjs`'s job instead —
+see `docs/plan/06-data-reconciliation.md`.
 
 **teams.csv:** `team_id, name, short_name, crest, league, stadium, stadium_capacity, budget_millions, reputation, primary_color`
-**players.csv:** `team_id, player_id, name, position, age, attack, midfield, defence, goalkeeping, value_millions, wage_thousands`
+**players.csv:** `team_id, player_id, name, nationality, position, age, attack, midfield, defence, goalkeeping, value_millions, wage_thousands, potential, is_wonderkid`
 
 Validation: 11–30 players/team · ≥1 GK · ratings 1–99 · ages 15–45 · all team_ids valid.
 
