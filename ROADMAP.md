@@ -17,7 +17,7 @@ Status legend: ⬜ not started · 🔶 in progress · ✅ shipped
 | 1 | Two-legged European knockouts | ✅ shipped | |
 | 2 | Wages that cost something | ✅ shipped | |
 | 3 | Contracts | ✅ shipped | |
-| 4 | Board objectives & job security | 🔶 in progress | plan-gate (schema); builds on 2–3 |
+| 4 | Board objectives & job security | ✅ shipped | |
 | 5 | Morale with real effect | ⬜ not started | |
 | 6 | Academy investment | ⬜ not started | |
 | 7 | Cloud save & Google account | ⬜ not started | new infra — D1 + first server routes |
@@ -94,27 +94,33 @@ competition bonuses, agent fees, work-permit rules.
 
 ---
 
-## 4. Board objectives & job security — ⬜
+## 4. Board objectives & job security — ✅ shipped
 
-**Gap:** zero board-confidence, sacking risk, or season targets exist — a
-repo-wide grep for `"board"`/`"sack"`/`"objective"` comes back empty. Results
-carry no consequence beyond league position itself.
+**Gap:** zero board-confidence, sacking risk, or season targets existed — a
+repo-wide grep for `"board"`/`"sack"`/`"objective"` came back empty. Results
+carried no consequence beyond league position itself.
 
-**Build:**
-- One objective per season, generated from the club's reputation tier vs. its
-  current league position (survive relegation / finish top-half / win
-  promotion / qualify for Europe).
-- A single `jobSecurity` number that moves with results and objective
-  progress, visible on Home.
-- Miss badly enough → sacked. With no manager-market yet (item 8), the v1
-  end-state is a clear "you were sacked" screen; honors/history preserved,
-  save ends or restarts at the user's choice.
+**Shipped:** one objective per season (`generateBoardObjective()`), set from
+the club's reputation relative to its league — title/Europe/top-half/
+relegation-survival for single-tier leagues, promotion/play-offs/mid-table/
+relegation-survival for the pyramid (League Two's floor is "mid-table" since
+it has no relegation). A `jobSecurity` number (0-100) is evaluated at each
+season's end (`evaluateBoardObjective()`, `nextJobSecurity()`) against the
+outgoing objective — missing it costs noticeably more than meeting it gains.
+Hit zero and the manager is sacked: a dedicated end-state offers "Start New
+Career" (a new `resetForNewCareer()` that wipes the active save/squad but
+keeps honors and season history) instead of "Start Next Season." Home shows
+a live board-confidence meter next to the existing morale block, plus the
+current objective's label.
 
-**Skip:** a formal warning tier before sacking, secondary objectives, board
-press statements.
+**Skipped (by design):** a formal warning tier before sacking, secondary
+objectives, board press statements, and — since item 8 (manager career
+progression) doesn't exist yet — any new-club job offer on sacking; v1 is a
+clean restart, not a new job.
 
-**Why it matters:** the biggest "stakes" gap in the game — nothing you do can
-currently end the career badly. Direct prerequisite for item 8.
+**Why it mattered:** the biggest "stakes" gap in the game — nothing you did
+could previously end the career badly. Sets up item 8, which will replace
+the restart with an actual job offer once it exists.
 
 ---
 
