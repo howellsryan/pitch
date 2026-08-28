@@ -75,12 +75,67 @@ export function formAdjustedValue(player) {
   return Math.max(500_000, Math.round(capped));
 }
 
+// A fresh signing gets a standard 3-year deal, regardless of route (buy,
+// sell, accepted offer, or AI-to-AI). Loans never touch this — the parent
+// club keeps the contract throughout.
+export function _freshContractExpiry(save) {
+  const year = parseInt((save.season || '').split('/')[0]) || 0;
+  return year + 3;
+}
+
 export function _fav_primaryRating(p) {
   const pos = p.position;
   if (['ST','CF','RW','LW','CAM'].includes(pos)) return p.attack;
   if (['CM','CDM','RM','LM'].includes(pos))       return p.midfield;
   if (['CB','RB','LB'].includes(pos))             return p.defence;
   return p.goalkeeping;
+}
+
+// ─── Contracts ──────────────────────────────────────────────
+// contractExpiry is the last season-start-year the deal covers; a player
+// with no contractExpiry yet (should only happen on a save from before
+// contracts existed) is treated as having 2 years left rather than 0, so
+// they're never mistaken for an out-of-contract free agent.
+export function contractYearsRemaining(player, save) {
+  const currentYear = parseInt((save.season || '').split('/')[0]) || 0;
+  if (player.contractExpiry == null) return 2;
+  return Math.max(0, player.contractExpiry - currentYear);
+}
+
+// User renews a squad player's contract for `years` more, at a modest wage
+// rise — not a negotiation, just "extend now while you still can."
+export async function renewContract(playerId, years = 3) {
+  const save   = await getSave();
+  const player = await getPlayer(playerId);
+  if (!player || player.teamId !== save.userTeamId) throw new Error('PLAYER_NOT_IN_SQUAD');
+  if (player.onLoan) throw new Error('PLAYER_ON_LOAN');
+
+  const currentYear = parseInt((save.season || '').split('/')[0]) || 0;
+  const newWage    = Math.max(1_000, Math.round((player.wage ?? 10_000) * (1.05 + Math.random() * 0.10)));
+  const newExpiry  = currentYear + years;
+  const updated    = { ...player, wage: newWage, contractExpiry: newExpiry };
+  await putPlayer(updated);
+  return { success: true, newWage, newExpiry };
+}
+
+// Free agents live in the players store with teamId:'free_agents' — no club
+// pays their wage until someone signs them. No transfer fee, just wages.
+export async function getFreeAgents() {
+  const allPlayers = await getAllPlayers();
+  return allPlayers.filter(p => p.teamId === 'free_agents');
+}
+
+export async function signFreeAgent(playerId) {
+  const save   = await getSave();
+  const player = await getPlayer(playerId);
+  if (!player || player.teamId !== 'free_agents') throw new Error('NOT_A_FREE_AGENT');
+  const userTeam = await getTeam(save.userTeamId);
+  if (!canClubSignPlayer(userTeam, player)) throw new Error('REP_TOO_LOW');
+
+  const updated = { ...player, teamId: save.userTeamId, signedThisSeason: true, contractExpiry: _freshContractExpiry(save) };
+  await putPlayer(updated);
+  await addTransfer({ playerId, playerName: player.name, fromTeamId: 'free_agents', toTeamId: save.userTeamId, fee: 0, type: 'free_agent', date: save.currentDate });
+  return { success: true, player: updated };
 }
 
 export function minimumOffer(player) {
@@ -176,7 +231,7 @@ export async function buyPlayer(playerId, offerAmount) {
 
   await putTeam({ ...userTeam, budget: userTeam.budget - offerAmount });
   if (fromTeam) await putTeam({ ...fromTeam, budget: fromTeam.budget + offerAmount });
-  const updated = { ...player, teamId: save.userTeamId, signedThisSeason: true };
+  const updated = { ...player, teamId: save.userTeamId, signedThisSeason: true, contractExpiry: _freshContractExpiry(save) };
   await putPlayer(updated);
   await addTransfer({ playerId, playerName: player.name, fromTeamId, toTeamId: save.userTeamId, fee: offerAmount, type: 'buy', date: save.currentDate });
   return { success: true, player: updated, fee: offerAmount };
@@ -235,7 +290,7 @@ export async function sellPlayer(playerId) {
   const userTeam = await getTeam(save.userTeamId);
   await putTeam({ ...buyerTeam, budget: buyerTeam.budget - fee });
   await putTeam({ ...userTeam,  budget: userTeam.budget  + fee });
-  await putPlayer({ ...player, teamId: buyerTeam.id, signedThisSeason: true });
+  await putPlayer({ ...player, teamId: buyerTeam.id, signedThisSeason: true, contractExpiry: _freshContractExpiry(save) });
   await addTransfer({ playerId, playerName: player.name, fromTeamId: save.userTeamId, toTeamId: buyerTeam.id, fee, type: 'sell', date: save.currentDate });
   return { success: true, fee, buyerName: buyerTeam.name };
 }
@@ -296,7 +351,7 @@ export async function acceptOffer(playerId) {
 
   await putTeam({ ...buyerTeam, budget: buyerTeam.budget - offer.fee });
   await putTeam({ ...userTeam,  budget: userTeam.budget  + offer.fee });
-  await putPlayer({ ...player, teamId: offer.clubId, signedThisSeason: true });
+  await putPlayer({ ...player, teamId: offer.clubId, signedThisSeason: true, contractExpiry: _freshContractExpiry(save) });
   await addTransfer({ playerId, playerName: player.name, fromTeamId: save.userTeamId, toTeamId: offer.clubId, fee: offer.fee, type: 'accepted_offer', date: save.currentDate });
 
   const updated = save.inboundOffers.map(o => o.playerId === playerId ? { ...o, status: 'accepted' } : o);
@@ -554,11 +609,12 @@ export async function simulateAITransfers(save) {
     const oldSellerSquad = squadMap.get(sellerTeamId) ?? [];
     squadMap.set(sellerTeamId, oldSellerSquad.filter(p => p.id !== target.id));
     const buyerSquadNow = squadMap.get(buyer.id) ?? [];
-    squadMap.set(buyer.id, [...buyerSquadNow, { ...target, teamId: buyer.id, signedThisSeason: true }]);
+    const newContractExpiry = _freshContractExpiry(save);
+    squadMap.set(buyer.id, [...buyerSquadNow, { ...target, teamId: buyer.id, signedThisSeason: true, contractExpiry: newContractExpiry }]);
 
     // Update allPlayers array for subsequent iterations
     const pIdx = allPlayers.findIndex(p => p.id === target.id);
-    if (pIdx !== -1) allPlayers[pIdx] = { ...allPlayers[pIdx], teamId: buyer.id, signedThisSeason: true };
+    if (pIdx !== -1) allPlayers[pIdx] = { ...allPlayers[pIdx], teamId: buyer.id, signedThisSeason: true, contractExpiry: newContractExpiry };
 
     deals.push({
       playerId:      target.id,

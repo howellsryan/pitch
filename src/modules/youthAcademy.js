@@ -269,12 +269,14 @@ export async function runYouthIntake(save, allTeams) {
     const remaining = combined.filter(p => !(p.age >= 18 && p.potentialRating >= 70));
 
     if (toPromote.length > 0) {
+      const promoteYear = parseInt((season || '').split('/')[0]) || 0;
       const promoted = toPromote.map(p => ({
         ...p,
         isYouth: false,
         teamId:  team.id,
         inSquad: true,
         wage:    Math.max(1_000, Math.round((Number(p.value) || 500_000) * 0.05 / 52)),
+        contractExpiry: promoteYear + 3, // first pro contract, standard 3 years
       }));
       await putPlayersBulk(promoted);
     }
@@ -299,6 +301,7 @@ export async function promoteYouthPlayer(playerId) {
   if (!team) throw new Error('Team not found');
 
   const weeklyWage = Math.max(1_000, Math.round((Number(youth.value) || 500_000) * 0.05 / 52));
+  const promoteYear = parseInt((save.season || '').split('/')[0]) || 0;
 
   const promoted = {
     ...youth,
@@ -306,6 +309,7 @@ export async function promoteYouthPlayer(playerId) {
     teamId:   save.userTeamId,
     inSquad:  true,
     wage:     weeklyWage,
+    contractExpiry: promoteYear + 3, // first pro contract, standard 3 years
   };
 
   await putPlayer(promoted);

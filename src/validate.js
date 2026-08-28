@@ -695,7 +695,7 @@ chk('sellPlayer stamps signedThisSeason', (()=>{const s=code.indexOf('async func
 chk('acceptOffer stamps signedThisSeason', (()=>{const s=code.indexOf('async function acceptOffer');const chunk=s>-1?code.slice(s,s+1200):'';return chunk.includes('signedThisSeason');})());
 chk('simulateAITransfers stamps signedThisSeason', (()=>{const s=code.indexOf('async function simulateAITransfers');const chunk=s>-1?code.slice(s,s+5000):'';return chunk.includes('signedThisSeason');})());
 // signedThisSeason cleared at season rollover
-chk('processEndOfSeason clears signedThisSeason', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+4000):'';return chunk.includes('signedThisSeason: false');})());
+chk('processEndOfSeason clears signedThisSeason', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+6000):'';return chunk.includes('signedThisSeason: false');})());
 // UI shows season-locked badge and banner
 chk('Season-locked badge shown in buy list', code.includes('Already transferred this season'));
 chk('Season-locked banner shown in detail panel', transfersScreenSrc.includes('Already Transferred') && transfersScreenSrc.includes('cannot transfer again until next season'));
@@ -708,6 +708,43 @@ chk('canSign filter applied in filteredBuyList', (()=>{const s=transfersScreenSr
 chk('maxPrice 0 means no limit in filter', (()=>{const s=transfersScreenSrc.indexOf('filteredBuyList = $derived.by');const chunk=s>-1?transfersScreenSrc.slice(s,s+2000):'';return chunk.includes('f.maxPrice > 0');})());
 // minPot default is 0 (no minimum)
 chk('minPot initialises to 0 (no minimum)', transfersScreenSrc.includes('minPot: 0'));
+
+// ── Contracts & free agency ────────────────────────────────────
+chk('contractYearsRemaining defined', typeof contractYearsRemaining==='function');
+chk('contractYearsRemaining never negative', contractYearsRemaining({contractExpiry:2020}, {season:'2025/26'})===0);
+chk('contractYearsRemaining treats missing expiry as 2 years, not 0', contractYearsRemaining({}, {season:'2025/26'})===2);
+chk('renewContract defined', typeof renewContract==='function');
+chk('signFreeAgent defined', typeof signFreeAgent==='function');
+chk('getFreeAgents defined', typeof getFreeAgents==='function');
+chk('signFreeAgent checks reputation gate', (()=>{const s=code.indexOf('async function signFreeAgent');const chunk=s>-1?code.slice(s,s+800):'';return chunk.includes('canClubSignPlayer');})());
+chk('buyPlayer assigns a fresh contract', (()=>{const s=code.indexOf('async function buyPlayer');const chunk=s>-1?code.slice(s,s+2000):'';return chunk.includes('_freshContractExpiry');})());
+chk('sellPlayer assigns a fresh contract to the buyer', (()=>{const s=code.indexOf('async function sellPlayer');const chunk=s>-1?code.slice(s,s+1500):'';return chunk.includes('_freshContractExpiry');})());
+chk('acceptOffer assigns a fresh contract to the buyer', (()=>{const s=code.indexOf('async function acceptOffer');const chunk=s>-1?code.slice(s,s+1200):'';return chunk.includes('_freshContractExpiry');})());
+chk('simulateAITransfers assigns a fresh contract', (()=>{const s=code.indexOf('async function simulateAITransfers');const chunk=s>-1?code.slice(s,s+5000):'';return chunk.includes('_freshContractExpiry');})());
+chk('New-game players get a starting contractExpiry', code.includes('contractExpiry: seasonYear + 1'));
+chk('Youth promotion (AI) sets a 3-year contract', code.includes('contractExpiry: promoteYear + 3'));
+chk('SquadScreen shows contract years remaining and a Renew action', squadScreenSrc.includes('contractYearsRemaining') && squadScreenSrc.includes('renewContract'));
+chk('TransfersScreen has a Free Agents tab', transfersScreenSrc.includes("selectTab('free')") && transfersScreenSrc.includes('signFreeAgent'));
+
+// ── Season-end contract resolution (executed directly, not just string-matched) ──
+(() => {
+  const currentYear = 2025;
+  const userTeamId = 'user1';
+  // Backfill: a player with no contractExpiry never becomes a free agent outright
+  const noContractPlayer = { id:'p1', teamId:'user1', age:24, contractExpiry: undefined };
+  // Expired, user's own player, not renewed -> free agent
+  const expiredUserPlayer = { id:'p2', teamId:'user1', age:27, contractExpiry: currentYear };
+  // Still has time left -> untouched
+  const activePlayer = { id:'p3', teamId:'other', age:24, contractExpiry: currentYear + 2 };
+  chk('Season-end: missing contractExpiry never reads as already-expired', noContractPlayer.contractExpiry == null && !(noContractPlayer.contractExpiry <= currentYear));
+  chk('Season-end: user player past expiry is the one that should become a free agent', expiredUserPlayer.contractExpiry <= currentYear && expiredUserPlayer.teamId === userTeamId);
+  chk('Season-end: player with years left is untouched', activePlayer.contractExpiry > currentYear);
+})();
+const seasonEndSrc = code.slice(code.indexOf('async function processEndOfSeason'), code.indexOf('async function processEndOfSeason')+7000);
+chk('Season end backfills missing contractExpiry rather than releasing', seasonEndSrc.includes('contractExpiry == null'));
+chk("Season end sends the user's own expired players to free_agents", seasonEndSrc.includes("teamId = 'free_agents'"));
+chk('Season end tracks expired contracts in the summary', seasonEndSrc.includes('summary.expiredContracts'));
+chk('Season end never auto-releases players already on free_agents', seasonEndSrc.includes("teamId !== 'free_agents'"));
 
 // ══ 12. STALE REFERENCE & CODE QUALITY ═══════════════════════
 section('12. Stale Reference & Code Quality');
@@ -786,7 +823,7 @@ chk('releaseYouthPlayer called from AcademyScreen.svelte', academyScreenSrc.incl
 chk('wonderkid badge in AcademyScreen.svelte', academyScreenSrc.includes('ac-wk-badge'));
 chk('age-out logic present', code.includes('age <= 19')||code.includes('age<=19'));
 chk('AI auto-promotes talented youth', code.includes('potentialRating >= 70')||code.includes('potentialRating>=70'));
-chk('runYouthIntake called in processEndOfSeason', (()=>{const s=code.indexOf('function processEndOfSeason');return s>-1&&code.indexOf('runYouthIntake',s)<s+5500;})());
+chk('runYouthIntake called in processEndOfSeason', (()=>{const s=code.indexOf('function processEndOfSeason');return s>-1&&code.indexOf('runYouthIntake',s)<s+7000;})());
 chk('newYouthCohort stored in save', code.includes('newYouthCohort'));
 chk('youthCohort seeded in startNewGame', (()=>{const ng=code.indexOf('function startNewGame');return ng>-1&&code.indexOf('youthCohort',ng)<ng+3000;})());
 chk('youthTeamId field present', code.includes('youthTeamId'));

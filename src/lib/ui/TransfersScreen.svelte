@@ -3,7 +3,7 @@
   import { primaryRating } from '../../modules/matchEngine.js';
   import {
     _loanFee, _loanWageCost, buyPlayer, canClubSignPlayer, formAdjustedValue, generateBuyCounter,
-    getLoanableInPlayers, loanInPlayer, loanOutPlayer, playerMinRepToSign, sellPlayer, transferWindowStatus,
+    getLoanableInPlayers, loanInPlayer, loanOutPlayer, playerMinRepToSign, sellPlayer, signFreeAgent, transferWindowStatus,
   } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
   import { fmt, formLabel, playerNationality, posGroup, toast } from '../../ui/helpers.js';
@@ -28,9 +28,10 @@
   let leagues = $state([]);
   let buyTargets = $state([]);
   let squadPlayers = $state([]);
+  let freeAgents = $state([]);
   let winStatus = $state({ open: true, label: '' });
 
-  let tab = $state('buy'); // 'buy' | 'sell' | 'loans'
+  let tab = $state('buy'); // 'buy' | 'sell' | 'loans' | 'free'
   let loanTab = $state('in'); // 'in' | 'out'
   let loanInList = $state([]);
   let loanOutList = $state([]);
@@ -52,6 +53,7 @@
     leagues = [...new Set(allTeams.map(t => t.league || 'Premier League'))].sort();
     const allPl = await getAllPlayers();
     buyTargets = allPl.filter(p => p.teamId !== s.userTeamId && p.teamId !== 'free_agents');
+    freeAgents = allPl.filter(p => p.teamId === 'free_agents');
     squadPlayers = [...(await getPlayersByTeam(s.userTeamId))].sort((a, b) => primaryRating(b) - primaryRating(a));
     winStatus = transferWindowStatus(s);
     if (tab === 'loans') await loadLoans();
@@ -74,6 +76,18 @@
   function selectTab(t) {
     tab = t;
     if (t === 'loans') loadLoans();
+  }
+
+  const FREE_AGENT_MSGS = { REP_TOO_LOW: "Your club's reputation is too low to attract this player.", NOT_A_FREE_AGENT: 'This player has already been signed.' };
+  async function signFree(p) {
+    try {
+      await signFreeAgent(p.id);
+      newsPlayerSigned(p, 0, save).catch(() => {});
+      toast(`${p.name} signed on a free transfer`, 'success', 3000);
+      screenTicks.transfers++;
+    } catch (e) {
+      toast(FREE_AGENT_MSGS[e.message] || 'Could not sign this player.', 'error', 2800);
+    }
   }
 
   // ── Buy list: filter, sort, virtualize ─────────────────────
@@ -328,6 +342,7 @@
       <button class="tr-tab {tab === 'buy' ? 'on' : ''}" onclick={() => selectTab('buy')}>Buy</button>
       <button class="tr-tab {tab === 'sell' ? 'on' : ''}" onclick={() => selectTab('sell')}>Sell</button>
       <button class="tr-tab {tab === 'loans' ? 'on' : ''}" onclick={() => selectTab('loans')}>Loans</button>
+      <button class="tr-tab {tab === 'free' ? 'on' : ''}" onclick={() => selectTab('free')}>Free Agents{#if freeAgents.length}<span class="offers-badge">{freeAgents.length}</span>{/if}</button>
       <div class="tr-tabs-spacer"></div>
       <button class="tr-tab-offers" onclick={() => showOffersModal()}>
         Offers <span id="tt-offers-badge" class="offers-badge" style="display:none">0</span>
@@ -463,7 +478,7 @@
           {/each}
         </div>
       </div>
-    {:else}
+    {:else if tab === 'loans'}
       <div class="tr-panel">
         <div class="tr-panel-title">Loan Market</div>
         <div class="ftabs">
@@ -523,6 +538,30 @@
                   <div class="pl-val" style="color:var(--color-live)">+{fmt.money(cost.total)}</div>
                   <div class="pl-rat">{r}</div>
                 </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {:else}
+      <div class="tr-panel">
+        <div class="tr-panel-title">Free Agents</div>
+        {#if !freeAgents.length}
+          <div class="tr-empty-inline">No free agents on the market right now.<br><span>Players who leave a club at the end of their contract show up here.</span></div>
+        {:else}
+          <div class="sell-scroll">
+            {#each [...freeAgents].sort((a, b) => primaryRating(b) - primaryRating(a)) as p (p.id)}
+              {@const g = posGroup(p.position)}
+              {@const r = primaryRating(p)}
+              {@const blocked = !canClubSignPlayer(team, p)}
+              <div class="sell-row {blocked ? 'is-locked' : ''}">
+                <div class="pl-flag-sm pos-{g}">{g}</div>
+                <div class="pl-info">
+                  <div class="pl-name">{p.name}</div>
+                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>{fmt.wage(p.wage)}/wk</span></div>
+                </div>
+                <div class="pl-val">{r}</div>
+                <button class="sell-btn" disabled={blocked} title={blocked ? "Your club's reputation is too low" : ''} onclick={() => signFree(p)}>Sign</button>
               </div>
             {/each}
           </div>

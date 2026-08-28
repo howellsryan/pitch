@@ -258,12 +258,48 @@ export async function processEndOfSeason() {
     }
   }
 
-  // ── Age all players ───────────────────────────────────────
+  // ── Age all players + resolve expiring contracts ───────────
+  // currentYear is the season that's ending; nextYearForContracts anchors
+  // any renewal/backfill so a fresh deal always runs into the future.
+  const currentYear         = parseInt((save.season || '').split('/')[0]) || 0;
+  const nextYearForContracts = currentYear + 1;
+  const expiredContracts    = []; // for the season summary — user's own departures only
+
   const agedPlayers = players.map(p => {
     // Apply stat decline for aging players before bumping age
     const declined = applyAgingDecline(p);
+
+    let teamId         = declined.teamId;
+    let contractExpiry = declined.contractExpiry;
+    if (teamId !== 'free_agents') {
+      if (contractExpiry == null) {
+        // Backfill for a save created before contracts existed — never an
+        // instant release, just a fresh-looking deal from here on.
+        contractExpiry = nextYearForContracts + Math.floor(Math.random() * 3);
+      } else if (contractExpiry <= currentYear) {
+        if (teamId === save.userTeamId) {
+          // Not renewed in time — a real consequence, not an auto-renewal.
+          expiredContracts.push({ id: declined.id, name: declined.name, position: declined.position });
+          teamId = 'free_agents';
+          contractExpiry = null;
+        } else {
+          // AI clubs self-manage: mostly renew, more likely to let older
+          // players go rather than run an empty squad slot.
+          const releaseChance = Math.min(0.7, 0.15 + (declined.age >= 33 ? 0.25 : declined.age >= 30 ? 0.10 : 0));
+          if (Math.random() < releaseChance) {
+            teamId = 'free_agents';
+            contractExpiry = null;
+          } else {
+            contractExpiry = nextYearForContracts + 2 + Math.floor(Math.random() * 2);
+          }
+        }
+      }
+    }
+
     return {
       ...declined,
+      teamId,
+      contractExpiry,
       age:              (declined.age ?? 22) + 1,
       value:            agingValueAdjust(declined),
       goals:            0,
@@ -282,6 +318,7 @@ export async function processEndOfSeason() {
     };
   });
   await putPlayersBulk(agedPlayers);
+  summary.expiredContracts = expiredContracts;
 
   // ── Retire players aged 36+ ─────────────────────────────────
   // Players who have turned 36 after aging retire from the game.

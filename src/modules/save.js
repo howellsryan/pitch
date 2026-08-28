@@ -97,13 +97,15 @@ export async function startNewGame(userTeamId, managerName) {
     return { ...rest, budget: repBudget };
   });
 
-  // Store all players with teamId
+  // Store all players with teamId. Contracts run 1-4 years so the whole
+  // league doesn't come out of contract in the same season.
   const players = allTeamData.flatMap(team =>
     (team.players ?? []).map(p => ({
       ...p, teamId: team.id,
       fitness: 100, injured: false, suspended: false,
       inSquad: true, goals: 0, assists: 0, cleanSheets: 0, form: 50,
       transferListed: false,
+      contractExpiry: seasonYear + 1 + Math.floor(Math.random() * 4),
     }))
   );
 
