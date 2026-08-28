@@ -9,13 +9,45 @@
 // Note: .assetsignore is read from the assets directory, so the one at the
 // repo root no longer applies. It doesn't need to: dist/ contains only build
 // output, so src/, docs/ and repo tooling can't leak into the served site.
+//
+// `main` + `assets.binding` (ROADMAP.md item 7): the presence of `main`
+// switches this from an assets-only Worker to "Workers with assets" — the
+// entry script now sees every request first and must explicitly fall through
+// to `env.ASSETS.fetch(request)` for anything it doesn't own (functions/
+// _worker.js does this). PocketRPG's file-based `functions/api/**` routing
+// is a Cloudflare *Pages* mechanism and doesn't apply to a plain Worker
+// deploy like this one — functions/_worker.js is a small manual router
+// instead, kept in the same file layout for portability.
+//
+// `d1_databases`: `database_id` below is a PLACEHOLDER. It has not been
+// created yet — this session has no Cloudflare account access (`wrangler
+// whoami` → not authenticated). Before this can deploy for real:
+//   1. `wrangler d1 create pitch-db` and paste the real database_id here.
+//   2. `wrangler d1 migrations apply pitch-db --remote` to run migrations/.
+//   3. Register a Google OAuth client (console.cloud.google.com) with
+//      authorized redirect URIs for both the workers.dev URL and (once the
+//      domain cutover lands) pitch-sim.com's own /api/auth/google/callback.
+//   4. `wrangler secret put GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+//      `JWT_SECRET` (a long random string — `openssl rand -hex 32`).
+// `wrangler dev` works today without any of the above: it runs main against
+// a local SQLite D1 (`wrangler d1 migrations apply pitch-db --local`), and
+// the auth routes degrade to a clean 500 "not configured" without secrets.
 {
 	"name": "pitch",
 	"compatibility_date": "2026-08-24",
+	"main": "functions/_worker.js",
 	"assets": {
 		"directory": "./dist",
+		"binding": "ASSETS",
 		"not_found_handling": "404-page"
 	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "pitch-db",
+			"database_id": "REPLACE_WITH_REAL_D1_DATABASE_ID"
+		}
+	],
 	"observability": {
 		"enabled": true
 	}

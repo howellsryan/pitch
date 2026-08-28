@@ -8,6 +8,8 @@
   import { fmt, toast } from '../../ui/helpers.js';
   import { _removeFullOverlay, _showFullOverlay } from '../../ui/renderers.js';
   import { screenTicks } from '../state/screens.svelte.js';
+  import { api, clearAuth, isSignedIn, startGoogleLogin } from '../../cloud/api.js';
+  import { pushSaveToCloud } from '../../cloud/sync.js';
 
   const TROPHY_NAMES = {
     premier_league: 'Premier League', championship: 'Championship', league_one: 'League One', league_two: 'League Two',
@@ -33,10 +35,51 @@
   let recalcDone = $state(false);
   let importFileEl = $state(null);
 
+  let cloudSignedIn = $state(false);
+  let cloudIdentity = $state(null); // { displayName, email } once loaded
+  let cloudBusy = $state(false);
+
+  async function loadCloudIdentity() {
+    cloudSignedIn = isSignedIn();
+    if (!cloudSignedIn) { cloudIdentity = null; return; }
+    try {
+      const res = await api.me();
+      cloudIdentity = res?.identity ?? null;
+    } catch {
+      // Expired/invalid token — api.me() already cleared it (see cloud/api.js).
+      cloudSignedIn = isSignedIn();
+      cloudIdentity = null;
+    }
+  }
+
+  function signInWithGoogle() { startGoogleLogin(); }
+
+  function signOutOfCloud() {
+    clearAuth();
+    cloudSignedIn = false;
+    cloudIdentity = null;
+    toast('Signed out — progress stays local from here.', 'info');
+  }
+
+  async function saveToCloudNow() {
+    cloudBusy = true;
+    try {
+      const res = await pushSaveToCloud();
+      if (res.ok) toast('Saved to cloud.', 'success');
+      else toast('Cloud save failed: ' + (res.reason || 'unknown error'), 'error');
+    } finally {
+      cloudBusy = false;
+    }
+  }
+
   async function load() {
     await openDB();
     const save = await getSave();
     seasons = [...(await getAllSeasons())].reverse();
+    // Fire-and-forget: the account name is a nice-to-have refinement, not a
+    // gate. Everything else on this screen is local IndexedDB data — `loaded`
+    // must not wait on a network round trip to /api/auth/me.
+    void loadCloudIdentity();
     if (save) {
       managerName = save.managerName || 'The Manager';
       const { earned } = await getHonorsForTeam(save.userTeamId);
@@ -181,6 +224,26 @@
             {recalcBusy ? 'Recalculating…' : recalcDone ? 'Done!' : 'Recalculate'}
           </button>
         </div>
+      </div>
+
+      <div class="set-card">
+        <div class="set-card-title">Cloud Save</div>
+        <div class="set-card-sub">Google Account</div>
+        {#if !cloudSignedIn}
+          <div class="set-row">
+            <div><div class="set-nm">Sign in with Google</div><div class="set-desc">Back up your career and pick it up on another device</div></div>
+            <button class="btn-set btn-primary" onclick={signInWithGoogle}>Sign In</button>
+          </div>
+        {:else}
+          <div class="set-row">
+            <div><div class="set-nm">{cloudIdentity?.displayName || 'Signed in'}</div><div class="set-desc">{cloudIdentity?.email || 'Google account'}</div></div>
+            <button class="btn-set btn-secondary" onclick={signOutOfCloud}>Sign Out</button>
+          </div>
+          <div class="set-row">
+            <div><div class="set-nm">Save to Cloud</div><div class="set-desc">Push your current career to the cloud right now</div></div>
+            <button class="btn-set btn-primary" disabled={cloudBusy} onclick={saveToCloudNow}>{cloudBusy ? 'Saving…' : 'Save Now'}</button>
+          </div>
+        {/if}
       </div>
 
       <div class="set-card">

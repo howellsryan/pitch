@@ -14,7 +14,7 @@ import svelte from 'eslint-plugin-svelte';
 export default [
   {
     ignores: [
-      'dist/**', 'web/**', 'node_modules/**', '.build/**',
+      'dist/**', 'web/**', 'node_modules/**', '.build/**', '.wrangler/**',
       'src/modules/**', 'src/ui/**', 'src/data/**', 'src/validate.js',
       'index.html',
     ],
@@ -32,5 +32,20 @@ export default [
     // tools/ and tests/ run in Node, not the browser.
     files: ['tools/**/*.mjs', 'tests/**/*.mjs', '*.config.mjs', '*.config.ts'],
     languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } },
+  },
+  {
+    // functions/ (ROADMAP.md item 7) runs in the Cloudflare Workers runtime —
+    // neither the browser nor Node, so it gets its own global set.
+    files: ['functions/**/*.js'],
+    languageOptions: {
+      globals: {
+        crypto: 'readonly', fetch: 'readonly', console: 'readonly',
+        Response: 'readonly', Request: 'readonly', Headers: 'readonly',
+        URL: 'readonly', URLSearchParams: 'readonly',
+        btoa: 'readonly', atob: 'readonly',
+        TextEncoder: 'readonly', TextDecoder: 'readonly',
+        setTimeout: 'readonly', clearTimeout: 'readonly',
+      },
+    },
   },
 ];

@@ -134,7 +134,12 @@ export function _fnv1a(str) {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-export async function exportSaveFile() {
+// Builds the same base64 envelope exportSaveFile() writes to a .pitch file —
+// snapshot of all 8 stores, meta, FNV-1a integrity hash — without the
+// DOM-touching file-download side effects. Cloud save (ROADMAP.md item 7)
+// reuses this directly as save_blob rather than inventing a second save
+// format the server would need to understand.
+export async function buildSaveEnvelope() {
   const db = await openDB();
   const storeNames = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
   const snapshot = {};
@@ -162,8 +167,14 @@ export async function exportSaveFile() {
   // Base64 encode the envelope (universal, no compression dependency)
   const saveCode = btoa(unescape(encodeURIComponent(envelope)));
 
+  return { saveCode, meta };
+}
+
+export async function exportSaveFile() {
+  const { saveCode, meta } = await buildSaveEnvelope();
+
   // Build filename for display
-  const teamName = (saveData?.userTeamId ?? 'team').replace(/[^a-zA-Z0-9_]/g, '_');
+  const teamName = (meta.teamId ?? 'team').replace(/[^a-zA-Z0-9_]/g, '_');
   const filename = `PITCH_${teamName}_S${meta.season}_GW${meta.gameweek}.pitch`;
 
   // Try file download as a bonus (works on desktop, may fail in sandboxed iframe)
