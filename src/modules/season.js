@@ -424,3 +424,27 @@ export function reputationBudget(reputation, isUserTeam = false) {
   return Math.round(base + variance);
 }
 
+/**
+ * Every club's full squad wage bill comes out of its transfer budget once
+ * per gameweek, for the user and every AI club alike. `wage` is already a
+ * weekly figure (see youthAcademy.js / transfers.js's loan-wage math).
+ * Players out on loan are skipped — the loan club already prepaid their
+ * projected wages in full at signing (transfers.js's _loanWageCost), so
+ * charging them again here would double-bill it.
+ */
+export async function payWeeklyWages() {
+  // Re-fetch rather than accept a snapshot — this runs after AI transfers/
+  // loans have already written fresh budgets to the DB this same gameweek.
+  const [allTeams, allPlayers] = await Promise.all([getAllTeams(), getAllPlayers()]);
+  const billByTeam = new Map();
+  for (const p of allPlayers) {
+    if (!p.teamId || p.onLoan) continue;
+    billByTeam.set(p.teamId, (billByTeam.get(p.teamId) ?? 0) + (p.wage ?? 0));
+  }
+  for (const t of allTeams) {
+    const bill = billByTeam.get(t.id) ?? 0;
+    if (bill <= 0) continue;
+    await putTeam({ ...t, budget: (t.budget ?? 0) - bill });
+  }
+}
+

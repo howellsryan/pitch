@@ -80,6 +80,9 @@
   const leagueByTeam = $derived(new Map([...byId.values()].map(t => [t.id, t.league || 'Premier League'])));
   const userRep = $derived(team?.reputation ?? 60);
   const budget = $derived(team?.budget ?? 0);
+  // Mirrors gameweek.js's payWeeklyWages: loaned-in players don't count
+  // here since their wages were already prepaid in full at signing.
+  const weeklyWageBill = $derived(squadPlayers.filter(p => !p.onLoan).reduce((sum, p) => sum + (p.wage ?? 0), 0));
 
   const filteredBuyList = $derived.by(() => {
     const f = filters;
@@ -307,7 +310,10 @@
       <div class="tr-title">Transfers</div>
     </div>
     {#if team}
-      <div class="tr-budget"><span class="tr-budget-lbl">Budget</span><span class="tr-budget-val">{fmt.money(team.budget)}</span></div>
+      <div class="tr-budget">
+        <span class="tr-budget-lbl">Budget</span><span class="tr-budget-val">{fmt.money(team.budget)}</span>
+        <span class="tr-wage-lbl">Wages / wk: {fmt.money(weeklyWageBill)}</span>
+      </div>
     {/if}
   </div>
 
@@ -728,6 +734,7 @@
   .tr-budget { text-align: right; }
   .tr-budget-lbl { display: block; font-size: 10px; color: var(--color-tx-3); }
   .tr-budget-val { font-family: var(--font-display); font-size: 20px; color: var(--color-live); }
+  .tr-wage-lbl { display: block; font-size: 10px; color: var(--color-tx-3); margin-top: 2px; }
 
   .tr-window-banner {
     margin: 0 16px 10px; padding: 6px 14px; border-radius: 8px; text-align: center;

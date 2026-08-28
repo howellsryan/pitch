@@ -147,6 +147,26 @@ chk('DFB-Pokal Final <= GW38', CUP_META.dfb_pokal.roundGWs[CUP_META.dfb_pokal.ro
 chk('Coppa Italia Final <= GW38', CUP_META.coppa_italia.roundGWs[CUP_META.coppa_italia.roundGWs.length-1]<=38);
 chk('Coupe de France Final <= GW38', CUP_META.coupe_de_france.roundGWs[CUP_META.coupe_de_france.roundGWs.length-1]<=38);
 chk('UCL isGroupStage=true', CUP_META.ucl.isGroupStage===true);
+
+// ── Two-legged European knockout ties ──────────────────────────
+['ucl','uel','uecl'].forEach(id=>{
+  const meta=CUP_META[id];
+  const legRounds=meta.rounds.filter(r=>r.includes('Leg 1')||r.includes('Leg 2'));
+  chk(id+': has an even number of leg rounds', legRounds.length>0&&legRounds.length%2===0, ''+legRounds.length);
+  chk(id+': every Leg 1 is followed by its Leg 2', meta.rounds.every((r,i)=>!r.includes('Leg 1')||meta.rounds[i+1]===r.replace('Leg 1','Leg 2')));
+  chk(id+': Final is a single match, not a leg', meta.rounds[meta.rounds.length-1]==='Final');
+});
+chk('isEuroLegRound defined', typeof isEuroLegRound==='function');
+chk('isEuroLegRound: UCL R16 Leg 1 matches leg 1', isEuroLegRound('ucl','R16 (Leg 1)',1)===true);
+chk('isEuroLegRound: UCL R16 Leg 1 does not match leg 2', isEuroLegRound('ucl','R16 (Leg 1)',2)===false);
+chk('isEuroLegRound: domestic cups never match', isEuroLegRound('fa_cup','R1 (Leg 1)',1)===false);
+chk('computeTwoLegOutcome defined', typeof computeTwoLegOutcome==='function');
+chk('computeTwoLegOutcome: higher aggregate wins', computeTwoLegOutcome({userGoals:2,oppGoals:1,userIsHome:true},{userGoals:1,oppGoals:1,userIsHome:false}).userWon===true);
+chk('computeTwoLegOutcome: away goals break aggregate tie', computeTwoLegOutcome({userGoals:1,oppGoals:0,userIsHome:true},{userGoals:1,oppGoals:2,userIsHome:false}).userWon===true);
+chk('computeTwoLegOutcome: level on away goals too -> penalties flagged', computeTwoLegOutcome({userGoals:0,oppGoals:0,userIsHome:true},{userGoals:0,oppGoals:0,userIsHome:false}).penalties===true);
+chk('resolveCupProgress defined', typeof resolveCupProgress==='function');
+chk('resolveCupProgress: leg 1 never eliminates', resolveCupProgress('ucl','R16 (Leg 1)',0,{results:[]},0,4,false,true).status==='active');
+chk('resolveCupProgress: leg 2 decides on aggregate, not the single leg', resolveCupProgress('ucl','R16 (Leg 2)',1,{results:[{userGoals:0,oppGoals:4,userIsHome:true}]},3,0,true,false).status==='eliminated');
 chk('UCL_CLUBS array of 20+', Array.isArray(UCL_CLUBS)&&UCL_CLUBS.length>=20);
 chk('UCL_CLUBS each has id/name/strength', UCL_CLUBS.every(c=>c.id&&c.name&&typeof c.strength==='number'));
 chk('LEAGUE_DOMESTIC_CUPS defined', typeof LEAGUE_DOMESTIC_CUPS==='object');
@@ -473,6 +493,15 @@ chk('Rep60 > 0', bgs[8]>0);
 chk('All budgets positive integers', bgs.every(b=>b>0&&Number.isInteger(b)));
 console.log('    '+reps.map((r,i)=>'Rep'+r+'=GBP'+(bgs[i]/1e6).toFixed(0)+'m').join('  '));
 
+// ── Weekly wage bill ──────────────────────────────────────────
+chk('payWeeklyWages defined', typeof payWeeklyWages==='function');
+const wwSrc=code.slice(code.indexOf('async function payWeeklyWages'), code.indexOf('async function payWeeklyWages')+1200);
+chk('payWeeklyWages sums player wages per team', wwSrc.includes("p.wage")&&wwSrc.includes('billByTeam'));
+chk('payWeeklyWages skips players on loan (already prepaid)', wwSrc.includes('p.onLoan) continue'));
+chk('payWeeklyWages deducts bill from team budget', wwSrc.includes('budget: (t.budget ?? 0) - bill')||wwSrc.includes('budget:(t.budget??0)-bill'));
+chk('payWeeklyWages called from advanceOneFixture', (()=>{const s=code.indexOf('async function advanceOneFixture(');return s>-1&&code.indexOf('payWeeklyWages',s)>s;})());
+chk('payWeeklyWages called from advanceOneFixtureWithResult', (()=>{const s=code.indexOf('async function advanceOneFixtureWithResult');return s>-1&&code.indexOf('payWeeklyWages',s)>s;})());
+
 // ══ 10. UI FUNCTIONS ═════════════════════════════════════════
 section('10. UI Functions');
 [
@@ -602,6 +631,8 @@ chk('simulateAITransfers called in advanceOneFixture', code.includes('simulateAI
 chk('WINDOW_CLOSED error handled in buy UI', code.includes('WINDOW_CLOSED'));
 // Window banner in shell
 chk('Transfer window banner in TransfersScreen.svelte', transfersScreenSrc.includes('tr-window-banner'));
+chk('Weekly wage bill shown in TransfersScreen.svelte', transfersScreenSrc.includes('weeklyWageBill'));
+chk('Wage bill excludes prepaid loaned-in players', transfersScreenSrc.includes('squadPlayers.filter(p => !p.onLoan)'));
 
 const basePl={value:50000000,goals:0,assists:0,cleanSheets:0,form:50};
 const hotPl={...basePl,goals:18,assists:10,form:85};

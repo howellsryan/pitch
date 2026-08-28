@@ -5,6 +5,7 @@ import { CUP_META, UCL_CLUBS, simulateCupRound, simulateUCLMatchday, isEuroLegRo
 import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
+import { payWeeklyWages } from './season.js';
 
 /** modules/gameweek.js — One-event-per-press architecture: buildPendingEvents, advanceOneFixture */
 
@@ -192,6 +193,7 @@ export async function advanceOneFixture(overrideFormation) {
     const newOffers = await generateAIOffers().catch(() => []);
     await simulateAITransfers(save).catch(() => {});
     await simulateAILoans(save).catch(() => {});
+    await payWeeklyWages().catch(() => {});
     const freshSave1 = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
@@ -307,6 +309,7 @@ export async function advanceOneFixture(overrideFormation) {
   if (gwDone) newOffers = await generateAIOffers().catch(() => []) ?? [];
   if (gwDone) await simulateAITransfers(save).catch(() => {});
   if (gwDone) await simulateAILoans(save).catch(() => {});
+  if (gwDone) await payWeeklyWages().catch(() => {});
 
   // Re-read save so we don't overwrite the offers generateAIOffers just wrote
   const freshSave2 = gwDone ? await getSave() : save;
@@ -426,6 +429,7 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     newOffers = await generateAIOffers().catch(()=>[]) ?? [];
     await simulateAITransfers(save).catch(() => {});
     await simulateAILoans(save).catch(() => {});
+    await payWeeklyWages().catch(() => {});
   }
 
   // Re-read save so we don't overwrite the offers generateAIOffers just wrote
