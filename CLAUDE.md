@@ -206,7 +206,7 @@
   `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
   which CI already gates. Cloudflare runs its own install step, so the build
   command must not repeat one.
-- **Test coverage is still narrow.** `src/validate.js`'s 1078 checks run on
+- **Test coverage is still narrow.** `src/validate.js`'s 1181 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career,
   an accent-contrast check over all 186 clubs, and — since Phase 5 —
   `npm run test` (Vitest) for `src/game/`'s pure substitution/formation-change/
@@ -248,7 +248,7 @@
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
 | Game logic (non-DOM) | `src/modules/` (simulation, data) + `src/game/` (pure UI-adjacent rules: substitution/formation-change validation, opponent stub generation) — the latter is new in Phase 5, covered by Vitest instead of `validate.js`'s bundle-eval checks | same |
-| Tests | `src/validate.js` (1078 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
+| Tests | `src/validate.js` (1181 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -270,7 +270,7 @@ UX spec, tokens, and the design canvas it was drafted against.
   `fixtures` → `cups` → `transfers` → `potential` → `injuries` → `promotion` →
   `youthAcademy` → `save` → `season` → `gameweek` → `ui/*`); reordering breaks
   the build in ways that only surface at runtime.
-- `src/validate.js` — the 1078-check validator; `npm run build` runs it and
+- `src/validate.js` — the 1181-check validator; `npm run build` runs it and
   aborts on any failure.
 - `src/shell.html` — HTML/CSS shell, no JS.
 - `src/modules/` (13 files) — game logic, **no DOM access**. This boundary
@@ -305,10 +305,6 @@ UX spec, tokens, and the design canvas it was drafted against.
   weights in `tools/weights.json`, the Step 3 validation gate, JS generation,
   and the footy-sim-vs-footy-sim departures diff against
   `tools/footysim-snapshot.json`).
-- `BRIEFING.md` — the older, still-accurate architecture/invariants doc
-  (event queue, cup structure, watch-match constraints). Read it alongside
-  this file, not instead of it — it goes deeper on gameplay mechanics than a
-  CLAUDE.md should.
 - `.claude/skills/` — `delivery-loop`, `plan-gate`, `scope-fence`,
   `memory-hygiene`, ported from `footy-sim` and retargeted at this repo's
   actual files, plus `systematic-debugging` and
@@ -331,7 +327,7 @@ npm run dev              # Vite dev server with HMR, :5173
 npm run build            # both paths: legacy bundle + validator, then the Vite app
 npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
 npm run build:app        # Vite → dist/
-npm run validate         # node src/validate.js — re-run just the 1078 checks
+npm run validate         # node src/validate.js — re-run just the 1181 checks
 npm run test             # Vitest — src/game/*.test.js (pure logic, no bundle needed)
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
@@ -371,11 +367,12 @@ before investigating; seeding the RNG is simulation math and needs `plan-gate`.
   home-win-rate check).
 - **`.claude/skills/verification-before-completion`** before claiming anything
   works, passes, or is done. A green build proves no known regression in what
-  the 1078 checks cover — never that a screen renders. Includes the screenshot
+  the 1181 checks cover — never that a screen renders. Includes the screenshot
   rule for any new or restyled screen.
-- **`.claude/skills/memory-hygiene`** when updating this file, `BRIEFING.md`,
-  or a skill. Note its flagged gap: this file closes it, but keep both docs
-  honest as the migration changes what's true.
+- **`.claude/skills/memory-hygiene`** when updating this file or a skill.
+  `BRIEFING.md` (a duplicate, drifted-stale architecture doc) was removed —
+  this file is now the single source for gameplay invariants; keep it honest
+  as the migration changes what's true.
 - Comments: few, and only for a non-obvious invariant. Don't narrate what code
   does.
 - Direct user/developer instructions outrank this file. Update this guide in
