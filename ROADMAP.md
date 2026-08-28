@@ -19,7 +19,7 @@ Status legend: ⬜ not started · 🔶 in progress · ✅ shipped
 | 3 | Contracts | ✅ shipped | |
 | 4 | Board objectives & job security | ✅ shipped | |
 | 5 | Morale with real effect | ✅ shipped | |
-| 6 | Academy investment | 🔶 in progress | |
+| 6 | Academy investment | ✅ shipped | |
 | 7 | Cloud save & Google account | ⬜ not started | new infra — D1 + first server routes |
 | 8 | Manager career progression | ⬜ not started | plan-gate (schema); builds on 4 |
 | 9 | Data completeness polish | ⬜ not started | |
@@ -153,21 +153,22 @@ to the inbox, without modules/ ever importing ui/ directly.
 
 ---
 
-## 6. Academy investment — ⬜
+## 6. Academy investment — ✅ shipped
 
-**Gap:** academy tier is derived purely from club reputation — nothing is
-spendable, and there's no staff of any kind (zero hits for
+**Gap:** academy tier was derived purely from club reputation — nothing was
+spendable, and there was no staff of any kind (zero hits for
 `scout`/`coach`/`physio`).
 
-**Build:**
-- A one-slider budget spend ("academy investment") that blends with
-  reputation in `academyTier()`, so a mid-table club can out-develop its
-  station by spending.
-- Cohort size scales modestly with investment (10 → up to 14) instead of
-  being fixed.
+**Shipped:** `team.academyInvestment` (0-100, `£500k` per point via
+`investInAcademy()`) blends into `academyTier()` as up to +15 effective
+reputation at max — enough to push a club roughly one tier above its
+reputation alone. Yearly intake also scales with it, from 10 players up to
+14 at full investment. Academy screen has a slider-driven "Invest" card
+showing the current level, a live points-for-spend preview, and the actual
+intake size — replacing the previously hardcoded "10 per season" stat.
 
-**Skip:** named individual staff as hireable characters, foreign scouting
-networks, opposition scout reports.
+**Skipped (by design):** named individual staff as hireable characters,
+foreign scouting networks, opposition scout reports.
 
 ---
 
