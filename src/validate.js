@@ -872,6 +872,22 @@ chk('youthCohort seeded in startNewGame', (()=>{const ng=code.indexOf('function 
 chk('youthTeamId field present', code.includes('youthTeamId'));
 chk('isYouth field present', code.includes('isYouth'));
 
+// ── Academy investment ──────────────────────────────────────────
+chk('academyTier blends reputation with investment', academyTier(55, 100) !== academyTier(55, 0));
+chk('academyTier: investment can push a club up roughly one tier', academyTier(60,0)==='average' && academyTier(60,100)==='good');
+chk('academyTier: investment=0 behaves exactly as before', academyTier(72)==='good' && academyTier(72,0)==='good');
+chk('academyInvestmentPointsForSpend defined', typeof academyInvestmentPointsForSpend==='function');
+chk('academyInvestmentPointsForSpend: capped by remaining room to 100', academyInvestmentPointsForSpend(98, 10_000_000)===2);
+chk('academyInvestmentPointsForSpend: capped by affordable spend', academyInvestmentPointsForSpend(0, 1_500_000)===3);
+chk('investInAcademy defined', typeof investInAcademy==='function');
+chk('investInAcademy checks budget', (()=>{const s=code.indexOf('async function investInAcademy');const chunk=s>-1?code.slice(s,s+700):'';return chunk.includes('INSUFFICIENT_FUNDS');})());
+chk('generateCohort scales intake size with investment', generateCohort('t1',70,'2025/26','Premier League',100).length===14);
+chk('generateCohort defaults to 10 with no investment', generateCohort('t1',70,'2025/26','Premier League').length===10);
+chk('getAcademyInfo reports investment and cohort size', (()=>{const i=getAcademyInfo(70,100);return i.investment===100&&i.cohortSize===14;})());
+chk('New-game teams start with academyInvestment: 0', code.includes('academyInvestment: 0'));
+chk('AcademyScreen has an Invest action', academyScreenSrc.includes('investInAcademy') && academyScreenSrc.includes('doInvest'));
+chk('AcademyScreen shows current investment level out of 100', academyScreenSrc.includes('info.investment') && academyScreenSrc.includes('/100'));
+
 // ══ 14. LIVE MATCH ═══════════════════════════════════════════
 section('14. Live Match');
 // ui/watchmatch.js is gone (Phase 5, docs/plan/04-migration-phases.md) —

@@ -2,7 +2,7 @@
   import { getSave, getTeam, openDB } from '../../modules/db.js';
   import { primaryRating } from '../../modules/matchEngine.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
-  import { getAcademyInfo, promoteYouthPlayer, releaseYouthPlayer } from '../../modules/youthAcademy.js';
+  import { ACADEMY_INVESTMENT_COST_PER_POINT, academyInvestmentPointsForSpend, getAcademyInfo, investInAcademy, promoteYouthPlayer, releaseYouthPlayer } from '../../modules/youthAcademy.js';
   import { fmt, posGroup, toast } from '../../ui/helpers.js';
   import { newsYouthPromotion } from '../../ui/inbox.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -13,17 +13,20 @@
 
   let loaded = $state(false);
   let save = $state(null);
+  let team = $state(null);
   let info = $state(null);
   let confirmAction = $state(null); // { type: 'promote'|'release', player }
   let busy = $state(false);
+  let investAmount = $state(500_000);
+  let investBusy = $state(false);
 
   async function load() {
     await openDB();
     const s = await getSave();
     if (!s || s._deleted) return;
     save = s;
-    const team = await getTeam(s.userTeamId);
-    info = getAcademyInfo(team?.reputation ?? 70);
+    team = await getTeam(s.userTeamId);
+    info = getAcademyInfo(team?.reputation ?? 70, team?.academyInvestment ?? 0);
     loaded = true;
   }
 
@@ -37,6 +40,26 @@
     [...cohort].sort((a, b) => (b.isWonderkid !== a.isWonderkid ? (b.isWonderkid ? 1 : -1) : b.potentialRating - a.potentialRating))
   );
   const agingOutCount = $derived(cohort.filter(p => p.age >= 19).length);
+
+  const maxInvestSpend = $derived(team ? Math.min(team.budget ?? 0, (100 - (team.academyInvestment ?? 0)) * ACADEMY_INVESTMENT_COST_PER_POINT) : 0);
+  const investPreviewPoints = $derived(team ? academyInvestmentPointsForSpend(team.academyInvestment, investAmount) : 0);
+
+  async function doInvest() {
+    if (investBusy) return;
+    investBusy = true;
+    try {
+      const res = await investInAcademy(investAmount);
+      toast(`Academy investment +${res.pointsGained} (now ${res.newInvestment}/100)`, 'success');
+      screenTicks.academy++;
+    } catch (err) {
+      const msg = err.message === 'INSUFFICIENT_FUNDS' ? 'Not enough budget.'
+        : err.message === 'NOTHING_TO_INVEST' ? 'Already at maximum investment, or the amount is too small to buy a point.'
+        : 'Could not invest right now.';
+      toast(msg, 'error');
+    } finally {
+      investBusy = false;
+    }
+  }
 
   function fitnessColor(fit) {
     return fit >= 75 ? 'var(--color-live)' : fit >= 50 ? 'var(--color-warn)' : 'var(--color-bad)';
@@ -96,10 +119,29 @@
       <div class="ac-info-card">
         <div class="ac-info-desc">{info.description}</div>
         <div class="ac-stats-grid">
-          <div class="stat-tile"><div class="stl">Intake</div><div class="stv" style="color:var(--color-live)">10</div><div class="sts">per season</div></div>
+          <div class="stat-tile"><div class="stl">Intake</div><div class="stv" style="color:var(--color-live)">{info.cohortSize}</div><div class="sts">per season</div></div>
           <div class="stat-tile"><div class="stl">Wonderkid</div><div class="stv" style="color:{info.stars >= 3 ? 'var(--color-warn)' : 'var(--color-tx-3)'}">{WONDERKID_CHANCE[info.tier]}</div><div class="sts">chance</div></div>
           <div class="stat-tile"><div class="stl">In Academy</div><div class="stv" style="color:var(--color-club)">{cohort.length}</div><div class="sts">youth players</div></div>
         </div>
+      </div>
+
+      <div class="ac-invest-card">
+        <div class="ac-invest-hdr">
+          <span class="ac-invest-title">Academy Investment</span>
+          <span class="ac-invest-level">{info.investment}/100</span>
+        </div>
+        <div class="ac-invest-track"><div class="ac-invest-fill" style="width:{info.investment}%"></div></div>
+        <div class="ac-invest-desc">Spending raises effective academy quality (worth up to one tier at 100) and widens the yearly intake.</div>
+        {#if info.investment >= 100}
+          <div class="ac-invest-maxed">Fully invested — nothing more to gain here.</div>
+        {:else}
+          <div class="ac-invest-row">
+            <input type="range" min="0" max={Math.max(0, maxInvestSpend)} step={ACADEMY_INVESTMENT_COST_PER_POINT} bind:value={investAmount} disabled={maxInvestSpend <= 0} />
+            <div class="ac-invest-amount">{fmt.money(investAmount)}</div>
+          </div>
+          <div class="ac-invest-preview">+{investPreviewPoints} point{investPreviewPoints === 1 ? '' : 's'} for {fmt.money(investPreviewPoints * ACADEMY_INVESTMENT_COST_PER_POINT)}</div>
+          <button class="btn-full btn-primary" disabled={investBusy || investPreviewPoints <= 0} onclick={doInvest}>{investBusy ? 'Investing…' : 'Invest'}</button>
+        {/if}
       </div>
 
       {#if agingOutCount > 0}
@@ -208,6 +250,19 @@
   .stl { font-size: 9px; color: var(--color-tx-2); margin-bottom: 2px; }
   .stv { font-family: var(--font-display); font-size: clamp(16px, 3vw, 20px); line-height: 1; }
   .sts { font-size: 8px; color: var(--color-tx-3); margin-top: 2px; }
+
+  .ac-invest-card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .ac-invest-hdr { display: flex; justify-content: space-between; align-items: baseline; }
+  .ac-invest-title { font-size: 13px; font-weight: 600; }
+  .ac-invest-level { font-family: var(--font-mono); font-size: 11px; color: var(--color-tx-2); }
+  .ac-invest-track { height: 6px; border-radius: 3px; background: var(--color-raised); overflow: hidden; }
+  .ac-invest-fill { height: 100%; background: var(--color-club); border-radius: 3px; }
+  .ac-invest-desc { font-size: 11px; color: var(--color-tx-2); line-height: 1.4; }
+  .ac-invest-maxed { font-size: 12px; color: var(--color-live); font-weight: 600; }
+  .ac-invest-row { display: flex; align-items: center; gap: 10px; }
+  .ac-invest-row input[type="range"] { flex: 1; }
+  .ac-invest-amount { font-family: var(--font-mono); font-size: 12px; min-width: 72px; text-align: right; }
+  .ac-invest-preview { font-size: 11px; color: var(--color-tx-2); }
 
   .ac-warning {
     background: color-mix(in oklch, var(--color-bad) 12%, transparent);

@@ -98,7 +98,7 @@ export async function startNewGame(userTeamId, managerName) {
       rep >= 65 ? 10_000_000  + (rep - 65) *  1_600_000 :
                    5_000_000  + rep * 77_000
     );
-    return { ...rest, budget: repBudget };
+    return { ...rest, budget: repBudget, academyInvestment: 0 };
   });
 
   // Store all players with teamId. Contracts run 1-4 years so the whole

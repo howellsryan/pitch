@@ -18,8 +18,8 @@ Status legend: ⬜ not started · 🔶 in progress · ✅ shipped
 | 2 | Wages that cost something | ✅ shipped | |
 | 3 | Contracts | ✅ shipped | |
 | 4 | Board objectives & job security | ✅ shipped | |
-| 5 | Morale with real effect | ⬜ not started | |
-| 6 | Academy investment | ⬜ not started | |
+| 5 | Morale with real effect | ✅ shipped | |
+| 6 | Academy investment | 🔶 in progress | |
 | 7 | Cloud save & Google account | ⬜ not started | new infra — D1 + first server routes |
 | 8 | Manager career progression | ⬜ not started | plan-gate (schema); builds on 4 |
 | 9 | Data completeness polish | ⬜ not started | |
@@ -124,24 +124,32 @@ the restart with an actual job offer once it exists.
 
 ---
 
-## 5. Morale with real effect — ⬜
+## 5. Morale with real effect — ✅ shipped
 
-**Gap:** "morale" is a UI-only label computed on the fly from the user's own
-win rate on Home — it isn't stored anywhere and touches nothing else. A real
-news system already ships (`src/ui/inbox.js`) with zero mechanical
-follow-through.
+**Gap:** "morale" was a UI-only label computed on the fly from the user's own
+win rate on Home — it wasn't stored anywhere and touched nothing else.
 
-**Build:**
-- Store morale per team (not per player — cheaper, still legible), nudged by
-  results, contract renewals/expiries, and transfer activity.
-- A small, real effect: low morale trims match-fitness recovery slightly;
-  high morale nudges youth development — reuse `potential.js`'s existing
-  growth-point multiplier rather than inventing a new mechanic.
-- Route the swings through the existing inbox as short narrative beats
-  instead of building a new UI surface.
+**Shipped:** `team.morale` (0-100, `standings.js`) is a real stored value,
+eased each gameweek toward a target set by recent form
+(`moraleTargetFromForm`/`easeMorale`/`updateTeamMorale`, hooked into the same
+three "gameweek advancing" checkpoints `payWeeklyWages` already uses), plus
+one-off nudges: +3 when the user renews a contract, -2 per player per season
+who leaves for nothing because their contract lapsed. The one mechanical
+effect: `potential.js`'s growth-point calculation scales by a 0.85x-1.15x
+multiplier from squad morale (`moraleDevMultiplier`), so a settled squad
+develops faster than an unsettled one — reusing the existing growth-point
+system rather than inventing a second one. Home's morale meter now reads
+this stored value instead of deriving a cosmetic label from the win rate.
 
-**Skip:** press-conference dialogue trees, per-player morale/complacency
-states.
+**Skipped (by design):** press-conference dialogue trees, per-player
+morale/complacency states, and — a scope cut from the original plan —
+routing swings through the inbox as narrative beats. `season.js`/
+`standings.js`/`transfers.js` sit on the DOM-free side of the `modules/`
+boundary and the inbox lives in `src/ui/`, so wiring narrative text in from
+there would cross it; the existing Home morale/board meters are the
+"visible" surface instead. A future pass could thread a morale-swing event
+back up through `advanceOneFixture`'s return value for a UI caller to post
+to the inbox, without modules/ ever importing ui/ directly.
 
 ---
 
