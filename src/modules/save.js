@@ -15,6 +15,7 @@ import { generateLeagueFixtures } from './fixtures.js';
 import { assignCups, buildInitialCupState } from './cups.js';
 import { assignPotentials } from './potential.js';
 import { generateCohort } from './youthAcademy.js';
+import { generateBoardObjective } from './season.js';
 
 /** modules/save.js — New game creation, save state management. Supports all leagues. */
 
@@ -77,6 +78,9 @@ export async function startNewGame(userTeamId, managerName) {
     collapsedDeals:  [],
     inbox:           [],
     youthCohort:     initialCohort,
+    boardObjective:  generateBoardObjective(userTeamData, userLeague),
+    jobSecurity:     65,
+    sacked:          false,
   };
 
   // Store all teams (strip players array) with reputation-scaled budgets
@@ -94,16 +98,18 @@ export async function startNewGame(userTeamId, managerName) {
       rep >= 65 ? 10_000_000  + (rep - 65) *  1_600_000 :
                    5_000_000  + rep * 77_000
     );
-    return { ...rest, budget: repBudget };
+    return { ...rest, budget: repBudget, academyInvestment: 0 };
   });
 
-  // Store all players with teamId
+  // Store all players with teamId. Contracts run 1-4 years so the whole
+  // league doesn't come out of contract in the same season.
   const players = allTeamData.flatMap(team =>
     (team.players ?? []).map(p => ({
       ...p, teamId: team.id,
       fitness: 100, injured: false, suspended: false,
       inSquad: true, goals: 0, assists: 0, cleanSheets: 0, form: 50,
       transferListed: false,
+      contractExpiry: seasonYear + 1 + Math.floor(Math.random() * 4),
     }))
   );
 

@@ -1,7 +1,7 @@
 <script>
   import { getPlayersByTeam, getSave, getTeam, putPlayer, openDB } from '../../modules/db.js';
   import { primaryRating } from '../../modules/matchEngine.js';
-  import { formAdjustedValue } from '../../modules/transfers.js';
+  import { contractYearsRemaining, formAdjustedValue, renewContract } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
   import { fmt, formLabel, navigateTo, posGroup, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -14,11 +14,13 @@
   let team = $state(null);
   let players = $state([]);
   let sheetPlayer = $state(null);
+  let save = $state(null);
 
   async function load() {
     await openDB();
-    const save = await getSave();
-    if (!save || save._deleted) return;
+    const s = await getSave();
+    if (!s || s._deleted) return;
+    save = s;
     team = await getTeam(save.userTeamId);
     players = await getPlayersByTeam(save.userTeamId);
     loaded = true;
@@ -59,6 +61,16 @@
     await putPlayer({ ...p, transferListed: !isListed });
     toast(isListed ? `${p.name} removed from transfer list` : `${p.name} listed — AI clubs will bid`, isListed ? 'info' : 'success', 3000);
     screenTicks.squad++;
+  }
+
+  async function renewPlayerContract(p) {
+    try {
+      const res = await renewContract(p.id, 3);
+      toast(`${p.name} signed a new 3-year deal at ${fmt.wage(res.newWage)}`, 'success', 3500);
+      screenTicks.squad++;
+    } catch {
+      toast('Could not renew contract.', 'error', 2500);
+    }
   }
 
   function openSheet(p) { sheetPlayer = p; }
@@ -184,6 +196,7 @@
   {@const fl = formLabel(p)}
   {@const potStars = getPotentialStars ? getPotentialStars(p) : 0}
   {@const potLabel = getPotentialLabel ? getPotentialLabel(p) : ''}
+  {@const yearsLeft = save ? contractYearsRemaining(p, save) : null}
   <button class="sheet-backdrop" onclick={closeSheet} aria-label="Close"></button>
   <div class="sheet">
     <div class="sheet-handle"></div>
@@ -212,6 +225,9 @@
       <div class="fact"><span>Wage</span><strong>{fmt.wage(p.wage)}</strong></div>
       <div class="fact"><span>Fitness</span><strong style="color:{fitnessColor(fitness)}">{fitness}%</strong></div>
       <div class="fact"><span>Peak Age</span><strong>{p.peakAge ?? '—'}</strong></div>
+      {#if yearsLeft !== null}
+        <div class="fact"><span>Contract</span><strong style={yearsLeft <= 1 ? 'color:var(--color-bad)' : ''}>{yearsLeft <= 0 ? 'Expiring' : yearsLeft === 1 ? '1 year left' : yearsLeft + ' years left'}</strong></div>
+      {/if}
       {#if p.purchasedFor}<div class="fact"><span>Paid</span><strong>{fmt.money(p.purchasedFor)}</strong></div>{/if}
     </div>
 
@@ -235,6 +251,11 @@
     </div>
 
     <div class="sheet-actions">
+      {#if yearsLeft !== null && !p.onLoan}
+        <button class="btn-full btn-primary" onclick={() => renewPlayerContract(p)}>
+          Renew Contract (3 yrs)
+        </button>
+      {/if}
       <button class="btn-full {inSquad ? 'btn-warn' : 'btn-primary'}" onclick={() => toggleSquad(p)}>
         {inSquad ? 'Exclude from Squad' : 'Add to Squad'}
       </button>

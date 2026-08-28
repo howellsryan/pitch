@@ -147,6 +147,26 @@ chk('DFB-Pokal Final <= GW38', CUP_META.dfb_pokal.roundGWs[CUP_META.dfb_pokal.ro
 chk('Coppa Italia Final <= GW38', CUP_META.coppa_italia.roundGWs[CUP_META.coppa_italia.roundGWs.length-1]<=38);
 chk('Coupe de France Final <= GW38', CUP_META.coupe_de_france.roundGWs[CUP_META.coupe_de_france.roundGWs.length-1]<=38);
 chk('UCL isGroupStage=true', CUP_META.ucl.isGroupStage===true);
+
+// ── Two-legged European knockout ties ──────────────────────────
+['ucl','uel','uecl'].forEach(id=>{
+  const meta=CUP_META[id];
+  const legRounds=meta.rounds.filter(r=>r.includes('Leg 1')||r.includes('Leg 2'));
+  chk(id+': has an even number of leg rounds', legRounds.length>0&&legRounds.length%2===0, ''+legRounds.length);
+  chk(id+': every Leg 1 is followed by its Leg 2', meta.rounds.every((r,i)=>!r.includes('Leg 1')||meta.rounds[i+1]===r.replace('Leg 1','Leg 2')));
+  chk(id+': Final is a single match, not a leg', meta.rounds[meta.rounds.length-1]==='Final');
+});
+chk('isEuroLegRound defined', typeof isEuroLegRound==='function');
+chk('isEuroLegRound: UCL R16 Leg 1 matches leg 1', isEuroLegRound('ucl','R16 (Leg 1)',1)===true);
+chk('isEuroLegRound: UCL R16 Leg 1 does not match leg 2', isEuroLegRound('ucl','R16 (Leg 1)',2)===false);
+chk('isEuroLegRound: domestic cups never match', isEuroLegRound('fa_cup','R1 (Leg 1)',1)===false);
+chk('computeTwoLegOutcome defined', typeof computeTwoLegOutcome==='function');
+chk('computeTwoLegOutcome: higher aggregate wins', computeTwoLegOutcome({userGoals:2,oppGoals:1,userIsHome:true},{userGoals:1,oppGoals:1,userIsHome:false}).userWon===true);
+chk('computeTwoLegOutcome: away goals break aggregate tie', computeTwoLegOutcome({userGoals:1,oppGoals:0,userIsHome:true},{userGoals:1,oppGoals:2,userIsHome:false}).userWon===true);
+chk('computeTwoLegOutcome: level on away goals too -> penalties flagged', computeTwoLegOutcome({userGoals:0,oppGoals:0,userIsHome:true},{userGoals:0,oppGoals:0,userIsHome:false}).penalties===true);
+chk('resolveCupProgress defined', typeof resolveCupProgress==='function');
+chk('resolveCupProgress: leg 1 never eliminates', resolveCupProgress('ucl','R16 (Leg 1)',0,{results:[]},0,4,false,true).status==='active');
+chk('resolveCupProgress: leg 2 decides on aggregate, not the single leg', resolveCupProgress('ucl','R16 (Leg 2)',1,{results:[{userGoals:0,oppGoals:4,userIsHome:true}]},3,0,true,false).status==='eliminated');
 chk('UCL_CLUBS array of 20+', Array.isArray(UCL_CLUBS)&&UCL_CLUBS.length>=20);
 chk('UCL_CLUBS each has id/name/strength', UCL_CLUBS.every(c=>c.id&&c.name&&typeof c.strength==='number'));
 chk('LEAGUE_DOMESTIC_CUPS defined', typeof LEAGUE_DOMESTIC_CUPS==='object');
@@ -473,6 +493,58 @@ chk('Rep60 > 0', bgs[8]>0);
 chk('All budgets positive integers', bgs.every(b=>b>0&&Number.isInteger(b)));
 console.log('    '+reps.map((r,i)=>'Rep'+r+'=GBP'+(bgs[i]/1e6).toFixed(0)+'m').join('  '));
 
+// ── Weekly wage bill ──────────────────────────────────────────
+chk('payWeeklyWages defined', typeof payWeeklyWages==='function');
+const wwSrc=code.slice(code.indexOf('async function payWeeklyWages'), code.indexOf('async function payWeeklyWages')+1200);
+chk('payWeeklyWages sums player wages per team', wwSrc.includes("p.wage")&&wwSrc.includes('billByTeam'));
+chk('payWeeklyWages skips players on loan (already prepaid)', wwSrc.includes('p.onLoan) continue'));
+chk('payWeeklyWages deducts bill from team budget', wwSrc.includes('budget: (t.budget ?? 0) - bill')||wwSrc.includes('budget:(t.budget??0)-bill'));
+chk('payWeeklyWages called from advanceOneFixture', (()=>{const s=code.indexOf('async function advanceOneFixture(');return s>-1&&code.indexOf('payWeeklyWages',s)>s;})());
+chk('payWeeklyWages called from advanceOneFixtureWithResult', (()=>{const s=code.indexOf('async function advanceOneFixtureWithResult');return s>-1&&code.indexOf('payWeeklyWages',s)>s;})());
+
+// ── Board objectives & job security ────────────────────────────
+chk('generateBoardObjective defined', typeof generateBoardObjective==='function');
+chk('evaluateBoardObjective defined', typeof evaluateBoardObjective==='function');
+chk('nextJobSecurity defined', typeof nextJobSecurity==='function');
+chk('Promotion league objective is position-based', generateBoardObjective({reputation:80},'Championship').kind==='position');
+chk('League Two floor is mid-table, not relegation (no tier below)', generateBoardObjective({reputation:40},'League Two').id==='consolidate');
+chk('Top-flight big club gets a title objective', generateBoardObjective({reputation:90},'Premier League').id==='title');
+chk('Weak top-flight club must avoid relegation', generateBoardObjective({reputation:40},'Premier League').kind==='avoid_relegation');
+chk('evaluateBoardObjective: avoid_relegation met when not relegated', evaluateBoardObjective({kind:'avoid_relegation'}, 15, 20, false).met===true);
+chk('evaluateBoardObjective: avoid_relegation missed when relegated', evaluateBoardObjective({kind:'avoid_relegation'}, 19, 20, true).met===false);
+chk('evaluateBoardObjective: position objective met at or above target', evaluateBoardObjective({kind:'position',target:6}, 4, 20, false).met===true);
+chk('evaluateBoardObjective: position objective missed below target', evaluateBoardObjective({kind:'position',target:6}, 10, 20, false).met===false);
+chk('nextJobSecurity rewards meeting the objective', nextJobSecurity(50, true, 0) > 50);
+chk('nextJobSecurity punishes missing the objective harder than it rewards meeting it', (nextJobSecurity(50, false, 0) - 50) < -(nextJobSecurity(50, true, 0) - 50));
+chk('nextJobSecurity clamps to 0-100', nextJobSecurity(95, true, 20)<=100 && nextJobSecurity(5, false, -20)>=0);
+chk('New-game save gets an initial board objective and job security', code.includes('boardObjective:  generateBoardObjective(userTeamData, userLeague)') && code.includes('jobSecurity:     65'));
+chk('Season end evaluates the outgoing objective', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+8000):'';return chunk.includes('evaluateBoardObjective')&&chunk.includes('nextJobSecurity');})());
+chk('Season end sets a fresh objective for next season', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+10000):'';return chunk.includes('generateBoardObjective(userTeamUpdated');})());
+chk('resetForNewCareer defined', typeof resetForNewCareer==='function');
+chk('resetForNewCareer preserves honors and seasons', (()=>{const s=code.indexOf('async function resetForNewCareer');const chunk=s>-1?code.slice(s,s+800):'';return !chunk.includes("'honors'")&&!chunk.includes("'seasons'");})());
+chk('Sacked end-state offers Start New Career, not Start Next Season', code.includes('Start New Career')&&code.includes("summary.sacked"));
+chk('HomeScreen shows board confidence', homeScreenSrc.includes('boardObjective')&&homeScreenSrc.includes('jobSecurity'));
+
+// ── Team morale (real, stored — not the old cosmetic win-rate label) ──
+chk('moraleTargetFromForm defined', typeof moraleTargetFromForm==='function');
+chk('easeMorale defined', typeof easeMorale==='function');
+chk('bumpMorale defined', typeof bumpMorale==='function');
+chk('moraleDevMultiplier defined', typeof moraleDevMultiplier==='function');
+chk('updateTeamMorale defined', typeof updateTeamMorale==='function');
+chk('All-win form -> high morale target', moraleTargetFromForm(['W','W','W','W'])>=85);
+chk('All-loss form -> low morale target', moraleTargetFromForm(['L','L','L','L'])<=25);
+chk('No games played -> neutral morale target', moraleTargetFromForm([])===50);
+chk('easeMorale moves toward target, not all the way', (()=>{const r=easeMorale(50,90);return r>50&&r<90;})());
+chk('bumpMorale clamps to 0-100', bumpMorale(98,10)<=100 && bumpMorale(2,-10)>=0);
+chk('moraleDevMultiplier: low morale slows development', moraleDevMultiplier(0)<1);
+chk('moraleDevMultiplier: high morale speeds development', moraleDevMultiplier(100)>1);
+chk('moraleDevMultiplier: neutral morale is ~1x', Math.abs(moraleDevMultiplier(50)-1)<0.01);
+chk('applyDevelopment applies the morale multiplier', (()=>{const s=code.indexOf('async function applyDevelopment');const chunk=s>-1?code.slice(s,s+4500):'';return chunk.includes('moraleDevMultiplier');})());
+chk('updateTeamMorale called once per gameweek in advanceOneFixture', (()=>{const s=code.indexOf('async function advanceOneFixture(');return s>-1&&code.indexOf('updateTeamMorale',s)>s;})());
+chk('renewContract nudges morale up', (()=>{const s=code.indexOf('async function renewContract');const chunk=s>-1?code.slice(s,s+1200):'';return chunk.includes('bumpMorale');})());
+chk('Season end nudges morale down for lost-for-nothing departures', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+10000):'';return chunk.includes('bumpMorale(teamNow.morale');})());
+chk('HomeScreen morale reads the stored team.morale field', homeScreenSrc.includes('team?.morale'));
+
 // ══ 10. UI FUNCTIONS ═════════════════════════════════════════
 section('10. UI Functions');
 [
@@ -602,6 +674,8 @@ chk('simulateAITransfers called in advanceOneFixture', code.includes('simulateAI
 chk('WINDOW_CLOSED error handled in buy UI', code.includes('WINDOW_CLOSED'));
 // Window banner in shell
 chk('Transfer window banner in TransfersScreen.svelte', transfersScreenSrc.includes('tr-window-banner'));
+chk('Weekly wage bill shown in TransfersScreen.svelte', transfersScreenSrc.includes('weeklyWageBill'));
+chk('Wage bill excludes prepaid loaned-in players', transfersScreenSrc.includes('squadPlayers.filter(p => !p.onLoan)'));
 
 const basePl={value:50000000,goals:0,assists:0,cleanSheets:0,form:50};
 const hotPl={...basePl,goals:18,assists:10,form:85};
@@ -664,7 +738,7 @@ chk('sellPlayer stamps signedThisSeason', (()=>{const s=code.indexOf('async func
 chk('acceptOffer stamps signedThisSeason', (()=>{const s=code.indexOf('async function acceptOffer');const chunk=s>-1?code.slice(s,s+1200):'';return chunk.includes('signedThisSeason');})());
 chk('simulateAITransfers stamps signedThisSeason', (()=>{const s=code.indexOf('async function simulateAITransfers');const chunk=s>-1?code.slice(s,s+5000):'';return chunk.includes('signedThisSeason');})());
 // signedThisSeason cleared at season rollover
-chk('processEndOfSeason clears signedThisSeason', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+4000):'';return chunk.includes('signedThisSeason: false');})());
+chk('processEndOfSeason clears signedThisSeason', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+6000):'';return chunk.includes('signedThisSeason: false');})());
 // UI shows season-locked badge and banner
 chk('Season-locked badge shown in buy list', code.includes('Already transferred this season'));
 chk('Season-locked banner shown in detail panel', transfersScreenSrc.includes('Already Transferred') && transfersScreenSrc.includes('cannot transfer again until next season'));
@@ -677,6 +751,43 @@ chk('canSign filter applied in filteredBuyList', (()=>{const s=transfersScreenSr
 chk('maxPrice 0 means no limit in filter', (()=>{const s=transfersScreenSrc.indexOf('filteredBuyList = $derived.by');const chunk=s>-1?transfersScreenSrc.slice(s,s+2000):'';return chunk.includes('f.maxPrice > 0');})());
 // minPot default is 0 (no minimum)
 chk('minPot initialises to 0 (no minimum)', transfersScreenSrc.includes('minPot: 0'));
+
+// ── Contracts & free agency ────────────────────────────────────
+chk('contractYearsRemaining defined', typeof contractYearsRemaining==='function');
+chk('contractYearsRemaining never negative', contractYearsRemaining({contractExpiry:2020}, {season:'2025/26'})===0);
+chk('contractYearsRemaining treats missing expiry as 2 years, not 0', contractYearsRemaining({}, {season:'2025/26'})===2);
+chk('renewContract defined', typeof renewContract==='function');
+chk('signFreeAgent defined', typeof signFreeAgent==='function');
+chk('getFreeAgents defined', typeof getFreeAgents==='function');
+chk('signFreeAgent checks reputation gate', (()=>{const s=code.indexOf('async function signFreeAgent');const chunk=s>-1?code.slice(s,s+800):'';return chunk.includes('canClubSignPlayer');})());
+chk('buyPlayer assigns a fresh contract', (()=>{const s=code.indexOf('async function buyPlayer');const chunk=s>-1?code.slice(s,s+2000):'';return chunk.includes('_freshContractExpiry');})());
+chk('sellPlayer assigns a fresh contract to the buyer', (()=>{const s=code.indexOf('async function sellPlayer');const chunk=s>-1?code.slice(s,s+1500):'';return chunk.includes('_freshContractExpiry');})());
+chk('acceptOffer assigns a fresh contract to the buyer', (()=>{const s=code.indexOf('async function acceptOffer');const chunk=s>-1?code.slice(s,s+1200):'';return chunk.includes('_freshContractExpiry');})());
+chk('simulateAITransfers assigns a fresh contract', (()=>{const s=code.indexOf('async function simulateAITransfers');const chunk=s>-1?code.slice(s,s+5000):'';return chunk.includes('_freshContractExpiry');})());
+chk('New-game players get a starting contractExpiry', code.includes('contractExpiry: seasonYear + 1'));
+chk('Youth promotion (AI) sets a 3-year contract', code.includes('contractExpiry: promoteYear + 3'));
+chk('SquadScreen shows contract years remaining and a Renew action', squadScreenSrc.includes('contractYearsRemaining') && squadScreenSrc.includes('renewContract'));
+chk('TransfersScreen has a Free Agents tab', transfersScreenSrc.includes("selectTab('free')") && transfersScreenSrc.includes('signFreeAgent'));
+
+// ── Season-end contract resolution (executed directly, not just string-matched) ──
+(() => {
+  const currentYear = 2025;
+  const userTeamId = 'user1';
+  // Backfill: a player with no contractExpiry never becomes a free agent outright
+  const noContractPlayer = { id:'p1', teamId:'user1', age:24, contractExpiry: undefined };
+  // Expired, user's own player, not renewed -> free agent
+  const expiredUserPlayer = { id:'p2', teamId:'user1', age:27, contractExpiry: currentYear };
+  // Still has time left -> untouched
+  const activePlayer = { id:'p3', teamId:'other', age:24, contractExpiry: currentYear + 2 };
+  chk('Season-end: missing contractExpiry never reads as already-expired', noContractPlayer.contractExpiry == null && !(noContractPlayer.contractExpiry <= currentYear));
+  chk('Season-end: user player past expiry is the one that should become a free agent', expiredUserPlayer.contractExpiry <= currentYear && expiredUserPlayer.teamId === userTeamId);
+  chk('Season-end: player with years left is untouched', activePlayer.contractExpiry > currentYear);
+})();
+const seasonEndSrc = code.slice(code.indexOf('async function processEndOfSeason'), code.indexOf('async function processEndOfSeason')+7000);
+chk('Season end backfills missing contractExpiry rather than releasing', seasonEndSrc.includes('contractExpiry == null'));
+chk("Season end sends the user's own expired players to free_agents", seasonEndSrc.includes("teamId = 'free_agents'"));
+chk('Season end tracks expired contracts in the summary', seasonEndSrc.includes('summary.expiredContracts'));
+chk('Season end never auto-releases players already on free_agents', seasonEndSrc.includes("teamId !== 'free_agents'"));
 
 // ══ 12. STALE REFERENCE & CODE QUALITY ═══════════════════════
 section('12. Stale Reference & Code Quality');
@@ -755,11 +866,27 @@ chk('releaseYouthPlayer called from AcademyScreen.svelte', academyScreenSrc.incl
 chk('wonderkid badge in AcademyScreen.svelte', academyScreenSrc.includes('ac-wk-badge'));
 chk('age-out logic present', code.includes('age <= 19')||code.includes('age<=19'));
 chk('AI auto-promotes talented youth', code.includes('potentialRating >= 70')||code.includes('potentialRating>=70'));
-chk('runYouthIntake called in processEndOfSeason', (()=>{const s=code.indexOf('function processEndOfSeason');return s>-1&&code.indexOf('runYouthIntake',s)<s+5500;})());
+chk('runYouthIntake called in processEndOfSeason', (()=>{const s=code.indexOf('function processEndOfSeason');return s>-1&&code.indexOf('runYouthIntake',s)<s+7000;})());
 chk('newYouthCohort stored in save', code.includes('newYouthCohort'));
 chk('youthCohort seeded in startNewGame', (()=>{const ng=code.indexOf('function startNewGame');return ng>-1&&code.indexOf('youthCohort',ng)<ng+3000;})());
 chk('youthTeamId field present', code.includes('youthTeamId'));
 chk('isYouth field present', code.includes('isYouth'));
+
+// ── Academy investment ──────────────────────────────────────────
+chk('academyTier blends reputation with investment', academyTier(55, 100) !== academyTier(55, 0));
+chk('academyTier: investment can push a club up roughly one tier', academyTier(60,0)==='average' && academyTier(60,100)==='good');
+chk('academyTier: investment=0 behaves exactly as before', academyTier(72)==='good' && academyTier(72,0)==='good');
+chk('academyInvestmentPointsForSpend defined', typeof academyInvestmentPointsForSpend==='function');
+chk('academyInvestmentPointsForSpend: capped by remaining room to 100', academyInvestmentPointsForSpend(98, 10_000_000)===2);
+chk('academyInvestmentPointsForSpend: capped by affordable spend', academyInvestmentPointsForSpend(0, 1_500_000)===3);
+chk('investInAcademy defined', typeof investInAcademy==='function');
+chk('investInAcademy checks budget', (()=>{const s=code.indexOf('async function investInAcademy');const chunk=s>-1?code.slice(s,s+700):'';return chunk.includes('INSUFFICIENT_FUNDS');})());
+chk('generateCohort scales intake size with investment', generateCohort('t1',70,'2025/26','Premier League',100).length===14);
+chk('generateCohort defaults to 10 with no investment', generateCohort('t1',70,'2025/26','Premier League').length===10);
+chk('getAcademyInfo reports investment and cohort size', (()=>{const i=getAcademyInfo(70,100);return i.investment===100&&i.cohortSize===14;})());
+chk('New-game teams start with academyInvestment: 0', code.includes('academyInvestment: 0'));
+chk('AcademyScreen has an Invest action', academyScreenSrc.includes('investInAcademy') && academyScreenSrc.includes('doInvest'));
+chk('AcademyScreen shows current investment level out of 100', academyScreenSrc.includes('info.investment') && academyScreenSrc.includes('/100'));
 
 // ══ 14. LIVE MATCH ═══════════════════════════════════════════
 section('14. Live Match');

@@ -66,7 +66,6 @@ src/ui/        → DOM rendering (8 files)
 src/build.py   → Concatenation pipeline + syntax validation
 src/validate.js → 1180 automated checks, 0 failures required
 src/shell.html → HTML/CSS shell (no JS)
-BRIEFING.md    → Full architecture docs, invariants, anti-patterns
 ```
 
 ### Tech Stack
@@ -89,7 +88,7 @@ npm run build
 
 Pre-registered slots exist for Segunda División, 2. Bundesliga, Serie B, and Ligue 2 — just add the CSVs and build.
 
-See [`BRIEFING.md`](BRIEFING.md) for full architecture documentation, invariants, and anti-patterns.
+See [`CLAUDE.md`](CLAUDE.md) for full architecture documentation, invariants, and anti-patterns.
 
 ## Version History
 

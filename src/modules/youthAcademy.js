@@ -1,4 +1,4 @@
-import { getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeamsBulk } from './db.js';
+import { getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
 
 /** modules/youthAcademy.js -- Youth cohort intake, development, promotion/release */
 export const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RM','LM','ST','ST','CF','RW','LW'];
@@ -75,13 +75,42 @@ export function randName(league) {
   return `${fn} ${ln}`;
 }
 
-// Academy quality tier by reputation
-export function academyTier(reputation) {
-  if (reputation >= 90) return 'elite';
-  if (reputation >= 80) return 'top';
-  if (reputation >= 68) return 'good';
-  if (reputation >= 55) return 'average';
+// Academy quality tier by reputation, blended with academy investment — a
+// club that spends can out-develop its station by up to roughly one tier
+// (100 investment = +15 effective reputation), without needing a full
+// staff/scouting system to make that spend feel worthwhile.
+export function academyTier(reputation, investment = 0) {
+  const effectiveRep = reputation + Math.min(100, Math.max(0, investment)) * 0.15;
+  if (effectiveRep >= 90) return 'elite';
+  if (effectiveRep >= 80) return 'top';
+  if (effectiveRep >= 68) return 'good';
+  if (effectiveRep >= 55) return 'average';
   return 'poor';
+}
+
+// £500k of investment buys one point, up to a cap of 100. Returns the
+// actual points bought (capped by both the spend and the remaining room),
+// so the caller knows how much budget to actually deduct.
+export const ACADEMY_INVESTMENT_COST_PER_POINT = 500_000;
+export function academyInvestmentPointsForSpend(currentInvestment, spend) {
+  const room = 100 - Math.min(100, Math.max(0, currentInvestment ?? 0));
+  const affordablePoints = Math.floor(Math.max(0, spend) / ACADEMY_INVESTMENT_COST_PER_POINT);
+  return Math.max(0, Math.min(room, affordablePoints));
+}
+
+export async function investInAcademy(amount) {
+  const save = await getSave();
+  const team = await getTeam(save.userTeamId);
+  if (!team) throw new Error('TEAM_NOT_FOUND');
+  if ((team.budget ?? 0) < amount) throw new Error('INSUFFICIENT_FUNDS');
+
+  const points = academyInvestmentPointsForSpend(team.academyInvestment, amount);
+  if (points <= 0) throw new Error('NOTHING_TO_INVEST');
+  const cost = points * ACADEMY_INVESTMENT_COST_PER_POINT;
+
+  const newInvestment = Math.min(100, (team.academyInvestment ?? 0) + points);
+  await putTeamsBulk([{ ...team, budget: team.budget - cost, academyInvestment: newInvestment }]);
+  return { success: true, pointsGained: points, cost, newInvestment };
 }
 
 // Potential star bands:
@@ -95,8 +124,8 @@ export const POT_4STAR_CAP = 87; // non-wonderkid ceiling
 // Generate a single youth prospect.
 // league param is needed for nation-aware naming and is passed from generateCohort.
 // isWonderkid is pre-determined at cohort level and passed in.
-export function generateYouthPlayer(teamId, reputation, season, index, league, isWonderkid) {
-  const tier = academyTier(reputation);
+export function generateYouthPlayer(teamId, reputation, season, index, league, isWonderkid, investment = 0) {
+  const tier = academyTier(reputation, investment);
   const age  = 15 + Math.floor(Math.random() * 4); // 15-18
   const pos  = POSITIONS[Math.floor(Math.random() * POSITIONS.length)];
 
@@ -224,9 +253,12 @@ export function youthValue(base, age, potential) {
 // Generate a full cohort for one team.
 // Wonderkid chance applies per cohort (not per player) so at most one wonderkid per intake.
 // Chances: elite 25%, top 10%, good 5%, average/poor 1%.
-export function generateCohort(teamId, reputation, season, league) {
-  const tier = academyTier(reputation);
-  const size = 10; // Fixed intake of 10 players per season regardless of academy level
+export function generateCohort(teamId, reputation, season, league, investment = 0) {
+  const tier = academyTier(reputation, investment);
+  // Base intake of 10, up to +4 more at full investment (100) — a spend
+  // that widens the net as well as raising the average, without needing
+  // a full scouting-network system to justify it.
+  const size = 10 + Math.round(Math.min(100, Math.max(0, investment)) / 100 * 4);
 
   // Roll once per cohort to determine if a wonderkid appears
   const wonderkidChance = { elite: 0.20, top: 0.10, good: 0.075, average: 0.05, poor: 0.025 }[tier];
@@ -236,7 +268,7 @@ export function generateCohort(teamId, reputation, season, league) {
   const wonderkidSlot = cohortHasWonderkid ? Math.floor(Math.random() * size) : -1;
 
   return Array.from({ length: size }, (_, i) =>
-    generateYouthPlayer(teamId, reputation, season, i, league, i === wonderkidSlot)
+    generateYouthPlayer(teamId, reputation, season, i, league, i === wonderkidSlot, investment)
   );
 }
 
@@ -251,7 +283,7 @@ export async function runYouthIntake(save, allTeams) {
   const userTeam  = allTeams.find(t => t.id === save.userTeamId);
   const userRep   = userTeam?.reputation ?? 70;
   const userLeague = userTeam?.league ?? 'Premier League';
-  const newCohort = generateCohort(save.userTeamId, userRep, season, userLeague);
+  const newCohort = generateCohort(save.userTeamId, userRep, season, userLeague, userTeam?.academyInvestment ?? 0);
 
   const updatedCohort = [...agedUserYouth, ...newCohort];
 
@@ -269,12 +301,14 @@ export async function runYouthIntake(save, allTeams) {
     const remaining = combined.filter(p => !(p.age >= 18 && p.potentialRating >= 70));
 
     if (toPromote.length > 0) {
+      const promoteYear = parseInt((season || '').split('/')[0]) || 0;
       const promoted = toPromote.map(p => ({
         ...p,
         isYouth: false,
         teamId:  team.id,
         inSquad: true,
         wage:    Math.max(1_000, Math.round((Number(p.value) || 500_000) * 0.05 / 52)),
+        contractExpiry: promoteYear + 3, // first pro contract, standard 3 years
       }));
       await putPlayersBulk(promoted);
     }
@@ -299,6 +333,7 @@ export async function promoteYouthPlayer(playerId) {
   if (!team) throw new Error('Team not found');
 
   const weeklyWage = Math.max(1_000, Math.round((Number(youth.value) || 500_000) * 0.05 / 52));
+  const promoteYear = parseInt((save.season || '').split('/')[0]) || 0;
 
   const promoted = {
     ...youth,
@@ -306,6 +341,7 @@ export async function promoteYouthPlayer(playerId) {
     teamId:   save.userTeamId,
     inSquad:  true,
     wage:     weeklyWage,
+    contractExpiry: promoteYear + 3, // first pro contract, standard 3 years
   };
 
   await putPlayer(promoted);
@@ -324,8 +360,9 @@ export async function releaseYouthPlayer(playerId) {
 }
 
 // Get academy info for display
-export function getAcademyInfo(reputation) {
-  const tier = academyTier(reputation);
+export function getAcademyInfo(reputation, investment = 0) {
+  const tier = academyTier(reputation, investment);
+  const inv  = Math.min(100, Math.max(0, investment ?? 0));
   return {
     tier,
     label: {
@@ -343,6 +380,8 @@ export function getAcademyInfo(reputation) {
       average: 'Modest facilities. Wonderkid breakthroughs are very rare (1%).',
       poor:    'Limited resources. Youth intake quality is variable. Wonderkids almost unheard of.',
     }[tier],
+    investment: inv,
+    cohortSize: 10 + Math.round(inv / 100 * 4),
   };
 }
 

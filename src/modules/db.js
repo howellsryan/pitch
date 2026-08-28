@@ -94,6 +94,19 @@ export const addHonor           = (h)   => req2p(store('honors','readwrite').add
 export const getAllSeasons       = ()    => req2p(store('seasons').getAll());
 export const addSeason          = (s)   => req2p(store('seasons','readwrite').add(s));
 
+// Wipes the active career (save/teams/players/fixtures/standings/transfers)
+// but keeps honors and seasons — used when a sacked manager starts a new
+// job rather than a full "Reset Game", which wipes everything including
+// trophy history.
+export async function resetForNewCareer() {
+  await clearAndBulkPut('save', []);
+  await clearAndBulkPut('teams', []);
+  await clearAndBulkPut('players', []);
+  await clearAndBulkPut('fixtures', []);
+  await clearAndBulkPut('standings', []);
+  await clearAndBulkPut('transfers', []);
+}
+
 export function deleteDB() {
   if (_db) { try { _db.close(); } catch(e) {} }
   _db = null;

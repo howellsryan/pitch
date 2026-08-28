@@ -1,22 +1,23 @@
 ---
 name: memory-hygiene
-description: Use when writing to or reading from persistent agent memory - CLAUDE.md, BRIEFING.md, .claude/skills/*, or the rebuild plan in docs/plan/ - meant for future sessions. Governs WHAT deserves persisting, HOW to write it so it survives time, and the recall rule - verify remembered facts against live state before acting on them.
+description: Use when writing to or reading from persistent agent memory - CLAUDE.md, .claude/skills/*, or the rebuild plan in docs/plan/ - meant for future sessions. Governs WHAT deserves persisting, HOW to write it so it survives time, and the recall rule - verify remembered facts against live state before acting on them.
 ---
 
 # memory-hygiene: memory is a claim about the past, not a fact about the present
 
 ## Where memory actually lives in this repo — read this part first
 
-Four tiers, each with a different job:
+Three tiers, each with a different job:
 
 - **`CLAUDE.md`** — auto-loaded every session. Orientation: what this repo is,
   where it stands in the rebuild, current-vs-target architecture, the
   invariants worth restating rather than only linking to. Kept terse
-  deliberately — it's cost on every session.
-- **`BRIEFING.md`** — deeper gameplay/architecture reference (the event queue,
-  cup structure, watch-match constraints). Not auto-loaded the way `CLAUDE.md`
-  is; read it when a task actually needs that depth, and `CLAUDE.md` points at
-  it for exactly that reason.
+  deliberately — it's cost on every session. It is also now the *only*
+  gameplay/architecture reference (event queue, cup structure, match-engine
+  invariants) — a separate `BRIEFING.md` used to carry that depth but drifted
+  out of sync with the actual code and was removed rather than fixed twice;
+  don't recreate a second doc for "the deep stuff," extend the relevant
+  CLAUDE.md section instead.
 - **`.claude/skills/*`** — repeatable workflows, loaded on demand from their
   own descriptions.
 - **`docs/plan/*.md`** — the rebuild plan itself: tech stack decision, design
@@ -48,13 +49,13 @@ changes.
 
 ## Writing: how
 
-- **Right tier.** Every-session relevance → `CLAUDE.md`, kept terse — it's
-  cost on every session. Deeper gameplay/architecture detail → `BRIEFING.md`.
-  A repeatable workflow → a skill, here in `.claude/skills/`. Cross-cutting
-  rebuild decisions → `docs/plan/`, right here in this repo.
-- **Prune when you add.** If a new note supersedes a `BRIEFING.md` line, delete
-  the old line in the same change — `BRIEFING.md` already carries a warning
-  against letting itself drift into a changelog.
+- **Right tier.** Every-session relevance, including deeper gameplay/
+  architecture detail → `CLAUDE.md`, kept honest but terse — it's cost on
+  every session. A repeatable workflow → a skill, here in `.claude/skills/`.
+  Cross-cutting rebuild decisions → `docs/plan/`, right here in this repo.
+- **Prune when you add.** If a new note supersedes an existing `CLAUDE.md`
+  line, delete the old line in the same change — don't let the file drift
+  into a changelog of its own history.
 - **Write the trigger with the fact**: "when touching the save schema,
   remember X" — not just X.
 

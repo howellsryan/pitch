@@ -132,30 +132,34 @@ export const CUP_META = {
     roundGWs:  [6,   14,  22,  30,  37],
   },
   // ── European ─────────────────────────────────────────────
-  // UCL: League phase Sep-Jan (GW 5-19), Knockouts Feb-May, Final AFTER league ends
-  // Real 2025/26: R16 Mar, QF Apr, SF Apr/May, Final May 30
+  // UCL: League phase Sep-Jan (GW 5-19), Knockouts Feb-May, Final AFTER league ends.
+  // R16/QF/SF are genuine two-legged ties (away-goals rule, then penalties) —
+  // see isEuroLegRound/computeTwoLegOutcome below; the Final stays a single
+  // match at a neutral venue, same as the real competition.
   ucl: {
     id:'ucl', name:'Champions League', shortName:'UCL', icon:'⭐', color:'#3b82f6',
     description:"Europe's premier club competition — League Phase + Knockouts",
-    rounds:    ['R16','QF','SF','Final'],
-    roundGWs:  [26,   30,  34,  40],
+    rounds:    ['R16 (Leg 1)','R16 (Leg 2)','QF (Leg 1)','QF (Leg 2)','SF (Leg 1)','SF (Leg 2)','Final'],
+    roundGWs:  [26,           27,           30,          31,          34,          35,          40],
     isGroupStage:  true,
     groupStageGWs: [5,7,9,11,13,15,17,19],
     knockoutStartRoundIndex: 0,
   },
-  // UEL: League phase Sep-Jan, Knockouts Feb-May, Final May 20
+  // UEL: League phase Sep-Jan, Knockouts Feb-May, Final May 20. Two-legged
+  // R32/R16/QF/SF, single-match Final — same model as UCL above.
   uel: {
     id:'uel', name:'Europa League', shortName:'UEL', icon:'🟠', color:'#f97316',
     description:'UEFA Europa League',
-    rounds:    ['League Phase','R32','R16','QF','SF','Final'],
-    roundGWs:  [6,            23,   27,   31,  35,  39],
+    rounds:    ['League Phase','R32 (Leg 1)','R32 (Leg 2)','R16 (Leg 1)','R16 (Leg 2)','QF (Leg 1)','QF (Leg 2)','SF (Leg 1)','SF (Leg 2)','Final'],
+    roundGWs:  [6,            23,           24,           27,           28,           31,          32,          35,          36,          39],
   },
-  // UECL: League phase Sep-Jan, Knockouts Feb-May, Final May 27
+  // UECL: League phase Sep-Jan, Knockouts Feb-May, Final May 27. Two-legged
+  // R16/QF/SF, single-match Final — same model as UCL above.
   uecl: {
     id:'uecl', name:'Conference League', shortName:'UECL', icon:'🟢', color:'#22c55e',
     description:'UEFA Europa Conference League',
-    rounds:    ['League Phase','R16','QF','SF','Final'],
-    roundGWs:  [6,            27,   31,  35,  40],
+    rounds:    ['League Phase','R16 (Leg 1)','R16 (Leg 2)','QF (Leg 1)','QF (Leg 2)','SF (Leg 1)','SF (Leg 2)','Final'],
+    roundGWs:  [6,            27,           28,           31,          32,          35,          36,          40],
   },
 };
 
@@ -204,6 +208,57 @@ export function assignCups(userTeam) {
   // Super cups: only truly dominant clubs (league champions / cup winners)
   // would realistically start with one — leave them out; they're earned.
   return cups;
+}
+
+// ─── Two-legged European knockout ties ────────────────────────
+// R16/QF/SF are played home-and-away (away-goals rule, then penalties);
+// a leg's own round name carries "Leg 1"/"Leg 2" (see CUP_META above).
+export function isEuroLegRound(cupId, roundName, legNum) {
+  return (cupId === 'ucl' || cupId === 'uel' || cupId === 'uecl') && !!roundName?.includes(`Leg ${legNum}`);
+}
+
+export function computeTwoLegOutcome(leg1, leg2) {
+  const userAgg = leg1.userGoals + leg2.userGoals;
+  const oppAgg  = leg1.oppGoals  + leg2.oppGoals;
+  let userWon, penalties = false;
+  if (userAgg > oppAgg) userWon = true;
+  else if (oppAgg > userAgg) userWon = false;
+  else {
+    // Away-goals rule: whichever side scored more while playing away wins the tie.
+    const userAwayGoals = leg1.userIsHome ? leg2.userGoals : leg1.userGoals;
+    const oppAwayGoals  = leg1.userIsHome ? leg1.oppGoals  : leg2.oppGoals;
+    if (userAwayGoals > oppAwayGoals) userWon = true;
+    else if (oppAwayGoals > userAwayGoals) userWon = false;
+    else { userWon = Math.random() < 0.5; penalties = true; } // Level on away goals too
+  }
+  return { userWon, penalties, userAgg, oppAgg };
+}
+
+// Decide the next roundIndex/status for one cup-round result. Shared by both
+// the quick-sim (advanceOneFixture) and Watch Match (advanceOneFixtureWithResult)
+// paths so a two-legged tie resolves identically either way: leg 1 never
+// eliminates, leg 2 decides on the aggregate score.
+export function resolveCupProgress(cupId, roundName, roundIdx, cupState, userGoals, oppGoals, userWon, userIsHome) {
+  const meta    = CUP_META[cupId];
+  const nextIdx = roundIdx + 1;
+  const isFinal = nextIdx >= (meta?.rounds?.length ?? 99);
+
+  if (isEuroLegRound(cupId, roundName, 1)) {
+    return { roundIndex: nextIdx, status: 'active', aggregate: null };
+  }
+  if (isEuroLegRound(cupId, roundName, 2)) {
+    const leg1 = cupState?.results?.[cupState.results.length - 1];
+    const aggregate = computeTwoLegOutcome(
+      { userGoals: leg1?.userGoals ?? 0, oppGoals: leg1?.oppGoals ?? 0, userIsHome: leg1?.userIsHome ?? true },
+      { userGoals, oppGoals, userIsHome },
+    );
+    return {
+      roundIndex: aggregate.userWon ? nextIdx : roundIdx,
+      status:     aggregate.userWon ? (isFinal ? 'winner' : 'active') : 'eliminated',
+      aggregate,
+    };
+  }
+  return { roundIndex: userWon ? nextIdx : roundIdx, status: userWon ? (isFinal ? 'winner' : 'active') : 'eliminated', aggregate: null };
 }
 
 // ─── Build initial cup state ──────────────────────────────────
@@ -293,8 +348,11 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
   let userGoals  = userIsHome ? result.homeGoals : result.awayGoals;
   let oppGoals   = userIsHome ? result.awayGoals : result.homeGoals;
 
-  // Extra time / pens if draw in knockouts
-  if (userGoals === oppGoals) {
+  // Extra time / pens if drawn — except a two-legged European leg, where a
+  // drawn scoreline is a perfectly normal result and doesn't decide anything
+  // until the aggregate is known after the second leg (resolveCupProgress).
+  const isEuroLeg = isEuroLegRound(cupId, roundName, 1) || isEuroLegRound(cupId, roundName, 2);
+  if (userGoals === oppGoals && !isEuroLeg) {
     if (Math.random() < 0.5) userGoals++; else oppGoals++;
   }
 

@@ -17,7 +17,7 @@ drive-by refactor bundled in with it is not.
 1. **Restate the task as a boundary.** One sentence before editing: "The task
    is X. The fence is: files/behaviour needed for X."
 2. **Inside the fence: full effort.** Do X completely, including its genuine
-   requirements (updating `BRIEFING.md` if a module's responsibilities or the
+   requirements (updating `CLAUDE.md` if a module's responsibilities or the
    build/deploy pipeline change, keeping `RENAMES` in `src/build.py` in sync if
    you rename something the bundler's regex-based module stripping depends on).
 3. **Outside the fence: eyes open, hands off.** This repo is mid-migration —
