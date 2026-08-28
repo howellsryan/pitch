@@ -5,6 +5,7 @@ import { CUP_META, buildInitialCupState } from './cups.js';
 import { agingValueAdjust, applyAgingDecline } from './potential.js';
 import { assignCupsFromPosition, processLeagueChanges } from './promotion.js';
 import { runYouthIntake } from './youthAcademy.js';
+import { bumpMorale } from './standings.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, season rollover */
 
@@ -319,6 +320,11 @@ export async function processEndOfSeason() {
   });
   await putPlayersBulk(agedPlayers);
   summary.expiredContracts = expiredContracts;
+  if (expiredContracts.length) {
+    // A squad unsettled by losing players for nothing — small dip, not a crisis.
+    const teamNow = await getTeam(save.userTeamId);
+    if (teamNow) await putTeam({ ...teamNow, morale: bumpMorale(teamNow.morale, -2 * expiredContracts.length) });
+  }
 
   // ── Retire players aged 36+ ─────────────────────────────────
   // Players who have turned 36 after aging retire from the game.

@@ -519,11 +519,31 @@ chk('nextJobSecurity punishes missing the objective harder than it rewards meeti
 chk('nextJobSecurity clamps to 0-100', nextJobSecurity(95, true, 20)<=100 && nextJobSecurity(5, false, -20)>=0);
 chk('New-game save gets an initial board objective and job security', code.includes('boardObjective:  generateBoardObjective(userTeamData, userLeague)') && code.includes('jobSecurity:     65'));
 chk('Season end evaluates the outgoing objective', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+8000):'';return chunk.includes('evaluateBoardObjective')&&chunk.includes('nextJobSecurity');})());
-chk('Season end sets a fresh objective for next season', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+9000):'';return chunk.includes('generateBoardObjective(userTeamUpdated');})());
+chk('Season end sets a fresh objective for next season', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+10000):'';return chunk.includes('generateBoardObjective(userTeamUpdated');})());
 chk('resetForNewCareer defined', typeof resetForNewCareer==='function');
 chk('resetForNewCareer preserves honors and seasons', (()=>{const s=code.indexOf('async function resetForNewCareer');const chunk=s>-1?code.slice(s,s+800):'';return !chunk.includes("'honors'")&&!chunk.includes("'seasons'");})());
 chk('Sacked end-state offers Start New Career, not Start Next Season', code.includes('Start New Career')&&code.includes("summary.sacked"));
 chk('HomeScreen shows board confidence', homeScreenSrc.includes('boardObjective')&&homeScreenSrc.includes('jobSecurity'));
+
+// ── Team morale (real, stored — not the old cosmetic win-rate label) ──
+chk('moraleTargetFromForm defined', typeof moraleTargetFromForm==='function');
+chk('easeMorale defined', typeof easeMorale==='function');
+chk('bumpMorale defined', typeof bumpMorale==='function');
+chk('moraleDevMultiplier defined', typeof moraleDevMultiplier==='function');
+chk('updateTeamMorale defined', typeof updateTeamMorale==='function');
+chk('All-win form -> high morale target', moraleTargetFromForm(['W','W','W','W'])>=85);
+chk('All-loss form -> low morale target', moraleTargetFromForm(['L','L','L','L'])<=25);
+chk('No games played -> neutral morale target', moraleTargetFromForm([])===50);
+chk('easeMorale moves toward target, not all the way', (()=>{const r=easeMorale(50,90);return r>50&&r<90;})());
+chk('bumpMorale clamps to 0-100', bumpMorale(98,10)<=100 && bumpMorale(2,-10)>=0);
+chk('moraleDevMultiplier: low morale slows development', moraleDevMultiplier(0)<1);
+chk('moraleDevMultiplier: high morale speeds development', moraleDevMultiplier(100)>1);
+chk('moraleDevMultiplier: neutral morale is ~1x', Math.abs(moraleDevMultiplier(50)-1)<0.01);
+chk('applyDevelopment applies the morale multiplier', (()=>{const s=code.indexOf('async function applyDevelopment');const chunk=s>-1?code.slice(s,s+4500):'';return chunk.includes('moraleDevMultiplier');})());
+chk('updateTeamMorale called once per gameweek in advanceOneFixture', (()=>{const s=code.indexOf('async function advanceOneFixture(');return s>-1&&code.indexOf('updateTeamMorale',s)>s;})());
+chk('renewContract nudges morale up', (()=>{const s=code.indexOf('async function renewContract');const chunk=s>-1?code.slice(s,s+1200):'';return chunk.includes('bumpMorale');})());
+chk('Season end nudges morale down for lost-for-nothing departures', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+10000):'';return chunk.includes('bumpMorale(teamNow.morale');})());
+chk('HomeScreen morale reads the stored team.morale field', homeScreenSrc.includes('team?.morale'));
 
 // ══ 10. UI FUNCTIONS ═════════════════════════════════════════
 section('10. UI Functions');

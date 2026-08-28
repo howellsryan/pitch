@@ -1,4 +1,5 @@
-import { getAllPlayers, putPlayersBulk } from './db.js';
+import { getAllPlayers, getAllTeams, putPlayersBulk } from './db.js';
+import { moraleDevMultiplier } from './standings.js';
 
 /** modules/potential.js — FIFA-style potential/development: assignPotentials, applyDevelopment, getPotentialStars */
 // ─── Assign initial potentials ────────────────────────────────
@@ -75,7 +76,8 @@ export function calcPeakAge(p) {
  * Uses fitnessUpdates from match results to identify actual participants.
  */
 export async function applyDevelopment(matchResults) {
-  const allPlayers = await getAllPlayers();
+  const [allPlayers, allTeams] = await Promise.all([getAllPlayers(), getAllTeams()]);
+  const moraleByTeam = new Map(allTeams.map(t => [t.id, t.morale]));
   const cache      = new Map(allPlayers.map(p => [p.id, { ...p }]));
   const changed    = [];
 
@@ -149,7 +151,8 @@ export async function applyDevelopment(matchResults) {
 
     // Young players get a moderate bonus (not explosive)
     const youthMult = age <= 20 ? 1.5 : age <= 23 ? 1.3 : age <= 26 ? 1.1 : 1.0;
-    gp = Math.round(gp * youthMult);
+    const moraleMult = moraleDevMultiplier(moraleByTeam.get(p.teamId));
+    gp = Math.round(gp * youthMult * moraleMult);
 
     const newGP = (p.growthPoints ?? 0) + gp;
     const threshold = growthThreshold(age, cur, pot);

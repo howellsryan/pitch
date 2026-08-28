@@ -31,10 +31,12 @@
 
   const myRow = $derived(slice.find(r => r.isUserTeam) ?? null);
   const form = $derived(myRow?.form ?? []);
+  // Backed by team.morale (standings.js's updateTeamMorale, eased from recent
+  // form each gameweek plus contract-driven nudges) — a real, stored value,
+  // not a label derived on the fly from the win rate.
   const morale = $derived((() => {
-    const wr = myRow?.played > 0 ? myRow.won / myRow.played : 0;
-    const label = wr > 0.7 ? 'Excellent' : wr > 0.5 ? 'High' : wr > 0.35 ? 'Good' : myRow?.played > 0 ? 'Low' : 'Neutral';
-    const pct = Math.min(100, myRow?.points ? myRow.points * 3 : 50);
+    const pct = Math.max(0, Math.min(100, team?.morale ?? 50));
+    const label = pct >= 75 ? 'Excellent' : pct >= 55 ? 'High' : pct >= 40 ? 'Good' : pct >= 20 ? 'Low' : 'Very Low';
     return { label, pct };
   })());
   const board = $derived((() => {

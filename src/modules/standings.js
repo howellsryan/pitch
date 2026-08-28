@@ -1,6 +1,6 @@
-import { getAllStandings, getStanding, putStanding, putStandingsBulk } from './db.js';
+import { getAllStandings, getStanding, getTeam, putStanding, putStandingsBulk, putTeam } from './db.js';
 
-/** modules/standings.js — sortTable, applyResult, recomputePositions, blankStandingRow */
+/** modules/standings.js — sortTable, applyResult, recomputePositions, blankStandingRow, team morale */
 
 // ─── Sort helpers ────────────────────────────────────────────
 export function sortTable(rows) {
@@ -61,6 +61,41 @@ export async function getTableSliceAroundTeam(teamId, radius = 2) {
     isUserTeam:      row.teamId === teamId,
     displayPosition: from + i + 1,
   }));
+}
+
+// ─── Team morale ──────────────────────────────────────────────
+// Stored per team (not per player) — eased toward a target set by recent
+// form each gameweek, plus small one-off bumps from squad news (contract
+// renewals, players leaving). Read by potential.js's growth-point calc as
+// a small development-speed multiplier — a real, if modest, effect rather
+// than the purely cosmetic label this used to be on Home.
+export function moraleTargetFromForm(form) {
+  const recent = (form ?? []).slice(-4);
+  if (!recent.length) return 50;
+  const pts = recent.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
+  return Math.round(20 + (pts / (recent.length * 3)) * 70); // 20 (all losses) - 90 (all wins)
+}
+
+export function easeMorale(current, target, rate = 0.3) {
+  const cur = current ?? 50;
+  return Math.max(0, Math.min(100, Math.round(cur + (target - cur) * rate)));
+}
+
+export function bumpMorale(current, delta) {
+  return Math.max(0, Math.min(100, Math.round((current ?? 50) + delta)));
+}
+
+export function moraleDevMultiplier(morale) {
+  const m = Math.max(0, Math.min(100, morale ?? 50));
+  return 0.85 + (m / 100) * 0.3; // 0.85x at 0 morale, 1.0x at 50, 1.15x at 100
+}
+
+export async function updateTeamMorale(teamId) {
+  const [team, row] = await Promise.all([getTeam(teamId), getStanding(teamId)]);
+  if (!team) return;
+  const target    = moraleTargetFromForm(row?.form);
+  const newMorale = easeMorale(team.morale, target);
+  if (newMorale !== (team.morale ?? 50)) await putTeam({ ...team, morale: newMorale });
 }
 
 // ─── Build blank standings row ───────────────────────────────

@@ -1,5 +1,6 @@
 import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
 import { patchSave } from './save.js';
+import { bumpMorale } from './standings.js';
 
 /** modules/transfers.js — buyPlayer, sellPlayer, generateAIOffers, formAdjustedValue */
 
@@ -115,6 +116,10 @@ export async function renewContract(playerId, years = 3) {
   const newExpiry  = currentYear + years;
   const updated    = { ...player, wage: newWage, contractExpiry: newExpiry };
   await putPlayer(updated);
+
+  const team = await getTeam(save.userTeamId);
+  if (team) await putTeam({ ...team, morale: bumpMorale(team.morale, 3) });
+
   return { success: true, newWage, newExpiry };
 }
 

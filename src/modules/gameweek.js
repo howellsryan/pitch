@@ -1,6 +1,6 @@
 import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
 import { pickAIFormation, simulateMatch } from './matchEngine.js';
-import { applyResult, recomputePositions } from './standings.js';
+import { applyResult, recomputePositions, updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateUCLMatchday, isEuroLegRound, resolveCupProgress } from './cups.js';
 import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
 import { applyDevelopment } from './potential.js';
@@ -194,6 +194,7 @@ export async function advanceOneFixture(overrideFormation) {
     await simulateAITransfers(save).catch(() => {});
     await simulateAILoans(save).catch(() => {});
     await payWeeklyWages().catch(() => {});
+    await updateTeamMorale(save.userTeamId).catch(() => {});
     const freshSave1 = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
@@ -310,6 +311,7 @@ export async function advanceOneFixture(overrideFormation) {
   if (gwDone) await simulateAITransfers(save).catch(() => {});
   if (gwDone) await simulateAILoans(save).catch(() => {});
   if (gwDone) await payWeeklyWages().catch(() => {});
+  if (gwDone) await updateTeamMorale(save.userTeamId).catch(() => {});
 
   // Re-read save so we don't overwrite the offers generateAIOffers just wrote
   const freshSave2 = gwDone ? await getSave() : save;
@@ -430,6 +432,7 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     await simulateAITransfers(save).catch(() => {});
     await simulateAILoans(save).catch(() => {});
     await payWeeklyWages().catch(() => {});
+    await updateTeamMorale(save.userTeamId).catch(() => {});
   }
 
   // Re-read save so we don't overwrite the offers generateAIOffers just wrote
