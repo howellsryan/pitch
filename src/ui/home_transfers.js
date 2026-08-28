@@ -1,4 +1,4 @@
-import { getAllTeams, getSave, getTeam } from '../modules/db.js';
+import { getAllTeams, getSave, getTeam, resetForNewCareer } from '../modules/db.js';
 import { CUP_META } from '../modules/cups.js';
 import { processEndOfSeason } from '../modules/season.js';
 import { fmt, hideLoader, showLoader, showModal, toast } from './helpers.js';
@@ -103,9 +103,33 @@ export async function handleEndOfSeason(){
       }
     }
 
+    // ── Board objective outcome ──────────────────────────────
+    let boardHtml='';
+    if(summary.boardObjective){
+      const metColor=summary.objectiveMet?'var(--acc)':'var(--acc3)';
+      const metIcon=summary.objectiveMet?'✅':'❌';
+      boardHtml=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">🎯 Board Objective</div>
+        <div style="font-size:12px;color:var(--tx2)">${summary.boardObjective.label}</div>
+        <div style="font-size:12px;margin-top:4px;color:${metColor};font-weight:600">${metIcon} ${summary.objectiveMet?'Objective met':'Objective missed'}</div>
+      </div>`;
+    }
+
+    if(summary.sacked){
+      showModal('You Were Sacked',`<div>${tHtml}
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
+        ${boardHtml}
+        <div style="font-size:13px;color:var(--acc3);font-weight:600">The board has run out of patience and relieved you of your duties.</div>
+        <div style="font-size:12px;color:var(--tx2);margin-top:6px">Your honors and career history are kept — starting a new career picks a fresh club to manage.</div>
+      </div>`,
+      [{id:'newcareer',label:'Start New Career',cls:'btn-p',handler:async()=>{ await resetForNewCareer(); window.location.reload(); }}]);
+      return;
+    }
+
     showModal('Season Complete! 🎉',`<div>${tHtml}
       <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
       ${prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">💰 Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
+      ${boardHtml}
       ${lcHtml}
       ${summary.retirements&&summary.retirements.length?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
         <div style="font-size:12px;font-weight:600;color:var(--acc3);margin-bottom:4px">👋 Retirements</div>

@@ -502,6 +502,29 @@ chk('payWeeklyWages deducts bill from team budget', wwSrc.includes('budget: (t.b
 chk('payWeeklyWages called from advanceOneFixture', (()=>{const s=code.indexOf('async function advanceOneFixture(');return s>-1&&code.indexOf('payWeeklyWages',s)>s;})());
 chk('payWeeklyWages called from advanceOneFixtureWithResult', (()=>{const s=code.indexOf('async function advanceOneFixtureWithResult');return s>-1&&code.indexOf('payWeeklyWages',s)>s;})());
 
+// ── Board objectives & job security ────────────────────────────
+chk('generateBoardObjective defined', typeof generateBoardObjective==='function');
+chk('evaluateBoardObjective defined', typeof evaluateBoardObjective==='function');
+chk('nextJobSecurity defined', typeof nextJobSecurity==='function');
+chk('Promotion league objective is position-based', generateBoardObjective({reputation:80},'Championship').kind==='position');
+chk('League Two floor is mid-table, not relegation (no tier below)', generateBoardObjective({reputation:40},'League Two').id==='consolidate');
+chk('Top-flight big club gets a title objective', generateBoardObjective({reputation:90},'Premier League').id==='title');
+chk('Weak top-flight club must avoid relegation', generateBoardObjective({reputation:40},'Premier League').kind==='avoid_relegation');
+chk('evaluateBoardObjective: avoid_relegation met when not relegated', evaluateBoardObjective({kind:'avoid_relegation'}, 15, 20, false).met===true);
+chk('evaluateBoardObjective: avoid_relegation missed when relegated', evaluateBoardObjective({kind:'avoid_relegation'}, 19, 20, true).met===false);
+chk('evaluateBoardObjective: position objective met at or above target', evaluateBoardObjective({kind:'position',target:6}, 4, 20, false).met===true);
+chk('evaluateBoardObjective: position objective missed below target', evaluateBoardObjective({kind:'position',target:6}, 10, 20, false).met===false);
+chk('nextJobSecurity rewards meeting the objective', nextJobSecurity(50, true, 0) > 50);
+chk('nextJobSecurity punishes missing the objective harder than it rewards meeting it', (nextJobSecurity(50, false, 0) - 50) < -(nextJobSecurity(50, true, 0) - 50));
+chk('nextJobSecurity clamps to 0-100', nextJobSecurity(95, true, 20)<=100 && nextJobSecurity(5, false, -20)>=0);
+chk('New-game save gets an initial board objective and job security', code.includes('boardObjective:  generateBoardObjective(userTeamData, userLeague)') && code.includes('jobSecurity:     65'));
+chk('Season end evaluates the outgoing objective', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+8000):'';return chunk.includes('evaluateBoardObjective')&&chunk.includes('nextJobSecurity');})());
+chk('Season end sets a fresh objective for next season', (()=>{const s=code.indexOf('async function processEndOfSeason');const chunk=s>-1?code.slice(s,s+9000):'';return chunk.includes('generateBoardObjective(userTeamUpdated');})());
+chk('resetForNewCareer defined', typeof resetForNewCareer==='function');
+chk('resetForNewCareer preserves honors and seasons', (()=>{const s=code.indexOf('async function resetForNewCareer');const chunk=s>-1?code.slice(s,s+800):'';return !chunk.includes("'honors'")&&!chunk.includes("'seasons'");})());
+chk('Sacked end-state offers Start New Career, not Start Next Season', code.includes('Start New Career')&&code.includes("summary.sacked"));
+chk('HomeScreen shows board confidence', homeScreenSrc.includes('boardObjective')&&homeScreenSrc.includes('jobSecurity'));
+
 // ══ 10. UI FUNCTIONS ═════════════════════════════════════════
 section('10. UI Functions');
 [

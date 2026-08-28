@@ -37,6 +37,13 @@
     const pct = Math.min(100, myRow?.points ? myRow.points * 3 : 50);
     return { label, pct };
   })());
+  const board = $derived((() => {
+    const js = save?.jobSecurity ?? 65;
+    const pct = Math.max(0, Math.min(100, js));
+    const label = pct >= 75 ? 'Secure' : pct >= 45 ? 'Under Scrutiny' : pct >= 20 ? 'On Notice' : 'Facing the Axe';
+    const color = pct >= 60 ? 'var(--color-live)' : pct >= 30 ? 'var(--color-warn)' : 'var(--color-bad)';
+    return { pct, label, color };
+  })());
 
   async function closeWindow(dd) {
     const s = await getSave();
@@ -307,6 +314,14 @@
           <div class="morale-track"><div class="morale-fill" style="width:{morale.pct}%"></div></div>
           <div class="morale-txt">{morale.label}</div>
         </div>
+        {#if save?.boardObjective}
+          <div class="morale-block">
+            <div class="morale-lbl">Board</div>
+            <div class="morale-track"><div class="morale-fill" style="width:{board.pct}%;background:{board.color}"></div></div>
+            <div class="morale-txt">{board.label}</div>
+          </div>
+          <div class="board-objective-txt">Objective: {save.boardObjective.label}</div>
+        {/if}
       </div>
 
       <div class="charts-grid">
@@ -534,6 +549,7 @@
   .morale-track { flex: 1; height: 6px; border-radius: 3px; background: var(--color-raised); overflow: hidden; }
   .morale-fill { height: 100%; background: var(--color-club); border-radius: 3px; }
   .morale-txt { font-size: 11px; font-weight: 600; flex-shrink: 0; }
+  .board-objective-txt { font-size: 10px; color: var(--color-tx-3); margin-top: -4px; }
 
   .charts-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   @media (min-width: 700px) { .charts-grid { grid-template-columns: 1fr 1fr; } }

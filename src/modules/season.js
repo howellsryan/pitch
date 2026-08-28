@@ -348,6 +348,15 @@ export async function processEndOfSeason() {
   const leagueChanges = await processLeagueChanges(sorted, [], save.userTeamId);
   summary.leagueChanges = leagueChanges;
 
+  // ── Evaluate the board objective the season just ended against ──
+  const objectiveResult = evaluateBoardObjective(save.boardObjective, userPosition, sorted.length, leagueChanges.userRelInfo?.relegated ?? false);
+  const newJobSecurity  = nextJobSecurity(save.jobSecurity, objectiveResult.met, objectiveResult.margin);
+  const sacked          = newJobSecurity <= 0;
+  summary.boardObjective = save.boardObjective ?? null;
+  summary.objectiveMet   = objectiveResult.met;
+  summary.jobSecurity    = newJobSecurity;
+  summary.sacked         = sacked;
+
   // ── Refresh all teams post after league changes ─────────────
   const allTeamsRefreshed = await getAllTeams();
 
@@ -376,6 +385,10 @@ export async function processEndOfSeason() {
   const newCupIds      = assignCupsFromPosition(userPosForCups, userNewLeague, save.cups ?? {});
   const newCups        = buildInitialCupState(newCupIds, save.userTeamId, userNewLeague);
 
+  // A sacked manager starts the next job fresh — a new baseline of trust
+  // rather than carrying a season's worth of grudges into a new dugout.
+  const nextBoardObjective = generateBoardObjective(userTeamUpdated, userNewLeague);
+
   const newSave = {
     ...save,
     currentGameweek: 1,
@@ -387,6 +400,9 @@ export async function processEndOfSeason() {
     lineup:          save.lineup ?? null,
     formation:       save.formation ?? '4-3-3',
     youthCohort:     newYouthCohort,
+    boardObjective:  nextBoardObjective,
+    jobSecurity:     sacked ? 65 : newJobSecurity,
+    sacked,
     inboundOffers:   [],
     collapsedDeals:  [],
   };
@@ -459,6 +475,53 @@ export function reputationBudget(reputation, isUserTeam = false) {
   // Add some variance so not every team has exactly the same budget
   const variance = base * (Math.random() * 0.12 - 0.06);
   return Math.round(base + variance);
+}
+
+// ─── Board objectives & job security ──────────────────────────
+// One objective per season, set from the club's reputation relative to its
+// league. Promotion leagues (Championship/League One/League Two) get a
+// promotion/play-off/survival ladder; every other league (Premier League
+// plus the 5 single-tier top flights) gets a title/Europe/top-half/survival
+// ladder. League Two has no relegation, so its floor is "mid-table", not
+// "avoid relegation".
+export function generateBoardObjective(team, league) {
+  const rep = team?.reputation ?? 65;
+  const promotionLeagues = new Set(['Championship', 'League One', 'League Two']);
+  if (promotionLeagues.has(league)) {
+    if (rep >= 75) return { id: 'promotion', label: 'Win promotion', kind: 'position', target: 2 };
+    if (rep >= 62) return { id: 'playoffs', label: 'Push for the play-offs', kind: 'position', target: 6 };
+    if (league === 'League Two') return { id: 'consolidate', label: 'Finish in mid-table', kind: 'position', target: 12 };
+    return { id: 'avoid_relegation', label: 'Avoid relegation', kind: 'avoid_relegation' };
+  }
+  if (rep >= 85) return { id: 'title', label: 'Win the league', kind: 'position', target: 1 };
+  if (rep >= 75) return { id: 'europe', label: 'Qualify for Europe', kind: 'position', target: 7 };
+  if (rep >= 55) return { id: 'top_half', label: 'Finish in the top half', kind: 'top_half' };
+  return { id: 'avoid_relegation', label: 'Avoid relegation', kind: 'avoid_relegation' };
+}
+
+// Returns { met, margin } — margin is positive when comfortably clear of the
+// target, negative when short of it, used to scale how big the jobSecurity
+// swing is (just scraping it or missing it narrowly moves the needle less
+// than a landslide title or a relegation disaster).
+export function evaluateBoardObjective(objective, finalPosition, totalTeams, wasRelegated) {
+  if (!objective) return { met: true, margin: 0 };
+  if (objective.kind === 'avoid_relegation') return { met: !wasRelegated, margin: wasRelegated ? -3 : 3 };
+  if (objective.kind === 'top_half') {
+    const mid = Math.ceil((totalTeams || 20) / 2);
+    return { met: finalPosition <= mid, margin: mid - finalPosition };
+  }
+  return { met: finalPosition <= objective.target, margin: objective.target - finalPosition };
+}
+
+// jobSecurity is 0-100. Missing the objective always costs more than
+// meeting it gains, same as a real board — capped either way so one wild
+// season can't swing it from 0 to 100.
+export function nextJobSecurity(current, met, margin) {
+  const cur = current ?? 65;
+  const delta = met
+    ? 12 + Math.min(18, Math.max(0, margin) * 2)
+    : -18 - Math.min(22, Math.max(0, -margin) * 2);
+  return Math.max(0, Math.min(100, Math.round(cur + delta)));
 }
 
 /**

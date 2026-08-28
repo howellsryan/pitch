@@ -15,6 +15,7 @@ import { generateLeagueFixtures } from './fixtures.js';
 import { assignCups, buildInitialCupState } from './cups.js';
 import { assignPotentials } from './potential.js';
 import { generateCohort } from './youthAcademy.js';
+import { generateBoardObjective } from './season.js';
 
 /** modules/save.js — New game creation, save state management. Supports all leagues. */
 
@@ -77,6 +78,9 @@ export async function startNewGame(userTeamId, managerName) {
     collapsedDeals:  [],
     inbox:           [],
     youthCohort:     initialCohort,
+    boardObjective:  generateBoardObjective(userTeamData, userLeague),
+    jobSecurity:     65,
+    sacked:          false,
   };
 
   // Store all teams (strip players array) with reputation-scaled budgets

@@ -16,8 +16,8 @@ Status legend: ⬜ not started · 🔶 in progress · ✅ shipped
 |---|---|---|---|
 | 1 | Two-legged European knockouts | ✅ shipped | |
 | 2 | Wages that cost something | ✅ shipped | |
-| 3 | Contracts | ⬜ not started | plan-gate (schema) |
-| 4 | Board objectives & job security | ⬜ not started | plan-gate (schema); builds on 2–3 |
+| 3 | Contracts | ✅ shipped | |
+| 4 | Board objectives & job security | 🔶 in progress | plan-gate (schema); builds on 2–3 |
 | 5 | Morale with real effect | ⬜ not started | |
 | 6 | Academy investment | ⬜ not started | |
 | 7 | Cloud save & Google account | ⬜ not started | new infra — D1 + first server routes |
@@ -71,27 +71,26 @@ Transfers.
 
 ---
 
-## 3. Contracts — ⬜
+## 3. Contracts — ✅ shipped
 
 **Gap:** no length, expiry, free agency, or release clause anywhere — a
-repo-wide grep for `"contract"` returns zero hits. Every deal just overwrites
-a flat wage field.
+repo-wide grep for `"contract"` returned zero hits. Every deal just
+overwrote a flat wage field.
 
-**Build:**
-- One new field, `contractExpiry` (a season year), on every player — defaulted
-  at load time for existing saves so nothing breaks without a migration.
-- A renewal offer flow in Squad (extend N years at a new wage); expiring
-  players become free agents at season end, signable at wage-only cost.
-- AI clubs renew or release their own expiring players using the same
-  reputation/value logic `transfers.js` already has.
+**Shipped:** every player has `contractExpiry` (the last season-start-year
+their deal covers) — assigned at new-game seeding, youth promotion, buys,
+sells, accepted offers, and AI-to-AI transfers, and backfilled at season
+rollover for saves from before this shipped (never treated as instantly
+expired). Squad's player sheet shows years remaining with a "Renew Contract"
+action (`renewContract()`); at season end an unrenewed expiry sends the
+user's player to a real free-agent pool (`teamId: 'free_agents'`) — the
+`teamId !== 'free_agents'` filter that sat unused in TransfersScreen is now
+wired up via a new Free Agents tab (`signFreeAgent()`, wage-only, still
+reputation-gated). AI clubs self-manage renewals — mostly renew, more likely
+to release older players.
 
-**Skip:** buyback clauses, relegation wage reductions, competition bonuses
-(FC 27's newest clause types — not core to the loop), agent fees, work-permit
-rules.
-
-**Why it matters:** unlocks "do I extend my aging captain or let him walk for
-free?" as a real decision, and feeds item 4 (a board that cares whether you
-let a key player expire for nothing).
+**Skipped (by design):** buyback clauses, relegation wage reductions,
+competition bonuses, agent fees, work-permit rules.
 
 ---
 
