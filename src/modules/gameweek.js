@@ -1,7 +1,7 @@
 import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
 import { pickAIFormation, simulateMatch } from './matchEngine.js';
 import { applyResult, recomputePositions } from './standings.js';
-import { CUP_META, UCL_CLUBS, simulateCupRound, simulateUCLMatchday } from './cups.js';
+import { CUP_META, UCL_CLUBS, simulateCupRound, simulateUCLMatchday, isEuroLegRound, resolveCupProgress } from './cups.js';
 import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
@@ -79,10 +79,18 @@ export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams)
       const teamsById  = new Map(allTeams.map(t => [t.id, t]));
       const userTeam   = teamsById.get(userTeamId);
       const userLeague = userTeam?.league ?? 'Premier League';
+      const roundName  = meta.rounds[roundIdx] ?? 'Final';
       // Pre-draw the opponent now so pre-match modal can display it
       let drawnOpp = null;
+      let forcedUserIsHome = null;
       const isEuropean = ['ucl','uel','uecl'].includes(cupId);
-      if (isEuropean) {
+      if (isEuropean && isEuroLegRound(cupId, roundName, 2)) {
+        // Leg 2: same opponent as leg 1, venue flipped (the "return leg")
+        const leg1 = state.results?.[state.results.length - 1];
+        const oppMeta = UCL_CLUBS.find(c => c.id === leg1?.opponentId);
+        drawnOpp = leg1 ? { id: leg1.opponentId, name: leg1.opponentName, crest: oppMeta?.nation ?? '⚽', rep: oppMeta?.strength ?? 70 } : null;
+        forcedUserIsHome = !(leg1?.userIsHome ?? true);
+      } else if (isEuropean) {
         const pool = UCL_CLUBS.filter(c => c.id !== userTeamId);
         const pick = pool[Math.floor(Math.random() * pool.length)];
         drawnOpp = { id: pick.id, name: pick.name, crest: pick.nation, rep: pick.strength };
@@ -100,13 +108,13 @@ export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams)
         const pick = eligible[Math.floor(Math.random() * eligible.length)];
         if (pick) drawnOpp = { id: pick.id, name: pick.name, crest: pick.crest ?? '⚽', rep: pick.reputation ?? 70 };
       }
-      const userIsHome = Math.random() < 0.5;
+      const userIsHome = forcedUserIsHome ?? (Math.random() < 0.5);
       events.push({
         type: 'cup',
         cupId,
         gw,
         roundIdx,
-        roundName:     meta.rounds[roundIdx] ?? 'Final',
+        roundName,
         cupName:       meta.name,
         cupIcon:      meta.icon,
         opponentId:   drawnOpp?.id,
@@ -271,18 +279,17 @@ export async function advanceOneFixture(overrideFormation) {
     const userPlayers = playersByTeam.get(save.userTeamId) ?? [];
     const cupState    = save.cups?.[event.cupId];
     const result      = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, { ...event, userMentality: save.mentality ?? 'balanced' });
-    const meta        = CUP_META[event.cupId];
-    const nextIdx     = (event.roundIdx ?? 0) + 1;
-    const isWinner    = nextIdx >= (meta?.rounds?.length ?? 99);
+    const progress    = resolveCupProgress(event.cupId, event.roundName, event.roundIdx ?? 0, cupState, result.userGoals, result.oppGoals, result.userWon, result.userIsHome);
+    const resultOut   = progress.aggregate ? { ...result, userWon: progress.aggregate.userWon, aggregate: progress.aggregate } : result;
 
     updatedCups[event.cupId] = {
       ...cupState,
-      roundIndex: result.userWon ? nextIdx : (event.roundIdx ?? 0),
-      status:     result.userWon ? (isWinner ? 'winner' : 'active') : 'eliminated',
-      results:    [...(cupState?.results ?? []), result],
+      roundIndex: progress.roundIndex,
+      status:     progress.status,
+      results:    [...(cupState?.results ?? []), resultOut],
     };
-    cupResults.push(result);
-    singleResult = buildCupMatchResult(result, save.userTeamId, event, allTeams);
+    cupResults.push(resultOut);
+    singleResult = buildCupMatchResult(resultOut, save.userTeamId, event, allTeams);
     // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
     recoveredPlayers = await processInjuryRecovery().catch(() => []);
     await updateCache(allPlayers, [result]);
@@ -371,7 +378,9 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     // reconstruct the cup state update using the score.
     const userGoals = userIsHome ? matchResult.homeGoals : matchResult.awayGoals;
     const oppGoals  = userIsHome ? matchResult.awayGoals : matchResult.homeGoals;
-    const userWon   = userGoals > oppGoals || (userGoals === oppGoals && Math.random() < 0.5);
+    const isEuroLeg = event0.type === 'cup' && (isEuroLegRound(event0.cupId, event0.roundName, 1) || isEuroLegRound(event0.cupId, event0.roundName, 2));
+    const userWon   = isEuroLeg ? userGoals > oppGoals : (userGoals > oppGoals || (userGoals === oppGoals && Math.random() < 0.5));
+    let aggregate   = null;
 
     if (event0.type === 'ucl_md') {
       const cupState = save.cups?.ucl;
@@ -388,18 +397,17 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
       };
     } else {
       const cupState = save.cups?.[event0.cupId];
-      const meta  = CUP_META[event0.cupId];
-      const nextIdx = (event0.roundIdx ?? 0) + 1;
-      const isWinner = nextIdx >= (meta?.rounds?.length ?? 99);
+      const progress = resolveCupProgress(event0.cupId, event0.roundName, event0.roundIdx ?? 0, cupState, userGoals, oppGoals, userWon, userIsHome);
+      aggregate = progress.aggregate;
       updatedCups[event0.cupId] = {
         ...cupState,
-        roundIndex: userWon ? nextIdx : (event0.roundIdx ?? 0),
-        status:     userWon ? (isWinner ? 'winner' : 'active') : 'eliminated',
-        results:    [...(cupState?.results ?? []), { userGoals, oppGoals, userWon, opponentName: event0.opponentName }],
+        roundIndex: progress.roundIndex,
+        status:     progress.status,
+        results:    [...(cupState?.results ?? []), { userGoals, oppGoals, userWon: aggregate ? aggregate.userWon : userWon, userIsHome, opponentId: event0.opponentId, opponentName: event0.opponentName, ...(aggregate ? { aggregate } : {}) }],
       };
     }
     singleResult = buildCupMatchResult(
-      { userGoals, oppGoals, userIsHome, homeScorers: matchResult.homeScorers, awayScorers: matchResult.awayScorers, scorers: matchResult.homeScorers.concat(matchResult.awayScorers), opponentName: event0.opponentName ?? event0.oppName, opponentNation: event0.oppNation, stats: matchResult.stats, events: matchResult.events, fitnessUpdates: matchResult.fitnessUpdates },
+      { userGoals, oppGoals, userIsHome, homeScorers: matchResult.homeScorers, awayScorers: matchResult.awayScorers, scorers: matchResult.homeScorers.concat(matchResult.awayScorers), opponentName: event0.opponentName ?? event0.oppName, opponentNation: event0.oppNation, stats: matchResult.stats, events: matchResult.events, fitnessUpdates: matchResult.fitnessUpdates, aggregate },
       save.userTeamId, event0, allTeams
     );
     // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
@@ -493,6 +501,7 @@ export function buildCupMatchResult(r, userTeamId, event, allTeams) {
     isUserMatch:   true,
     userTeamId,
     gameweek:      event.gw,
+    aggregate:     r.aggregate ?? null,
   };
 }
 
