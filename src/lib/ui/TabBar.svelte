@@ -13,17 +13,6 @@
     { id: 'competitions', label: 'Table', icon: 'table' },
   ];
 
-  function icon(name) {
-    const icons = {
-      home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
-      squad: '<circle cx="9" cy="7" r="3.5"/><path d="M2 21v-1a6 6 0 0 1 12 0v1M16 4.5a3.5 3.5 0 0 1 0 6.8M17 14.5a5.5 5.5 0 0 1 5 5.5v1"/>',
-      play: '<path d="m9 5 10 7-10 7z" fill="currentColor" stroke="none"/>',
-      market: '<path d="m17 3 4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 21l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/>',
-      table: '<path d="M4 4h16v16H4zM4 10h16M10 4v16"/>',
-    };
-    return icons[name];
-  }
-
   async function choose(id) {
     await navigateTo(id);
     active = id;
@@ -46,7 +35,7 @@
 <nav class="broadcast-nav" aria-label="Game navigation">
   {#if open}
     <div class="fan" id="nav-destinations" aria-label="Destinations">
-      {#each destinations as destination, i}
+      {#each destinations as destination, i (destination.id)}
         <button
           class:current={active === destination.id}
           class="destination"
@@ -54,7 +43,19 @@
           onclick={() => choose(destination.id)}
           aria-current={active === destination.id ? 'page' : undefined}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">{@html icon(destination.icon)}</svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            {#if destination.icon === 'home'}
+              <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+            {:else if destination.icon === 'squad'}
+              <circle cx="9" cy="7" r="3.5" /><path d="M2 21v-1a6 6 0 0 1 12 0v1M16 4.5a3.5 3.5 0 0 1 0 6.8M17 14.5a5.5 5.5 0 0 1 5 5.5v1" />
+            {:else if destination.icon === 'play'}
+              <path d="m9 5 10 7-10 7z" fill="currentColor" stroke="none" />
+            {:else if destination.icon === 'market'}
+              <path d="m17 3 4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 21l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />
+            {:else}
+              <path d="M4 4h16v16H4zM4 10h16M10 4v16" />
+            {/if}
+          </svg>
           <span>{destination.label}</span>
         </button>
       {/each}
