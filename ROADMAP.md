@@ -23,6 +23,7 @@ Status legend: ⬜ not started · 🔶 in progress · ✅ shipped
 | 7 | Cloud save & Google account | 🔶 in progress | code complete; needs D1 + Google OAuth app provisioned (see wrangler.jsonc) |
 | 8 | Manager career progression | ⬜ not started | plan-gate (schema); builds on 4 |
 | 9 | Data completeness polish | ⬜ not started | |
+| 10 | Club badges | ⬜ not started | |
 
 Items 8 and 9 were originally ranked 7 and 8 in the first pass of this list;
 cloud save was inserted as the new #7 and both pushed back one slot.
@@ -340,6 +341,27 @@ pipeline against Serie A and the thinnest squads — no new tooling required.
 **Skip:** wiring the second-tier CSVs (Segunda, 2.Bundesliga, etc.) into
 `promotion.js` for those leagues — that's real pyramid work, its own item if
 ever prioritized.
+
+---
+
+## 10. Club badges — ⬜ not started
+
+**Gap:** every club-facing screen (League, Home, Squad, Transfers, Match,
+Trophies) renders `row.crest` — a single emoji per club — as the only visual
+club identity beyond the runtime `--color-club` accent
+(`src/lib/theme.mjs`). No badge/crest artwork exists anywhere in `src/data/`.
+
+**Build:** generate one lightweight SVG badge per club (colour + initials/
+monogram, matching the "Broadcast Kit" design language — not licensed
+real-world crests) as part of the CSV data pipeline (`tools/csv-to-league.mjs`
+/ `tools/reconcile.mjs`), store it per team row, and swap the `crest` emoji
+for the real badge everywhere a club is shown.
+
+**Skip:** licensed real club crests, user-uploaded custom badges, a badge
+editor UI.
+
+**Why it's ranked here:** pure visual polish — no gameplay system depends on
+it — so it sits behind every item with a mechanical payoff.
 
 ---
 

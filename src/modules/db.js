@@ -167,7 +167,72 @@ export async function buildSaveEnvelope() {
   // Base64 encode the envelope (universal, no compression dependency)
   const saveCode = btoa(unescape(encodeURIComponent(envelope)));
 
-  return { saveCode, meta };
+  return { saveCode, meta, envelope };
+}
+
+// Cloud save (ROADMAP.md item 7) pushes this envelope over the wire on every
+// match-checkpoint auto-save, unlike the .pitch export which is a rare,
+// user-initiated action — so unlike saveCode above, this path compresses.
+// A brand-new career already carries every club's full roster (186 clubs,
+// ~3,900 players — the whole game world, not just the user's league), which
+// alone is ~2.3MB base64-encoded before a single gameweek is played: over
+// both functions/api/save.js's MAX_SAVE_BYTES and D1's 2,000,000-byte column
+// cap. Gzip cuts that to ~180KB (highly repetitive player-record JSON), with
+// headroom for a season's worth of fixtures/transfers/honors growth.
+// CompressionStream/DecompressionStream are native and already used by
+// importSaveFile()'s legacy-gzip fallback below — same approach, no new
+// dependency.
+async function _gzipString(str) {
+  const cs = new CompressionStream('gzip');
+  const writer = cs.writable.getWriter();
+  writer.write(new TextEncoder().encode(str));
+  writer.close();
+  const compressed = await new Response(cs.readable).arrayBuffer();
+  return new Uint8Array(compressed);
+}
+
+async function _gunzipToString(bytes) {
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+  const decompressed = await new Response(ds.readable).arrayBuffer();
+  return new TextDecoder().decode(decompressed);
+}
+
+function _bytesToBase64(bytes) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function _base64ToBytes(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+export async function buildCloudSaveBlob() {
+  const { envelope, meta } = await buildSaveEnvelope();
+  const compressed = await _gzipString(envelope);
+  return { blob: _bytesToBase64(compressed), meta };
+}
+
+// Falls back to the older uncompressed format (plain base64 of the envelope,
+// same as saveCode above) so a save_blob written before this fix shipped
+// still restores.
+export async function restoreFromCloudBlob(blob) {
+  let envelopeStr;
+  try {
+    envelopeStr = await _gunzipToString(_base64ToBytes(blob));
+  } catch {
+    envelopeStr = decodeURIComponent(escape(atob(blob.trim())));
+  }
+  return _restoreFromEnvelope(envelopeStr);
 }
 
 export async function exportSaveFile() {

@@ -2,7 +2,7 @@
 // no debounce/conflict machinery — see the roadmap's 80/20 cut). Reuses
 // db.js's existing .pitch envelope format and import path rather than
 // inventing a second save format or a second restore code path.
-import { buildSaveEnvelope, importSaveFromCode } from '../modules/db.js';
+import { buildCloudSaveBlob, restoreFromCloudBlob } from '../modules/db.js';
 import { api, isSignedIn } from './api.js';
 
 let pushing = false;
@@ -15,8 +15,8 @@ export async function pushSaveToCloud() {
   if (pushing) return { ok: false, reason: 'busy' };
   pushing = true;
   try {
-    const { saveCode } = await buildSaveEnvelope();
-    const res = await api.putSave(saveCode);
+    const { blob } = await buildCloudSaveBlob();
+    const res = await api.putSave(blob);
     return { ok: true, updatedAt: res?.updatedAt ?? null, saveRevision: res?.save_revision ?? null };
   } catch (err) {
     return { ok: false, reason: err?.message || 'cloud_save_failed' };
@@ -46,7 +46,7 @@ export async function pullAndApplyCloudSave() {
   try {
     const res = await api.getSave();
     if (!res?.save?.save_blob) return { applied: false, reason: 'no_cloud_save' };
-    const meta = await importSaveFromCode(res.save.save_blob);
+    const meta = await restoreFromCloudBlob(res.save.save_blob);
     return { applied: true, meta };
   } catch (err) {
     return { applied: false, reason: err?.message || 'cloud_pull_failed' };
