@@ -26,8 +26,16 @@
   match) and Phase 6 (data reconciliation) are done.** Phase 3 (shell + first
   screen)'s blocking pieces are done too — a couple of its steps stay
   deliberately deferred (see `docs/plan/04-migration-phases.md`'s Phase 3
-  section: no context bar, no `<LegacyPanel>`, no URL routing) — **Phase 7 is
-  next.** `src/lib/ui/` holds one real Svelte 5 component per screen
+  section: no context bar, no `<LegacyPanel>`, no URL routing). **What's next
+  is now the redesign, `docs/plan/07-redesign.md` — a total visual and
+  interaction rebuild taking no inspiration from Broadcast Kit, whose direction
+  is accepted and whose phases are R0–R8.** It supersedes
+  `02-design-system.md` from R0 onward and absorbs most of the old Phase 7.
+  Read it before touching any screen: three metaphors (Spine home, Chalk
+  squad+tactics, Broadcast matchday) over one shared palette and type system,
+  and one decision worth knowing up front — **the match engine has no spatial
+  model, so the passing/ball visualisation is derived deterministically from
+  the events it already emits, in `src/game/matchMotion.js`, never simulated.** `src/lib/ui/` holds one real Svelte 5 component per screen
   (`TabBar`, `LeagueScreen`, `HomeScreen`, `SquadScreen`, `TacticsScreen`,
   `AcademyScreen`, `TrophiesScreen`, `SettingsScreen`, `TransfersScreen`,
   `MatchScreen`),

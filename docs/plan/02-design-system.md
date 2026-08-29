@@ -1,5 +1,11 @@
 # 02 — Design & UX
 
+> **⚠️ Superseded from redesign phase R0 onward — see `07-redesign.md`.**
+> A total redesign taking no inspiration from Broadcast Kit was commissioned and
+> its direction accepted. This document still describes what ships *today*, and
+> its mobile UX spec, quality floor and the "club colour is identity, green means
+> live" rule all carry forward. The visual direction below does not.
+
 ## The direction: settled
 
 **Broadcast Kit.** Broadcast-graphics vocabulary carries the football identity; a
