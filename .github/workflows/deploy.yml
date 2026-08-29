@@ -33,10 +33,8 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # The legacy concatenation path: bundles and runs validate.js's 1067
-      # checks. Still the gate nothing bypasses.
-      # NOTE: the "Home win rate >20% over 30 games" check is stochastic and
-      # fails roughly 1 run in 8 independently of the change under test.
+      # The legacy concatenation path bundles and runs validate.js. It remains
+      # the gate nothing bypasses; stochastic outcome sampling is excluded.
       - run: npm run build:legacy
 
       # The Vite path: real ES modules, the app that Phase 3 builds on.

@@ -407,19 +407,10 @@ npm run deploy           # manual escape hatch — Cloudflare normally deploys
 `build:legacy` and `validate` shell out to system `python3`/`node` and need no
 `npm install`. Everything else needs `npm ci` first.
 
-**Known flakes — two, not one.** Both are stochastic match-engine checks that
-fail on unmodified `main`, so CI is intermittently red through no fault of the
-change under test. Re-run before investigating; seeding the RNG is simulation
-math and needs `plan-gate`.
-
-1. `"Home win rate >20% over 30 games"` — fails roughly **1 run in 8**.
-2. `"Goals/game in range 2.0-4.5"` — the sampled mean sits close to the lower
-   bound (observed 1.7, 2.1, 2.4, 2.9 across four consecutive runs during the
-   R0 work), so it trips occasionally too. Recorded because a session that only
-   knows about flake 1 will go hunting for a regression it did not cause.
-
-These two are the *only* things in this repo that may be called a flake —
-`systematic-debugging` holds that rule, and anything else red is real.
+**The validator has no accepted flakes.** It never samples match outcomes, so
+CI must not pass or fail because of `Math.random()`. Calibrated goal rates,
+win rates and scorer distributions need a deterministic, injectable RNG before
+they become automated assertions. Treat every red check as actionable.
 
 ## 5) Agent Best Practices
 
@@ -441,8 +432,8 @@ These two are the *only* things in this repo that may be called a flake —
 - **`.claude/skills/systematic-debugging`** the moment the task is a broken
   thing rather than a new one. Root cause before fix; stop and question the
   architecture after three failed attempts rather than trying a fourth. It
-  also holds the rule for what may be called a flake (essentially: only the
-  home-win-rate check).
+  also holds the rule that a failing check is actionable, not a reason to rerun
+  until random outcomes happen to pass.
 - **`.claude/skills/verification-before-completion`** before claiming anything
   works, passes, or is done. A green build proves no known regression in what
   the 1209 checks cover — never that a screen renders. Includes the screenshot

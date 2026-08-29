@@ -264,9 +264,10 @@ light-mode token set, PWA install, real-device passes on iOS and Android.
   the screen opened by hand and screenshotted — `verification-before-completion`
   enforces this and it is the single most likely rule to get skipped under time
   pressure.
-- **The known flake:** the "home win rate >20% over 30 games" check fails
-  roughly 1 run in 8 on unmodified `main`. Re-run before investigating. It is
-  the *only* thing in this repo that may be called a flake.
+- **No stochastic test gate.** The validator does not sample match outcomes:
+  a passing or failing build must not depend on `Math.random()`. Calibrated
+  goal rates and distributions need a deterministic, injectable RNG before
+  they become automated assertions.
 - **No IndexedDB migration path exists.** Nothing in this redesign should need
   a schema change. If a phase thinks it does, that is `plan-gate`, not a
   judgement call.
