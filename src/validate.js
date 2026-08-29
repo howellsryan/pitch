@@ -260,6 +260,15 @@ chk('btn-eoy-header in HomeScreen.svelte', homeScreenSrc.includes('btn-eoy-heade
 chk('btn-deadline-header in HomeScreen.svelte', homeScreenSrc.includes('btn-deadline-header'));
 chk("HomeScreen Play button -> navigateTo('match')", homeScreenSrc.includes("navigateTo('match')"));
 chk('HomeScreen EOY button -> handleEndOfSeason', homeScreenSrc.includes('handleEndOfSeason'));
+// R3 makes the season rail the Home screen rather than layering it over the
+// old dashboard. The rail deliberately combines the existing sorted upcoming
+// helper with a direct store read for played results; renderHome's tick bridge
+// remains the refresh mechanism after matches and squad events.
+chk('R3 Home reads played fixtures directly', homeScreenSrc.includes('getAllFixtures'));
+chk('R3 Home reads upcoming fixtures through helper', homeScreenSrc.includes('getUpcomingForTeam'));
+chk('R3 Home renders the season rail', homeScreenSrc.includes('season-rail'));
+chk('R3 Home renders actionable waiting sheet', homeScreenSrc.includes('Waiting on you') && homeScreenSrc.includes('waitingItems'));
+chk('R3 Home still watches renderHome tick bridge', homeScreenSrc.includes('screenTicks.home'));
 chk('Team News XI preview on pitch slots', matchScreenSrc.includes('teamNewsAssignment'));
 chk('Team News uses shared SLOT_LAYOUT (not a re-declared copy)', matchScreenSrc.includes("from '../../game/formationLayout.js'"));
 chk('Tactics screen hint in Team News', matchScreenSrc.includes('Tactics screen') || matchScreenSrc.includes('Tactics'));

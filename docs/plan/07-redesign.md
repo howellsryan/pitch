@@ -199,6 +199,21 @@ half-visible so decisions come to the player rather than hiding behind a tab.
 still called imperatively after match and squad events. It stays until R5
 retires its last caller.
 
+#### R3 status — done
+
+`HomeScreen.svelte` is now the season rather than a dashboard about it. Its
+horizontal rail reads played results directly from the fixtures store and the
+next fixtures through `getUpcomingForTeam()`, keeping the current match
+magnified between the past and future. The progress line, club position,
+budget, form, morale and board confidence all use existing stored data; no
+simulation or persistence shape changed.
+
+The half-visible "Waiting on you" sheet is live data, not sample copy: pending
+inbound offers open Market, unread news opens Inbox, and a local-only career
+offers Google sign-in. The Play, deadline-day and end-of-season flows retain
+their existing ids and handlers, and `renderHome()` still refreshes the island
+through `screenTicks.home` after match and squad events. R4 is next.
+
 ### R4 — Squad + Tactics = Chalk
 The largest IA change in the plan: **two screens become one.** Player discs on
 a persistent pitch, tap to select, drag to swap, bench as a rail beneath.
