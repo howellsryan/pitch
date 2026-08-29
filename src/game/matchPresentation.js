@@ -17,6 +17,14 @@ function assign(players, formation, home) {
   }).filter(Boolean);
 }
 function findMarker(markers, id) { return markers.find(marker => marker.id === id); }
+function clamp(value) { return Math.max(4, Math.min(96, value)); }
+function roam(marker, phase) {
+  const seed = hash(`${marker.id}:${phase}`);
+  const amplitude = marker.position === 'GK' ? 1.2 : marker.position === 'CB' ? 2.8 : 5.2;
+  const x = clamp(marker.x + Math.sin((phase + (seed % 17)) * .62) * amplitude);
+  const y = clamp(marker.y + Math.cos((phase + ((seed >>> 5) % 19)) * .47) * amplitude * .72);
+  return { ...marker, x, y };
+}
 
 export function makeBroadcastFrame({ phase, possessionTeamId, homeTeamId, homeFormation, awayFormation, homePlayers, awayPlayers, event = null }) {
   const home = assign(homePlayers, homeFormation, true);
@@ -37,6 +45,6 @@ export function makeBroadcastFrame({ phase, possessionTeamId, homeTeamId, homeFo
   const adjustedAttackers = attackers.map(p => p.id === to?.id && !isGoal ? { ...p, x: p.x + (50-p.x)*.08, y: p.y + ((homeInPossession ? 12 : 88)-p.y)*.1, receiving: true } : p);
   const movedKeeper = isGoal && keeper ? { ...keeper, x: 50, y: homeInPossession ? 15 : 85, rushing: true } : null;
   const team = marker => homeInPossession ? (adjustedAttackers.some(p => p.id === marker.id) ? 'home' : 'away') : (adjustedAttackers.some(p => p.id === marker.id) ? 'away' : 'home');
-  const markers = [...adjustedAttackers, ...adjustedDefenders].map(marker => movedKeeper?.id === marker.id ? movedKeeper : { ...marker, team: team(marker) });
+  const markers = [...adjustedAttackers, ...adjustedDefenders].map(marker => roam(movedKeeper?.id === marker.id ? movedKeeper : { ...marker, team: team(marker) }, phase));
   return { markers, ball: { ...ballTarget, from, to, shooting: isGoal }, action: isGoal ? 'SHOT · GOAL' : presser ? 'PASSING MOVE' : 'IN POSSESSION' };
 }

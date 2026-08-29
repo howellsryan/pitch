@@ -67,6 +67,11 @@
   let tickTimer = null;
   let kickoffTimer = null;
   let broadcastFrame = $state(null);
+  let presentationTimer = null;
+  let presentationPhase = 0;
+  let presentationPossession = null;
+  let presentationEvent = null;
+  let presentationEventFrames = 0;
 
   let result          = $state.raw(null); // finalised match result (same shape whether from finaliseLiveMatch or advanceOneFixture's singleResult)
   let resultCommitted = $state(false);
@@ -332,7 +337,9 @@
       matchEvent: resolved.patchedEvent,
       currentPhase: 0, paused: false, speedMultiplier: 1,
     };
-    broadcastFrame = makeFrame(live, null, resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id);
+    presentationPossession = resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id;
+    refreshBroadcast();
+    startPresentation();
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
       if (beat === 'kickoff') { beat = 'live'; scheduleTick(); }
@@ -387,7 +394,10 @@
     const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase);
     live = { ...live, liveState: updatedState, currentPhase: endPhase, allEvents: [...live.allEvents, ...segEvents] };
     const possessionTeamId = updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id;
-    broadcastFrame = makeFrame(live, segEvents.find(event => event.type === 'goal') ?? null, possessionTeamId);
+    presentationPossession = possessionTeamId;
+    presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
+    presentationEventFrames = presentationEvent ? 8 : 0;
+    refreshBroadcast();
     handleNewEvents(segEvents);
     if (live.currentPhase >= TOTAL_PHASES) finishMatch();
     else scheduleTick();
@@ -408,6 +418,20 @@
 
   function makeFrame(currentLive, event, possessionTeamId) {
     return makeBroadcastFrame({ phase: currentLive.currentPhase, possessionTeamId, homeTeamId: currentLive.homeTeam.id, homeFormation: currentLive.liveState.homeFormation, awayFormation: currentLive.liveState.awayFormation, homePlayers: currentLive.liveState.hActive, awayPlayers: currentLive.liveState.aActive, event });
+  }
+  function refreshBroadcast() {
+    if (!live?.liveState || !presentationPossession) return;
+    broadcastFrame = makeFrame({ ...live, currentPhase: live.currentPhase * 20 + presentationPhase }, presentationEvent, presentationPossession);
+  }
+  function startPresentation() {
+    window.clearInterval(presentationTimer);
+    presentationTimer = window.setInterval(() => {
+      if (!live || live.paused || beat !== 'live') return;
+      presentationPhase++;
+      if (presentationEventFrames > 0) presentationEventFrames--;
+      if (!presentationEventFrames) presentationEvent = null;
+      refreshBroadcast();
+    }, 180);
   }
 
   function togglePause() {
@@ -440,6 +464,7 @@
 
   function finishMatch() {
     window.clearTimeout(tickTimer);
+    window.clearInterval(presentationTimer);
     result = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
     resultCommitted = false;
     vibrate([80, 40, 80]);
@@ -571,6 +596,7 @@
   }
 
   async function finishToHome() {
+    window.clearInterval(presentationTimer);
     active = false;
     live = null; result = null; matchCtx = null;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
@@ -981,11 +1007,12 @@
   .pitch-circle { position: absolute; width: 22%; aspect-ratio: 1; top: 50%; left: 50%; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; transform: translate(-50%,-50%); }
   .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
   .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
-  .broadcast-player { position: absolute; z-index: 2; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,.75); color: white; font: 700 10px var(--font-mono); transition: left .62s cubic-bezier(.2,.75,.2,1), top .62s cubic-bezier(.2,.75,.2,1), transform .25s ease; }
+  .broadcast-player { position: absolute; z-index: 2; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,.75); color: white; font: 700 10px var(--font-mono); transition: left .26s linear, top .26s linear, transform .25s ease; }
   .broadcast-player.home { background: var(--color-club); } .broadcast-player.away { background: #df3155; }
+  .broadcast-player { color: #07110c; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
   .broadcast-player.pressing { transform: translate(-50%,-50%) scale(1.22); box-shadow: 0 0 0 5px rgba(255,255,255,.14); }
   .broadcast-player.receiving { transform: translate(-50%,-50%) scale(1.12); } .broadcast-player.rushing { box-shadow: 0 0 0 5px rgba(255,219,102,.24); }
-  .broadcast-ball { position: absolute; z-index: 4; width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 5px rgba(0,0,0,.7); transition: left .62s cubic-bezier(.2,.75,.2,1), top .62s cubic-bezier(.2,.75,.2,1); }
+  .broadcast-ball { position: absolute; z-index: 4; width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 5px rgba(0,0,0,.7); transition: left .26s linear, top .26s linear; }
   .broadcast-ball.shooting { width: 14px; height: 14px; box-shadow: 0 0 14px 4px rgba(255,255,255,.6); }
   .broadcast-state { position: absolute; z-index: 3; top: 9px; left: 10px; color: rgba(255,255,255,.82); font: 10px var(--font-mono); letter-spacing: 1.5px; }
   .momentum { display: grid; grid-template-columns: minmax(0,1fr) 2fr minmax(0,1fr); gap: 6px; align-items: center; margin: 9px 0 3px; font: 9px var(--font-mono); color: var(--color-tx-3); }
