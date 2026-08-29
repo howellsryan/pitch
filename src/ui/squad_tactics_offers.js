@@ -7,7 +7,7 @@ import { renderHome } from './home_transfers.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 
 // Squad and Tactics screens moved to src/lib/ui/SquadScreen.svelte and
-// src/lib/ui/TacticsScreen.svelte (Phase 4, docs/plan/04-migration-phases.md).
+// src/lib/ui/SquadScreen.svelte (R4, docs/plan/07-redesign.md).
 // openSquadPlayerModal used to survive here for the (not yet migrated)
 // Transfers screen's desktop-width player-detail branch in home_transfers.js
 // — Transfers is migrated now too (src/lib/ui/TransfersScreen.svelte), using
@@ -241,4 +241,3 @@ export async function _updateOffersBadge() {
 
 // Keep old name as alias so nothing breaks if referenced elsewhere
 export async function renderOffers() { await showOffersModal(); }
-

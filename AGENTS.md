@@ -30,15 +30,16 @@
   is now the redesign, `docs/plan/07-redesign.md` — a total visual and
   interaction rebuild taking no inspiration from Broadcast Kit, whose direction
   is accepted and whose phases are R0–R8. R0 (token layer, type system, UI
-  kit), R1 (entry: marketing home + club select), R2 (shell and navigation)
-  and R3 (Home = Spine) are done; R4 (Squad + Tactics = Chalk) is next.** It supersedes
+  kit), R1 (entry: marketing home + club select), R2 (shell and navigation),
+  R3 (Home = Spine) and R4 (Squad + Tactics = Chalk) are done; R5 (Matchday =
+  Broadcast) is next.** It supersedes
   `02-design-system.md` from R0 onward and absorbs most of the old Phase 7.
   Read it before touching any screen: three metaphors (Spine home, Chalk
   squad+tactics, Broadcast matchday) over one shared palette and type system,
   and one decision worth knowing up front — **the match engine has no spatial
   model, so the passing/ball visualisation is derived deterministically from
   the events it already emits, in `src/game/matchMotion.js`, never simulated.** `src/lib/ui/` holds one real Svelte 5 component per screen
-  (`TabBar`, `LeagueScreen`, `HomeScreen`, `SquadScreen`, `TacticsScreen`,
+  (`TabBar`, `LeagueScreen`, `HomeScreen`, `SquadScreen`,
   `AcademyScreen`, `TrophiesScreen`, `SettingsScreen`, `TransfersScreen`,
   `MatchScreen`),
   each mounted as an island into the legacy shell from `src/main.js` — real
@@ -128,7 +129,7 @@
   TabBar destination of its own. Five beats in one component: team news
   (opponent form, key player, XI-on-pitch preview reusing
   `src/game/formationLayout.js`'s `SLOT_LAYOUT`/`SLOT_POS_MAP` — now shared
-  with `TacticsScreen.svelte` instead of each holding its own copy) → a
+  with R4's merged `SquadScreen.svelte` instead of each holding its own copy) → a
   brief kickoff transition → live (tick engine, score bug, event feed, 1×/
   2×/4×/skip, pause, sub and tactics bottom sheets) → full time (score,
   scorers, one-line verdict) → after (stats, subs, injuries, a 3-row league
@@ -297,7 +298,7 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | **All 9 screens, the live-match route and the pre-game entry route are real Svelte islands** (`src/lib/ui/`: EntryScreen, TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen, MatchScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain, and `prematch.js`/`watchmatch.js` are deleted outright | Svelte 5 (runes) — **Phases 4, 5 and 6 done; the redesign (R0–R8, `docs/plan/07-redesign.md`) supersedes the old Phase 7 — R0–R3 shipped** |
+| UI | **The game surfaces, live-match route and pre-game entry route are real Svelte islands** (`src/lib/ui/`: EntryScreen, TabBar, LeagueScreen, HomeScreen, SquadScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen, MatchScreen), mounted from `src/main.js`. R4 merged Squad and Tactics into `SquadScreen`; the old tactics route aliases there. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain, and `prematch.js`/`watchmatch.js` are deleted outright | Svelte 5 (runes) — **Phases 4, 5 and 6 done; the redesign (R0–R8, `docs/plan/07-redesign.md`) supersedes the old Phase 7 — R0–R4 shipped** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |

@@ -169,6 +169,9 @@ export const _screens = new Map();
 export let _active = null;
 
 const ROUTE_PARAM = 'screen';
+const ROUTE_ALIASES = { tactics: 'squad' };
+
+function canonicalScreen(id) { return ROUTE_ALIASES[id] ?? id; }
 
 function routeFromLocation() {
   return new URL(window.location.href).searchParams.get(ROUTE_PARAM);
@@ -188,6 +191,7 @@ export function registerScreen(id, onEnter) {
 }
 
 export async function navigateTo(id, { history: historyMode = 'push' } = {}) {
+  id = canonicalScreen(id);
   if (!_screens.has(id) || _active === id) return;
   if (_active) {
     _screens.get(_active).el.classList.remove('active');
@@ -207,6 +211,6 @@ export const getActiveScreen = () => _active;
 
 /** Restore a browser-history entry without making a second history entry. */
 export function restoreScreenFromHistory() {
-  const id = history.state?.pitchScreen || routeFromLocation() || 'home';
+  const id = canonicalScreen(history.state?.pitchScreen || routeFromLocation() || 'home');
   return navigateTo(_screens.has(id) ? id : 'home', { history: 'none' });
 }

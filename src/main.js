@@ -20,7 +20,6 @@ import TabBar from './lib/ui/TabBar.svelte';
 import LeagueScreen from './lib/ui/LeagueScreen.svelte';
 import HomeScreen from './lib/ui/HomeScreen.svelte';
 import SquadScreen from './lib/ui/SquadScreen.svelte';
-import TacticsScreen from './lib/ui/TacticsScreen.svelte';
 import AcademyScreen from './lib/ui/AcademyScreen.svelte';
 import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
 import SettingsScreen from './lib/ui/SettingsScreen.svelte';
@@ -63,9 +62,6 @@ if (homeMount) mount(HomeScreen, { target: homeMount });
 
 const squadMount = document.getElementById('screen-squad');
 if (squadMount) mount(SquadScreen, { target: squadMount });
-
-const tacticsMount = document.getElementById('screen-tactics');
-if (tacticsMount) mount(TacticsScreen, { target: tacticsMount });
 
 const academyMount = document.getElementById('screen-academy');
 if (academyMount) mount(AcademyScreen, { target: academyMount });

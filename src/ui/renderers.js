@@ -56,7 +56,6 @@ export function initUI(){
   registerScreen('trophies',     () => { screenTicks.trophies++; });
   registerScreen('squad',        () => { screenTicks.squad++; });
   registerScreen('academy',      () => { screenTicks.academy++; });
-  registerScreen('tactics',      () => { screenTicks.tactics++; });
   registerScreen('inbox',        renderInbox);
   registerScreen('settings',     () => { screenTicks.settings++; });
 

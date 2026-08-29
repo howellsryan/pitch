@@ -1,8 +1,8 @@
 /**
  * src/game/formationLayout.js — Pitch-slot x/y coordinates (% of pitch) for
  * every formation in modules/matchEngine.js's FORMATIONS. Layout data, not
- * simulation math, but shared verbatim between TacticsScreen.svelte (the
- * lineup editor) and MatchScreen.svelte (Phase 5's Team News beat) — kept
+ * simulation math, but shared verbatim between SquadScreen.svelte (R4's
+ * Chalk lineup editor) and MatchScreen.svelte (Phase 5's Team News beat) — kept
  * in one place so the two pitch views can't drift out of sync.
  */
 export const SLOT_LAYOUT = {

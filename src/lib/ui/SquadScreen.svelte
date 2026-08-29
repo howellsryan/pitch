@@ -1,31 +1,50 @@
 <script>
-  import { getPlayersByTeam, getSave, getTeam, putPlayer, openDB } from '../../modules/db.js';
-  import { primaryRating } from '../../modules/matchEngine.js';
-  import { contractYearsRemaining, formAdjustedValue, renewContract } from '../../modules/transfers.js';
-  import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
-  import { fmt, formLabel, navigateTo, posGroup, toast } from '../../ui/helpers.js';
+  import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
+  import { FORMATIONS, primaryRating } from '../../modules/matchEngine.js';
+  import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
+  import { contractYearsRemaining, renewContract } from '../../modules/transfers.js';
+  import { fmt, posGroup, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
 
-  const GROUP_LABELS = { GK: 'Goalkeepers', DEF: 'Defenders', MID: 'Midfielders', FWD: 'Forwards' };
-  const GROUP_POS = { GK: ['GK'], DEF: ['CB', 'RB', 'LB'], MID: ['CM', 'CDM', 'CAM', 'RM', 'LM'], FWD: ['ST', 'CF', 'RW', 'LW'] };
-  const POT_COLORS = ['', '#8a9ab0', 'var(--color-live)', '#3b82f6', 'var(--color-warn)', 'var(--color-bad)'];
+  const MENTALITIES = [
+    { id: 'defensive', label: 'DEF', fullLabel: 'Defensive', desc: 'Compact & hard to break down' },
+    { id: 'balanced', label: 'BAL', fullLabel: 'Balanced', desc: 'No bias — steady in both phases' },
+    { id: 'possession', label: 'POS', fullLabel: 'Possession', desc: 'Patient build-up, dominate the ball' },
+    { id: 'attacking', label: 'ATK', fullLabel: 'Attacking', desc: 'High press & direct, more exposed' },
+  ];
+
+  // R4's Chalk screen uses the shared formation layout from src/game/formationLayout.js (Phase 5,
+  // docs/plan/04-migration-phases.md) — shared verbatim with MatchScreen.svelte's
+  // Team News beat so the two pitch views can't drift out of sync.
+  const SWAP_POS_MAP = { GK:['GK'], RB:['RB','LB'], LB:['LB','RB'], CB:['CB'], RM:['RM','CM','CAM'], LM:['LM','CM','CAM'], CDM:['CDM','CM'], CM:['CM','CDM','CAM'], CAM:['CAM','CM','RW','LW'], RW:['RW','CAM','LW'], LW:['LW','CAM','RW'], ST:['ST','CF','LW','RW','CAM'] };
 
   let loaded = $state(false);
   let team = $state(null);
-  let players = $state([]);
-  let sheetPlayer = $state(null);
   let save = $state(null);
+  let players = $state([]);
+  let formation = $state('4-3-3');
+  let mentality = $state('balanced');
+  let savedLineup = $state([]);
+  let formationOpen = $state(false);
+  let mentalityOpen = $state(false);
+  let swapSlotIdx = $state(null);
+  let swapPreselectId = $state(null);
+  let rosterOpen = $state(false);
+  let playerSheet = $state(null);
+  let draggedPlayerId = $state(null);
 
   async function load() {
     await openDB();
-    const s = await getSave();
-    if (!s || s._deleted) return;
-    save = s;
+    const currentSave = await getSave();
+    if (!currentSave || currentSave._deleted) return;
+    save = currentSave;
     team = await getTeam(save.userTeamId);
     players = await getPlayersByTeam(save.userTeamId);
+    if (playerSheet) playerSheet = players.find(p => p.id === playerSheet.id) ?? null;
+    formation = save.formation ?? '4-3-3';
+    savedLineup = save.lineup ?? [];
+    mentality = save.mentality ?? 'balanced';
     loaded = true;
-    // Keep the open sheet's data fresh after a mutation instead of closing it.
-    if (sheetPlayer) sheetPlayer = players.find(p => p.id === sheetPlayer.id) ?? null;
   }
 
   $effect(() => {
@@ -33,293 +52,449 @@
     load();
   });
 
-  const groups = $derived(
-    Object.entries(GROUP_POS)
-      .map(([key, positions]) => ({
-        key,
-        label: GROUP_LABELS[key],
-        players: players.filter(p => positions.includes(p.position)).sort((a, b) => primaryRating(b) - primaryRating(a)),
-      }))
-      .filter(g => g.players.length > 0)
+  const curMentObj = $derived(MENTALITIES.find(m => m.id === mentality) ?? MENTALITIES[1]);
+  const slots = $derived(SLOT_LAYOUT[formation] ?? SLOT_LAYOUT['4-3-3']);
+
+  const assignment = $derived.by(() => {
+    const avail = players.filter(p => !p.injured && !p.suspended).sort((a, b) => primaryRating(b) - primaryRating(a));
+    const out = new Array(slots.length).fill(null);
+    const usedIds = [];
+    const use = (id) => usedIds.push(id);
+    const isUsed = (id) => usedIds.includes(id);
+    if (savedLineup.length === 11) {
+      savedLineup.forEach((pid, i) => {
+        const pl = players.find(p => p.id === pid);
+        if (pl) { out[i] = pl; use(pl.id); }
+      });
+      return out;
+    }
+    slots.forEach((slot, i) => {
+      const acceptable = SLOT_POS_MAP[slot.p] ?? [slot.p];
+      const cand = avail.find(p => !isUsed(p.id) && acceptable.includes(p.position));
+      if (cand) { out[i] = cand; use(cand.id); }
+    });
+    slots.forEach((slot, i) => {
+      if (out[i]) return;
+      const cand = avail.find(p => !isUsed(p.id) && p.position !== 'GK');
+      if (cand) { out[i] = cand; use(cand.id); }
+    });
+    return out;
+  });
+
+  const bench = $derived(
+    players
+      .filter(p => !p.injured && !p.suspended && !assignment.some(a => a?.id === p.id))
+      .sort((a, b) => primaryRating(b) - primaryRating(a))
+      .slice(0, 12)
   );
 
-  function ratingColor(val) {
-    return val >= 80 ? 'var(--color-live)' : val >= 65 ? 'var(--color-club)' : val >= 50 ? 'var(--color-tx)' : 'var(--color-bad)';
+  const formationGroups = $derived([
+    { label: '3 at the back', formations: Object.keys(FORMATIONS).filter(f => f.startsWith('3-')) },
+    { label: '4 at the back', formations: Object.keys(FORMATIONS).filter(f => f.startsWith('4-')) },
+    { label: '5 at the back', formations: Object.keys(FORMATIONS).filter(f => f.startsWith('5-')) },
+  ]);
+
+  async function pickFormation(f) {
+    formationOpen = false;
+    const sv = await getSave();
+    await putSave({ ...sv, formation: f, lineup: null });
+    screenTicks.squad++;
   }
+  async function pickMentality(m) {
+    mentalityOpen = false;
+    const sv = await getSave();
+    await putSave({ ...sv, mentality: m.id });
+    toast(`Mentality: ${m.fullLabel}`, 'info', 2000);
+    screenTicks.squad++;
+  }
+
   function fitnessColor(fit) {
     return fit >= 75 ? 'var(--color-live)' : fit >= 50 ? 'var(--color-warn)' : 'var(--color-bad)';
   }
 
+  function openPlayer(p) { playerSheet = p; rosterOpen = false; }
+  function closePlayer() { playerSheet = null; }
   async function toggleSquad(p) {
-    const inSquad = p.inSquad !== false;
-    await putPlayer({ ...p, inSquad: !inSquad });
-    toast(`${p.name} ${inSquad ? 'excluded from' : 'added to'} squad`, 'info', 2000);
+    await putPlayer({ ...p, inSquad: p.inSquad === false });
+    toast(`${p.name} ${p.inSquad === false ? 'added to' : 'excluded from'} squad`, 'info', 2000);
     screenTicks.squad++;
   }
   async function toggleListed(p) {
     const isListed = p.transferListed === true;
     await putPlayer({ ...p, transferListed: !isListed });
-    toast(isListed ? `${p.name} removed from transfer list` : `${p.name} listed — AI clubs will bid`, isListed ? 'info' : 'success', 3000);
+    toast(isListed ? `${p.name} removed from transfer list` : `${p.name} listed — AI clubs will bid`, isListed ? 'info' : 'success', 2500);
     screenTicks.squad++;
   }
-
   async function renewPlayerContract(p) {
     try {
-      const res = await renewContract(p.id, 3);
-      toast(`${p.name} signed a new 3-year deal at ${fmt.wage(res.newWage)}`, 'success', 3500);
+      const result = await renewContract(p.id, 3);
+      toast(`${p.name} signed a new 3-year deal at ${fmt.wage(result.newWage)}`, 'success', 3000);
       screenTicks.squad++;
     } catch {
       toast('Could not renew contract.', 'error', 2500);
     }
   }
+  function beginDrag(p) { draggedPlayerId = p?.id ?? null; }
+  async function dropOnSlot(idx) {
+    const player = players.find(p => p.id === draggedPlayerId);
+    draggedPlayerId = null;
+    if (player) await applySwapAt(idx, player);
+  }
 
-  function openSheet(p) { sheetPlayer = p; }
-  function closeSheet() { sheetPlayer = null; }
+  function openSlotSwap(idx) { swapSlotIdx = idx; swapPreselectId = null; }
+  function openBenchSwap(benchPlayer) {
+    let bestIdx = 0, bestScore = -1;
+    slots.forEach((slot, i) => {
+      const acceptable = SWAP_POS_MAP[slot.p] ?? [slot.p];
+      const isNatural = acceptable.includes(benchPlayer.position);
+      const isEmpty = !assignment[i];
+      const score = (isNatural ? 2 : 0) + (isEmpty ? 1 : 0);
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    });
+    swapSlotIdx = bestIdx;
+    swapPreselectId = benchPlayer.id;
+  }
+  function closeSwap() { swapSlotIdx = null; swapPreselectId = null; }
 
-  const sheetAttrs = $derived.by(() => {
-    const p = sheetPlayer;
-    if (!p) return [];
-    const isGK = p.position === 'GK';
-    const g = posGroup(p.position);
-    if (isGK) return [
-      { label: 'Goalkeeping', val: p.goalkeeping, primary: true },
-      { label: 'Defence', val: p.defence, primary: false },
-      { label: 'Midfield', val: p.midfield, primary: false },
-      { label: 'Attack', val: p.attack, primary: false },
-    ];
-    if (g === 'DEF') return [
-      { label: 'Defence', val: p.defence, primary: true },
-      { label: 'Midfield', val: p.midfield, primary: false },
-      { label: 'Attack', val: p.attack, primary: false },
-    ];
-    if (g === 'MID') return [
-      { label: 'Midfield', val: p.midfield, primary: true },
-      { label: 'Attack', val: p.attack, primary: false },
-      { label: 'Defence', val: p.defence, primary: false },
-    ];
-    return [
-      { label: 'Attack', val: p.attack, primary: true },
-      { label: 'Midfield', val: p.midfield, primary: false },
-      { label: 'Defence', val: p.defence, primary: false },
-    ];
+  const swapSections = $derived.by(() => {
+    if (swapSlotIdx === null) return null;
+    const slot = slots[swapSlotIdx];
+    const currentPlayer = assignment[swapSlotIdx];
+    const naturalPositions = SWAP_POS_MAP[slot.p] ?? [slot.p];
+    const slotGroup = posGroup(slot.p);
+    const candidates = players.filter(p => !p.injured && !p.suspended && p.id !== currentPlayer?.id);
+
+    const naturalFit = [], versatile = [], outOfPos = [];
+    candidates.forEach(p => {
+      const isInXI = assignment.some((ap, i) => ap?.id === p.id && i !== swapSlotIdx);
+      const isNatural = naturalPositions.includes(p.position);
+      const pGroup = posGroup(p.position);
+      const entry = { player: p, isInXI, isNatural };
+      if (isNatural) naturalFit.push(entry);
+      else if (pGroup === slotGroup || (slotGroup === 'MID' && pGroup === 'ATT') || (slotGroup === 'ATT' && pGroup === 'MID')) versatile.push(entry);
+      else outOfPos.push(entry);
+    });
+    const sortGroup = arr => arr.sort((a, b) => (a.isInXI !== b.isInXI ? (a.isInXI ? 1 : -1) : primaryRating(b.player) - primaryRating(a.player)));
+    sortGroup(naturalFit); sortGroup(versatile); sortGroup(outOfPos);
+
+    return { slot, currentPlayer, naturalFit, versatile, outOfPos };
   });
 
-  const sheetStats = $derived.by(() => {
-    const p = sheetPlayer;
-    if (!p) return [];
-    const isGK = p.position === 'GK';
-    const isDEF = posGroup(p.position) === 'DEF';
-    const out = [];
-    if (!isGK) out.push({ label: 'Goals', val: p.goals ?? 0 });
-    if (!isGK) out.push({ label: 'Assists', val: p.assists ?? 0 });
-    if (isGK || isDEF) out.push({ label: 'Clean Sheets', val: p.cleanSheets ?? 0 });
-    return out;
-  });
+  async function applySwap(newPlayer) {
+    const idx = swapSlotIdx;
+    closeSwap();
+    await applySwapAt(idx, newPlayer);
+  }
+  async function applySwapAt(idx, newPlayer) {
+    const currentPlayer = assignment[idx];
+    const otherIdx = assignment.findIndex((ap, i) => ap?.id === newPlayer.id && i !== idx);
+    const newAssignment = [...assignment];
+    newAssignment[idx] = newPlayer;
+    if (otherIdx >= 0) newAssignment[otherIdx] = currentPlayer ?? null;
+
+    const sv = await getSave();
+    const lineup = newAssignment.filter(Boolean).map(p => p.id);
+    await putSave({ ...sv, lineup, formation });
+    toast(`${newPlayer.name} → ${slots[idx].p} slot`, 'success', 2000);
+    screenTicks.squad++;
+  }
 </script>
 
-<div class="squad-screen">
-  <div class="sq-hdr">
-    <div>
-      <div class="sq-eyebrow">Squad Management</div>
-      <div class="sq-title">My Squad</div>
-    </div>
-    <div class="sq-hdr-right">
-      {#if team}
-        <div class="sq-team-name">{team.name}</div>
-        <div class="sq-team-count">{players.length} registered</div>
-      {/if}
-      <button class="quick-btn" onclick={() => navigateTo('tactics')}>Tactics</button>
-    </div>
-  </div>
+<svelte:window onclick={(e) => { if (!e.target.closest?.('.tac-dropdown')) { formationOpen = false; mentalityOpen = false; } }} />
 
+<div class="tactics-screen">
   {#if !loaded}
-    <div class="sq-empty">Loading…</div>
+    <div class="tac-empty">Loading…</div>
   {:else}
-    <div class="sq-scroll">
-      {#each groups as group (group.key)}
-        <div class="sq-group">
-          <div class="sq-group-hdr">
-            <span>{group.label}</span>
-            <span class="sq-group-count">{group.players.length}</span>
-          </div>
-          {#each group.players as p (p.id)}
-            {@const inSquad = p.inSquad !== false}
-            {@const isListed = p.transferListed === true}
-            {@const r = primaryRating(p)}
-            {@const fitness = Math.round(p.fitness ?? 90)}
-            {@const potStars = getPotentialStars ? getPotentialStars(p) : 0}
-            <div
-              class="player-row {p.injured ? 'is-injured' : ''} {!inSquad ? 'is-excluded' : ''}"
-              role="button"
-              tabindex="0"
-              onclick={() => openSheet(p)}
-              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSheet(p); } }}
-            >
-              <div class="row-rating" style="color:{ratingColor(r)}">{r}</div>
-              <div class="row-main">
-                <div class="row-name-line">
-                  <span class="pos-badge pos-{group.key}">{p.position}</span>
-                  <span class="row-name">{p.name}</span>
-                  {#if p.injured}<span class="sq-inj-badge">INJ</span>{/if}
-                  {#if isListed}<span class="sq-listed-badge">TL</span>{/if}
-                  {#if p.isWonderkid}<span class="wk-star" title="Wonderkid">★</span>{/if}
-                </div>
-                <div class="row-meta-line">
-                  <span>Age {p.age}</span>
-                  <span style="color:{fitnessColor(fitness)}">{fitness}% fit</span>
-                  {#if potStars}<span class="pot-stars" style="color:{POT_COLORS[potStars]}">{'★'.repeat(potStars)}</span>{/if}
-                </div>
-              </div>
-              <div class="row-value">{fmt.money(formAdjustedValue ? formAdjustedValue(p) : p.value)}</div>
-              <div class="row-actions">
-                <button class="chip {inSquad ? 'chip-on' : 'chip-off'}" onclick={(e) => { e.stopPropagation(); toggleSquad(p); }}>
-                  {inSquad ? 'Active' : 'Excl'}
-                </button>
-                <button class="chip {isListed ? 'chip-listed' : ''}" onclick={(e) => { e.stopPropagation(); toggleListed(p); }}>
-                  {isListed ? 'Unlist' : 'List'}
-                </button>
-              </div>
+    <header class="chalk-header">
+      <div><span>Squad · tactics</span><strong>{team?.name ?? 'Your XI'}</strong></div>
+      <button class="roster-button" onclick={() => rosterOpen = true}>{players.length} players</button>
+    </header>
+    <div class="tac-controls">
+      <div class="tac-dd-half">
+        <div class="tac-dd-label">Formation</div>
+        <div class="tac-dropdown">
+          <button class="tac-dd-btn" onclick={() => { mentalityOpen = false; formationOpen = !formationOpen; }}>
+            <span class="tac-dd-val">{formation}</span>
+            <span class="tac-dd-arrow" class:open={formationOpen}>▾</span>
+          </button>
+          {#if formationOpen}
+            <div class="tac-dd-list">
+              {#each formationGroups as g (g.label)}
+                {#if g.formations.length}
+                  <div class="tac-dd-group-hdr">{g.label}</div>
+                  {#each g.formations as f (f)}
+                    <button class="tac-dd-option {f === formation ? 'tac-dd-active' : ''}" onclick={() => pickFormation(f)}>
+                      <span>{f}</span>
+                      {#if f === formation}<span class="tac-dd-check">✓</span>{/if}
+                    </button>
+                  {/each}
+                {/if}
+              {/each}
             </div>
+          {/if}
+        </div>
+      </div>
+      <div class="tac-dd-half">
+        <div class="tac-dd-label">Mentality</div>
+        <div class="tac-dropdown">
+          <button class="tac-dd-btn" onclick={() => { formationOpen = false; mentalityOpen = !mentalityOpen; }}>
+            <span class="m-pill-tag">{curMentObj.label}</span>
+            <span class="tac-dd-val">{curMentObj.fullLabel}</span>
+            <span class="tac-dd-arrow" class:open={mentalityOpen}>▾</span>
+          </button>
+          {#if mentalityOpen}
+            <div class="tac-dd-list">
+              {#each MENTALITIES.filter(m => m.id !== mentality) as m (m.id)}
+                <button class="tac-dd-option m-option" onclick={() => pickMentality(m)}>
+                  <span class="m-pill-tag">{m.label}</span>
+                  <span class="m-dd-opt-info">
+                    <span class="m-dd-opt-label">{m.fullLabel}</span>
+                    <span class="m-dd-opt-desc">{m.desc}</span>
+                  </span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <div class="tac-pitch-area">
+      <div class="pitch-wrap">
+        <div class="pitch-bg">
+          <div class="pitch-line half"></div>
+          <div class="pitch-circle"></div>
+          <div class="pitch-box top"></div><div class="pitch-box bot"></div>
+          <div class="pitch-six top"></div><div class="pitch-six bot"></div>
+          <div class="pitch-arc top"></div><div class="pitch-arc bot"></div>
+          <div class="pitch-spot top"></div><div class="pitch-spot bot"></div><div class="pitch-spot mid"></div>
+          {#each slots as slot, i (i)}
+            {@const pl = assignment[i]}
+            {@const g = pl ? posGroup(pl.position) : posGroup(slot.p)}
+            <button class="pitch-slot" style="left:{slot.x}%;top:{slot.y}%" draggable={!!pl} onclick={() => openSlotSwap(i)} ondragstart={() => beginDrag(pl)} ondragover={(e) => e.preventDefault()} ondrop={() => dropOnSlot(i)} aria-label="{slot.p} slot">
+              <div class="slot-inner pos-{g} {!pl ? 'pos-empty' : ''} {pl?.injured ? 'slot-injured' : ''}">
+                {#if pl}
+                  <div class="slot-rating">{primaryRating(pl)}</div>
+                  <div class="slot-pos">{pl.position}</div>
+                  {#if pl.injured}<div class="slot-inj-tag">INJ</div>{/if}
+                {:else}
+                  <div class="slot-pos slot-empty-lbl">{slot.p}</div>
+                {/if}
+              </div>
+              {#if pl}<div class="slot-name">{pl.name.split(' ').slice(-1)[0]}</div>{/if}
+            </button>
           {/each}
         </div>
-      {/each}
+      </div>
+    </div>
+
+    <div class="tac-bench-strip">
+      <div class="tac-bench-label">Bench</div>
+      <div class="tac-bench-players">
+        {#each bench as p (p.id)}
+          {@const g = posGroup(p.position)}
+          {@const fit = Math.round(p.fitness ?? 90)}
+          <button class="tac-bench-card" draggable="true" ondragstart={() => beginDrag(p)} onclick={() => openBenchSwap(p)} title="{p.name} · {p.position} · {primaryRating(p)}">
+            <div class="tac-bench-avatar pos-{g}">{p.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</div>
+            <div class="tac-bench-pos">{p.position}</div>
+            <div class="tac-bench-name">{p.name.split(' ').slice(-1)[0]}</div>
+            <div class="tac-bench-rat">{primaryRating(p)}</div>
+            <div class="tac-bench-fit" style="color:{fitnessColor(fit)}">{fit}%</div>
+          </button>
+        {/each}
+      </div>
     </div>
   {/if}
 </div>
 
-{#if sheetPlayer}
-  {@const p = sheetPlayer}
-  {@const inSquad = p.inSquad !== false}
-  {@const isListed = p.transferListed === true}
-  {@const r = primaryRating(p)}
-  {@const fitness = Math.round(p.fitness ?? 90)}
-  {@const fl = formLabel(p)}
-  {@const potStars = getPotentialStars ? getPotentialStars(p) : 0}
-  {@const potLabel = getPotentialLabel ? getPotentialLabel(p) : ''}
-  {@const yearsLeft = save ? contractYearsRemaining(p, save) : null}
-  <button class="sheet-backdrop" onclick={closeSheet} aria-label="Close"></button>
+{#if swapSections}
+  <button class="sheet-backdrop" onclick={closeSwap} aria-label="Close"></button>
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-hdr">
-      <div class="sheet-rating" style="color:{ratingColor(r)}">{r}</div>
-      <div class="sheet-hdr-info">
-        <div class="sheet-name">{p.name}</div>
-        <div class="sheet-badges">
-          <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
-          <span class="sheet-age">Age {p.age}</span>
-          <span class="form-badge form-{fl.cls}">{fl.text}</span>
-          {#if p.isWonderkid}<span class="sq-wonderkid-tag">WONDERKID</span>{/if}
-          {#if p.injured}<span class="sq-inj-badge">INJURED</span>{/if}
+    <div class="swap-hdr">
+      <span class="swap-title">{swapSections.slot.p} Slot</span>
+      <button class="sheet-close" onclick={closeSwap} aria-label="Close">✕</button>
+    </div>
+    {#if swapSections.currentPlayer}
+      {@const cp = swapSections.currentPlayer}
+      <div class="swap-current">
+        <span class="pos-badge pos-{posGroup(cp.position)}">{cp.position}</span>
+        <div>
+          <div class="swap-current-name">{cp.name}</div>
+          <div class="swap-current-meta">Current · Rating {primaryRating(cp)} · Fitness {Math.round(cp.fitness ?? 90)}%</div>
         </div>
-        {#if potStars}
-          <div class="pot-line" style="color:{POT_COLORS[potStars]}">
-            {'★'.repeat(potStars)}{'☆'.repeat(5 - potStars)} <span class="pot-label">{potLabel}</span>
-          </div>
-        {/if}
-      </div>
-      <button class="sheet-close" onclick={closeSheet} aria-label="Close">✕</button>
-    </div>
-
-    <div class="sheet-facts">
-      <div class="fact"><span>Form Value</span><strong>{fmt.money(formAdjustedValue ? formAdjustedValue(p) : p.value)}</strong></div>
-      <div class="fact"><span>Wage</span><strong>{fmt.wage(p.wage)}</strong></div>
-      <div class="fact"><span>Fitness</span><strong style="color:{fitnessColor(fitness)}">{fitness}%</strong></div>
-      <div class="fact"><span>Peak Age</span><strong>{p.peakAge ?? '—'}</strong></div>
-      {#if yearsLeft !== null}
-        <div class="fact"><span>Contract</span><strong style={yearsLeft <= 1 ? 'color:var(--color-bad)' : ''}>{yearsLeft <= 0 ? 'Expiring' : yearsLeft === 1 ? '1 year left' : yearsLeft + ' years left'}</strong></div>
-      {/if}
-      {#if p.purchasedFor}<div class="fact"><span>Paid</span><strong>{fmt.money(p.purchasedFor)}</strong></div>{/if}
-    </div>
-
-    {#if sheetStats.length}
-      <div class="sheet-stats">
-        {#each sheetStats as s (s.label)}
-          <div class="stat-box"><div class="stat-lbl">{s.label}</div><div class="stat-val">{s.val}</div></div>
-        {/each}
       </div>
     {/if}
-
-    <div class="sheet-attrs">
-      <div class="attrs-title">Attributes</div>
-      {#each sheetAttrs as a (a.label)}
-        <div class="attr-row">
-          <div class="attr-lbl">{a.label}</div>
-          <div class="attr-bar-track"><div class="attr-bar" class:primary={a.primary} style="width:{Math.round((a.val / 99) * 100)}%"></div></div>
-          <div class="attr-val" style={a.primary ? 'color:var(--color-live)' : ''}>{a.val}</div>
-        </div>
+    <div class="swap-list">
+      {#each [['Best fit for ' + swapSections.slot.p, swapSections.naturalFit], ['Can play here', swapSections.versatile], ['Out of position', swapSections.outOfPos]] as [heading, entries] (heading)}
+        {#if entries.length}
+          <div class="swap-section-hdr">{heading}</div>
+          {#each entries as entry (entry.player.id)}
+            {@const p = entry.player}
+            {@const fit = Math.round(p.fitness ?? 90)}
+            <button class="swap-row {entry.isInXI ? 'dimmed' : ''} {swapPreselectId === p.id ? 'swap-presel' : ''}" onclick={() => applySwap(p)}>
+              <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
+              <span class="swap-row-info">
+                <span class="swap-row-name">{p.name}</span>
+                <span class="swap-row-meta">Age {p.age}{#if p.goals}{' · ' + p.goals + 'G'}{/if}{#if p.assists}{' · ' + p.assists + 'A'}{/if}</span>
+              </span>
+              {#if entry.isInXI}<span class="swap-row-badge">IN XI</span>{/if}
+              <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span>
+              <span class="swap-row-rat" style="color:{entry.isNatural ? 'var(--color-live)' : 'var(--color-tx-2)'}">{primaryRating(p)}</span>
+            </button>
+          {/each}
+        {/if}
       {/each}
     </div>
+  </div>
+{/if}
 
-    <div class="sheet-actions">
-      {#if yearsLeft !== null && !p.onLoan}
-        <button class="btn-full btn-primary" onclick={() => renewPlayerContract(p)}>
-          Renew Contract (3 yrs)
+{#if rosterOpen}
+  <button class="sheet-backdrop" onclick={() => rosterOpen = false} aria-label="Close roster"></button>
+  <div class="sheet roster-sheet">
+    <div class="sheet-handle"></div>
+    <div class="swap-hdr"><span class="swap-title">Your squad</span><button class="sheet-close" onclick={() => rosterOpen = false} aria-label="Close">✕</button></div>
+    <div class="swap-list">
+      {#each [...players].sort((a, b) => primaryRating(b) - primaryRating(a)) as p (p.id)}
+        {@const fit = Math.round(p.fitness ?? 90)}
+        <button class="swap-row" onclick={() => openPlayer(p)}>
+          <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
+          <span class="swap-row-info"><span class="swap-row-name">{p.name}</span><span class="swap-row-meta">Age {p.age}{p.injured ? ' · Injured' : ''}{p.transferListed ? ' · Listed' : ''}</span></span>
+          <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span><span class="swap-row-rat">{primaryRating(p)}</span>
         </button>
-      {/if}
-      <button class="btn-full {inSquad ? 'btn-warn' : 'btn-primary'}" onclick={() => toggleSquad(p)}>
-        {inSquad ? 'Exclude from Squad' : 'Add to Squad'}
-      </button>
-      <button class="btn-full btn-secondary" onclick={() => toggleListed(p)}>
-        {isListed ? 'Remove from List' : 'List for Transfer'}
-      </button>
+      {/each}
+    </div>
+  </div>
+{/if}
+
+{#if playerSheet}
+  {@const p = playerSheet}
+  {@const fit = Math.round(p.fitness ?? 90)}
+  {@const yearsLeft = save ? contractYearsRemaining(p, save) : null}
+  <button class="sheet-backdrop" onclick={closePlayer} aria-label="Close player"></button>
+  <div class="sheet player-sheet">
+    <div class="sheet-handle"></div>
+    <div class="swap-hdr"><div><span class="swap-title">{p.name}</span><div class="player-sub"><span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span> Age {p.age} · {fit}% fit</div></div><button class="sheet-close" onclick={closePlayer} aria-label="Close">✕</button></div>
+    <div class="player-metrics"><div><span>Rating</span><strong>{primaryRating(p)}</strong></div><div><span>Value</span><strong>{fmt.money(p.value)}</strong></div><div><span>Wage</span><strong>{fmt.wage(p.wage)}</strong></div>{#if yearsLeft !== null}<div><span>Contract</span><strong>{yearsLeft <= 0 ? 'Expiring' : yearsLeft + ' yrs'}</strong></div>{/if}</div>
+    <div class="player-attributes"><div><span>GK</span><strong>{p.goalkeeping ?? 0}</strong></div><div><span>DEF</span><strong>{p.defence ?? 0}</strong></div><div><span>MID</span><strong>{p.midfield ?? 0}</strong></div><div><span>ATT</span><strong>{p.attack ?? 0}</strong></div></div>
+    <div class="player-actions">
+      {#if yearsLeft !== null && !p.onLoan}<button class="player-primary" onclick={() => renewPlayerContract(p)}>Renew contract</button>{/if}
+      <button onclick={() => toggleSquad(p)}>{p.inSquad === false ? 'Add to squad' : 'Exclude from squad'}</button>
+      <button onclick={() => toggleListed(p)}>{p.transferListed ? 'Remove from transfer list' : 'List for transfer'}</button>
     </div>
   </div>
 {/if}
 
 <style>
-  .squad-screen {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    font-family: var(--font-body);
-    color: var(--color-tx);
+  .tactics-screen { display: flex; flex-direction: column; flex: 1; min-height: 0; font-family: var(--font-body); color: var(--color-tx); }
+  .tac-empty { color: var(--color-tx-3); font-size: 12px; padding: 24px; text-align: center; }
+  .chalk-header { display:flex; justify-content:space-between; align-items:end; padding:16px 16px 0; flex-shrink:0; }
+  .chalk-header span { display:block; color:var(--color-club); font:700 9px/1 var(--font-mono); letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; }
+  .chalk-header strong { display:block; font:700 25px/1 var(--font-display); letter-spacing:.03em; }
+  .roster-button { min-height:44px; padding:0 12px; color:var(--color-tx-2); background:var(--color-surface); border:1px solid var(--color-line); border-radius:999px; cursor:pointer; font:600 11px var(--font-mono); }
+
+  .tac-controls { display: flex; gap: 10px; padding: 14px 16px; flex-shrink: 0; position: relative; z-index: 10; }
+  .tac-dd-half { flex: 1; position: relative; }
+  .tac-dd-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 4px; }
+  .tac-dropdown { position: relative; }
+  .tac-dd-btn {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px;
+    padding: 10px 12px; min-height: 44px; color: var(--color-tx); cursor: pointer;
   }
-
-  .sq-hdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 16px 12px; flex-shrink: 0; }
-  .sq-eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--color-club); margin-bottom: 3px; }
-  .sq-title { font-family: var(--font-display); font-size: clamp(22px, 5vw, 28px); letter-spacing: 1px; line-height: 1; }
-  .sq-hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-  .sq-team-name { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.5px; }
-  .sq-team-count { font-size: 10px; color: var(--color-tx-3); }
-  .quick-btn { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-surface); color: var(--color-tx-2); font-size: 11px; font-weight: 600; cursor: pointer; min-height: 44px; }
-  .quick-btn:hover { color: var(--color-tx); background: var(--color-raised); }
-
-  .sq-empty { color: var(--color-tx-3); font-size: 12px; padding: 24px; text-align: center; }
-
-  .sq-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 24px; }
-
-  .sq-group { margin-bottom: 14px; }
-  .sq-group-hdr {
-    display: flex; justify-content: space-between; align-items: center;
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-    color: var(--color-tx-3); padding: 8px 4px;
+  .tac-dd-val { flex: 1; text-align: left; font-family: var(--font-display); font-size: 15px; letter-spacing: 0.5px; }
+  .tac-dd-arrow { color: var(--color-tx-3); transition: transform 0.15s; }
+  .tac-dd-arrow.open { transform: rotate(180deg); }
+  .m-pill-tag {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px;
+    background: var(--color-raised); color: var(--color-club); flex-shrink: 0;
   }
-  .sq-group-count { font-family: var(--font-mono); }
-
-  .player-row {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    cursor: pointer;
-    min-height: 44px;
+  .tac-dd-list {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+    background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 10px;
+    max-height: 320px; overflow-y: auto; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   }
-  .player-row:hover { background: var(--color-raised); }
-  .player-row.is-injured { border-color: color-mix(in oklch, var(--color-bad) 40%, var(--color-line)); }
-  .player-row.is-excluded { opacity: 0.55; }
+  .tac-dd-group-hdr { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--color-tx-3); padding: 6px 8px 2px; }
+  .tac-dd-option, .m-option {
+    width: 100%; display: flex; align-items: center; gap: 8px; text-align: left;
+    background: none; border: none; color: var(--color-tx); font-size: 12px;
+    padding: 8px; border-radius: 7px; cursor: pointer; min-height: 36px;
+  }
+  .tac-dd-option:hover, .m-option:hover { background: var(--color-surface); }
+  .tac-dd-option.tac-dd-active { color: var(--color-club); }
+  .tac-dd-check { margin-left: auto; color: var(--color-club); }
+  .m-dd-opt-info { display: flex; flex-direction: column; }
+  .m-dd-opt-label { font-weight: 600; }
+  .m-dd-opt-desc { font-size: 10px; color: var(--color-tx-3); }
 
-  .row-rating { font-family: var(--font-display); font-size: 26px; line-height: 1; min-width: 34px; text-align: center; flex-shrink: 0; }
+  .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 12px; }
+  .pitch-wrap { width: 100%; max-width: 420px; aspect-ratio: 68/100; margin: 0 auto; }
+  .pitch-bg {
+    position: relative; width: 100%; height: 100%;
+    background: linear-gradient(180deg, var(--color-turf), var(--color-turf-2));
+    border: 2px solid rgba(255,255,255,0.18); border-radius: 8px; overflow: hidden;
+  }
+  .pitch-line.half { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.18); }
+  .pitch-circle { position: absolute; top: 50%; left: 50%; width: 22%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.18); border-radius: 50%; transform: translate(-50%, -50%); }
+  .pitch-spot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.3); left: 50%; transform: translate(-50%, -50%); }
+  .pitch-spot.mid { top: 50%; }
+  .pitch-spot.top { top: 15%; }
+  .pitch-spot.bot { top: 85%; }
+  .pitch-box { position: absolute; left: 21%; width: 58%; height: 16%; border: 1px solid rgba(255,255,255,0.18); }
+  .pitch-box.top { top: 0; border-top: none; }
+  .pitch-box.bot { bottom: 0; border-bottom: none; }
+  .pitch-six { position: absolute; left: 36%; width: 28%; height: 7%; border: 1px solid rgba(255,255,255,0.18); }
+  .pitch-six.top { top: 0; border-top: none; }
+  .pitch-six.bot { bottom: 0; border-bottom: none; }
+  .pitch-arc { position: absolute; left: 36%; width: 28%; height: 6%; border: 1px solid rgba(255,255,255,0.18); border-radius: 0 0 50% 50% / 0 0 100% 100%; }
+  .pitch-arc.top { top: 16%; border-top: none; }
+  .pitch-arc.bot { bottom: 16%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-bottom: none; }
 
-  .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .row-name-line { line-height: 1.5; word-break: break-word; }
-  .row-name { font-size: 14px; font-weight: 600; vertical-align: middle; }
-  .row-meta-line { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--color-tx-2); font-family: var(--font-mono); }
+  .pitch-slot {
+    position: absolute; transform: translate(-50%, -50%);
+    width: 44px; min-height: 58px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: none; border: none; cursor: pointer; padding: 0;
+  }
+  .slot-inner {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 2px solid; background: var(--color-surface);
+  }
+  .slot-inner.pos-GK { border-color: #7c83e8; }
+  .slot-inner.pos-DEF { border-color: var(--color-live); }
+  .slot-inner.pos-MID { border-color: var(--color-warn); }
+  .slot-inner.pos-ATT { border-color: var(--color-bad); }
+  .slot-inner.pos-empty { border-color: var(--color-line); border-style: dashed; background: rgba(255,255,255,0.04); }
+  .slot-inner.slot-injured { box-shadow: 0 0 0 2px var(--color-bad); }
+  .slot-rating { font-family: var(--font-display); font-size: 15px; line-height: 1; color: var(--color-tx); }
+  .slot-pos { font-family: var(--font-mono); font-size: 8px; color: var(--color-tx-2); }
+  .slot-empty-lbl { color: var(--color-tx-3); font-size: 9px; }
+  .slot-inj-tag { position: absolute; top: -6px; font-size: 7px; font-family: var(--font-mono); font-weight: 700; color: var(--color-bad); background: var(--color-surface); padding: 0 3px; border-radius: 3px; }
+  .slot-name { font-size: 9px; color: var(--color-tx); background: rgba(0,0,0,0.55); padding: 1px 5px; border-radius: 4px; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+
+  .tac-bench-strip { flex-shrink: 0; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .tac-bench-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 8px; }
+  .tac-bench-players { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior: contain; padding-bottom: 4px; }
+  .tac-bench-card {
+    flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; padding: 8px 4px;
+    cursor: pointer; color: var(--color-tx);
+  }
+  .tac-bench-avatar {
+    width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700; border: 1px solid; background: var(--color-raised);
+  }
+  .tac-bench-avatar.pos-GK { color: #7c83e8; border-color: #7c83e8; }
+  .tac-bench-avatar.pos-DEF { color: var(--color-live); border-color: var(--color-live); }
+  .tac-bench-avatar.pos-MID { color: var(--color-warn); border-color: var(--color-warn); }
+  .tac-bench-avatar.pos-ATT { color: var(--color-bad); border-color: var(--color-bad); }
+  .tac-bench-pos { font-size: 8px; color: var(--color-tx-3); font-family: var(--font-mono); }
+  .tac-bench-name { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+  .tac-bench-rat { font-family: var(--font-display); font-size: 13px; }
+  .tac-bench-fit { font-size: 8px; font-family: var(--font-mono); }
 
   .pos-badge {
-    display: inline-block; vertical-align: middle; margin-right: 6px;
     font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
     padding: 2px 6px; border-radius: 5px; flex-shrink: 0;
     background: var(--color-raised); color: var(--color-tx-2); border: 1px solid var(--color-line);
@@ -327,95 +502,48 @@
   .pos-badge.pos-GK { color: #7c83e8; }
   .pos-badge.pos-DEF { color: var(--color-live); }
   .pos-badge.pos-MID { color: var(--color-warn); }
-  .pos-badge.pos-FWD { color: var(--color-bad); }
+  .pos-badge.pos-ATT { color: var(--color-bad); }
 
-  .sq-inj-badge, .sq-listed-badge, .sq-wonderkid-tag {
-    display: inline-block; vertical-align: middle;
-    font-size: 9px; font-family: var(--font-mono); font-weight: 700; padding: 1px 5px; border-radius: 4px; flex-shrink: 0;
-  }
-  .sq-inj-badge { background: color-mix(in oklch, var(--color-bad) 20%, transparent); color: var(--color-bad); }
-  .sq-listed-badge { background: color-mix(in oklch, var(--color-warn) 20%, transparent); color: var(--color-warn); }
-  .sq-wonderkid-tag { background: linear-gradient(135deg, var(--color-warn), var(--color-bad)); color: #14171c; }
-  .wk-star { display: inline-block; vertical-align: middle; color: var(--color-warn); font-size: 11px; }
-  .pot-stars { font-size: 10px; }
-  .row-name-line .sq-inj-badge, .row-name-line .sq-listed-badge, .row-name-line .wk-star { margin-left: 6px; }
-
-  .row-value { font-family: var(--font-mono); font-size: 12px; color: var(--color-tx-2); text-align: right; flex-shrink: 0; min-width: 54px; }
-
-  .row-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
-  .chip {
-    font-family: var(--font-body); font-size: 10px; font-weight: 600;
-    padding: 5px 9px; border-radius: 7px; min-height: 26px;
-    border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2);
-    cursor: pointer; white-space: nowrap;
-  }
-  .chip-on { color: var(--color-live); border-color: color-mix(in oklch, var(--color-live) 40%, var(--color-line)); }
-  .chip-off { color: var(--color-tx-3); }
-  .chip-listed { color: var(--color-warn); border-color: color-mix(in oklch, var(--color-warn) 40%, var(--color-line)); }
-
-  /* ── Bottom sheet ─────────────────────────────────────────── */
-  .sheet-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-    z-index: 900; animation: fade-in 0.2s ease;
-    border: none; padding: 0; cursor: default;
-  }
+  /* ── Bottom sheet (swap picker) ───────────────────────────── */
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 900; animation: fade-in 0.2s ease; border: none; padding: 0; cursor: default; }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 901;
-    max-height: 86dvh; overflow-y: auto; overscroll-behavior: contain;
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-bottom: none;
-    border-radius: 18px 18px 0 0;
-    padding: 10px 18px calc(20px + env(safe-area-inset-bottom));
-    animation: slide-up 0.22s ease;
-    font-family: var(--font-body);
-    color: var(--color-tx);
+    max-height: 80dvh; display: flex; flex-direction: column;
+    background: var(--color-surface); border: 1px solid var(--color-line); border-bottom: none;
+    border-radius: 18px 18px 0 0; padding: 10px 18px calc(16px + env(safe-area-inset-bottom));
+    animation: slide-up 0.22s ease; font-family: var(--font-body); color: var(--color-tx);
   }
   @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet { animation: none; } }
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--color-line); margin: 4px auto 14px; }
-
-  .sheet-hdr { display: flex; align-items: flex-start; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--color-line); }
-  .sheet-rating { font-family: var(--font-display); font-size: 40px; line-height: 1; flex-shrink: 0; }
-  .sheet-hdr-info { flex: 1; min-width: 0; }
-  .sheet-name { font-family: var(--font-display); font-size: 19px; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .sheet-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .sheet-age { font-size: 11px; color: var(--color-tx-2); }
-  .form-badge { font-size: 10px; font-family: var(--font-mono); padding: 1px 6px; border-radius: 5px; }
-  .form-badge.form-hot { background: color-mix(in oklch, var(--color-bad) 18%, transparent); color: var(--color-bad); }
-  .form-badge.form-good { background: color-mix(in oklch, var(--color-live) 18%, transparent); color: var(--color-live); }
-  .form-badge.form-avg { background: var(--color-raised); color: var(--color-tx-2); }
-  .pot-line { font-size: 11px; margin-top: 6px; }
-  .pot-label { color: var(--color-tx-2); font-size: 10px; }
-  .sheet-close {
-    width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px;
-    border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2);
-    cursor: pointer; font-size: 14px;
+  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--color-line); margin: 4px auto 12px; flex-shrink: 0; }
+  .swap-hdr { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; margin-bottom: 10px; }
+  .swap-title { font-family: var(--font-display); font-size: 17px; letter-spacing: 0.5px; }
+  .sheet-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); cursor: pointer; font-size: 14px; flex-shrink: 0; }
+  .swap-current { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--color-raised); border-radius: 10px; margin-bottom: 8px; flex-shrink: 0; }
+  .swap-current-name { font-size: 13px; font-weight: 600; }
+  .swap-current-meta { font-size: 10px; color: var(--color-tx-3); }
+  .swap-list { overflow-y: auto; overscroll-behavior: contain; }
+  .swap-section-hdr { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); padding: 10px 4px 4px; }
+  .swap-row {
+    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+    background: none; border: 1px solid transparent; border-radius: 10px; padding: 8px; cursor: pointer;
+    color: var(--color-tx); min-height: 44px;
   }
-
-  .sheet-facts { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 14px 0; border-bottom: 1px solid var(--color-line); }
-  .fact { font-size: 11px; color: var(--color-tx-2); display: flex; gap: 6px; }
-  .fact strong { color: var(--color-tx); font-weight: 700; }
-
-  .sheet-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--color-line); }
-  .stat-box { background: var(--color-raised); border-radius: 10px; padding: 10px; text-align: center; }
-  .stat-lbl { font-size: 9px; color: var(--color-tx-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .stat-val { font-family: var(--font-display); font-size: 20px; }
-
-  .sheet-attrs { padding: 14px 0; }
-  .attrs-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 10px; }
-  .attr-row { display: grid; grid-template-columns: 82px 1fr 28px; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .attr-lbl { font-size: 11px; color: var(--color-tx-2); }
-  .attr-bar-track { height: 7px; border-radius: 4px; background: var(--color-raised); overflow: hidden; }
-  .attr-bar { height: 100%; border-radius: 4px; background: var(--color-tx-2); }
-  .attr-bar.primary { background: linear-gradient(90deg, var(--color-club), var(--color-live)); }
-  .attr-val { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-align: right; }
-
-  .sheet-actions { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
-  .btn-full { min-height: 44px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-body); }
-  .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
-  .btn-warn { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-warn); }
-  .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }
+  .swap-row:hover { background: var(--color-raised); }
+  .swap-row.dimmed { opacity: 0.55; }
+  .swap-row.swap-presel { border-color: var(--color-club); }
+  .swap-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .swap-row-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swap-row-meta { font-size: 10px; color: var(--color-tx-3); }
+  .swap-row-badge { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); background: var(--color-raised); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+  .swap-row-fit { font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; }
+  .swap-row-rat { font-family: var(--font-display); font-size: 15px; min-width: 24px; text-align: right; flex-shrink: 0; }
+  .roster-sheet { max-height:86dvh; }
+  .player-sheet { max-height:70dvh; }
+  .player-sub { display:flex; align-items:center; gap:7px; margin-top:7px; font-size:11px; color:var(--color-tx-3); }
+  .player-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--color-line); border:1px solid var(--color-line); border-radius:10px; overflow:hidden; }
+  .player-metrics div { background:var(--color-raised); padding:10px; } .player-metrics span { display:block; color:var(--color-tx-3); font:9px var(--font-mono); letter-spacing:1px; text-transform:uppercase; } .player-metrics strong { display:block; margin-top:4px; font:17px var(--font-display); }
+  .player-attributes { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; } .player-attributes div { padding:9px 4px; text-align:center; background:var(--color-raised); border:1px solid var(--color-line); border-radius:8px; } .player-attributes span { display:block; color:var(--color-tx-3); font:8px var(--font-mono); } .player-attributes strong { display:block; margin-top:3px; font:15px var(--font-display); }
+  .player-actions { display:grid; gap:8px; margin-top:14px; } .player-actions button { min-height:44px; color:var(--color-tx); background:var(--color-raised); border:1px solid var(--color-line); border-radius:9px; cursor:pointer; font:600 12px var(--font-body); } .player-actions .player-primary { color:var(--color-on-accent); background:var(--color-accent); border-color:var(--color-accent); }
 </style>

@@ -73,7 +73,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .main{margin-left:var(--nav);flex:1;height:100vh;overflow:hidden;position:relative}
 .screen{position:absolute;inset:0;overflow-y:auto;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .3s ease,transform .3s var(--ease);-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .screen.active{opacity:1;pointer-events:all;transform:translateY(0)}
-.screen#screen-academy,.screen#screen-tactics,.screen#screen-trophies,.screen#screen-settings,.screen#screen-transfers,.screen#screen-competitions,.screen#screen-inbox{overflow:hidden;display:flex;flex-direction:column}
+.screen#screen-academy,.screen#screen-trophies,.screen#screen-settings,.screen#screen-transfers,.screen#screen-competitions,.screen#screen-inbox{overflow:hidden;display:flex;flex-direction:column}
 .screen::-webkit-scrollbar{width:3px}
 .screen::-webkit-scrollbar-thumb{background:var(--sur3);border-radius:3px}
 
@@ -354,7 +354,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   <div class="logo">P</div>
   <div class="nav-item" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="tip">Home</span></div>
   <div class="nav-item" data-nav="squad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="tip">Squad</span></div>
-  <div class="nav-item" data-nav="tactics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span class="tip">Tactics</span></div>
   <div class="nav-sep"></div>
   <div class="nav-item" data-nav="transfers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span class="tip">Transfers</span></div>
   <div class="nav-item" data-nav="competitions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg><span class="tip">League</span></div>
@@ -367,9 +366,8 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 </nav>
 
 <!-- MOBILE NAV — Svelte TabBar (src/lib/ui/TabBar.svelte), mounted in main.js.
-     Nine legacy screens fold into five destinations here (Broadcast Kit,
-     docs/plan/02-design-system.md): Tactics/Academy/Trophies/Settings/Inbox
-     are reachable via quick-links on Home and Squad instead of a nav slot. -->
+     The game folds into five primary destinations. Academy, Trophies,
+     Settings and Inbox remain reachable through contextual links. -->
 <div id="tabbar-mount"></div>
 
 <div class="main">
@@ -401,17 +399,13 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
        Svelte markup, no innerHTML. -->
   <div class="screen" id="screen-trophies"></div>
 
-  <!-- SQUAD — src/lib/ui/SquadScreen.svelte, mounted in main.js (Phase 4,
-       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
+  <!-- SQUAD + TACTICS — src/lib/ui/SquadScreen.svelte, mounted in main.js.
+       R4's Chalk screen is the single lineup, bench and roster surface. -->
   <div class="screen" id="screen-squad"></div>
 
   <!-- ACADEMY — src/lib/ui/AcademyScreen.svelte, mounted in main.js (Phase 4,
        docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
   <div class="screen" id="screen-academy"></div>
-
-  <!-- TACTICS — src/lib/ui/TacticsScreen.svelte, mounted in main.js (Phase 4,
-       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
-  <div class="screen" id="screen-tactics"></div>
 
   <!-- INBOX -->
   <div class="screen" id="screen-inbox"></div>

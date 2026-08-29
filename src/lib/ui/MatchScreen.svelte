@@ -169,8 +169,8 @@
 
   const blockMsg = $derived(
     matchCtx?.injuredInLineup?.length > 0
-      ? '🚑 Fix your lineup — injured players selected. Go to Tactics.'
-      : '⚠️ Set a full starting XI in Tactics before playing.'
+      ? '🚑 Fix your lineup — injured players selected. Go to Squad.'
+      : '⚠️ Set a full starting XI in Squad before playing.'
   );
 
   function diffLabel(rep) {
@@ -182,7 +182,7 @@
   }
 
   // ── Team News: read-only XI-on-pitch preview (shares slot layout with
-  // TacticsScreen.svelte via src/game/formationLayout.js) ────────────────
+  // SquadScreen.svelte via src/game/formationLayout.js) ─────────────────
   function assignToSlots(xi, slots) {
     const used = [];
     const out  = new Array(slots.length).fill(null);
@@ -664,13 +664,13 @@
           {#each m.injuredInLineup as p (p.id)}
             <div class="tn-warning-line"><strong>{p.name}</strong> — {p.injuryName || 'Injured'} ({injuryDurationLabel(p.injuryGWsLeft)} remaining)</div>
           {/each}
-          <div class="tn-warning-cta">Go to Tactics to fix your lineup before playing.</div>
+          <div class="tn-warning-cta">Go to Squad to fix your lineup before playing.</div>
         </div>
       {/if}
       {#if m.lineupIncomplete}
         <div class="tn-warning tn-warning-warn">
           <div class="tn-warning-title">⚠️ Lineup Incomplete</div>
-          <div class="tn-warning-cta">You must set a full starting XI in the Tactics screen before playing.</div>
+          <div class="tn-warning-cta">You must set a full starting XI in Squad before playing.</div>
         </div>
       {/if}
     </div>

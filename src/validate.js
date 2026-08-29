@@ -13,7 +13,6 @@ const SHELL  = process.env.PITCH_SHELL  || path.join(__dirname, 'shell.html');
 // shell.html's raw source — same reasoning as shellSrc, just a second file.
 const HOME_SCREEN = path.join(__dirname, 'lib', 'ui', 'HomeScreen.svelte');
 const SQUAD_SCREEN = path.join(__dirname, 'lib', 'ui', 'SquadScreen.svelte');
-const TACTICS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TacticsScreen.svelte');
 const ACADEMY_SCREEN = path.join(__dirname, 'lib', 'ui', 'AcademyScreen.svelte');
 const SETTINGS_SCREEN = path.join(__dirname, 'lib', 'ui', 'SettingsScreen.svelte');
 const TRANSFERS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TransfersScreen.svelte');
@@ -41,7 +40,6 @@ const code = ${JSON.stringify(fs.readFileSync(BUNDLE,'utf8'))};
 const shellSrc = require('fs').readFileSync(${JSON.stringify(SHELL)},'utf8');
 const homeScreenSrc = require('fs').readFileSync(${JSON.stringify(HOME_SCREEN)},'utf8');
 const squadScreenSrc = require('fs').readFileSync(${JSON.stringify(SQUAD_SCREEN)},'utf8');
-const tacticsScreenSrc = require('fs').readFileSync(${JSON.stringify(TACTICS_SCREEN)},'utf8');
 const academyScreenSrc = require('fs').readFileSync(${JSON.stringify(ACADEMY_SCREEN)},'utf8');
 const settingsScreenSrc = require('fs').readFileSync(${JSON.stringify(SETTINGS_SCREEN)},'utf8');
 const transfersScreenSrc = require('fs').readFileSync(${JSON.stringify(TRANSFERS_SCREEN)},'utf8');
@@ -272,7 +270,7 @@ chk('R3 Home renders actionable waiting sheet', homeScreenSrc.includes('Waiting 
 chk('R3 Home still watches renderHome tick bridge', homeScreenSrc.includes('screenTicks.home'));
 chk('Team News XI preview on pitch slots', matchScreenSrc.includes('teamNewsAssignment'));
 chk('Team News uses shared SLOT_LAYOUT (not a re-declared copy)', matchScreenSrc.includes("from '../../game/formationLayout.js'"));
-chk('Tactics screen hint in Team News', matchScreenSrc.includes('Tactics screen') || matchScreenSrc.includes('Tactics'));
+chk('Merged Squad screen hint in Team News', matchScreenSrc.includes('Go to Squad'));
 chk('selectEleven accepts lineup param', code.includes('function selectEleven(players, formation') && code.includes('lineup'));
 chk('simulateMatch passes lineup', code.includes('simulateMatch(') && code.includes('hLineup') && code.includes('aLineup'));
 chk('buildLiveMatchState passes lineup', code.includes('buildLiveMatchState(') && code.includes('homeLineup') && code.includes('awayLineup'));
@@ -603,7 +601,7 @@ section('10. UI Functions');
   // because prematch.js/watchmatch.js/squad_tactics_offers.js still call it.
   // renderSquad, renderTactics, renderAcademy, renderTrophies,
   // renderSettings and renderTransfers aren't either — Phase 4 moved them to
-  // src/lib/ui/SquadScreen.svelte, TacticsScreen.svelte, AcademyScreen.svelte,
+  // src/lib/ui/SquadScreen.svelte (R4 merged Squad + Tactics), AcademyScreen.svelte,
   // TrophiesScreen.svelte, SettingsScreen.svelte and TransfersScreen.svelte,
   // same reasoning. renderCups and renderHonours were only ever aliases kept
   // to satisfy this exact check list, with no other callers — deleted
@@ -630,7 +628,11 @@ chk('screen-competitions in HTML', shellSrc.includes('id="screen-competitions"')
 chk('screen-trophies in HTML', shellSrc.includes('id="screen-trophies"'));
 chk('screen-squad in HTML', shellSrc.includes('id="screen-squad"'));
 chk('screen-academy in HTML', shellSrc.includes('id="screen-academy"'));
-chk('screen-tactics in HTML', shellSrc.includes('id="screen-tactics"'));
+chk('R4 unifies Squad and Tactics in one Chalk screen', squadScreenSrc.includes('chalk-header') && squadScreenSrc.includes('rosterOpen'));
+chk('R4 Chalk screen keeps the persistent pitch and bench rail', squadScreenSrc.includes('pitch-bg') && squadScreenSrc.includes('tac-bench-strip'));
+chk('R4 Chalk screen supports drag-to-swap', squadScreenSrc.includes('ondragstart') && squadScreenSrc.includes('ondrop'));
+chk('R4 Chalk player discs meet the 44px touch target', squadScreenSrc.includes('width: 44px; height: 44px'));
+chk('R4 Tactics route aliases to Squad', code.includes("ROUTE_ALIASES = { tactics: 'squad' }"));
 chk('showOffersModal in bundle', code.includes('showOffersModal'));
 // screen-cups/screen-honours were hidden display:none alias divs kept only so
 // this exact check list resolved — nothing ever navigated to or queried them
@@ -1286,11 +1288,10 @@ chk('simulateMatch returns homeMentality', mRes.homeMentality === 'attacking');
 chk('simulateMatch returns awayMentality', mRes.awayMentality === 'defensive');
 // save.js mentality default
 chk('mentality key in save state (via startNewGame logic)', typeof startNewGame === 'function');
-// UI: mentality picker present in TacticsScreen.svelte (Phase 4 moved
-// renderTactics's markup there — same reasoning as the homeScreenSrc checks).
-chk('mentality picker wired in TacticsScreen.svelte', tacticsScreenSrc.includes('pickMentality'));
-chk('mentality saved via putSave in TacticsScreen.svelte', tacticsScreenSrc.includes('mentality: m.id'));
-chk('MENTALITIES array in TacticsScreen.svelte', tacticsScreenSrc.includes('MENTALITIES'));
+// R4 folds tactics into the Chalk Squad screen.
+chk('mentality picker wired in SquadScreen.svelte', squadScreenSrc.includes('pickMentality'));
+chk('mentality saved via putSave in SquadScreen.svelte', squadScreenSrc.includes('mentality: m.id'));
+chk('MENTALITIES array in SquadScreen.svelte', squadScreenSrc.includes('MENTALITIES'));
 // Team News beat shows mentality
 chk('mentality shown in Team News beat', matchScreenSrc.includes('save.mentality') && matchScreenSrc.includes('tn-mentality'));
 
@@ -1937,7 +1938,7 @@ chk('INJ: After beat shows injury events', matchScreenSrc.includes("e.type === '
 chk('INJ: recovery toast shown (green)', matchScreenSrc.includes('is fit and available again'));
 chk('INJ: injury toast shown on match result', matchScreenSrc.includes('injuryGWsLeft ?? 1'));
 chk('INJ: After beat shows injuries section', matchScreenSrc.includes('userInjuries') && matchScreenSrc.includes('after-section-bad'));
-chk('INJ: squad screen shows INJ badge', squadScreenSrc.includes('sq-inj-badge') && squadScreenSrc.includes('is-injured'));
+chk('INJ: Chalk screen shows injured markers on pitch and roster', squadScreenSrc.includes('slot-inj-tag') && squadScreenSrc.includes("' · Injured'"));
 chk('INJ: injured marker in Team News pitch preview', matchScreenSrc.includes('tn-slot-inj'));
 
 // ─── Regression: injury duration label must use weeks/months correctly ─────

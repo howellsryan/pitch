@@ -225,6 +225,19 @@ merged component and repoint the checks that asserted on the two old ones.
 Touch targets: 44px minimum on eleven discs plus a bench, on a 390px pitch, is
 tight — this is the phase where that gets measured, not estimated.
 
+#### R4 status — done
+
+`SquadScreen.svelte` is now the single Chalk surface: the XI stays on a
+persistent pitch, the bench is a rail beneath it, and formation and mentality
+remain directly editable. The roster opens in a sheet from the same surface;
+player management (contract renewal, registration and transfer listing) stays
+available there rather than being lost with the old roster screen. Players can
+be swapped through the existing tap picker or dragged onto a pitch slot.
+
+`TacticsScreen.svelte` and `#screen-tactics` are removed. The former tactics
+route is an alias for Squad so existing links continue to land on the merged
+screen. No save or simulation data changed. R5 is next.
+
 ### R5 — Matchday = Broadcast
 1. `src/game/matchMotion.js` + its Vitest file **first**, before any pixel.
 2. Perspective pitch, score bug, momentum bar, events as lower-thirds.
