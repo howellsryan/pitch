@@ -25,6 +25,7 @@
   let playerById = $state(new Map());
   let past = $state([]);
   let upcoming = $state([]);
+  let railGameweeks = $state(38);
   let slice = $state([]);
   let railEl = $state(null);
   let activeCardEl = $state(null);
@@ -41,8 +42,7 @@
   const future = $derived(upcoming.slice(1, 4));
   const myRow = $derived(slice.find((row) => row.isUserTeam) ?? null);
   const form = $derived(myRow?.form ?? []);
-  const totalGameweeks = $derived(save ? getEffectiveTotalGW(save) : 38);
-  const progress = $derived(save ? Math.min(100, Math.max(0, (save.currentGameweek / totalGameweeks) * 100)) : 0);
+  const progress = $derived(save ? Math.min(100, Math.max(0, (save.currentGameweek / railGameweeks) * 100)) : 0);
   const unread = $derived((save?.inbox ?? []).filter((item) => !item.read));
   const pendingOffers = $derived((save?.inboundOffers ?? []).filter((offer) => offer.status === 'pending'));
   const waitingItems = $derived.by(() => {
@@ -151,8 +151,10 @@
     squadSize = players.length;
     byId = new Map(allTeams.map((item) => [item.id, item]));
     playerById = new Map(allPlayers.map((item) => [item.id, item]));
-    past = allFixtures.filter((fixture) => fixture.played && (fixture.homeTeamId === s.userTeamId || fixture.awayTeamId === s.userTeamId)).sort((a, b) => a.gameweek - b.gameweek).slice(-3);
+    const userFixtures = allFixtures.filter((fixture) => fixture.homeTeamId === s.userTeamId || fixture.awayTeamId === s.userTeamId);
+    past = userFixtures.filter((fixture) => fixture.played).sort((a, b) => a.gameweek - b.gameweek).slice(-3);
     upcoming = nextFixtures;
+    railGameweeks = Math.max(1, ...userFixtures.map((fixture) => fixture.gameweek));
     slice = tableSlice;
 
     const managerName = s.managerName || 'The Manager';
@@ -214,7 +216,7 @@
             <article class="rail-card active-card" bind:this={activeCardEl}>
               <div class="next-meta"><span>Gameweek {next.gameweek}</span><span>{fmt.dateShort(next.date)}</span></div>
               <strong>{opponent(next)?.name ?? 'Opponent'}</strong>
-              <p>{isHome(next) ? team?.stadium ?? 'Home' : 'Away'} · {isHome(next) ? 'Home' : 'Away'}</p>
+              <p>{isHome(next) ? team?.stadium ?? 'Home ground' : opponent(next)?.stadium ?? 'Opponent ground'} · {isHome(next) ? 'Home' : 'Away'}</p>
               <FormGuide form={form} />
             </article>
           {:else}
@@ -226,7 +228,7 @@
             <article class="rail-card future-card"><span>GW{fixture.gameweek}</span><strong>{opponent(fixture)?.name ?? 'Opponent'}</strong><small>{isHome(fixture) ? 'H' : 'A'} · {fmt.dateShort(fixture.date)}</small></article>
           {/each}
         </div>
-        <div class="season-progress"><div class="track"><span style:width={`${progress}%`}></span><i style:left={`${progress}%`}></i></div><span>{Math.min(save.currentGameweek, totalGameweeks)} / {totalGameweeks}</span></div>
+        <div class="season-progress"><div class="track"><span style:width={`${progress}%`}></span><i style:left={`${progress}%`}></i></div><span>{Math.min(save.currentGameweek, railGameweeks)} / {railGameweeks}</span></div>
       </section>
 
       <section class="primary-action" aria-label="Next action">

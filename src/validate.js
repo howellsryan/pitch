@@ -267,6 +267,7 @@ chk('HomeScreen EOY button -> handleEndOfSeason', homeScreenSrc.includes('handle
 chk('R3 Home reads played fixtures directly', homeScreenSrc.includes('getAllFixtures'));
 chk('R3 Home reads upcoming fixtures through helper', homeScreenSrc.includes('getUpcomingForTeam'));
 chk('R3 Home renders the season rail', homeScreenSrc.includes('season-rail'));
+chk('R3 season progress comes from the league fixture horizon', homeScreenSrc.includes('railGameweeks') && homeScreenSrc.includes('userFixtures.map'));
 chk('R3 Home renders actionable waiting sheet', homeScreenSrc.includes('Waiting on you') && homeScreenSrc.includes('waitingItems'));
 chk('R3 Home still watches renderHome tick bridge', homeScreenSrc.includes('screenTicks.home'));
 chk('Team News XI preview on pitch slots', matchScreenSrc.includes('teamNewsAssignment'));
