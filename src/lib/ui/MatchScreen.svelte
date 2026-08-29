@@ -10,14 +10,14 @@
   } from '../../modules/gameweek.js';
   import {
     buildLiveMatchState, finaliseLiveMatch, pickAIFormation,
-    positionGroup, primaryRating, selectEleven, simulateMatchSegment,
+    positionGroup, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
-  import { deriveGoalMotion } from '../../game/matchMotion.js';
+  import { makeBroadcastFrame } from '../../game/matchPresentation.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
@@ -66,14 +66,14 @@
   let live = $state.raw(null); // { liveState, allEvents, homeTeam, awayTeam, userTeam, oppTeam, userPlayers, oppPlayers, userIsHome, matchEvent, currentPhase, paused, speedMultiplier }
   let tickTimer = null;
   let kickoffTimer = null;
-  let motionTimer = null;
-  let activeMotion = $state(null);
+  let broadcastFrame = $state(null);
 
   let result          = $state.raw(null); // finalised match result (same shape whether from finaliseLiveMatch or advanceOneFixture's singleResult)
   let resultCommitted = $state(false);
   let committing       = $state(false);
 
   let subSheetOpen      = $state(false);
+  let subPickerOpen     = $state(false);
   let subSheetInPlayer  = $state(null);
   let subSheetWasPaused = false;
   let tacticsSheetOpen       = $state(false);
@@ -332,6 +332,7 @@
       matchEvent: resolved.patchedEvent,
       currentPhase: 0, paused: false, speedMultiplier: 1,
     };
+    broadcastFrame = makeFrame(live, null, resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id);
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
       if (beat === 'kickoff') { beat = 'live'; scheduleTick(); }
@@ -382,8 +383,11 @@
     if (!live || live.paused) return;
     const startPhase = live.currentPhase + 1;
     const endPhase   = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
-    const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, live.liveState, startPhase, endPhase);
+    const beforeState = live.liveState;
+    const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase);
     live = { ...live, liveState: updatedState, currentPhase: endPhase, allEvents: [...live.allEvents, ...segEvents] };
+    const possessionTeamId = updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id;
+    broadcastFrame = makeFrame(live, segEvents.find(event => event.type === 'goal') ?? null, possessionTeamId);
     handleNewEvents(segEvents);
     if (live.currentPhase >= TOTAL_PHASES) finishMatch();
     else scheduleTick();
@@ -393,7 +397,6 @@
     for (const ev of segEvents) {
       const isUser = ev.teamId === live.userTeam.id;
       if (ev.type === 'goal') {
-        showGoalMotion(ev);
         vibrate([60]);
         if (isUser) toast(`⚽ GOAL! ${ev.playerName}`, 'success');
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
@@ -403,16 +406,8 @@
     }
   }
 
-  function showGoalMotion(event) {
-    if (!live?.liveState) return;
-    const isHome = event.teamId === live.homeTeam.id;
-    const lineup = isHome ? live.liveState.hActive : live.liveState.aActive;
-    const formation = isHome ? live.liveState.homeFormation : live.liveState.awayFormation;
-    const points = deriveGoalMotion(event, formation, lineup, { attackingUp: isHome });
-    if (!points.length) return;
-    activeMotion = { event, points };
-    window.clearTimeout(motionTimer);
-    motionTimer = window.setTimeout(() => { activeMotion = null; }, 3600);
+  function makeFrame(currentLive, event, possessionTeamId) {
+    return makeBroadcastFrame({ phase: currentLive.currentPhase, possessionTeamId, homeTeamId: currentLive.homeTeam.id, homeFormation: currentLive.liveState.homeFormation, awayFormation: currentLive.liveState.awayFormation, homePlayers: currentLive.liveState.hActive, awayPlayers: currentLive.liveState.aActive, event });
   }
 
   function togglePause() {
@@ -435,8 +430,10 @@
     if (!live || live.currentPhase >= TOTAL_PHASES) return;
     window.clearTimeout(tickTimer);
     const startPhase = live.currentPhase + 1;
-    const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, live.liveState, startPhase, TOTAL_PHASES);
+    const beforeState = live.liveState;
+    const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, beforeState, startPhase, TOTAL_PHASES);
     live = { ...live, liveState: updatedState, currentPhase: TOTAL_PHASES, allEvents: [...live.allEvents, ...segEvents] };
+    broadcastFrame = makeFrame(live, segEvents.find(event => event.type === 'goal') ?? null, updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id);
     handleNewEvents(segEvents);
     finishMatch();
   }
@@ -459,10 +456,6 @@
     const bench = live.userIsHome ? live.liveState.hBenchLeft : live.liveState.aBenchLeft;
     return [...bench].sort((a, b) => (b.fitness ?? 90) - (a.fitness ?? 90));
   });
-  const activeList = $derived.by(() => {
-    if (!live?.liveState) return [];
-    return live.userIsHome ? live.liveState.hActive : live.liveState.aActive;
-  });
   const fitnessMap = $derived(live?.liveState ? (live.userIsHome ? live.liveState.hFitness : live.liveState.aFitness) : null);
 
   function openSubSheet(subInPlayer) {
@@ -473,6 +466,11 @@
     subSheetInPlayer = subInPlayer;
     subSheetOpen = true;
   }
+  function openSubPicker() {
+    if (subsLeft <= 0) { toast('No substitutions remaining', 'error'); return; }
+    subPickerOpen = true;
+  }
+  function chooseSub(player) { subPickerOpen = false; openSubSheet(player); }
   const subOutOptions = $derived(subSheetInPlayer && live?.liveState ? eligibleSubOutTargets(live.liveState, live.userIsHome, subSheetInPlayer) : []);
 
   function pickSubOut(subOutPlayer) {
@@ -480,6 +478,7 @@
     const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, subSheetInPlayer.id, subOutPlayer.id, minute, live.userTeam.id);
     if (ok) {
       live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
+      broadcastFrame = makeFrame(live, null, live.userIsHome ? live.homeTeam.id : live.awayTeam.id);
       toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
     }
     closeSubSheet();
@@ -504,6 +503,7 @@
   function applyTactics() {
     const newLs = applyFormationChange(live.liveState, live.userIsHome, tacticsPickerFormation);
     live = { ...live, liveState: newLs };
+    broadcastFrame = makeFrame(live, null, live.userIsHome ? live.homeTeam.id : live.awayTeam.id);
     toast(`Formation changed to ${tacticsPickerFormation}`, 'info', 3000);
     closeTacticsSheet();
   }
@@ -728,71 +728,19 @@
       <div class="progress-wrap"><div class="progress-bar" style="width:{(live.currentPhase / TOTAL_PHASES) * 100}%"></div></div>
       <div class="broadcast-pitch">
         <div class="pitch-stripes"></div><div class="pitch-half"></div><div class="pitch-circle"></div><div class="pitch-box pitch-box-top"></div><div class="pitch-box pitch-box-bottom"></div>
-        {#if activeMotion}
-          <svg class="motion-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={`Goal: ${activeMotion.event.playerName}`}>
-            <polyline points={activeMotion.points.map(p => `${p.x},${p.y}`).join(' ')}></polyline>
-            <circle r="2.2"><animateMotion dur="2.4s" repeatCount="1" path={`M ${activeMotion.points.map(p => `${p.x},${p.y}`).join(' L ')}`} /></circle>
-          </svg>
-          <div class="lower-third"><span>GOAL · {activeMotion.event.minute}'</span><strong>{activeMotion.event.playerName}</strong>{#if activeMotion.event.assistName}<small>Assist: {activeMotion.event.assistName}</small>{/if}</div>
-        {:else}<div class="broadcast-state">{live.paused ? 'PAUSED' : minute <= 45 ? 'FIRST HALF' : 'SECOND HALF'}</div>{/if}
+        {#each broadcastFrame?.markers ?? [] as marker (marker.id)}
+          <div class="broadcast-player {marker.team}" class:pressing={marker.pressing} class:receiving={marker.receiving} class:rushing={marker.rushing} style="left:{marker.x}%;top:{marker.y}%">{marker.shirt}</div>
+        {/each}
+        {#if broadcastFrame?.ball}<div class="broadcast-ball" class:shooting={broadcastFrame.ball.shooting} style="left:{broadcastFrame.ball.x}%;top:{broadcastFrame.ball.y}%"></div>{/if}
+        <div class="broadcast-state">{broadcastFrame?.action ?? (live.paused ? 'PAUSED' : 'IN PLAY')}</div>
       </div>
       <div class="momentum" aria-label={`Possession momentum: ${homeShare}% ${live.homeTeam.name}`}><span>{live.homeTeam.name.split(' ')[0]}</span><div><i style={`width:${homeShare}%`}></i></div><span>{live.awayTeam.name.split(' ')[0]}</span></div>
 
-      <div class="live-events">
-        {#each live.allEvents as ev, i (i)}
-          {@const isUser = ev.teamId === live.userTeam.id}
-          {#if ev.type === 'goal'}
-            <div class="ev-row ev-goal" class:ev-user={isUser}>
-              <span class="ev-min">{ev.minute}'</span><span>⚽</span>
-              <span><strong>{ev.playerName}</strong>{#if ev.assistName}<span class="ev-assist"> ({ev.assistName})</span>{/if}</span>
-            </div>
-          {:else if ev.type === 'yellow'}
-            <div class="ev-row" class:ev-user={isUser}><span class="ev-min">{ev.minute}'</span><span>🟨</span><span>{ev.playerName}</span></div>
-          {:else if ev.type === 'sub'}
-            <div class="ev-row" class:ev-user={isUser}><span class="ev-min">{ev.minute}'</span><span>🔄</span><span><span class="ev-in">{ev.inName}</span> ↔ <span class="ev-out">{ev.outName}</span></span></div>
-          {:else if ev.type === 'injury'}
-            <div class="ev-row ev-injury" class:ev-user={isUser}><span class="ev-min">{ev.minute}'</span><span>🚑</span><span><strong>{ev.playerName}</strong>{#if ev.injuryName} — {ev.injuryName}{/if}</span></div>
-          {/if}
-        {:else}
-          <div class="ev-placeholder">Waiting for kick off…</div>
-        {/each}
-      </div>
-
-      <div class="live-panel">
-        <div class="live-panel-title">YOUR XI <span class="subs-left">{subsLeft} sub{subsLeft !== 1 ? 's' : ''} left</span></div>
-        <div class="fitness-list">
-          {#each activeList as p (p.id)}
-            {@const fit = Math.round(fitnessMap?.get(p.id) ?? 90)}
-            <div class="fitness-row">
-              <span class="pos {positionGroup(p.position)}">{p.position}</span>
-              <span class="fitness-name">{p.name.split(' ').pop()}{#if p.injured}<span class="ev-injury-tag"> 🚑</span>{/if}</span>
-              <div class="fitness-bar-wrap"><div class="fitness-bar {p.injured ? 'fit-low' : fitClass(fit)}" style="width:{p.injured ? 10 : fit}%"></div></div>
-              <span class="fitness-pct">{p.injured ? '🚑' : `${fit}%`}</span>
-            </div>
-          {/each}
-        </div>
-        <div class="live-panel-title">BENCH</div>
-        <div class="bench-list">
-          {#each benchList as p (p.id)}
-            {@const fit = Math.round(p.fitness ?? 90)}
-            <div class="bench-row" class:bench-injured={p.injured}>
-              <span class="pos {positionGroup(p.position)}">{p.position}</span>
-              <span class="bench-name">{p.name}{#if p.injured}<span class="ev-injury-tag"> 🚑</span>{/if}</span>
-              <span class="bench-rat">{primaryRating(p)}</span>
-              <span class="fitness-pct {p.injured ? 'fit-low' : fitClass(fit)}">{p.injured ? '🚑' : `${fit}%`}</span>
-              {#if live.currentPhase < TOTAL_PHASES && subsLeft > 0 && !p.injured}
-                <button class="sub-on-btn" onclick={() => openSubSheet(p)}>Sub On</button>
-              {/if}
-            </div>
-          {:else}
-            <div class="ev-placeholder">No bench players</div>
-          {/each}
-        </div>
-      </div>
     </div>
 
     <div class="live-controls">
       <button class="ctrl-btn" onclick={togglePause}>{live.paused ? '▶ Resume' : '⏸ Pause'}</button>
+      <button class="ctrl-btn" onclick={openSubPicker}>⇄ Subs ({subsLeft})</button>
       <div class="speed-wrap">
         <span class="speed-lbl">SPEED</span>
         {#each [1, 2, 4] as s (s)}
@@ -918,6 +866,18 @@
     </div>
   {/if}
 
+  {#if subPickerOpen}
+    <button class="sheet-backdrop" onclick={() => (subPickerOpen = false)} aria-label="Close"></button>
+    <div class="sheet">
+      <div class="sheet-handle"></div><div class="sheet-title">Choose substitute</div>
+      <div class="sub-out-list">
+        {#each benchList as player (player.id)}
+          <button class="sub-out-row" onclick={() => chooseSub(player)}><span class="pos {positionGroup(player.position)}">{player.position}</span><span class="sub-out-name">{player.name}</span></button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   {#if tacticsSheetOpen && live}
     <button class="sheet-backdrop" onclick={closeTacticsSheet} aria-label="Close"></button>
     <div class="sheet">
@@ -1002,7 +962,7 @@
   @media (prefers-reduced-motion: reduce) { .kickoff-beat { animation: none; } }
 
   /* ── Live ──────────────────────────────────────────────────── */
-  .live-wrap { flex: 1; overflow-y: auto; padding: 12px 16px 8px; }
+  .live-wrap { flex: 1; min-height: 0; overflow: hidden; padding: 10px 10px 6px; display: flex; flex-direction: column; }
   .broadcast-label { margin-bottom: 7px; font: 10px var(--font-mono); letter-spacing: 1.4px; color: var(--color-tx-3); text-align: center; }
   .score-bug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .sb-team { flex: 1; text-align: center; }
@@ -1015,19 +975,19 @@
   .sb-status { font-size: 10px; font-family: var(--font-mono); color: var(--color-tx-3); letter-spacing: 1px; }
   .progress-wrap { height: 3px; background: var(--color-raised); border-radius: 2px; margin: 10px 0; overflow: hidden; }
   .progress-bar { height: 100%; background: var(--color-club); transition: width 0.3s linear; }
-  .broadcast-pitch { position: relative; height: min(34vh, 260px); min-height: 180px; overflow: hidden; border: 1px solid color-mix(in oklch, var(--color-live) 40%, var(--color-line)); border-radius: 4px; background: #123d32; box-shadow: inset 0 0 48px rgba(0,0,0,.42); }
+  .broadcast-pitch { position: relative; flex: 1; min-height: 360px; overflow: hidden; border: 1px solid color-mix(in oklch, var(--color-live) 40%, var(--color-line)); border-radius: 4px; background: #123d32; box-shadow: inset 0 0 48px rgba(0,0,0,.42); }
   .pitch-stripes { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 10%, transparent 10% 20%); }
   .pitch-half { position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,.35); }
   .pitch-circle { position: absolute; width: 22%; aspect-ratio: 1; top: 50%; left: 50%; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; transform: translate(-50%,-50%); }
   .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
   .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
-  .motion-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-  .motion-layer polyline { fill: none; stroke: color-mix(in oklch, var(--color-club) 60%, white); stroke-width: .7; stroke-dasharray: 2 1; vector-effect: non-scaling-stroke; }
-  .motion-layer circle { fill: #fff; filter: drop-shadow(0 0 3px var(--color-club)); }
-  .broadcast-state { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.72); font: 12px var(--font-mono); letter-spacing: 2px; }
-  .lower-third { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px; display: grid; gap: 2px; color: white; background: linear-gradient(90deg, color-mix(in oklch, var(--color-club) 90%, #000), rgba(0,0,0,.68)); animation: lower-third .24s ease-out; }
-  .lower-third span, .lower-third small { font: 9px var(--font-mono); letter-spacing: 1px; opacity: .8; } .lower-third strong { font: 18px var(--font-display); letter-spacing: .5px; }
-  @keyframes lower-third { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+  .broadcast-player { position: absolute; z-index: 2; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,.75); color: white; font: 700 10px var(--font-mono); transition: left .62s cubic-bezier(.2,.75,.2,1), top .62s cubic-bezier(.2,.75,.2,1), transform .25s ease; }
+  .broadcast-player.home { background: var(--color-club); } .broadcast-player.away { background: #df3155; }
+  .broadcast-player.pressing { transform: translate(-50%,-50%) scale(1.22); box-shadow: 0 0 0 5px rgba(255,255,255,.14); }
+  .broadcast-player.receiving { transform: translate(-50%,-50%) scale(1.12); } .broadcast-player.rushing { box-shadow: 0 0 0 5px rgba(255,219,102,.24); }
+  .broadcast-ball { position: absolute; z-index: 4; width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 5px rgba(0,0,0,.7); transition: left .62s cubic-bezier(.2,.75,.2,1), top .62s cubic-bezier(.2,.75,.2,1); }
+  .broadcast-ball.shooting { width: 14px; height: 14px; box-shadow: 0 0 14px 4px rgba(255,255,255,.6); }
+  .broadcast-state { position: absolute; z-index: 3; top: 9px; left: 10px; color: rgba(255,255,255,.82); font: 10px var(--font-mono); letter-spacing: 1.5px; }
   .momentum { display: grid; grid-template-columns: minmax(0,1fr) 2fr minmax(0,1fr); gap: 6px; align-items: center; margin: 9px 0 3px; font: 9px var(--font-mono); color: var(--color-tx-3); }
   .momentum span:last-child { text-align: right; } .momentum > div { height: 4px; background: var(--color-raised); overflow: hidden; border-radius: 4px; } .momentum i { display: block; height: 100%; background: var(--color-club); transition: width .35s ease; }
 
@@ -1056,7 +1016,7 @@
   .bench-row.bench-injured { opacity: 0.6; }
   .sub-on-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--color-club); background: transparent; color: var(--color-club); cursor: pointer; }
 
-  .live-controls { display: flex; align-items: center; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); flex-shrink: 0; flex-wrap: wrap; }
+  .live-controls { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 64px calc(9px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: wrap; }
   .ctrl-btn { font-size: 11px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
   .speed-wrap { display: flex; align-items: center; gap: 4px; }
   .speed-lbl { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); margin-right: 2px; }

@@ -255,12 +255,13 @@ already. Reassign wholesale; never deep-mutate.
 
 `MatchScreen.svelte` keeps its existing five-beat match flow and raw
 IndexedDB-safe match state, but its live beat is now a Broadcast surface: score
-bug, perspective pitch, possession momentum and goal lower-thirds. Goal paths
-are derived in the new pure `src/game/matchMotion.js`, using the engine's real
-scorer and assister in their real formation slots. The FNV-1a-derived choice of
-bridge player makes the same event render the same move after any re-render;
-it does not add event fields or affect simulation arithmetic. `matchMotion` is
-covered by Vitest, including deterministic and away-side orientation cases.
+bug, a full-screen pitch with 22 anonymous shirt markers, possession momentum,
+and a bottom control dock. `src/game/matchPresentation.js` turns each real
+engine possession and goal event into deterministic passes, pressing, shots and
+keeper movement; it does not add event fields or affect simulation arithmetic.
+Player identity and lineup management remain in Squad. Penalty choreography is
+reserved until the engine emits a real penalty event. The presentation module is
+covered by Vitest, including all-player and real scorer/assist cases.
 
 ### R6 — Market and Table
 Plain, fast, dense, in the unified palette.

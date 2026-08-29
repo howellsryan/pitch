@@ -32,7 +32,7 @@
 
 <svelte:window onkeydown={handleKey} />
 
-<nav class="broadcast-nav" aria-label="Game navigation">
+<nav class="broadcast-nav" class:matchday={active === 'match'} aria-label="Game navigation">
   {#if open}
     <div class="fan" id="nav-destinations" aria-label="Destinations">
       {#each destinations as destination, i (destination.id)}
@@ -74,6 +74,10 @@
   .broadcast-nav { display: none; }
   @media (max-width: 768px) {
     .broadcast-nav { position: fixed; z-index: 110; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .broadcast-nav.matchday { top: 12px; right: 10px; bottom: auto; }
+    .broadcast-nav.matchday .pill { height: 40px; padding: 0; border-radius: 10px; }
+    .broadcast-nav.matchday .eyebrow, .broadcast-nav.matchday .divider { display: none; }
+    .broadcast-nav.matchday .menu { width: 38px; height: 38px; border-radius: 9px; }
     .pill { height: 54px; display: flex; align-items: center; gap: 11px; padding: 0 7px 0 16px; color: var(--color-tx); background: color-mix(in oklch, var(--color-raised) 94%, transparent); border: 1px solid var(--color-line); border-radius: 999px; box-shadow: 0 8px 28px rgba(0,0,0,.42); backdrop-filter: blur(14px); }
     .eyebrow { min-width: 54px; font: 700 18px/1 var(--font-display); letter-spacing: .055em; text-transform: uppercase; }
     .divider { width: 1px; height: 22px; background: var(--color-line); }
