@@ -1,0 +1,57 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",          "x": 0,    "y": 0,   "w": 390, "h": 844, "title": "A · Editorial — home page" },
+    { "file": "Almanac.dc.html",       "x": 470,  "y": 0,   "w": 390, "h": 844, "title": "B · Almanac — home page" },
+    { "file": "Boardroom.dc.html",     "x": 940,  "y": 0,   "w": 390, "h": 844, "title": "C · Boardroom — home page" },
+    { "file": "Floodlight.dc.html",    "x": 1410, "y": 0,   "w": 390, "h": 844, "title": "D · Floodlight — home page" },
+    { "file": "EditorialApp.dc.html",  "x": 0,    "y": 984, "w": 390, "h": 844, "title": "A · Editorial — in game" },
+    { "file": "AlmanacApp.dc.html",    "x": 470,  "y": 984, "w": 390, "h": 844, "title": "B · Almanac — in game" },
+    { "file": "BoardroomApp.dc.html",  "x": 940,  "y": 984, "w": 390, "h": 844, "title": "C · Boardroom — in game" },
+    { "file": "FloodlightApp.dc.html", "x": 1410, "y": 984, "w": 390, "h": 844, "title": "D · Floodlight — in game" }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": -560,
+      "y": 0,
+      "w": 460,
+      "text": "PICK A DIRECTION\n\nFour genuinely different answers to the same brief, not four shades of one. Each column is one direction: the marketing home page on top, the in-game dashboard below it — because a direction can sing on a landing page and die under real data density.\n\nEverything on these frames is real: Arsenal's colour, squad and stadium out of src/data/plTeams.js; the league slice, budget and gameweek are plausible mid-season sample values.\n\nSame information architecture in all four, so you are judging LOOK AND FEEL, not structure:\n\n· Home page IS the entry. One primary action — choose a club — with no sign-up wall in front of it. Returning players get 'continue' underneath.\n· Five destinations: Home, Squad, Table, Market, Club. Play is not a nav slot — it lives on the card you are already looking at, one tap from landing.\n· Nav is a flat bar, no floating action button, labels always visible.\n\nThese are static sketches. Once you pick one I build the full set as a working click-through: club select, squad, tactics, transfers, academy, trophies, settings, inbox and the five-beat match flow."
+    },
+    {
+      "id": "dir-a",
+      "x": 0,
+      "y": -330,
+      "w": 390,
+      "text": "A · EDITORIAL\n\nBroadsheet sports desk. Paper cream, ink black, one stamp red. Instrument Serif over Archivo, hard rules instead of cards, real whitespace.\n\nFOR — Looks like nothing else in the category. Light-mode-first makes the marketing page feel like a proper website rather than a game menu. Ages well.\n\nAGAINST — The quietest of the four. Little inherent drama for the live match, which will need its own darker treatment. Serif display needs care at small sizes."
+    },
+    {
+      "id": "dir-b",
+      "x": 470,
+      "y": -330,
+      "w": 390,
+      "text": "B · ALMANAC\n\nSticker album. Warm cream, hard black keylines, offset shadow, teal and amber. Bricolage Grotesque over Hanken Grotesk. Tactile and collectible.\n\nFOR — The friendliest by a distance, and the most likely to convert a casual visitor. Chunky geometry gives generous touch targets for free. Distinctive.\n\nAGAINST — The heavy borders and shadows eat vertical space, which hurts on the dense screens — a 20-row league table or a 3,000-row transfer list has to shed the frame. Risks reading as childish to a hardcore manager player."
+    },
+    {
+      "id": "dir-c",
+      "x": 940,
+      "y": -330,
+      "w": 390,
+      "text": "C · BOARDROOM\n\nSwiss data instrument. Cool greys, hairline rules, one signal red, Chivo over IBM Plex Mono. Everything on a strict grid.\n\nFOR — Handles density better than any other option: tables, the transfer market and the squad list are its home ground. Fast to scan. Cheapest to build well.\n\nAGAINST — Very little warmth or occasion. Sells the spreadsheet, not the Saturday. Also the closest of the four to a generic dashboard, so it works hardest to feel like football."
+    },
+    {
+      "id": "dir-d",
+      "x": 1410,
+      "y": -330,
+      "w": 390,
+      "text": "D · FLOODLIGHT\n\nStadium at night. Green-black ground, sodium-lamp amber, Anton over Barlow, soft light bloom behind the type.\n\nFOR — The most atmospheric, and the only one where the live match needs no separate mode — it is already matchday. Amber is unusual for football UI; the club colour still has room to sit beside it.\n\nAGAINST — Dark UI is the category default, so it is the least differentiating overall. All-caps Anton is inflexible for long strings — club names like 'Wolverhampton Wanderers' will fight it."
+    },
+    {
+      "id": "how-to-answer",
+      "x": -560,
+      "y": 984,
+      "w": 460,
+      "text": "HOW TO ANSWER\n\nJust name a letter. If you want to mix — say, B's warmth with C's density on the data screens — say that too; these are not locked packages.\n\nWorth deciding at the same time:\n\n1. LIGHT OR DARK as the default. A, B and C are light-first; D is dark. A browser game shown to a stranger on a phone in daylight argues for light; a match at 11pm argues for dark. Whichever you pick, the other becomes the match-mode counterpart rather than a full second theme.\n\n2. HOW LOUD THE CLUB COLOUR GETS. These frames use Arsenal red sparingly — crest and the your-row marker. Turning it up makes each career feel personal but costs the design its own identity, and 186 clubs includes white (Leeds, Fulham) and near-black (Newcastle), which need a contrast guard whatever we choose."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

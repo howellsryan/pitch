@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; background: #F2F3F5; font-family: Chivo, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #E23D28; } a:hover { color: #101317; }
+    * { box-sizing: border-box; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .kick { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9.5px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F2F3F5; color: #101317; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid #101317;">
+    <div style="width: 20px; height: 24px; background: #EF0107; flex-shrink: 0;"></div>
+    <div style="flex-grow: 1; min-width: 0;">
+      <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15em;">Arsenal</div>
+      <div class="kick" style="color: #5C6470; margin-top: 2px;">Premier League · 3rd</div>
+    </div>
+    <div style="text-align: right;">
+      <div class="kick" style="color: #5C6470;">GW</div>
+      <div class="mono" style="font-size: 15px; font-weight: 600; line-height: 1.1em;">12/38</div>
+    </div>
+    <div style="width: 1px; height: 26px; background: #C9CDD3;"></div>
+    <div style="text-align: right;">
+      <div class="kick" style="color: #5C6470;">Budget</div>
+      <div class="mono" style="font-size: 15px; font-weight: 600; line-height: 1.1em;">48.5M</div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
+
+    <div style="padding: 16px 18px; border-bottom: 1px solid #C9CDD3; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <span class="kick" style="color: #E23D28;">Fixture 13</span>
+        <span class="kick" style="color: #5C6470;">Sat 15:00 · Emirates</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 16px; height: 20px; background: #EF0107; flex-shrink: 0;"></div>
+        <span style="font-size: 20px; font-weight: 700; letter-spacing: -0.015em; flex-grow: 1;">Arsenal — Chelsea</span>
+        <div style="width: 16px; height: 20px; background: #034694; flex-shrink: 0;"></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: #C9CDD3; border: 1px solid #C9CDD3;">
+        <div style="background: #F2F3F5; padding: 8px 9px; display: flex; flex-direction: column; gap: 3px;">
+          <span class="kick" style="color: #5C6470;">Form</span>
+          <span class="mono" style="font-size: 13px; font-weight: 600;">W W D L W</span>
+        </div>
+        <div style="background: #F2F3F5; padding: 8px 9px; display: flex; flex-direction: column; gap: 3px;">
+          <span class="kick" style="color: #5C6470;">Their form</span>
+          <span class="mono" style="font-size: 13px; font-weight: 600;">L W W W D</span>
+        </div>
+        <div style="background: #F2F3F5; padding: 8px 9px; display: flex; flex-direction: column; gap: 3px;">
+          <span class="kick" style="color: #5C6470;">Odds</span>
+          <span class="mono" style="font-size: 13px; font-weight: 600;">1.85</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 9px; height: 52px; background: #E23D28; color: #FFFFFF; font-size: 14px; font-weight: 700; letter-spacing: 0.02em;">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+        PLAY FIXTURE
+      </div>
+    </div>
+
+    <div style="padding: 14px 18px 8px;">
+      <span class="kick" style="color: #5C6470;">League position</span>
+    </div>
+    <div style="padding: 0 18px;">
+      <div style="display: grid; grid-template-columns: 22px 1fr 30px 30px 34px; gap: 8px; padding: 6px 0; border-bottom: 1px solid #DDE0E4;" class="mono">
+        <span style="font-size: 12px; color: #5C6470;">2</span>
+        <span style="font-family: Chivo, sans-serif; font-size: 13px;">Manchester City</span>
+        <span style="font-size: 12px; color: #5C6470; text-align: right;">12</span>
+        <span style="font-size: 12px; color: #5C6470; text-align: right;">+14</span>
+        <span style="font-size: 12px; font-weight: 600; text-align: right;">28</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 22px 1fr 30px 30px 34px; gap: 8px; padding: 6px 0; border-bottom: 1px solid #DDE0E4; background: #101317; color: #F2F3F5; margin: 0 -18px; padding-left: 18px; padding-right: 18px;" class="mono">
+        <span style="font-size: 12px;">3</span>
+        <span style="font-family: Chivo, sans-serif; font-size: 13px; font-weight: 700;">Arsenal</span>
+        <span style="font-size: 12px; text-align: right;">12</span>
+        <span style="font-size: 12px; text-align: right;">+11</span>
+        <span style="font-size: 12px; font-weight: 600; text-align: right;">26</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 22px 1fr 30px 30px 34px; gap: 8px; padding: 6px 0; border-bottom: 1px solid #DDE0E4;" class="mono">
+        <span style="font-size: 12px; color: #5C6470;">4</span>
+        <span style="font-family: Chivo, sans-serif; font-size: 13px;">Liverpool</span>
+        <span style="font-size: 12px; color: #5C6470; text-align: right;">12</span>
+        <span style="font-size: 12px; color: #5C6470; text-align: right;">+9</span>
+        <span style="font-size: 12px; font-weight: 600; text-align: right;">25</span>
+      </div>
+    </div>
+
+    <div style="padding: 16px 18px 0; display: flex; flex-direction: column; gap: 9px;">
+      <span class="kick" style="color: #5C6470;">Requires a decision</span>
+      <div style="display: flex; align-items: center; gap: 10px; border-left: 2px solid #E23D28; padding-left: 10px;">
+        <span style="font-size: 13px; flex-grow: 1;">Brighton bid <span class="mono" style="font-weight: 600;">£22.0M</span> for F. Vieira</span>
+        <span class="kick" style="color: #5C6470;">2d</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; border-left: 2px solid #C9CDD3; padding-left: 10px;">
+        <span style="font-size: 13px; flex-grow: 1;">Saliba on 4 yellow cards</span>
+        <span class="kick" style="color: #5C6470;">—</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid #101317; padding-bottom: 22px; background: #FFFFFF;">
+    <div style="height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-top: 2px solid #E23D28; margin-top: -1px;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#101317" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"></path></svg>
+      <span class="kick" style="font-size: 9px; color: #101317;">Home</span>
+    </div>
+    <div style="height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#5C6470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"></circle><path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"></path><path d="M17 5.2a3.4 3.4 0 0 1 0 6.6"></path></svg>
+      <span class="kick" style="font-size: 9px; color: #5C6470;">Squad</span>
+    </div>
+    <div style="height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#5C6470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path></svg>
+      <span class="kick" style="font-size: 9px; color: #5C6470;">Table</span>
+    </div>
+    <div style="height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#5C6470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3.5 20.5 8 16 12.5"></path><path d="M3.5 8h17"></path><path d="M8 11.5 3.5 16 8 20.5"></path><path d="M20.5 16h-17"></path></svg>
+      <span class="kick" style="font-size: 9px; color: #5C6470;">Market</span>
+    </div>
+    <div style="height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#5C6470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v6a5 5 0 0 1-10 0Z"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path><path d="M12 15v5"></path><path d="M9.5 20h5"></path></svg>
+      <span class="kick" style="font-size: 9px; color: #5C6470;">Club</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

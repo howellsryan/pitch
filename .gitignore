@@ -18,3 +18,7 @@ screenshots/
 # Seeded design-canvas output — regenerated from the .dc.html sources.
 design-canvas/*.html
 !design-canvas/*.dc.html
+
+# Seeded redesign-canvas output — regenerated from the .dc.html sources.
+design-canvas-v2/*.html
+!design-canvas-v2/*.dc.html
