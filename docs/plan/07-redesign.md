@@ -263,10 +263,15 @@ The broadcast phase now lasts long enough to watch at 1×, with possession shape
 that stretch attacks and compress defences rather than snapping back to a static
 formation. Deterministic throw-ins, free kicks, corners and goal kicks pace the
 presentation between phases; they are derived scenes, not new engine events.
-Goals receive a full-pitch takeover and a longer hold. Player identity and lineup
-management remain in Squad. Penalty choreography is reserved until the engine
-emits a real penalty event. The presentation module is covered by Vitest,
-including all-player, scorer/assist and restart cases.
+`src/game/broadcastKinematics.js` keeps a persistent position and velocity for
+every marker between those phases. A requestAnimationFrame loop steers players
+towards new tactical targets with acceleration, arrival braking and soft
+separation, while the ball travels continuously towards its receiver. Formation
+coordinates are targets, never fresh rendered positions. Goals receive a
+full-pitch takeover and a longer hold. Player identity and lineup management
+remain in Squad. Penalty choreography is reserved until the engine emits a real
+penalty event. The presentation and kinematics modules are covered by Vitest,
+including no-teleport, convergence, all-player, scorer/assist and restart cases.
 
 ### R6 — Market and Table
 Plain, fast, dense, in the unified palette.

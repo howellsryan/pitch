@@ -17,6 +17,7 @@
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
+  import { advanceBroadcastWorld, createBroadcastWorld, retargetBroadcastWorld } from '../../game/broadcastKinematics.js';
   import { derivedRestart, makeBroadcastFrame } from '../../game/matchPresentation.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
@@ -67,6 +68,9 @@
   let tickTimer = null;
   let kickoffTimer = null;
   let broadcastFrame = $state(null);
+  let broadcastWorld = null;
+  let presentationFrame = null;
+  let presentationAt = 0;
   let presentationPossession = null;
   let presentationEvent = null;
   let presentationRestart = null;
@@ -339,6 +343,7 @@
     };
     presentationPossession = resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id;
     refreshBroadcast();
+    startPresentation();
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
       if (beat === 'kickoff') { beat = 'live'; scheduleTick(); }
@@ -423,7 +428,23 @@
   }
   function refreshBroadcast() {
     if (!live?.liveState || !presentationPossession) return;
-    broadcastFrame = makeFrame(live, presentationEvent, presentationPossession, presentationRestart);
+    const targetFrame = makeFrame(live, presentationEvent, presentationPossession, presentationRestart);
+    if (!broadcastWorld) broadcastWorld = createBroadcastWorld(targetFrame);
+    else retargetBroadcastWorld(broadcastWorld, targetFrame);
+    broadcastFrame = advanceBroadcastWorld(broadcastWorld, 0);
+  }
+  function startPresentation() {
+    window.cancelAnimationFrame(presentationFrame);
+    presentationAt = window.performance.now();
+    const animate = now => {
+      presentationFrame = window.requestAnimationFrame(animate);
+      if (!broadcastWorld || !live || beat !== 'live') { presentationAt = now; return; }
+      const elapsed = now - presentationAt;
+      if (elapsed < 30) return;
+      presentationAt = now;
+      if (!live.paused) broadcastFrame = advanceBroadcastWorld(broadcastWorld, elapsed);
+    };
+    presentationFrame = window.requestAnimationFrame(animate);
   }
 
   function togglePause() {
@@ -457,6 +478,7 @@
   function finishMatch() {
     window.clearTimeout(tickTimer);
     window.clearTimeout(goalNoticeTimer);
+    window.cancelAnimationFrame(presentationFrame);
     result = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
     resultCommitted = false;
     vibrate([80, 40, 80]);
@@ -589,8 +611,9 @@
 
   async function finishToHome() {
     window.clearTimeout(goalNoticeTimer);
+    window.cancelAnimationFrame(presentationFrame);
     active = false;
-    live = null; result = null; matchCtx = null;
+    live = null; result = null; matchCtx = null; broadcastWorld = null;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
     beforeTable = []; afterTable = [];
     await navigateTo('home');
@@ -1006,13 +1029,13 @@
   .pitch-circle { position: absolute; width: 22%; aspect-ratio: 1; top: 50%; left: 50%; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; transform: translate(-50%,-50%); }
   .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
   .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
-  .broadcast-player { position: absolute; z-index: 2; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,.75); color: white; font: 700 10px var(--font-mono); transition: left 1.65s cubic-bezier(.22,.61,.36,1), top 1.65s cubic-bezier(.22,.61,.36,1), transform .4s ease; }
+  .broadcast-player { position: absolute; z-index: 2; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 1.5px solid rgba(255,255,255,.78); color: white; font: 700 8px var(--font-mono); will-change: left, top; }
   .broadcast-player.home { background: var(--color-club); } .broadcast-player.away { background: #df3155; }
   .broadcast-player { color: #07110c; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
-  .broadcast-player.pressing { transform: translate(-50%,-50%) scale(1.22); box-shadow: 0 0 0 5px rgba(255,255,255,.14); }
-  .broadcast-player.receiving { transform: translate(-50%,-50%) scale(1.12); } .broadcast-player.rushing { box-shadow: 0 0 0 5px rgba(255,219,102,.24); }
-  .broadcast-ball { position: absolute; z-index: 4; width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 5px rgba(0,0,0,.7); transition: left 1.1s cubic-bezier(.22,.61,.36,1), top 1.1s cubic-bezier(.22,.61,.36,1); }
-  .broadcast-ball.shooting { width: 14px; height: 14px; box-shadow: 0 0 14px 4px rgba(255,255,255,.6); }
+  .broadcast-player.pressing { box-shadow: 0 0 0 3px rgba(255,255,255,.13); }
+  .broadcast-player.receiving { box-shadow: 0 0 0 2px rgba(255,255,255,.1); } .broadcast-player.rushing { box-shadow: 0 0 0 3px rgba(255,219,102,.2); }
+  .broadcast-ball { position: absolute; z-index: 4; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 4px rgba(0,0,0,.8); will-change: left, top; }
+  .broadcast-ball.shooting { width: 9px; height: 9px; box-shadow: 0 0 10px 3px rgba(255,255,255,.52); }
   .broadcast-state { position: absolute; z-index: 3; top: 9px; left: 10px; color: rgba(255,255,255,.82); font: 10px var(--font-mono); letter-spacing: 1.5px; }
   .goal-takeover { position: absolute; z-index: 6; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; background: rgba(4, 18, 12, .62); color: white; animation: goal-flash 3.2s ease both; pointer-events: none; }
   .goal-takeover span { font: 700 32px var(--font-display); letter-spacing: 4px; color: #ffe357; text-shadow: 0 0 24px rgba(255, 227, 87, .8); }
