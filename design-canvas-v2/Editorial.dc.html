@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #F8F5EF; font-family: Archivo, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #B3361F; } a:hover { color: #16130D; }
+    * { box-sizing: border-box; }
+    .ser { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
+    .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .kick { font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F8F5EF; color: #16130D; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px 14px;">
+    <div class="ser" style="font-size: 26px; letter-spacing: -0.01em;">Pitch</div>
+    <div style="font-size: 13px; font-weight: 500; color: #6E6659;">How it works</div>
+  </div>
+
+  <div style="height: 1px; background: #16130D;"></div>
+
+  <div style="padding: 30px 24px 0; display: flex; flex-direction: column; gap: 18px;">
+    <div class="kick" style="color: #B3361F;">Free · In your browser · No account</div>
+    <div class="ser" style="font-size: 68px; line-height: 0.92em; letter-spacing: -0.02em;">Take<br>the job.</div>
+    <div style="font-size: 15px; line-height: 1.5em; color: #3A342A; max-width: 300px; text-wrap: pretty;">Nine leagues. 186 clubs. Every cup, Europe, a youth academy — and a match engine that plays out minute by minute.</div>
+  </div>
+
+  <div style="padding: 26px 24px 0; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 56px; background: #16130D; color: #F8F5EF; font-size: 16px; font-weight: 600;">
+      Choose your club
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; height: 44px; font-size: 14px; font-weight: 500; color: #6E6659; text-decoration: underline; text-underline-offset: 4px;">Continue your career</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="height: 1px; background: #DFD8CA; margin: 0 24px;"></div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 20px 24px 22px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="ser num" style="font-size: 34px; line-height: 1em;">186</div>
+      <div class="kick" style="color: #6E6659;">Clubs</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="ser num" style="font-size: 34px; line-height: 1em;">9</div>
+      <div class="kick" style="color: #6E6659;">Leagues</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="ser num" style="font-size: 34px; line-height: 1em;">0</div>
+      <div class="kick" style="color: #6E6659;">Sign-ups</div>
+    </div>
+  </div>
+
+  <div style="background: #16130D; color: #F8F5EF; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 12px;">
+    <div class="kick" style="color: #9A9081;">Live in the engine</div>
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+      <div class="ser" style="font-size: 25px;">Arsenal</div>
+      <div class="ser num" style="font-size: 25px;">2 — 1</div>
+      <div class="ser" style="font-size: 25px;">Chelsea</div>
+    </div>
+    <div style="display: flex; gap: 16px; font-size: 12px; color: #9A9081;" class="num">
+      <span>Saka 34'</span><span>Ødegaard 71'</span><span>Palmer 88'</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

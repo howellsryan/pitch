@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #070D09; font-family: "Barlow Semi Condensed", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #FFE14D; } a:hover { color: #FFFFFF; }
+    * { box-sizing: border-box; }
+    .disp { font-family: "Big Shoulders Display", "Arial Narrow", sans-serif; font-weight: 800; }
+    .num { font-variant-numeric: tabular-nums; }
+    .kick { font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+    .prow { display: flex; align-items: center; gap: 11px; padding: 9px 14px; border-left: 3px solid transparent; }
+    @keyframes navBreathe { 0%, 100% { box-shadow: 0 6px 22px rgba(0,0,0,0.55); } 50% { box-shadow: 0 6px 30px rgba(255,225,77,0.20); } }
+    .navpill { animation: navBreathe 4s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #070D09; color: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="display: flex; align-items: stretch; border-bottom: 1px solid rgba(255,255,255,0.09);">
+    <div style="width: 5px; background: #EF0107;"></div>
+    <div style="flex-grow: 1; display: flex; align-items: center; gap: 10px; padding: 13px 14px;">
+      <div style="flex-grow: 1;">
+        <div class="disp" style="font-size: 26px; line-height: 0.92em; letter-spacing: 0.01em;">SQUAD</div>
+        <div class="kick num" style="color: #7E8C82; margin-top: 3px;">26 players · 3 injured · £2.94M weekly wage</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="kick" style="color: #7E8C82;">Avg</div>
+        <div class="disp num" style="font-size: 24px; color: #FFE14D; line-height: 1em;">81</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 6px; padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.07); overflow: hidden;">
+    <div style="flex-shrink: 0; height: 32px; padding: 0 13px; background: #FFE14D; color: #050A07; display: flex; align-items: center;"><span class="disp" style="font-size: 15px;">ALL</span></div>
+    <div style="flex-shrink: 0; height: 32px; padding: 0 13px; border: 1px solid rgba(255,255,255,0.16); display: flex; align-items: center;"><span class="disp" style="font-size: 15px; color: #B9C4BC;">GK</span></div>
+    <div style="flex-shrink: 0; height: 32px; padding: 0 13px; border: 1px solid rgba(255,255,255,0.16); display: flex; align-items: center;"><span class="disp" style="font-size: 15px; color: #B9C4BC;">DEF</span></div>
+    <div style="flex-shrink: 0; height: 32px; padding: 0 13px; border: 1px solid rgba(255,255,255,0.16); display: flex; align-items: center;"><span class="disp" style="font-size: 15px; color: #B9C4BC;">MID</span></div>
+    <div style="flex-shrink: 0; height: 32px; padding: 0 13px; border: 1px solid rgba(255,255,255,0.16); display: flex; align-items: center;"><span class="disp" style="font-size: 15px; color: #B9C4BC;">ATT</span></div>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; overflow: hidden;">
+
+    <div class="prow" style="border-left-color: #FFE14D; background: linear-gradient(90deg, rgba(255,225,77,0.09), transparent);">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center; color: #FFE14D;">97</span>
+      <div style="flex-grow: 1; min-width: 0;">
+        <div style="font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bukayo Saka</div>
+        <div class="kick num" style="color: #7E8C82; margin-top: 2px;">RW · 23 · England</div>
+      </div>
+      <div style="display: flex; gap: 2.5px; flex-shrink: 0;">
+        <div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #FFC23D;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div>
+      </div>
+      <span class="kick num" style="color: #FFE14D; width: 34px; text-align: right;">£168M</span>
+    </div>
+
+    <div class="prow">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">95</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">Martin Ødegaard</div><div class="kick num" style="color: #7E8C82; margin-top: 2px;">CAM · 26 · Norway</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #7E8C82;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£120M</span>
+    </div>
+
+    <div class="prow">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">95</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">Declan Rice</div><div class="kick num" style="color: #7E8C82; margin-top: 2px;">CDM · 26 · England</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #7E8C82;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£120M</span>
+    </div>
+
+    <div class="prow" style="border-left-color: #FF5A6E; background: linear-gradient(90deg, rgba(255,90,110,0.08), transparent);">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">95</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">William Saliba</div><div class="kick num" style="color: #FF5A6E; margin-top: 2px;">CB · 24 · France · 4 yellows</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #FFC23D;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£108M</span>
+    </div>
+
+    <div class="prow">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">91</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">Jurrien Timber</div><div class="kick num" style="color: #7E8C82; margin-top: 2px;">CB · 24 · Netherlands</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #7E8C82;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£65M</span>
+    </div>
+
+    <div class="prow" style="opacity: 0.45;">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">90</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">Piero Hincapié</div><div class="kick num" style="color: #FF5A6E; margin-top: 2px;">CB · 23 · Injured — 3 weeks</div></div>
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#FF5A6E" stroke-width="2" stroke-linecap="round"><path d="M12 6v12"></path><path d="M6 12h12"></path></svg>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£45M</span>
+    </div>
+
+    <div class="prow">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">88</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">Gabriel Magalhães</div><div class="kick num" style="color: #7E8C82; margin-top: 2px;">CB · 27 · Brazil</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #7E8C82;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£75M</span>
+    </div>
+
+    <div class="prow">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">87</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">Bruno Guimarães</div><div class="kick num" style="color: #7E8C82; margin-top: 2px;">CM · 27 · Brazil</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #7E8C82;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #FFC23D;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£59M</span>
+    </div>
+
+    <div class="prow">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">85</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">David Raya</div><div class="kick num" style="color: #7E8C82; margin-top: 2px;">GK · 30 · Spain</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£38M</span>
+    </div>
+
+    <div class="prow">
+      <span class="disp num" style="font-size: 27px; width: 34px; text-align: center;">85</span>
+      <div style="flex-grow: 1; min-width: 0;"><div style="font-size: 15px; font-weight: 600;">Kai Havertz</div><div class="kick num" style="color: #7E8C82; margin-top: 2px;">CAM · 26 · Germany</div></div>
+      <div style="display: flex; gap: 2.5px;"><div style="width: 4px; height: 15px; background: #FFC23D;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #7E8C82;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div><div style="width: 4px; height: 15px; background: #34E27A;"></div></div>
+      <span class="kick num" style="color: #B9C4BC; width: 34px; text-align: right;">£80M</span>
+    </div>
+
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 130px; background: linear-gradient(180deg, rgba(7,13,9,0) 0%, rgba(7,13,9,0.9) 46%, #070D09 100%); pointer-events: none;"></div>
+
+  <div style="position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 5;">
+    <div class="navpill" style="display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 8px 0 16px; border-radius: 999px; background: rgba(16,26,20,0.95); border: 1px solid rgba(255,255,255,0.13); backdrop-filter: blur(12px);">
+      <svg viewBox="0 0 22 26" width="17" height="20" aria-hidden="true"><path d="M11 1 L20 4 V14 C20 20 15.5 23.5 11 25 C6.5 23.5 2 20 2 14 V4 Z" fill="#EF0107"></path></svg>
+      <span class="disp" style="font-size: 19px; letter-spacing: 0.02em;">SQUAD</span>
+      <span style="width: 1px; height: 20px; background: rgba(255,255,255,0.14);"></span>
+      <div style="width: 40px; height: 40px; border-radius: 50%; background: #FFE14D; display: flex; align-items: center; justify-content: center;">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#050A07" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

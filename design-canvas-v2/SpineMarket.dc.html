@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Public+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #08090F; font-family: "Public Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #7DF9C4; } a:hover { color: #F2F4F8; }
+    * { box-sizing: border-box; }
+    .disp { font-family: Unbounded, "Arial Black", sans-serif; }
+    .num { font-variant-numeric: tabular-nums; }
+    .kick { font-size: 9.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; }
+    .row { display: grid; grid-template-columns: 34px 1fr 40px 58px; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(242,244,248,0.06); }
+    @keyframes meter { 0% { width: 0; } 100% { width: 62%; } }
+    .meter { animation: meter 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #08090F; color: #F2F4F8; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="padding: 18px 20px 0; display: flex; align-items: flex-end; justify-content: space-between;">
+    <div>
+      <div class="disp" style="font-size: 21px; font-weight: 800; letter-spacing: -0.04em;">Market</div>
+      <div class="kick" style="color: #5A6272; margin-top: 4px;">3,014 players listed</div>
+    </div>
+    <div style="text-align: right;">
+      <div class="kick" style="color: #5A6272;">Remaining</div>
+      <div class="disp num" style="font-size: 20px; font-weight: 600; color: #7DF9C4; letter-spacing: -0.03em;">£48.5M</div>
+    </div>
+  </div>
+
+  <div style="padding: 12px 20px 0;">
+    <div style="height: 3px; border-radius: 3px; background: rgba(242,244,248,0.09); overflow: hidden;">
+      <div class="meter" style="height: 3px; border-radius: 3px; background: linear-gradient(90deg, #7DF9C4, #EF0107); width: 62%;"></div>
+    </div>
+    <div class="kick num" style="color: #4E5566; margin-top: 6px;">£79.5M of £128M wage-adjusted budget committed</div>
+  </div>
+
+  <div style="display: flex; gap: 7px; padding: 14px 20px 0; overflow: hidden;">
+    <div style="flex-shrink: 0; height: 34px; padding: 0 13px; border-radius: 999px; background: #7DF9C4; color: #08090F; display: flex; align-items: center; font-size: 12px; font-weight: 700;">Can afford</div>
+    <div style="flex-shrink: 0; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid rgba(242,244,248,0.14); display: flex; align-items: center; font-size: 12px; font-weight: 500; color: #C9D0DC;">CB</div>
+    <div style="flex-shrink: 0; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid rgba(242,244,248,0.14); display: flex; align-items: center; font-size: 12px; font-weight: 500; color: #C9D0DC;">U23</div>
+    <div style="flex-shrink: 0; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid rgba(242,244,248,0.14); display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #C9D0DC;">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"></path><path d="M7 12h10"></path><path d="M10 18h4"></path></svg>
+      Sort
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 6px 20px 0;">
+    <div class="row" style="border-bottom: 1px solid rgba(242,244,248,0.12); padding-bottom: 8px;">
+      <span class="kick" style="color: #4E5566;">Pos</span>
+      <span class="kick" style="color: #4E5566;">Player</span>
+      <span class="kick" style="color: #4E5566; text-align: right;">Rat</span>
+      <span class="kick" style="color: #4E5566; text-align: right;">Value</span>
+    </div>
+
+    <div class="row">
+      <span class="kick num" style="color: #98A1B4;">CB</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Piero Hincapié</div><div class="kick num" style="color: #5A6272; margin-top: 2px;">23 · Ecuador · Leverkusen</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right; color: #7DF9C4;">90</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right;">£45M</span>
+    </div>
+    <div class="row">
+      <span class="kick num" style="color: #98A1B4;">CM</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bruno Guimarães</div><div class="kick num" style="color: #5A6272; margin-top: 2px;">27 · Brazil · Newcastle</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right;">87</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right;">£59M</span>
+    </div>
+    <div class="row" style="background: linear-gradient(90deg, rgba(125,249,196,0.07), transparent); margin: 0 -20px; padding-left: 20px; padding-right: 20px; grid-template-columns: 34px 1fr 40px 58px;">
+      <span class="kick num" style="color: #7DF9C4;">RW</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bukayo Saka <span class="kick" style="color: #FFD166; letter-spacing: 0.1em;">· WK</span></div><div class="kick num" style="color: #7DF9C4; margin-top: 2px;">Bid pending · £168M</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right;">86</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right; color: #FF6B7A;">Over</span>
+    </div>
+    <div class="row">
+      <span class="kick num" style="color: #98A1B4;">GK</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Illan Meslier</div><div class="kick num" style="color: #5A6272; margin-top: 2px;">25 · France · Leeds United</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right;">80</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right;">£30M</span>
+    </div>
+    <div class="row">
+      <span class="kick num" style="color: #98A1B4;">CB</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ezri Konsa</div><div class="kick num" style="color: #5A6272; margin-top: 2px;">27 · England · Aston Villa</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right;">82</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right;">£29M</span>
+    </div>
+    <div class="row">
+      <span class="kick num" style="color: #98A1B4;">CAM</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Fábio Vieira</div><div class="kick num" style="color: #5A6272; margin-top: 2px;">25 · Portugal · Arsenal</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right;">76</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right;">£20M</span>
+    </div>
+    <div class="row">
+      <span class="kick num" style="color: #98A1B4;">LB</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Oleksandr Zinchenko</div><div class="kick num" style="color: #5A6272; margin-top: 2px;">28 · Ukraine · Arsenal</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right;">64</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right;">£35M</span>
+    </div>
+    <div class="row" style="opacity: 0.5;">
+      <span class="kick num" style="color: #98A1B4;">CM</span>
+      <div style="min-width: 0;"><div style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Jorginho</div><div class="kick num" style="color: #5A6272; margin-top: 2px;">33 · Italy · Arsenal</div></div>
+      <span class="disp num" style="font-size: 16px; font-weight: 600; text-align: right;">72</span>
+      <span class="num" style="font-size: 13px; font-weight: 600; text-align: right;">£29M</span>
+    </div>
+  </div>
+
+  <div style="position: relative; z-index: 3; display: flex; align-items: center; justify-content: space-between; padding: 14px 26px 26px; background: #0C0E15; border-top: 1px solid rgba(242,244,248,0.07);">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #3B4150;"></span><span class="kick" style="font-size: 8.5px; color: #5A6272;">Season</span></div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #3B4150;"></span><span class="kick" style="font-size: 8.5px; color: #5A6272;">Squad</span></div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #3B4150;"></span><span class="kick" style="font-size: 8.5px; color: #5A6272;">Table</span></div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #7DF9C4;"></span><span class="kick" style="font-size: 8.5px; color: #F2F4F8;">Market</span></div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #3B4150;"></span><span class="kick" style="font-size: 8.5px; color: #5A6272;">Club</span></div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

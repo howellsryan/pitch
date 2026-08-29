@@ -7,68 +7,112 @@
 <body>
 <x-dc>
 <helmet>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
   <style>
-    body { margin: 0; background: #F8F5EF; font-family: Archivo, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
-    a { color: #B3361F; } a:hover { color: #16130D; }
+    body { margin: 0; background: #050A07; font-family: "Barlow Semi Condensed", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #FFE14D; } a:hover { color: #FFFFFF; }
     * { box-sizing: border-box; }
-    .ser { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
-    .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-    .kick { font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; }
+    .disp { font-family: "Big Shoulders Display", "Arial Narrow", sans-serif; font-weight: 800; }
+    .num { font-variant-numeric: tabular-nums; }
+    .kick { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+    @keyframes bugIn { 0% { transform: translateX(-108%); opacity: 0; } 14%, 100% { transform: translateX(0); opacity: 1; } }
+    @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.82); } }
+    @keyframes ballRun { 0% { left: 22%; top: 62%; } 30% { left: 47%; top: 40%; } 55% { left: 68%; top: 52%; } 78% { left: 84%; top: 33%; } 100% { left: 22%; top: 62%; } }
+    @keyframes lampFlicker { 0%, 100% { opacity: 0.85; } 47% { opacity: 0.72; } 52% { opacity: 0.95; } }
+    @keyframes feedIn { 0% { transform: translateY(9px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+    .bug { animation: bugIn 5.5s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+    .live-dot { animation: livePulse 1.5s ease-in-out infinite; }
+    .ball { animation: ballRun 9s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+    .lamp { animation: lampFlicker 7s ease-in-out infinite; }
+    .feed-1 { animation: feedIn 0.5s ease-out both; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
   </style>
 </helmet>
 
-<div style="width: 390px; height: 844px; background: #F8F5EF; color: #16130D; display: flex; flex-direction: column; overflow: hidden;">
+<div style="width: 390px; height: 844px; background: #050A07; color: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; position: relative;">
 
-  <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px 14px;">
-    <div class="ser" style="font-size: 26px; letter-spacing: -0.01em;">Pitch</div>
-    <div style="font-size: 13px; font-weight: 500; color: #6E6659;">How it works</div>
+  <div style="position: absolute; inset: 0; overflow: hidden; pointer-events: none;">
+    <div class="lamp" style="position: absolute; top: -170px; left: -130px; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(214,238,255,0.30) 0%, rgba(214,238,255,0) 62%);"></div>
+    <div class="lamp" style="position: absolute; top: -190px; right: -140px; width: 430px; height: 430px; border-radius: 50%; background: radial-gradient(circle, rgba(214,238,255,0.24) 0%, rgba(214,238,255,0) 62%);"></div>
   </div>
 
-  <div style="height: 1px; background: #16130D;"></div>
 
-  <div style="padding: 30px 24px 0; display: flex; flex-direction: column; gap: 18px;">
-    <div class="kick" style="color: #B3361F;">Free · In your browser · No account</div>
-    <div class="ser" style="font-size: 68px; line-height: 0.92em; letter-spacing: -0.02em;">Take<br>the job.</div>
-    <div style="font-size: 15px; line-height: 1.5em; color: #3A342A; max-width: 300px; text-wrap: pretty;">Nine leagues. 186 clubs. Every cup, Europe, a youth academy — and a match engine that plays out minute by minute.</div>
-  </div>
-
-  <div style="padding: 26px 24px 0; display: flex; flex-direction: column; gap: 14px;">
-    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 56px; background: #16130D; color: #F8F5EF; font-size: 16px; font-weight: 600;">
-      Choose your club
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+  <div style="position: absolute; top: 168px; left: -80px; right: -80px; height: 470px; perspective: 620px; pointer-events: none;">
+    <div style="position: absolute; inset: 0; transform: rotateX(58deg); transform-origin: 50% 22%; background-color: #163D26; background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.030) 0px, rgba(255,255,255,0.030) 46px, transparent 46px, transparent 92px); border: 2px solid rgba(255,255,255,0.22); border-radius: 3px;">
+      <div style="position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: rgba(255,255,255,0.20);"></div>
+      <div style="position: absolute; left: 50%; top: 50%; width: 128px; height: 128px; margin: -64px 0 0 -64px; border: 2px solid rgba(255,255,255,0.20); border-radius: 50%;"></div>
+      <div style="position: absolute; left: 50%; top: 0; width: 176px; height: 74px; margin-left: -88px; border: 2px solid rgba(255,255,255,0.20); border-top: none;"></div>
+      <div style="position: absolute; left: 50%; bottom: 0; width: 176px; height: 74px; margin-left: -88px; border: 2px solid rgba(255,255,255,0.20); border-bottom: none;"></div>
+      <div style="position: absolute; left: 50%; top: 0; width: 76px; height: 28px; margin-left: -38px; border: 2px solid rgba(255,255,255,0.16); border-top: none;"></div>
+      <div style="position: absolute; left: 50%; bottom: 0; width: 76px; height: 28px; margin-left: -38px; border: 2px solid rgba(255,255,255,0.16); border-bottom: none;"></div>
     </div>
-    <div style="display: flex; align-items: center; justify-content: center; height: 44px; font-size: 14px; font-weight: 500; color: #6E6659; text-decoration: underline; text-underline-offset: 4px;">Continue your career</div>
+  </div>
+
+  <div style="position: absolute; top: 168px; left: 0; right: 0; height: 470px; pointer-events: none;">
+    <div class="ball" style="position: absolute; width: 11px; height: 11px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 0 14px rgba(255,255,255,0.85), 0 3px 7px rgba(0,0,0,0.6);"></div>
+  </div>
+
+  <div style="position: absolute; top: 340px; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, rgba(5,10,7,0) 0%, rgba(5,10,7,0.72) 34%, #050A07 72%); pointer-events: none;"></div>
+
+  <div style="position: relative; z-index: 4; padding: 16px 14px 0;">
+    <div class="bug" style="display: flex; align-items: stretch; border-radius: 4px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.55);">
+      <div style="width: 5px; background: #EF0107;"></div>
+      <div style="flex-grow: 1; background: rgba(6,12,9,0.93); backdrop-filter: blur(8px); display: flex; align-items: center; gap: 10px; padding: 9px 12px;">
+        <span class="disp" style="font-size: 25px; letter-spacing: 0.01em;">ARS</span>
+        <span class="disp num" style="font-size: 27px; color: #FFE14D;">2</span>
+        <span style="width: 1px; height: 20px; background: rgba(255,255,255,0.18);"></span>
+        <span class="disp num" style="font-size: 27px;">1</span>
+        <span class="disp" style="font-size: 25px; letter-spacing: 0.01em; color: #B9C4BC;">CHE</span>
+        <span style="flex-grow: 1;"></span>
+        <span class="live-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #34E27A;"></span>
+        <span class="disp num" style="font-size: 24px; color: #34E27A;">71'</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: relative; z-index: 4; padding: 9px 14px 0;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="kick" style="font-size: 8.5px; color: #7E8C82;">Momentum</span>
+      <div style="flex-grow: 1; height: 4px; border-radius: 3px; overflow: hidden; display: flex; background: rgba(255,255,255,0.08);">
+        <div style="width: 64%; background: #EF0107;"></div>
+        <div style="width: 36%; background: #4A5AA8;"></div>
+      </div>
+    </div>
   </div>
 
   <div style="flex-grow: 1;"></div>
 
-  <div style="height: 1px; background: #DFD8CA; margin: 0 24px;"></div>
-
-  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 20px 24px 22px;">
-    <div style="display: flex; flex-direction: column; gap: 4px;">
-      <div class="ser num" style="font-size: 34px; line-height: 1em;">186</div>
-      <div class="kick" style="color: #6E6659;">Clubs</div>
+  <div style="position: relative; z-index: 4; padding: 0 14px 12px; display: flex; flex-direction: column; gap: 7px;">
+    <div class="feed-1" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 4px; background: rgba(255,225,77,0.12); border-left: 3px solid #FFE14D;">
+      <span class="disp num" style="font-size: 19px; color: #FFE14D; width: 30px;">71'</span>
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#FFE14D" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m12 7 2.6 1.9-1 3.1h-3.2l-1-3.1Z" fill="#FFE14D" stroke="none"></path></svg>
+      <span style="font-size: 14px; font-weight: 600; flex-grow: 1;">GOAL — Ødegaard, from the edge</span>
     </div>
-    <div style="display: flex; flex-direction: column; gap: 4px;">
-      <div class="ser num" style="font-size: 34px; line-height: 1em;">9</div>
-      <div class="kick" style="color: #6E6659;">Leagues</div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; opacity: 0.62;">
+      <span class="disp num" style="font-size: 17px; color: #7E8C82; width: 30px;">66'</span>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#B9C4BC" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M17 4 7 20"></path><path d="M6 8h6"></path><path d="M12 16h6"></path></svg>
+      <span style="font-size: 13px; flex-grow: 1; color: #B9C4BC;">Sub — Jorginho on for Rice</span>
     </div>
-    <div style="display: flex; flex-direction: column; gap: 4px;">
-      <div class="ser num" style="font-size: 34px; line-height: 1em;">0</div>
-      <div class="kick" style="color: #6E6659;">Sign-ups</div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; opacity: 0.42;">
+      <span class="disp num" style="font-size: 17px; color: #7E8C82; width: 30px;">58'</span>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="#FFC23D" stroke="none" aria-hidden="true"><rect x="7" y="4" width="10" height="16" rx="1.5"></rect></svg>
+      <span style="font-size: 13px; flex-grow: 1; color: #B9C4BC;">Booking — Saliba</span>
     </div>
   </div>
 
-  <div style="background: #16130D; color: #F8F5EF; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 12px;">
-    <div class="kick" style="color: #9A9081;">Live in the engine</div>
-    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
-      <div class="ser" style="font-size: 25px;">Arsenal</div>
-      <div class="ser num" style="font-size: 25px;">2 — 1</div>
-      <div class="ser" style="font-size: 25px;">Chelsea</div>
+  <div style="position: relative; z-index: 4; padding: 0 14px 26px; display: flex; align-items: center; gap: 8px;">
+    <div style="width: 54px; height: 54px; border-radius: 4px; background: rgba(255,255,255,0.09); display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="#FFFFFF" aria-hidden="true"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
     </div>
-    <div style="display: flex; gap: 16px; font-size: 12px; color: #9A9081;" class="num">
-      <span>Saka 34'</span><span>Ødegaard 71'</span><span>Palmer 88'</span>
+    <div style="flex-grow: 1; height: 54px; border-radius: 4px; background: rgba(255,255,255,0.09); display: flex; align-items: center; padding: 4px;">
+      <div style="flex-grow: 1; height: 46px; border-radius: 3px; display: flex; align-items: center; justify-content: center;"><span class="disp" style="font-size: 19px; color: #7E8C82;">1×</span></div>
+      <div style="flex-grow: 1; height: 46px; border-radius: 3px; background: #FFE14D; display: flex; align-items: center; justify-content: center;"><span class="disp" style="font-size: 19px; color: #050A07;">2×</span></div>
+      <div style="flex-grow: 1; height: 46px; border-radius: 3px; display: flex; align-items: center; justify-content: center;"><span class="disp" style="font-size: 19px; color: #7E8C82;">4×</span></div>
+      <div style="flex-grow: 1; height: 46px; border-radius: 3px; display: flex; align-items: center; justify-content: center;"><span class="disp" style="font-size: 17px; color: #7E8C82;">SKIP</span></div>
+    </div>
+    <div style="width: 54px; height: 54px; border-radius: 4px; background: rgba(255,255,255,0.09); display: flex; align-items: center; justify-content: center; position: relative;">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 4 7 20"></path><path d="M6 8h6"></path><path d="M12 16h6"></path></svg>
+      <span style="position: absolute; top: 6px; right: 7px;" class="disp num"><span style="font-size: 13px; color: #34E27A;">2</span></span>
     </div>
   </div>
 
