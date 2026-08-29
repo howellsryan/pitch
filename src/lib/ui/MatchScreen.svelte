@@ -17,8 +17,7 @@
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
-  import { advanceBroadcastWorld, createBroadcastWorld, retargetBroadcastWorld } from '../../game/broadcastKinematics.js';
-  import { derivedRestart, makeBroadcastFrame } from '../../game/matchPresentation.js';
+  import { advanceBroadcastSimulation, createBroadcastSimulation, derivedRestart, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
@@ -44,7 +43,7 @@
    */
 
   const WATCH_PHASES_PER_TICK = 1;   // 1 phase per tick = ~0.75 match-min
-  const WATCH_TICK_MS         = 1800; // 1x is deliberately watchable; faster modes remain available
+  const WATCH_TICK_MS         = 1000; // ~120s at 1x; faster modes remain available
   const TOTAL_PHASES          = 120;
 
   let active  = $state(false); // a match is loaded or in progress — blocks re-entry
@@ -68,13 +67,14 @@
   let tickTimer = null;
   let kickoffTimer = null;
   let broadcastFrame = $state(null);
-  let broadcastWorld = null;
+  let broadcastSimulation = null;
   let presentationFrame = null;
   let presentationAt = 0;
   let presentationPossession = null;
   let presentationEvent = null;
   let presentationRestart = null;
   let goalNotice = $state(null);
+  let queuedGoalNotice = null;
   let goalNoticeTimer = null;
 
   let result          = $state.raw(null); // finalised match result (same shape whether from finaliseLiveMatch or advanceOneFixture's singleResult)
@@ -342,7 +342,13 @@
       currentPhase: 0, paused: false, speedMultiplier: 1,
     };
     presentationPossession = resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id;
-    refreshBroadcast();
+    broadcastSimulation = createBroadcastSimulation({
+      homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id,
+      possessionTeamId: presentationPossession,
+      homeFormation: live.liveState.homeFormation, awayFormation: live.liveState.awayFormation,
+      homePlayers: live.liveState.hActive, awayPlayers: live.liveState.aActive,
+    });
+    broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
     startPresentation();
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
@@ -401,7 +407,7 @@
     presentationPossession = possessionTeamId;
     presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
     presentationRestart = presentationEvent ? null : derivedRestart(endPhase);
-    refreshBroadcast();
+    updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent, restart: presentationRestart });
     handleNewEvents(segEvents);
     if (live.currentPhase >= TOTAL_PHASES) finishMatch();
     else scheduleTick(presentationEvent ? 2600 : presentationRestart ? 1200 : 0);
@@ -411,11 +417,7 @@
     for (const ev of segEvents) {
       const isUser = ev.teamId === live.userTeam.id;
       if (ev.type === 'goal') {
-        vibrate([60]);
-        goalNotice = ev;
-        window.clearTimeout(goalNoticeTimer);
-        goalNoticeTimer = window.setTimeout(() => { goalNotice = null; }, 3200);
-        if (isUser) toast(`⚽ GOAL! ${ev.playerName}`, 'success');
+        queuedGoalNotice = { ...ev, isUser };
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
         togglePause();
         toast(`🚑 ${ev.playerName} is injured! ${ev.injuryName || ''}`, 'error', 6000);
@@ -423,26 +425,29 @@
     }
   }
 
-  function makeFrame(currentLive, event, possessionTeamId, restart = null) {
-    return makeBroadcastFrame({ phase: currentLive.currentPhase, possessionTeamId, homeTeamId: currentLive.homeTeam.id, homeFormation: currentLive.liveState.homeFormation, awayFormation: currentLive.liveState.awayFormation, homePlayers: currentLive.liveState.hActive, awayPlayers: currentLive.liveState.aActive, event, restart });
+  function revealGoalNotice() {
+    if (!queuedGoalNotice) return;
+    goalNotice = queuedGoalNotice;
+    queuedGoalNotice = null;
+    vibrate([60]);
+    window.clearTimeout(goalNoticeTimer);
+    goalNoticeTimer = window.setTimeout(() => { goalNotice = null; }, 3200);
+    if (goalNotice.isUser) toast(`⚽ GOAL! ${goalNotice.playerName}`, 'success');
   }
-  function refreshBroadcast() {
-    if (!live?.liveState || !presentationPossession) return;
-    const targetFrame = makeFrame(live, presentationEvent, presentationPossession, presentationRestart);
-    if (!broadcastWorld) broadcastWorld = createBroadcastWorld(targetFrame);
-    else retargetBroadcastWorld(broadcastWorld, targetFrame);
-    broadcastFrame = advanceBroadcastWorld(broadcastWorld, 0);
-  }
+
   function startPresentation() {
     window.cancelAnimationFrame(presentationFrame);
     presentationAt = window.performance.now();
     const animate = now => {
       presentationFrame = window.requestAnimationFrame(animate);
-      if (!broadcastWorld || !live || beat !== 'live') { presentationAt = now; return; }
+      if (!broadcastSimulation || !live || beat !== 'live') { presentationAt = now; return; }
       const elapsed = now - presentationAt;
       if (elapsed < 30) return;
       presentationAt = now;
-      if (!live.paused) broadcastFrame = advanceBroadcastWorld(broadcastWorld, elapsed);
+      if (!live.paused) {
+        broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, elapsed);
+        if (broadcastFrame.action === 'GOAL') revealGoalNotice();
+      }
     };
     presentationFrame = window.requestAnimationFrame(animate);
   }
@@ -470,7 +475,7 @@
     const beforeState = live.liveState;
     const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, beforeState, startPhase, TOTAL_PHASES);
     live = { ...live, liveState: updatedState, currentPhase: TOTAL_PHASES, allEvents: [...live.allEvents, ...segEvents] };
-    broadcastFrame = makeFrame(live, segEvents.find(event => event.type === 'goal') ?? null, updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id);
+    updateBroadcastSimulation(broadcastSimulation, { phase: TOTAL_PHASES, possessionTeamId: updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id, event: segEvents.find(event => event.type === 'goal') ?? null });
     handleNewEvents(segEvents);
     finishMatch();
   }
@@ -517,7 +522,7 @@
     const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, subSheetInPlayer.id, subOutPlayer.id, minute, live.userTeam.id);
     if (ok) {
       live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
-      broadcastFrame = makeFrame(live, null, live.userIsHome ? live.homeTeam.id : live.awayTeam.id);
+      replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
       toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
     }
     closeSubSheet();
@@ -542,7 +547,7 @@
   function applyTactics() {
     const newLs = applyFormationChange(live.liveState, live.userIsHome, tacticsPickerFormation);
     live = { ...live, liveState: newLs };
-    broadcastFrame = makeFrame(live, null, live.userIsHome ? live.homeTeam.id : live.awayTeam.id);
+    replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
     toast(`Formation changed to ${tacticsPickerFormation}`, 'info', 3000);
     closeTacticsSheet();
   }
@@ -613,7 +618,7 @@
     window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
     active = false;
-    live = null; result = null; matchCtx = null; broadcastWorld = null;
+    live = null; result = null; matchCtx = null; broadcastSimulation = null;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
     beforeTable = []; afterTable = [];
     await navigateTo('home');

@@ -50,44 +50,45 @@ they are cheap to reverse.
 
 ## 2. The ball-motion decision — read this before starting R5
 
-**The match engine has no spatial model.** `modules/matchEngine.js` works in
+**The result engine has no spatial model.** `modules/matchEngine.js` works in
 120 abstract *phases* mapped to 90 minutes, computing goal chance from team
 strength. Its events are `{type: 'goal'|'yellow'|'injury'|'sub', minute,
 teamId, playerId, playerName, …}` plus a scorer and assister picked by weighted
 rating. There is no ball, no position, no pass, anywhere in the simulation.
 
-So the passing visualisation the design shows **cannot be read from the engine.
-It has to be derived.** Two options were considered:
+So the broadcast cannot read positions from that engine. It needs a separate
+spatial presentation simulation. Two options were considered:
 
 - **Make the engine spatial.** Rejected. It is `plan-gate` territory
   (simulation math), it would change match outcomes, and it would break both
   `validate.js`'s statistical checks and the reproducibility of every existing
   save. Enormous cost for a presentational gain.
-- **Derive plausible motion from the events the engine already emits.**
-  Chosen.
+- **Run a spatial presentation engine around the outcomes already emitted.**
+  Chosen. It may add visual passes, positioning, pressure, tackles and
+  restarts, but it cannot change possession totals, scorers or results.
 
-### How the derivation works
+### How the spatial presentation works
 
-A new pure module, `src/game/matchMotion.js` — DOM-free, in `src/game/` per
-CLAUDE.md's rule that anything computing rather than rendering belongs there,
-and covered by Vitest rather than `validate.js`.
+`src/game/broadcastSimulation.js` is DOM-free and owns both layers a believable
+match view needs. Its high-level state selects kickoff, live possession,
+turnover, restart, chance, shot, goal hold and post-goal kickoff. Its low-level
+steering preserves velocity, accelerates towards role targets, brakes on
+arrival and separates nearby markers. The ball has an explicit owner or a
+time-based curved flight; it is never independently eased towards an unrelated
+formation slot.
 
-- **Input:** one engine event, the scoring team's formation and lineup, and the
-  existing `SLOT_LAYOUT` from `src/game/formationLayout.js` (already shared by
-  Tactics and Match, already x/y percentages).
-- **Output:** an ordered list of `{x, y, playerId, playerName}` waypoints in
-  pitch-percentage space. The component animates a path through them.
-- **The move is honest.** It uses the *real* assister at his *real* formation
-  slot passing to the *real* scorer at his. "Bruno (CM, 27/52) → Ødegaard (CAM,
-  50/38) → goal" is a true statement about the event the engine produced. What
-  it does not claim is that a physics simulation happened.
+In-possession players form support triangles and offer width. Out-of-possession
+players retain a compact line and only the nearest one or two press. The ball
+and second-last defender create a hard offside boundary for forward movement,
+goalkeepers stay within a bounded sweeper zone, and kickoff positions obey the
+own-half and centre-circle laws. Engine goal events still supply the real team,
+scorer and minute; the presentation engine builds the lead-in and shot around
+that outcome.
 
-**Determinism is a requirement, not a nicety.** `Math.random()` here would
-redraw a different move every time the component re-renders or a save is
-resumed mid-match. Waypoints are seeded from a hash of `(minute, playerId)` —
-FNV-1a, already this codebase's hashing idiom from the `.pitch` export
-integrity check. Same event, same move, forever. This gets its own Vitest
-assertion.
+**Determinism is a requirement, not a nicety.** Selection variation uses FNV-1a
+hashes of the sequence and player ids, never `Math.random()`. Tests cover legal
+kickoff geometry, continuous ball flight, offside, goalkeeper bounds and goal
+chance creation.
 
 **Scope fence:** R5 adds no field to any engine event and changes no
 simulation arithmetic. If a phase finds itself wanting to, stop and re-triage
@@ -239,7 +240,7 @@ route is an alias for Squad so existing links continue to land on the merged
 screen. No save or simulation data changed. R5 is next.
 
 ### R5 — Matchday = Broadcast
-1. `src/game/matchMotion.js` + its Vitest file **first**, before any pixel.
+1. `src/game/broadcastSimulation.js` + its Vitest file **first**, before any pixel.
 2. Perspective pitch, score bug, momentum bar, events as lower-thirds.
 3. The derived pass/ball motion (§2).
 4. Keep the five beats from Phase 5 — team news, kickoff, live, full time,
@@ -256,22 +257,16 @@ already. Reassign wholesale; never deep-mutate.
 `MatchScreen.svelte` keeps its existing five-beat match flow and raw
 IndexedDB-safe match state, but its live beat is now a Broadcast surface: score
 bug, a full-screen pitch with 22 anonymous shirt markers, possession momentum,
-and a bottom control dock. `src/game/matchPresentation.js` turns each real
-engine possession and goal event into deterministic passes, pressing, shots and
-keeper movement; it does not add event fields or affect simulation arithmetic.
-The broadcast phase now lasts long enough to watch at 1×, with possession shapes
-that stretch attacks and compress defences rather than snapping back to a static
-formation. Deterministic throw-ins, free kicks, corners and goal kicks pace the
-presentation between phases; they are derived scenes, not new engine events.
-`src/game/broadcastKinematics.js` keeps a persistent position and velocity for
-every marker between those phases. A requestAnimationFrame loop steers players
-towards new tactical targets with acceleration, arrival braking and soft
-separation, while the ball travels continuously towards its receiver. Formation
-coordinates are targets, never fresh rendered positions. Goals receive a
-full-pitch takeover and a longer hold. Player identity and lineup management
-remain in Squad. Penalty choreography is reserved until the engine emits a real
-penalty event. The presentation and kinematics modules are covered by Vitest,
-including no-teleport, convergence, all-player, scorer/assist and restart cases.
+and a bottom control dock. `src/game/broadcastSimulation.js` is the single
+spatial presentation engine: a continuous possession state machine with a real
+ball owner/flight, role-based support and defensive shapes, local pressure,
+turnovers, legal kickoff geometry, enforced onside runs and bounded goalkeeper
+movement. Deterministic throw-ins, free kicks, corners and goal kicks pace the
+presentation between engine phases; they are visual scenes, not result events.
+Formation coordinates are role anchors, never fresh rendered positions. Goals
+receive a constructed chance, shot, full-pitch takeover, hold and opponent
+kickoff. Player identity and lineup management remain in Squad. Penalty
+choreography is reserved until the result engine emits a real penalty event.
 
 ### R6 — Market and Table
 Plain, fast, dense, in the unified palette.

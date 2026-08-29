@@ -36,9 +36,10 @@
   `02-design-system.md` from R0 onward and absorbs most of the old Phase 7.
   Read it before touching any screen: three metaphors (Spine home, Chalk
   squad+tactics, Broadcast matchday) over one shared palette and type system,
-  and one decision worth knowing up front — **the match engine has no spatial
-  model, so the passing/ball visualisation is derived deterministically from
-  the events it already emits, in `src/game/matchMotion.js`, never simulated.** `src/lib/ui/` holds one real Svelte 5 component per screen
+  and one decision worth knowing up front — **the result engine has no spatial
+  model, so `src/game/broadcastSimulation.js` runs a separate deterministic
+  spatial presentation simulation. It consumes possession and goal outcomes
+  but never changes them.** `src/lib/ui/` holds one real Svelte 5 component per screen
   (`TabBar`, `LeagueScreen`, `HomeScreen`, `SquadScreen`,
   `AcademyScreen`, `TrophiesScreen`, `SettingsScreen`, `TransfersScreen`,
   `MatchScreen`),
