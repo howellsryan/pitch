@@ -12,10 +12,12 @@
 // is carried only as a future conflict-resolution hook.
 import { requireAuth, json } from '../_lib/auth.js';
 
-// Base64 envelope, so real-terms this is roughly 3MB of raw save JSON —
-// comfortably past what one club's-eye career (squads, fixtures, transfer
-// history) produces. D1 caps a single column value at 2,000,000 bytes; stay
-// under that with room for the base64 overhead.
+// save_blob is gzip-compressed client-side before it ever reaches this route
+// (src/modules/db.js's buildCloudSaveBlob() — a brand-new career already
+// carries all 186 clubs' full rosters, ~2.3MB base64 uncompressed, so
+// compression isn't optional here). Gzipped, a fresh save runs ~180KB; this
+// limit is a generous ceiling for a long career's accumulated fixtures/
+// transfers/honors, well under D1's 2,000,000-byte column cap.
 const MAX_SAVE_BYTES = 1_800_000;
 
 export async function onRequestGet({ request, env }) {
