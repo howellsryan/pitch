@@ -31,8 +31,8 @@
   interaction rebuild taking no inspiration from Broadcast Kit, whose direction
   is accepted and whose phases are R0–R8. R0 (token layer, type system, UI
   kit), R1 (entry: marketing home + club select), R2 (shell and navigation),
-  R3 (Home = Spine) and R4 (Squad + Tactics = Chalk) are done; R5 (Matchday =
-  Broadcast) is next.** It supersedes
+  R3 (Home = Spine), R4 (Squad + Tactics = Chalk) and R5 (Matchday =
+  Broadcast) are done; R6 (Market and Table) is next.** It supersedes
   `02-design-system.md` from R0 onward and absorbs most of the old Phase 7.
   Read it before touching any screen: three metaphors (Spine home, Chalk
   squad+tactics, Broadcast matchday) over one shared palette and type system,

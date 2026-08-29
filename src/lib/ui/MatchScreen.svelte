@@ -17,6 +17,7 @@
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
+  import { deriveGoalMotion } from '../../game/matchMotion.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
@@ -65,6 +66,8 @@
   let live = $state.raw(null); // { liveState, allEvents, homeTeam, awayTeam, userTeam, oppTeam, userPlayers, oppPlayers, userIsHome, matchEvent, currentPhase, paused, speedMultiplier }
   let tickTimer = null;
   let kickoffTimer = null;
+  let motionTimer = null;
+  let activeMotion = $state(null);
 
   let result          = $state.raw(null); // finalised match result (same shape whether from finaliseLiveMatch or advanceOneFixture's singleResult)
   let resultCommitted = $state(false);
@@ -390,6 +393,7 @@
     for (const ev of segEvents) {
       const isUser = ev.teamId === live.userTeam.id;
       if (ev.type === 'goal') {
+        showGoalMotion(ev);
         vibrate([60]);
         if (isUser) toast(`⚽ GOAL! ${ev.playerName}`, 'success');
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
@@ -397,6 +401,18 @@
         toast(`🚑 ${ev.playerName} is injured! ${ev.injuryName || ''}`, 'error', 6000);
       }
     }
+  }
+
+  function showGoalMotion(event) {
+    if (!live?.liveState) return;
+    const isHome = event.teamId === live.homeTeam.id;
+    const lineup = isHome ? live.liveState.hActive : live.liveState.aActive;
+    const formation = isHome ? live.liveState.homeFormation : live.liveState.awayFormation;
+    const points = deriveGoalMotion(event, formation, lineup, { attackingUp: isHome });
+    if (!points.length) return;
+    activeMotion = { event, points };
+    window.clearTimeout(motionTimer);
+    motionTimer = window.setTimeout(() => { activeMotion = null; }, 3600);
   }
 
   function togglePause() {
@@ -689,7 +705,9 @@
 
   {:else if beat === 'live' && live}
     {@const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90)}
+    {@const homeShare = Math.round((live.liveState.hPhases / Math.max(1, live.liveState.hPhases + live.liveState.aPhases)) * 100)}
     <div class="live-wrap">
+      <div class="broadcast-label">LIVE · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
       <div class="score-bug">
         <div class="sb-team">
           <div class="sb-crest">{live.homeTeam.crest ?? '⚽'}</div>
@@ -708,6 +726,17 @@
         </div>
       </div>
       <div class="progress-wrap"><div class="progress-bar" style="width:{(live.currentPhase / TOTAL_PHASES) * 100}%"></div></div>
+      <div class="broadcast-pitch">
+        <div class="pitch-stripes"></div><div class="pitch-half"></div><div class="pitch-circle"></div><div class="pitch-box pitch-box-top"></div><div class="pitch-box pitch-box-bottom"></div>
+        {#if activeMotion}
+          <svg class="motion-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={`Goal: ${activeMotion.event.playerName}`}>
+            <polyline points={activeMotion.points.map(p => `${p.x},${p.y}`).join(' ')}></polyline>
+            <circle r="2.2"><animateMotion dur="2.4s" repeatCount="1" path={`M ${activeMotion.points.map(p => `${p.x},${p.y}`).join(' L ')}`} /></circle>
+          </svg>
+          <div class="lower-third"><span>GOAL · {activeMotion.event.minute}'</span><strong>{activeMotion.event.playerName}</strong>{#if activeMotion.event.assistName}<small>Assist: {activeMotion.event.assistName}</small>{/if}</div>
+        {:else}<div class="broadcast-state">{live.paused ? 'PAUSED' : minute <= 45 ? 'FIRST HALF' : 'SECOND HALF'}</div>{/if}
+      </div>
+      <div class="momentum" aria-label={`Possession momentum: ${homeShare}% ${live.homeTeam.name}`}><span>{live.homeTeam.name.split(' ')[0]}</span><div><i style={`width:${homeShare}%`}></i></div><span>{live.awayTeam.name.split(' ')[0]}</span></div>
 
       <div class="live-events">
         {#each live.allEvents as ev, i (i)}
@@ -974,6 +1003,7 @@
 
   /* ── Live ──────────────────────────────────────────────────── */
   .live-wrap { flex: 1; overflow-y: auto; padding: 12px 16px 8px; }
+  .broadcast-label { margin-bottom: 7px; font: 10px var(--font-mono); letter-spacing: 1.4px; color: var(--color-tx-3); text-align: center; }
   .score-bug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .sb-team { flex: 1; text-align: center; }
   .sb-crest { font-size: 26px; }
@@ -985,6 +1015,21 @@
   .sb-status { font-size: 10px; font-family: var(--font-mono); color: var(--color-tx-3); letter-spacing: 1px; }
   .progress-wrap { height: 3px; background: var(--color-raised); border-radius: 2px; margin: 10px 0; overflow: hidden; }
   .progress-bar { height: 100%; background: var(--color-club); transition: width 0.3s linear; }
+  .broadcast-pitch { position: relative; height: min(34vh, 260px); min-height: 180px; overflow: hidden; border: 1px solid color-mix(in oklch, var(--color-live) 40%, var(--color-line)); border-radius: 4px; background: #123d32; box-shadow: inset 0 0 48px rgba(0,0,0,.42); }
+  .pitch-stripes { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 10%, transparent 10% 20%); }
+  .pitch-half { position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,.35); }
+  .pitch-circle { position: absolute; width: 22%; aspect-ratio: 1; top: 50%; left: 50%; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; transform: translate(-50%,-50%); }
+  .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
+  .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
+  .motion-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .motion-layer polyline { fill: none; stroke: color-mix(in oklch, var(--color-club) 60%, white); stroke-width: .7; stroke-dasharray: 2 1; vector-effect: non-scaling-stroke; }
+  .motion-layer circle { fill: #fff; filter: drop-shadow(0 0 3px var(--color-club)); }
+  .broadcast-state { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.72); font: 12px var(--font-mono); letter-spacing: 2px; }
+  .lower-third { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px; display: grid; gap: 2px; color: white; background: linear-gradient(90deg, color-mix(in oklch, var(--color-club) 90%, #000), rgba(0,0,0,.68)); animation: lower-third .24s ease-out; }
+  .lower-third span, .lower-third small { font: 9px var(--font-mono); letter-spacing: 1px; opacity: .8; } .lower-third strong { font: 18px var(--font-display); letter-spacing: .5px; }
+  @keyframes lower-third { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+  .momentum { display: grid; grid-template-columns: minmax(0,1fr) 2fr minmax(0,1fr); gap: 6px; align-items: center; margin: 9px 0 3px; font: 9px var(--font-mono); color: var(--color-tx-3); }
+  .momentum span:last-child { text-align: right; } .momentum > div { height: 4px; background: var(--color-raised); overflow: hidden; border-radius: 4px; } .momentum i { display: block; height: 100%; background: var(--color-club); transition: width .35s ease; }
 
   .live-events { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column-reverse; gap: 4px; padding: 8px 0; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
   .ev-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; }
@@ -1067,7 +1112,7 @@
     border-radius: 18px 18px 0 0; padding: 10px 18px calc(20px + env(safe-area-inset-bottom));
     animation: slide-up 0.22s ease; font-family: var(--font-body); color: var(--color-tx);
   }
-  @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet, .kickoff-beat { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet, .kickoff-beat, .lower-third { animation: none; } .motion-layer { display: none; } }
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--color-line); margin: 4px auto 14px; }

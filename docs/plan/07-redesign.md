@@ -251,6 +251,17 @@ Svelte 5 deep-proxies plain `$state`, and IndexedDB's structured clone cannot
 serialize a reactive Proxy — this threw `DataCloneError` on match commit once
 already. Reassign wholesale; never deep-mutate.
 
+#### R5 status — done
+
+`MatchScreen.svelte` keeps its existing five-beat match flow and raw
+IndexedDB-safe match state, but its live beat is now a Broadcast surface: score
+bug, perspective pitch, possession momentum and goal lower-thirds. Goal paths
+are derived in the new pure `src/game/matchMotion.js`, using the engine's real
+scorer and assister in their real formation slots. The FNV-1a-derived choice of
+bridge player makes the same event render the same move after any re-render;
+it does not add event fields or affect simulation arithmetic. `matchMotion` is
+covered by Vitest, including deterministic and away-side orientation cases.
+
 ### R6 — Market and Table
 Plain, fast, dense, in the unified palette.
 
