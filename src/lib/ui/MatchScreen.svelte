@@ -17,7 +17,7 @@
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
-  import { makeBroadcastFrame } from '../../game/matchPresentation.js';
+  import { derivedRestart, makeBroadcastFrame } from '../../game/matchPresentation.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
@@ -43,7 +43,7 @@
    */
 
   const WATCH_PHASES_PER_TICK = 1;   // 1 phase per tick = ~0.75 match-min
-  const WATCH_TICK_MS         = 750; // ms at 1x -> full game in ~90s real time
+  const WATCH_TICK_MS         = 1800; // 1x is deliberately watchable; faster modes remain available
   const TOTAL_PHASES          = 120;
 
   let active  = $state(false); // a match is loaded or in progress — blocks re-entry
@@ -67,11 +67,11 @@
   let tickTimer = null;
   let kickoffTimer = null;
   let broadcastFrame = $state(null);
-  let presentationTimer = null;
-  let presentationPhase = 0;
   let presentationPossession = null;
   let presentationEvent = null;
-  let presentationEventFrames = 0;
+  let presentationRestart = null;
+  let goalNotice = $state(null);
+  let goalNoticeTimer = null;
 
   let result          = $state.raw(null); // finalised match result (same shape whether from finaliseLiveMatch or advanceOneFixture's singleResult)
   let resultCommitted = $state(false);
@@ -339,7 +339,6 @@
     };
     presentationPossession = resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id;
     refreshBroadcast();
-    startPresentation();
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
       if (beat === 'kickoff') { beat = 'live'; scheduleTick(); }
@@ -381,9 +380,9 @@
   }
 
   // ── Live tick engine (ported from ui/watchmatch.js) ──────────────────
-  function scheduleTick() {
+  function scheduleTick(extraDelay = 0) {
     const delay = Math.round(WATCH_TICK_MS / (live.speedMultiplier || 1));
-    tickTimer = window.setTimeout(runTick, delay);
+    tickTimer = window.setTimeout(runTick, delay + extraDelay);
   }
 
   function runTick() {
@@ -396,11 +395,11 @@
     const possessionTeamId = updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id;
     presentationPossession = possessionTeamId;
     presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
-    presentationEventFrames = presentationEvent ? 8 : 0;
+    presentationRestart = presentationEvent ? null : derivedRestart(endPhase);
     refreshBroadcast();
     handleNewEvents(segEvents);
     if (live.currentPhase >= TOTAL_PHASES) finishMatch();
-    else scheduleTick();
+    else scheduleTick(presentationEvent ? 2600 : presentationRestart ? 1200 : 0);
   }
 
   function handleNewEvents(segEvents) {
@@ -408,6 +407,9 @@
       const isUser = ev.teamId === live.userTeam.id;
       if (ev.type === 'goal') {
         vibrate([60]);
+        goalNotice = ev;
+        window.clearTimeout(goalNoticeTimer);
+        goalNoticeTimer = window.setTimeout(() => { goalNotice = null; }, 3200);
         if (isUser) toast(`⚽ GOAL! ${ev.playerName}`, 'success');
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
         togglePause();
@@ -416,22 +418,12 @@
     }
   }
 
-  function makeFrame(currentLive, event, possessionTeamId) {
-    return makeBroadcastFrame({ phase: currentLive.currentPhase, possessionTeamId, homeTeamId: currentLive.homeTeam.id, homeFormation: currentLive.liveState.homeFormation, awayFormation: currentLive.liveState.awayFormation, homePlayers: currentLive.liveState.hActive, awayPlayers: currentLive.liveState.aActive, event });
+  function makeFrame(currentLive, event, possessionTeamId, restart = null) {
+    return makeBroadcastFrame({ phase: currentLive.currentPhase, possessionTeamId, homeTeamId: currentLive.homeTeam.id, homeFormation: currentLive.liveState.homeFormation, awayFormation: currentLive.liveState.awayFormation, homePlayers: currentLive.liveState.hActive, awayPlayers: currentLive.liveState.aActive, event, restart });
   }
   function refreshBroadcast() {
     if (!live?.liveState || !presentationPossession) return;
-    broadcastFrame = makeFrame({ ...live, currentPhase: live.currentPhase * 20 + presentationPhase }, presentationEvent, presentationPossession);
-  }
-  function startPresentation() {
-    window.clearInterval(presentationTimer);
-    presentationTimer = window.setInterval(() => {
-      if (!live || live.paused || beat !== 'live') return;
-      presentationPhase++;
-      if (presentationEventFrames > 0) presentationEventFrames--;
-      if (!presentationEventFrames) presentationEvent = null;
-      refreshBroadcast();
-    }, 180);
+    broadcastFrame = makeFrame(live, presentationEvent, presentationPossession, presentationRestart);
   }
 
   function togglePause() {
@@ -464,7 +456,7 @@
 
   function finishMatch() {
     window.clearTimeout(tickTimer);
-    window.clearInterval(presentationTimer);
+    window.clearTimeout(goalNoticeTimer);
     result = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
     resultCommitted = false;
     vibrate([80, 40, 80]);
@@ -596,7 +588,7 @@
   }
 
   async function finishToHome() {
-    window.clearInterval(presentationTimer);
+    window.clearTimeout(goalNoticeTimer);
     active = false;
     live = null; result = null; matchCtx = null;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
@@ -759,6 +751,13 @@
         {/each}
         {#if broadcastFrame?.ball}<div class="broadcast-ball" class:shooting={broadcastFrame.ball.shooting} style="left:{broadcastFrame.ball.x}%;top:{broadcastFrame.ball.y}%"></div>{/if}
         <div class="broadcast-state">{broadcastFrame?.action ?? (live.paused ? 'PAUSED' : 'IN PLAY')}</div>
+        {#if goalNotice}
+          <div class="goal-takeover" role="status">
+            <span>GOAL!</span>
+            <strong>{goalNotice.playerName}</strong>
+            <small>{goalNotice.minute}' · {goalNotice.teamId === live.homeTeam.id ? live.homeTeam.name : live.awayTeam.name}</small>
+          </div>
+        {/if}
       </div>
       <div class="momentum" aria-label={`Possession momentum: ${homeShare}% ${live.homeTeam.name}`}><span>{live.homeTeam.name.split(' ')[0]}</span><div><i style={`width:${homeShare}%`}></i></div><span>{live.awayTeam.name.split(' ')[0]}</span></div>
 
@@ -1007,14 +1006,18 @@
   .pitch-circle { position: absolute; width: 22%; aspect-ratio: 1; top: 50%; left: 50%; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; transform: translate(-50%,-50%); }
   .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
   .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
-  .broadcast-player { position: absolute; z-index: 2; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,.75); color: white; font: 700 10px var(--font-mono); transition: left .26s linear, top .26s linear, transform .25s ease; }
+  .broadcast-player { position: absolute; z-index: 2; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 2px solid rgba(255,255,255,.75); color: white; font: 700 10px var(--font-mono); transition: left 1.65s cubic-bezier(.22,.61,.36,1), top 1.65s cubic-bezier(.22,.61,.36,1), transform .4s ease; }
   .broadcast-player.home { background: var(--color-club); } .broadcast-player.away { background: #df3155; }
   .broadcast-player { color: #07110c; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
   .broadcast-player.pressing { transform: translate(-50%,-50%) scale(1.22); box-shadow: 0 0 0 5px rgba(255,255,255,.14); }
   .broadcast-player.receiving { transform: translate(-50%,-50%) scale(1.12); } .broadcast-player.rushing { box-shadow: 0 0 0 5px rgba(255,219,102,.24); }
-  .broadcast-ball { position: absolute; z-index: 4; width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 5px rgba(0,0,0,.7); transition: left .26s linear, top .26s linear; }
+  .broadcast-ball { position: absolute; z-index: 4; width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 5px rgba(0,0,0,.7); transition: left 1.1s cubic-bezier(.22,.61,.36,1), top 1.1s cubic-bezier(.22,.61,.36,1); }
   .broadcast-ball.shooting { width: 14px; height: 14px; box-shadow: 0 0 14px 4px rgba(255,255,255,.6); }
   .broadcast-state { position: absolute; z-index: 3; top: 9px; left: 10px; color: rgba(255,255,255,.82); font: 10px var(--font-mono); letter-spacing: 1.5px; }
+  .goal-takeover { position: absolute; z-index: 6; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; background: rgba(4, 18, 12, .62); color: white; animation: goal-flash 3.2s ease both; pointer-events: none; }
+  .goal-takeover span { font: 700 32px var(--font-display); letter-spacing: 4px; color: #ffe357; text-shadow: 0 0 24px rgba(255, 227, 87, .8); }
+  .goal-takeover strong { font-size: 17px; } .goal-takeover small { font: 11px var(--font-mono); letter-spacing: 1px; color: rgba(255,255,255,.78); }
+  @keyframes goal-flash { 0% { opacity: 0; background: rgba(255,227,87,.7); } 10%, 78% { opacity: 1; } 100% { opacity: 0; } }
   .momentum { display: grid; grid-template-columns: minmax(0,1fr) 2fr minmax(0,1fr); gap: 6px; align-items: center; margin: 9px 0 3px; font: 9px var(--font-mono); color: var(--color-tx-3); }
   .momentum span:last-child { text-align: right; } .momentum > div { height: 4px; background: var(--color-raised); overflow: hidden; border-radius: 4px; } .momentum i { display: block; height: 100%; background: var(--color-club); transition: width .35s ease; }
 

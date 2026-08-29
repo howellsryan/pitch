@@ -259,9 +259,14 @@ bug, a full-screen pitch with 22 anonymous shirt markers, possession momentum,
 and a bottom control dock. `src/game/matchPresentation.js` turns each real
 engine possession and goal event into deterministic passes, pressing, shots and
 keeper movement; it does not add event fields or affect simulation arithmetic.
-Player identity and lineup management remain in Squad. Penalty choreography is
-reserved until the engine emits a real penalty event. The presentation module is
-covered by Vitest, including all-player and real scorer/assist cases.
+The broadcast phase now lasts long enough to watch at 1×, with possession shapes
+that stretch attacks and compress defences rather than snapping back to a static
+formation. Deterministic throw-ins, free kicks, corners and goal kicks pace the
+presentation between phases; they are derived scenes, not new engine events.
+Goals receive a full-pitch takeover and a longer hold. Player identity and lineup
+management remain in Squad. Penalty choreography is reserved until the engine
+emits a real penalty event. The presentation module is covered by Vitest,
+including all-player, scorer/assist and restart cases.
 
 ### R6 — Market and Table
 Plain, fast, dense, in the unified palette.
