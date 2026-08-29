@@ -15,6 +15,8 @@ import { fmt, navigateTo, registerScreen, showModal, toast } from './helpers.js'
 import { renderHome } from './home_transfers.js';
 import { _updateInboxBadge, renderInbox } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
+import { captureTokenFromHash, isSignedIn } from '../cloud/api.js';
+import { pullAndApplyCloudSave } from '../cloud/sync.js';
 
 // ── Full-screen overlay for blocking operations ─────────────
 export function _showFullOverlay(msg) {
@@ -202,8 +204,20 @@ export async function themeForTeam(teamId){
 
 export async function boot(){
   try{
+    // Pick up a #token=... dropped by the Google OAuth redirect (ROADMAP.md
+    // item 7) before anything else reads the URL or decides new-game vs
+    // continue.
+    captureTokenFromHash();
     await openDB();
-    const save=await getSave();
+    let save=await getSave();
+    if((!save||save._deleted) && isSignedIn()){
+      // No local career yet, but signed in — best-effort restore from the
+      // cloud (e.g. a fresh browser/device) before falling to team-select.
+      // Never runs when a local career already exists, so it can't clobber
+      // one — see src/cloud/sync.js's pullAndApplyCloudSave().
+      const pulled = await pullAndApplyCloudSave();
+      if(pulled.applied) save=await getSave();
+    }
     if(!save||save._deleted){
       document.getElementById('ng').style.display='flex';
       document.getElementById('app').style.display='none';

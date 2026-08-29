@@ -20,7 +20,7 @@ Status legend: ⬜ not started · 🔶 in progress · ✅ shipped
 | 4 | Board objectives & job security | ✅ shipped | |
 | 5 | Morale with real effect | ✅ shipped | |
 | 6 | Academy investment | ✅ shipped | |
-| 7 | Cloud save & Google account | ⬜ not started | new infra — D1 + first server routes |
+| 7 | Cloud save & Google account | 🔶 in progress | code complete; needs D1 + Google OAuth app provisioned (see wrangler.jsonc) |
 | 8 | Manager career progression | ⬜ not started | plan-gate (schema); builds on 4 |
 | 9 | Data completeness polish | ⬜ not started | |
 
@@ -172,11 +172,53 @@ foreign scouting networks, opposition scout reports.
 
 ---
 
-## 7. Cloud save & Google account — ⬜ (new)
+## 7. Cloud save & Google account — 🔶 in progress
 
 Auto-save before and after every match played, plus a manual "Save to Cloud"
 action, gated behind an optional Google account. Playing without an account
 still works exactly as today (IndexedDB only) — there is no forced sign-up.
+
+**Shipped:** everything below this item's own "Proposed shape" and "80/20
+cut" sections, built essentially as scoped — `pitch-db`'s schema
+(`migrations/0001_init.sql`), the Google OAuth + JWT session flow
+(`functions/api/auth/**`, `functions/_lib/{jwt,auth}.js`), the save routes
+(`functions/api/save.js`, last-write-wins, `save_revision` bumped but not
+enforced as a precondition per the 80/20 cut), the client
+(`src/cloud/{api,sync}.js`, reusing `src/modules/db.js`'s
+`buildSaveEnvelope()` — extracted from `exportSaveFile()` so cloud save and
+the `.pitch` export share one serialization instead of two), the two
+auto-save checkpoints in `MatchScreen.svelte`, the Cloud Save card in
+`SettingsScreen.svelte`, and Home's sign-in entry point + local-only
+messaging.
+
+**Architecture deviation from "What's actually new here" below:** PocketRPG's
+`functions/api/**` tree auto-routes because PocketRPG deploys as a
+*Cloudflare Pages* project. Pitch deploys as a plain Worker (`npx wrangler
+deploy`, per CLAUDE.md's Cloudflare Workers Builds setup) — that auto-routing
+doesn't apply. `functions/_worker.js` is a small manual router in front of
+the same handler files instead (same `onRequestGet/onRequestPut({request,
+env})` signatures, so the two stay easy to compare) — see its own header
+comment and `wrangler.jsonc`'s comment block for the full reasoning.
+
+**Not done — needs a human with Cloudflare/Google console access** (this
+session has neither; `wrangler whoami` → not authenticated):
+1. ~~`wrangler d1 create pitch-db`~~ — done; `wrangler.jsonc`'s
+   `database_id` is the real database.
+2. `wrangler d1 migrations apply pitch-db --remote`.
+3. Register a Google OAuth client at console.cloud.google.com with
+   `/api/auth/google/callback` as an authorized redirect URI, for both the
+   current `workers.dev` URL and (once §1's domain cutover lands)
+   pitch-sim.com.
+4. `wrangler secret put GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
+   `JWT_SECRET`.
+
+Until those four steps happen, `/api/auth/google` answers a clean 500 ("not
+configured") rather than erroring at deploy time — verified locally via
+`wrangler dev` against a local D1 (`wrangler d1 migrations apply pitch-db
+--local`): static asset serving, the full `/api/save` GET/PUT round trip
+(revision bump, oversized-blob 413, missing-field 400), unauthenticated 401s,
+and the unconfigured-secret 500 all behave as designed. Real end-to-end OAuth
+against Google's servers has not been exercised — that needs step 3 above.
 
 ### Reference implementation
 

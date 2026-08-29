@@ -7,8 +7,11 @@
 
 - **Product**: a free-to-play, browser-based football career manager — 9
   leagues, 186 clubs, cups, European competitions, youth academy, a
-  tick-by-tick match engine. Live at **pitch-sim.com**. No accounts, no
-  backend: everything runs client-side and saves to the browser's IndexedDB.
+  tick-by-tick match engine. Live at **pitch-sim.com**. No forced accounts:
+  everything runs client-side and saves to the browser's IndexedDB by
+  default. An optional Google sign-in (ROADMAP.md item 7) backs that up to a
+  minimal Cloudflare Worker + D1 — `functions/`, Pitch's only server-side
+  code — but playing without one works exactly as before.
 - **This repo is mid-rebuild, on a written plan — read `docs/plan/*.md` before
   starting any non-trivial work.** It covers the tech stack decision, the
   design direction, an 8-phase migration order, and the data-reconciliation
@@ -206,6 +209,23 @@
   `build:legacy` shells out to `python3`, and exists only to feed `validate.js`,
   which CI already gates. Cloudflare runs its own install step, so the build
   command must not repeat one.
+- **`wrangler.jsonc` is no longer assets-only (ROADMAP.md item 7).** It now
+  has a `main` (`functions/_worker.js`) and a `d1_databases` binding, standing
+  up Pitch's first server-side request handling (Google OAuth + a D1-backed
+  cloud save) alongside the static asset serving above. `functions/_worker.js`
+  sees every request first and explicitly falls through to
+  `env.ASSETS.fetch(request)` for anything under `/api/*` it doesn't own — the
+  asset-serving behavior this Worker had before is unchanged, just no longer
+  automatic. **`functions/` mirrors Cloudflare *Pages*' `functions/api/**`
+  file convention for readability and portability, but isn't auto-routed** —
+  Pitch deploys as a plain Worker, not Pages, so `_worker.js` dispatches to
+  each handler manually; see its header comment. The `d1_databases.database_id`
+  in `wrangler.jsonc` is still a placeholder (`wrangler d1 create pitch-db`
+  hasn't been run against a real account — this repo's sessions don't have
+  Cloudflare credentials) and `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/
+  `JWT_SECRET` aren't set as secrets yet; `wrangler.jsonc`'s own comment block
+  has the exact remaining steps. Until then `/api/auth/google` answers a
+  clean 500 rather than breaking the deploy.
 - **Test coverage is still narrow.** `src/validate.js`'s 1181 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career,
   an accent-contrast check over all 186 clubs, and — since Phase 5 —
@@ -311,7 +331,21 @@ UX spec, tokens, and the design canvas it was drafted against.
   `verification-before-completion`, adapted from `obra/superpowers` (MIT).
   Use them; see §5.
 - `wrangler.jsonc` — Cloudflare Workers config. `assets.directory` is `./dist`,
-  which must stay in step with Vite's `outDir`.
+  which must stay in step with Vite's `outDir`. Also carries `main`
+  (`functions/_worker.js`) and the `pitch-db` D1 binding since ROADMAP.md item
+  7 — see the file's own header comment.
+- `functions/` — Pitch's only server-side code (ROADMAP.md item 7): Google
+  OAuth + a D1-backed cloud save, running in the Cloudflare Workers runtime,
+  not the browser. `_worker.js` is the manual dispatcher (`wrangler.jsonc`'s
+  `main`); `api/auth/**` and `api/save.js` mirror PocketRPG's Pages
+  `functions/api/**` layout for portability without being auto-routed the
+  way Pages routes them; `_lib/{jwt,auth}.js` are the session/JWT helpers.
+  Covered by Vitest (`functions/_lib/jwt.test.js`), not `validate.js` — it
+  never enters `build.py`'s bundle.
+- `migrations/` — D1 schema migrations (`0001_init.sql`: `users`,
+  `oauth_identities`, `saves`). Apply with `wrangler d1 migrations apply
+  pitch-db --local` (dev, no Cloudflare account needed) or `--remote`
+  (production, after `wrangler d1 create pitch-db`).
 - `.assetsignore` — **now inert.** Wrangler reads it from the assets directory,
   and that is `dist/` now, not the repo root. It doesn't need to do anything:
   `dist/` holds only build output, so `src/` and repo tooling can't leak into

@@ -1442,14 +1442,21 @@ chk('REG: PITCH_MAGIC version string in code', code.includes('PITCH_SAVE_V1'));
 chk('REG: salt string in code', code.includes('pitch_fc_v3_2025'));
 
 // --- REG-25: Export reads all required stores ---
+// ROADMAP.md item 7 (cloud save) extracted the store-snapshot + hash + base64
+// logic out of exportSaveFile() into buildSaveEnvelope() — src/modules/db.js
+// — so cloud save reuses the exact same .pitch serialization instead of a
+// second one. exportSaveFile() itself now just calls it and handles the
+// file-download side effects, so the store/btoa checks below read from
+// buildSaveEnvelope's source instead.
 const exportSrc = (()=>{const s=code.indexOf('function exportSaveFile');return s>-1?code.slice(s,s+3000):'';})();
-chk('REG: export reads save store', exportSrc.includes("'save'"));
-chk('REG: export reads teams store', exportSrc.includes("'teams'"));
-chk('REG: export reads players store', exportSrc.includes("'players'"));
-chk('REG: export reads fixtures store', exportSrc.includes("'fixtures'"));
-chk('REG: export reads standings store', exportSrc.includes("'standings'"));
-chk('REG: export reads honors store', exportSrc.includes("'honors'"));
-chk('REG: export reads seasons store', exportSrc.includes("'seasons'"));
+const buildEnvelopeSrc = (()=>{const s=code.indexOf('function buildSaveEnvelope');return s>-1?code.slice(s,s+3000):'';})();
+chk('REG: export reads save store', buildEnvelopeSrc.includes("'save'"));
+chk('REG: export reads teams store', buildEnvelopeSrc.includes("'teams'"));
+chk('REG: export reads players store', buildEnvelopeSrc.includes("'players'"));
+chk('REG: export reads fixtures store', buildEnvelopeSrc.includes("'fixtures'"));
+chk('REG: export reads standings store', buildEnvelopeSrc.includes("'standings'"));
+chk('REG: export reads honors store', buildEnvelopeSrc.includes("'honors'"));
+chk('REG: export reads seasons store', buildEnvelopeSrc.includes("'seasons'"));
 
 // --- REG-26: Import validates integrity ---
 const importSrc = (()=>{const s=code.indexOf('function _restoreFromEnvelope');return s>-1?code.slice(s,s+4000):'';})();
@@ -1475,7 +1482,7 @@ chk('REG: new game screen has file input', shellSrc.includes('import-save-ng'));
 chk('REG: export generates .pitch filename', exportSrc.includes('.pitch'));
 chk('REG: export produces saveCode string', exportSrc.includes('saveCode'));
 chk('REG: export uses Web Share API for mobile', exportSrc.includes('navigator.share') || exportSrc.includes('canShare'));
-chk('REG: export uses base64 encoding', exportSrc.includes('btoa'));
+chk('REG: export uses base64 encoding', buildEnvelopeSrc.includes('btoa'));
 
 // --- REG-29: Import/export wired in SettingsScreen.svelte ---
 // initUI() (src/ui/renderers.js) used to wire these directly against static
@@ -1487,6 +1494,16 @@ chk('REG: SettingsScreen wires import', settingsScreenSrc.includes('importSaveFr
 chk('REG: import shows save code textarea', settingsScreenSrc.includes('save-code-input'));
 chk('REG: export shows save code output', settingsScreenSrc.includes('save-code-output'));
 chk('REG: export has copy to clipboard', settingsScreenSrc.includes('clipboard.writeText'));
+
+// --- REG-29b: Cloud save & Google account (ROADMAP.md item 7) ---
+chk('REG: SettingsScreen wires Google sign-in', settingsScreenSrc.includes('startGoogleLogin'));
+chk('REG: SettingsScreen wires manual cloud save', settingsScreenSrc.includes('pushSaveToCloud'));
+chk('REG: SettingsScreen has a sign-out action', settingsScreenSrc.includes('clearAuth'));
+chk('REG: HomeScreen has a sign-in entry point', homeScreenSrc.includes('startGoogleLogin'));
+chk('REG: HomeScreen states local-only progress when signed out', homeScreenSrc.includes('local-only'));
+chk('REG: MatchScreen wires cloudSaveCheckpoint import', matchScreenSrc.includes("from '../../cloud/sync.js'"));
+chk('REG: MatchScreen has auto-save checkpoints at all 3 beats (pre-match + both result paths)',
+  (matchScreenSrc.match(/cloudSaveCheckpoint\(\)/g) || []).length >= 3);
 
 // ══ REGRESSION: Promotion, Relegation & Playoffs ═══════════════
 section('Regression: Promotion, Relegation & Playoffs');

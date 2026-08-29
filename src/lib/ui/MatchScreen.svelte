@@ -18,6 +18,7 @@
   import { applyFormationChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
+  import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
   import { newsAIBid, newsInjury, newsMatchResult } from '../../ui/inbox.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -246,6 +247,9 @@
     beforeTable = ctx.isLeague ? await getTableSliceAroundTeam(save.userTeamId, 1).catch(() => []) : [];
     loading = false;
     beat = 'teamNews';
+    // Auto-save checkpoint 1/2 (ROADMAP.md item 7) — right before the
+    // pre-match beat commits. Best-effort and silent when signed out.
+    cloudSaveCheckpoint();
   }
 
   $effect(() => {
@@ -355,6 +359,9 @@
       live = { userTeam: matchCtx.userTeam, matchEvent: matchCtx.event, userIsHome: result?.homeTeamId === matchCtx.save.userTeamId };
       applyCommitExtras(res);
       beat = 'fulltime';
+      // Auto-save checkpoint 2/2 — right after advanceOneFixture wrote the
+      // match result (quick-sim path).
+      cloudSaveCheckpoint();
     } catch (err) {
       loading = false;
       toast(`Error: ${err.message}`, 'error');
@@ -527,6 +534,9 @@
         const res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
         applyCommitExtras(res);
         resultCommitted = true;
+        // Auto-save checkpoint 2/2 — right after advanceOneFixtureWithResult
+        // wrote the match result (watch-match path).
+        cloudSaveCheckpoint();
       } catch (err) {
         committing = false;
         toast('Error saving result: ' + err.message, 'error');

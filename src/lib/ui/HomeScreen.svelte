@@ -9,8 +9,13 @@
   import { handleEndOfSeason } from '../../ui/home_transfers.js';
   import { _makeNewsItem, addNewsItem } from '../../ui/inbox.js';
   import { screenTicks } from '../state/screens.svelte.js';
+  import { isSignedIn, startGoogleLogin } from '../../cloud/api.js';
 
   let loaded = $state(false);
+  // Sign-in entry point + local-only messaging (ROADMAP.md item 7). No
+  // account -> no cloud-save UI beyond this one plain line; re-read on every
+  // load() so signing in/out from Settings is reflected the next screen tick.
+  let cloudSignedIn = $state(false);
   let save = $state(null);
   let team = $state(null);
   let squadSize = $state(0);
@@ -126,6 +131,7 @@
     await openDB();
     const s = await getSave();
     if (!s || s._deleted) return;
+    cloudSignedIn = isSignedIn();
     save = s;
     team = await getTeam(s.userTeamId);
     const players = await getPlayersByTeam(s.userTeamId);
@@ -228,6 +234,13 @@
       </button>
     </div>
   </div>
+
+  {#if loaded && !cloudSignedIn}
+    <div class="cloud-banner">
+      <span>Progress is local-only and will be lost if this browser's data is cleared.</span>
+      <button class="cloud-banner-btn" onclick={() => startGoogleLogin()}>Sign in with Google</button>
+    </div>
+  {/if}
 
   {#if !loaded}
     <div class="home-empty">Loading…</div>
@@ -385,6 +398,34 @@
     font-size: 10px;
     color: var(--color-tx-2);
     font-family: var(--font-mono);
+  }
+
+  .cloud-banner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    background: var(--color-raised);
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--color-tx-2);
+  }
+  .cloud-banner-btn {
+    flex-shrink: 0;
+    border: none;
+    background: var(--color-club);
+    color: var(--color-on-club, #fff);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-body);
+    white-space: nowrap;
   }
 
   .home-hdr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
