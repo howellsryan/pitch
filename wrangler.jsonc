@@ -19,15 +19,14 @@
 // deploy like this one — functions/_worker.js is a small manual router
 // instead, kept in the same file layout for portability.
 //
-// `d1_databases`: `database_id` below is a PLACEHOLDER. It has not been
-// created yet — this session has no Cloudflare account access (`wrangler
-// whoami` → not authenticated). Before this can deploy for real:
-//   1. `wrangler d1 create pitch-db` and paste the real database_id here.
-//   2. `wrangler d1 migrations apply pitch-db --remote` to run migrations/.
-//   3. Register a Google OAuth client (console.cloud.google.com) with
+// `d1_databases`: `database_id` below is the real `pitch-db` database
+// (created via `wrangler d1 create pitch-db`). Still remaining before this
+// deploys for real — this session has no Cloudflare/Google account access:
+//   1. `wrangler d1 migrations apply pitch-db --remote` to run migrations/.
+//   2. Register a Google OAuth client (console.cloud.google.com) with
 //      authorized redirect URIs for both the workers.dev URL and (once the
 //      domain cutover lands) pitch-sim.com's own /api/auth/google/callback.
-//   4. `wrangler secret put GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+//   3. `wrangler secret put GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
 //      `JWT_SECRET` (a long random string — `openssl rand -hex 32`).
 // `wrangler dev` works today without any of the above: it runs main against
 // a local SQLite D1 (`wrangler d1 migrations apply pitch-db --local`), and
@@ -45,7 +44,7 @@
 		{
 			"binding": "DB",
 			"database_name": "pitch-db",
-			"database_id": "REPLACE_WITH_REAL_D1_DATABASE_ID"
+			"database_id": "cf9d5c5b-7516-408f-9844-d42b2d8b14e7"
 		}
 	],
 	"observability": {

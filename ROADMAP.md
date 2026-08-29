@@ -202,8 +202,8 @@ comment and `wrangler.jsonc`'s comment block for the full reasoning.
 
 **Not done — needs a human with Cloudflare/Google console access** (this
 session has neither; `wrangler whoami` → not authenticated):
-1. `wrangler d1 create pitch-db`, then paste the real `database_id` into
-   `wrangler.jsonc` (currently `REPLACE_WITH_REAL_D1_DATABASE_ID`).
+1. ~~`wrangler d1 create pitch-db`~~ — done; `wrangler.jsonc`'s
+   `database_id` is the real database.
 2. `wrangler d1 migrations apply pitch-db --remote`.
 3. Register a Google OAuth client at console.cloud.google.com with
    `/api/auth/google/callback` as an authorized redirect URI, for both the
