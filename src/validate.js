@@ -21,6 +21,7 @@ const MATCH_SCREEN = path.join(__dirname, 'lib', 'ui', 'MatchScreen.svelte');
 const SUBSTITUTIONS = path.join(__dirname, 'game', 'substitutions.js');
 const FORMATION_CHANGE = path.join(__dirname, 'game', 'formationChange.js');
 const OPPONENTS = path.join(__dirname, 'game', 'opponents.js');
+const APP_CSS = path.join(__dirname, 'app.css');
 if (!fs.existsSync(BUNDLE)) { console.error('Bundle not found: '+BUNDLE+' — run src/build.py first, or set PITCH_BUNDLE.'); process.exit(1); }
 
 const GLOBALS = `
@@ -47,6 +48,7 @@ const matchScreenSrc = require('fs').readFileSync(${JSON.stringify(MATCH_SCREEN)
 const substitutionsSrc = require('fs').readFileSync(${JSON.stringify(SUBSTITUTIONS)},'utf8');
 const formationChangeSrc = require('fs').readFileSync(${JSON.stringify(FORMATION_CHANGE)},'utf8');
 const opponentsSrc = require('fs').readFileSync(${JSON.stringify(OPPONENTS)},'utf8');
+const appCssSrc = require('fs').readFileSync(${JSON.stringify(APP_CSS)},'utf8');
 let pass=0,fail=0;
 const failures=[];
 let sec='';
@@ -820,10 +822,87 @@ chk('buildInitialCupState accepts userTeamId', (()=>{const s=code.indexOf('funct
 chk('simulateUCLMatchday guards self-match', code.includes('rawOpp.id === userTeam.id'));
 chk('UCL matchday returns userIsHome', (()=>{const s=code.indexOf('function simulateUCLMatchday');return s>-1&&code.indexOf('userIsHome',s)<s+2000;})());
 chk('UCL homeScorers respect userIsHome', (()=>{const s=code.indexOf('function buildCupMatchResult');return s>-1&&code.indexOf('userIsHome',s)<s+2000&&code.indexOf('homeScorers',s)<s+2000;})());
-chk('Design token --acc defined in CSS', shellSrc.includes('--acc:#'));
-chk('Design token --sur defined in CSS', shellSrc.includes('--sur:'));
-chk('Bebas Neue font loaded', shellSrc.includes('Bebas+Neue'));
-chk('DM Sans font loaded', shellSrc.includes('DM+Sans'));
+// Kickoff redesign, phase R0 (docs/plan/07-redesign.md). The legacy shell
+// chrome no longer carries its own palette or type — it aliases the real
+// tokens in src/app.css so the app cannot re-theme twice. These checks moved
+// from asserting literal values to asserting that wiring, which is the thing
+// that actually breaks: a hard-coded colour creeping back into shell.html is
+// the regression worth catching, not the absence of a specific hex.
+
+// Token helpers — string-only on purpose. These run inside the TESTS template
+// literal, where a single backslash is consumed as an escape, so any regex
+// written here arrives at the runner with its escapes stripped.
+//
+// Deliberately prefix-agnostic: the first version of these only understood
+// --color-*, which is exactly why it stayed green while --font-display,
+// --font-body and --font-mono were used in shell.html but defined only in
+// app.css — leaving the legacy artifact rendering in the browser's serif.
+function isNameChar(ch) { return (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch === '-'; }
+function readName(src, at) {
+  let j = at, name = '';
+  while (j < src.length && isNameChar(src[j])) { name += src[j]; j++; }
+  return { name, end: j };
+}
+function usedCustomProps(src) {
+  const out = new Set(); let i = 0;
+  for (;;) {
+    const at = src.indexOf('var(--', i);
+    if (at < 0) break;
+    const r = readName(src, at + 4);
+    out.add(r.name); i = r.end;
+  }
+  return [...out];
+}
+function tokenValues(src) {
+  const out = {}; let i = 0;
+  for (;;) {
+    const at = src.indexOf('--', i);
+    if (at < 0) break;
+    const r = readName(src, at);
+    let k = r.end;
+    while (k < src.length && src[k] === ' ') k++;
+    if (src[k] === ':' && r.name.length > 2) {
+      const semi = src.indexOf(';', k);
+      if (semi > -1) {
+        // Normalise formatting AND quote style: app.css writes "Familjen
+        // Grotesk", shell.html writes 'Familjen Grotesk'. Same stack.
+        let v = src.slice(k + 1, semi).toLowerCase();
+        v = v.split(' ').join('').split('"').join('').split("'").join('');
+        out[r.name] = v;
+      }
+    }
+    i = r.end > at ? r.end : at + 2;
+  }
+  return out;
+}
+
+chk('Legacy --acc aliases the club token', shellSrc.includes('--acc:var(--color-club)'));
+chk('Legacy --sur aliases the surface token', shellSrc.includes('--sur:var(--color-surface)'));
+chk('Legacy font vars alias the Kickoff stacks', shellSrc.includes('--fd:var(--font-display)') && shellSrc.includes('--fb:var(--font-body)') && shellSrc.includes('--fm:var(--font-mono)'));
+chk('Kickoff display font loaded', shellSrc.includes('Big+Shoulders+Display'));
+chk('Kickoff body font loaded', shellSrc.includes('Familjen+Grotesk'));
+chk('Kickoff mono font loaded', shellSrc.includes('IBM+Plex+Mono'));
+chk('Retired Broadcast Kit fonts are gone', !shellSrc.includes('Bebas+Neue') && !shellSrc.includes('DM+Sans') && !shellSrc.includes('Space+Mono'));
+
+// The legacy build path never loads src/app.css, so a --color-* token used in
+// shell.html but defined only in the @theme block resolves to nothing and the
+// assembled index.html renders unstyled. That shipped once during R0 and was
+// invisible to every other check, because the aliasing assertions above were
+// all still true. These two close it: every token the shell USES must also be
+// DEFINED in the shell, and the values it defines must match app.css.
+chk('Shell defines every custom property it uses', (() => {
+  const defined = new Set(Object.keys(tokenValues(shellSrc)));
+  const missing = usedCustomProps(shellSrc).filter(t => !defined.has(t));
+  if (missing.length) console.log('    used but undefined in shell.html:', missing.join(', '));
+  return missing.length === 0;
+})());
+chk('Shell and app.css token values agree', (() => {
+  const a = tokenValues(appCssSrc), b = tokenValues(shellSrc);
+  const shared = Object.keys(a).filter(k => k in b);
+  const bad = shared.filter(k => a[k] !== b[k]);
+  if (bad.length) console.log('    token drift:', bad.map(k => k + ' ' + a[k] + ' vs ' + b[k]).join('; '));
+  return shared.length >= 15 && bad.length === 0;
+})());
 
 // ══ 13. YOUTH ACADEMY ════════════════════════════════════════
 section('13. Youth Academy');

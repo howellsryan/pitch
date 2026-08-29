@@ -5,16 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>PITCH — Football Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ── DESIGN TOKENS ── */
 :root{
-  --night:#080c10;--sur:#0f1419;--sur2:#161d26;--sur3:#1e2836;
-  --bdr:rgba(255,255,255,0.06);--bdr-a:rgba(18,168,100,0.4);
-  --tx:#f0f4f8;--tx2:#8a9ab0;--txd:#4a5a6a;
-  --acc:#12a864;--acc2:#f5c842;--acc3:#e84855;
-  --glow:rgba(18,168,100,0.12);
-  --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--fm:'Space Mono',monospace;
+  /* Kickoff (R0) — docs/plan/07-redesign.md.
+     These literals are the SOURCE OF TRUTH for the legacy build path.
+     src/build.py assembles this file into index.html for validate.js, and that
+     artifact never sees src/app.css — so tokens defined only in the @theme
+     block would resolve to nothing here and the whole page would render
+     unstyled. app.css mirrors these values for the Vite app and for Tailwind
+     utility generation; validate.js asserts the two agree, because a silent
+     drift between them is invisible until someone opens the legacy page. */
+  --color-ground:#070D0A;--color-surface:#0E1712;--color-raised:#16211B;--color-raised-2:#1E2B24;
+  --color-line:rgba(236,240,234,0.09);
+  --color-tx:#ECF0EA;--color-tx-2:#93A398;--color-tx-3:#64756A;
+  --color-club:#EF0107;--color-on-club:#FFFFFF;
+  --color-accent:#FFE14D;--color-on-accent:#070D0A;
+  --color-live:#34E27A;--color-warn:#FF8A3D;--color-bad:#FF5A6E;
+
+  /* Legacy shell chrome — sidebar, new-game screen, toasts — aliases the
+     tokens above rather than carrying a second palette. These die with R1/R2,
+     which replace the surfaces that use them. */
+  --night:var(--color-ground);--sur:var(--color-surface);--sur2:var(--color-raised);--sur3:var(--color-raised-2);
+  --bdr:var(--color-line);--bdr-a:rgba(255,225,77,0.4);
+  --tx:var(--color-tx);--tx2:var(--color-tx-2);--txd:var(--color-tx-3);
+  /* --acc and --glow are overwritten at runtime by theme.mjs with the club
+     colour; the literals are pre-save fallbacks only. --acc2 keeps its legacy
+     WARN meaning and maps to --color-warn — mapping it to --color-accent would
+     paint warning toasts and the EOY banner in the reserved action yellow. */
+  --acc:var(--color-club);--acc2:var(--color-warn);--acc3:var(--color-bad);
+  --glow:rgba(255,225,77,0.12);
+  --font-display:'Big Shoulders Display','Arial Narrow',sans-serif;
+  --font-body:'Familjen Grotesk',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  --fd:var(--font-display);--fb:var(--font-body);--fm:var(--font-mono);
   --nav:72px;--ease:cubic-bezier(.16,1,.3,1);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -41,7 +67,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .tc-budget{font-family:var(--fm);font-size:11px;color:var(--acc2);margin-top:2px}
 .ng-start{margin-top:20px}
 #btn-start{padding:14px 44px;border-radius:10px;border:none;background:var(--acc);color:white;font-family:var(--fb);font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-#btn-start:hover:not(:disabled){background:#14be72;transform:translateY(-1px)}
+#btn-start:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
 #btn-start:disabled{opacity:.5;cursor:not-allowed}
 
 /* ── SIDEBAR ── */
@@ -56,7 +82,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .nav-item:hover .tip{opacity:1;transform:translateX(0)}
 .nav-spc{flex:1}
 .nav-sep{width:28px;height:1px;background:var(--bdr);margin:4px 0;flex-shrink:0}
-.mgr-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#0d7c4c,var(--acc));display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:16px;color:white;border:2px solid var(--bdr-a);margin-top:8px;cursor:pointer}
+.mgr-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--color-raised-2),var(--acc));display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:16px;color:white;border:2px solid var(--bdr-a);margin-top:8px;cursor:pointer}
 
 /* ── BOTTOM NAV (mobile) ── */
 .bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--sur);border-top:1px solid var(--bdr);padding:6px 0 env(safe-area-inset-bottom,4px)}
@@ -93,18 +119,18 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .pos{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-family:var(--fm);font-weight:700;letter-spacing:.5px}
 .pos.ATT{background:rgba(232,72,85,.2);color:var(--acc3)}
 .pos.MID{background:rgba(245,200,66,.15);color:var(--acc2)}
-.pos.DEF{background:rgba(18,168,100,.15);color:var(--acc)}
+.pos.DEF{background:rgba(52,226,122,.15);color:var(--color-live)}
 .pos.GK{background:rgba(124,131,232,.15);color:#7c83e8}
 
 /* ── FORM BADGES ── */
 .fb{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-family:var(--fm);font-weight:700}
 .fb.hot{background:rgba(232,72,85,.2);color:var(--acc3)}
-.fb.good{background:rgba(18,168,100,.2);color:var(--acc)}
+.fb.good{background:rgba(52,226,122,.2);color:var(--color-live)}
 .fb.avg{background:rgba(245,200,66,.15);color:var(--acc2)}
 
 /* ── BTNS ── */
 .btn{padding:10px 18px;border-radius:9px;font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;letter-spacing:.3px;-webkit-tap-highlight-color:transparent}
-.btn-p{background:var(--acc);color:white}.btn-p:hover:not(:disabled){background:#14be72;transform:translateY(-1px)}
+.btn-p{background:var(--acc);color:var(--color-on-club)}.btn-p:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
 .btn-s{background:transparent;color:var(--tx);border:1px solid var(--bdr)}.btn-s:hover{border-color:var(--tx2)}
 .btn-d{background:rgba(232,72,85,.1);color:var(--acc3);border:1px solid rgba(232,72,85,.3)}.btn-d:hover{background:rgba(232,72,85,.2)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -135,7 +161,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .full-row.hl .tc{color:var(--acc);font-weight:600}
 .form-mini{display:flex;gap:2px}
 .fdot{width:15px;height:15px;border-radius:3px;font-size:8px;font-family:var(--fm);display:flex;align-items:center;justify-content:center;font-weight:700}
-.fd-W{background:rgba(18,168,100,.2);color:var(--acc)}
+.fd-W{background:rgba(52,226,122,.2);color:var(--color-live)}
 .fd-D{background:rgba(245,200,66,.15);color:var(--acc2)}
 .fd-L{background:rgba(232,72,85,.15);color:var(--acc3)}
 .res-row{padding:9px 13px;border-radius:7px;cursor:pointer;transition:background .15s;margin-bottom:2px}
@@ -199,7 +225,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .inbox-tab.on{background:var(--acc);color:#000;border-color:var(--acc);font-weight:700}
 .inbox-list{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .inbox-item{display:flex;gap:10px;background:var(--sur2);border:1px solid var(--bdr);border-radius:10px;padding:11px 12px;transition:background .15s}
-.inbox-item:not(.read){border-color:var(--bdr-a);background:rgba(18,168,100,.04)}
+.inbox-item:not(.read){border-color:var(--bdr-a);background:rgba(255,225,77,.05)}
 .inbox-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .inbox-content{flex:1;min-width:0}
 .inbox-header{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:3px}
@@ -240,7 +266,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .loader-msg{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:2px;text-align:center}
 
 /* ── SEASON END ── */
-.eoy-banner{background:linear-gradient(135deg,rgba(245,200,66,.15),rgba(18,168,100,.1));border:1px solid var(--acc2);border-radius:14px;padding:18px 20px;text-align:center}
+.eoy-banner{background:linear-gradient(135deg,rgba(255,138,61,.15),rgba(52,226,122,.1));border:1px solid var(--acc2);border-radius:14px;padding:18px 20px;text-align:center}
 .eoy-banner .eoy-icon{font-size:40px;margin-bottom:8px}
 .eoy-banner .eoy-title{font-family:var(--fd);font-size:28px;letter-spacing:1px;color:var(--acc2);margin-bottom:6px}
 .eoy-banner .eoy-desc{font-size:13px;color:var(--tx2);margin-bottom:14px}
@@ -248,7 +274,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 /* ── ANIMATIONS ── */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes sUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(18,168,100,.3)}50%{box-shadow:0 0 0 4px rgba(18,168,100,.1)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,225,77,.3)}50%{box-shadow:0 0 0 4px rgba(255,225,77,.1)}}
 .comp-layout>*{animation:sUp .35s ease both}
 
 /* ── RESPONSIVE ── */
@@ -439,6 +465,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 </div><!-- #app -->
 
 <div class="toast-container" id="toast-container"></div>
-<div id="loader"><div style="text-align:center"><div class="loader-spin"></div><div class="loader-msg" id="loader-msg">Loading…</div></div></div>
+<div id="loader"><div style="text-align:center"><div class="loader-spin" data-motion="essential"></div><div class="loader-msg" id="loader-msg">Loading…</div></div></div>
 
 <script>

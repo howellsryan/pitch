@@ -347,7 +347,7 @@
   .pitch-wrap { width: 100%; max-width: 420px; aspect-ratio: 68/100; margin: 0 auto; }
   .pitch-bg {
     position: relative; width: 100%; height: 100%;
-    background: linear-gradient(180deg, #0d3a22, #0a2e1b);
+    background: linear-gradient(180deg, var(--color-turf), var(--color-turf-2));
     border: 2px solid rgba(255,255,255,0.18); border-radius: 8px; overflow: hidden;
   }
   .pitch-line.half { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.18); }

@@ -234,7 +234,7 @@
   `JWT_SECRET` aren't set as secrets yet; `wrangler.jsonc`'s own comment block
   has the exact remaining steps. Until then `/api/auth/google` answers a
   clean 500 rather than breaking the deploy.
-- **Test coverage is still narrow.** `src/validate.js`'s 1181 checks run on
+- **Test coverage is still narrow.** `src/validate.js`'s 1193 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career,
   an accent-contrast check over all 186 clubs, and — since Phase 5 —
   `npm run test` (Vitest) for `src/game/`'s pure substitution/formation-change/
@@ -276,7 +276,7 @@
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
 | Game logic (non-DOM) | `src/modules/` (simulation, data) + `src/game/` (pure UI-adjacent rules: substitution/formation-change validation, opponent stub generation) — the latter is new in Phase 5, covered by Vitest instead of `validate.js`'s bundle-eval checks | same |
-| Tests | `src/validate.js` (1181 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
+| Tests | `src/validate.js` (1193 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -298,7 +298,7 @@ UX spec, tokens, and the design canvas it was drafted against.
   `fixtures` → `cups` → `transfers` → `potential` → `injuries` → `promotion` →
   `youthAcademy` → `save` → `season` → `gameweek` → `ui/*`); reordering breaks
   the build in ways that only surface at runtime.
-- `src/validate.js` — the 1181-check validator; `npm run build` runs it and
+- `src/validate.js` — the 1193-check validator; `npm run build` runs it and
   aborts on any failure.
 - `src/shell.html` — HTML/CSS shell, no JS.
 - `src/modules/` (13 files) — game logic, **no DOM access**. This boundary
@@ -369,7 +369,7 @@ npm run dev              # Vite dev server with HMR, :5173
 npm run build            # both paths: legacy bundle + validator, then the Vite app
 npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
 npm run build:app        # Vite → dist/
-npm run validate         # node src/validate.js — re-run just the 1181 checks
+npm run validate         # node src/validate.js — re-run just the 1193 checks
 npm run test             # Vitest — src/game/*.test.js (pure logic, no bundle needed)
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
@@ -380,10 +380,19 @@ npm run deploy           # manual escape hatch — Cloudflare normally deploys
 `build:legacy` and `validate` shell out to system `python3`/`node` and need no
 `npm install`. Everything else needs `npm ci` first.
 
-**Known flake:** `validate.js`'s "Home win rate >20% over 30 games" check is
-stochastic and fails roughly **1 run in 8** — on unmodified `main` too. CI is
-therefore intermittently red through no fault of the change under test. Re-run
-before investigating; seeding the RNG is simulation math and needs `plan-gate`.
+**Known flakes — two, not one.** Both are stochastic match-engine checks that
+fail on unmodified `main`, so CI is intermittently red through no fault of the
+change under test. Re-run before investigating; seeding the RNG is simulation
+math and needs `plan-gate`.
+
+1. `"Home win rate >20% over 30 games"` — fails roughly **1 run in 8**.
+2. `"Goals/game in range 2.0-4.5"` — the sampled mean sits close to the lower
+   bound (observed 1.7, 2.1, 2.4, 2.9 across four consecutive runs during the
+   R0 work), so it trips occasionally too. Recorded because a session that only
+   knows about flake 1 will go hunting for a regression it did not cause.
+
+These two are the *only* things in this repo that may be called a flake —
+`systematic-debugging` holds that rule, and anything else red is real.
 
 ## 5) Agent Best Practices
 
@@ -409,7 +418,7 @@ before investigating; seeding the RNG is simulation math and needs `plan-gate`.
   home-win-rate check).
 - **`.claude/skills/verification-before-completion`** before claiming anything
   works, passes, or is done. A green build proves no known regression in what
-  the 1181 checks cover — never that a screen renders. Includes the screenshot
+  the 1193 checks cover — never that a screen renders. Includes the screenshot
   rule for any new or restyled screen.
 - **`.claude/skills/memory-hygiene`** when updating this file or a skill.
   `BRIEFING.md` (a duplicate, drifted-stale architecture doc) was removed —

@@ -932,7 +932,7 @@
   .tn-diff.diff-easy { color: var(--color-live); }
 
   .tn-pitch-wrap { width: 100%; max-width: 320px; aspect-ratio: 68/78; margin: 0 auto; }
-  .tn-pitch-bg { position: relative; width: 100%; height: 100%; background: linear-gradient(180deg, #163b24, #0f2b19); border-radius: 10px; border: 1px solid var(--color-line); overflow: hidden; }
+  .tn-pitch-bg { position: relative; width: 100%; height: 100%; background: linear-gradient(180deg, var(--color-turf), var(--color-turf-2)); border-radius: 10px; border: 1px solid var(--color-line); overflow: hidden; }
   .tn-pitch-line { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.15); }
   .tn-pitch-circle { position: absolute; top: 50%; left: 50%; width: 24%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.15); border-radius: 50%; transform: translate(-50%, -50%); }
   .tn-slot { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; }
