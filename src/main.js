@@ -15,6 +15,7 @@ import './app.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
+import EntryScreen from './lib/ui/EntryScreen.svelte';
 import TabBar from './lib/ui/TabBar.svelte';
 import LeagueScreen from './lib/ui/LeagueScreen.svelte';
 import HomeScreen from './lib/ui/HomeScreen.svelte';
@@ -42,9 +43,15 @@ import './ui/inbox.js';
 window.navigateTo = navigateTo;
 
 // Svelte islands (Phase 3) — mounted straight into the legacy shell's markup.
-// Both mount points sit inside #app, which boot() (ui/renderers.js) shows
-// only once a save exists, so these stay inert until then exactly like the
-// rest of the legacy screens do.
+// All but the entry island sit inside #app, which boot() (ui/renderers.js)
+// shows only once a save exists, so they stay inert until then exactly like
+// the rest of the legacy screens do.
+
+// ENTRY (R1, docs/plan/07-redesign.md) is the exception: it lives in #ng, the
+// pre-game stage, and is the first thing a stranger sees.
+const entryMount = document.getElementById('entry-mount');
+if (entryMount) mount(EntryScreen, { target: entryMount });
+
 const tabbarMount = document.getElementById('tabbar-mount');
 if (tabbarMount) mount(TabBar, { target: tabbarMount });
 

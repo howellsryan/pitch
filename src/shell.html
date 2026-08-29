@@ -48,27 +48,11 @@ html,body{height:100%;-webkit-text-size-adjust:100%}
 body{background:var(--night);color:var(--tx);font-family:var(--fb);overflow:hidden;display:flex}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none;z-index:50;opacity:.4}
 
-/* ── NEW GAME ── */
-#ng{position:fixed;inset:0;z-index:1000;background:var(--night);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;overflow-y:auto;overflow-x:hidden;gap:0}
-.ng-logo{font-family:var(--fd);font-size:clamp(52px,12vw,88px);color:var(--acc);letter-spacing:8px;margin-bottom:4px;line-height:1}
-.ng-sub{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
-.ng-label{font-family:var(--fd);font-size:clamp(20px,4vw,26px);letter-spacing:1px;margin-bottom:14px;text-align:center}
-.ng-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;margin-bottom:14px;padding:4px 8px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;align-self:stretch;box-sizing:border-box;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)}
-.ng-filters::-webkit-scrollbar{display:none}
-.ng-f{display:inline-flex;align-items:center;height:44px;padding:0 14px;border-radius:22px;font-size:12px;font-weight:500;line-height:1;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;box-sizing:border-box}
-.ng-f.on{background:var(--glow);color:var(--acc);border-color:var(--bdr-a)}
-#team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:100%;max-width:1100px;padding:4px}
-.team-card{background:var(--sur);border:2px solid var(--bdr);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
-.team-card:hover{border-color:var(--acc);background:var(--sur2)}
-.team-card.sel{border-color:var(--acc);background:var(--glow);box-shadow:0 0 0 2px var(--acc)}
-.tc-crest{font-size:26px;margin-bottom:6px}
-.tc-name{font-weight:600;font-size:12px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tc-rep{font-size:10px;color:var(--tx2)}
-.tc-budget{font-family:var(--fm);font-size:11px;color:var(--acc2);margin-top:2px}
-.ng-start{margin-top:20px}
-#btn-start{padding:14px 44px;border-radius:10px;border:none;background:var(--acc);color:white;font-family:var(--fb);font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-#btn-start:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
-#btn-start:disabled{opacity:.5;cursor:not-allowed}
+/* ── ENTRY (marketing home + club select) ── */
+/* Entry route container. src/lib/ui/EntryScreen.svelte owns everything
+   inside it, so this only has to be a full-viewport stage. */
+#ng{position:fixed;inset:0;z-index:1000;background:var(--color-ground);display:flex;flex-direction:column;overflow:hidden}
+#entry-mount{flex:1 1 auto;min-height:0;width:100%}
 
 /* ── SIDEBAR ── */
 .sidebar{width:var(--nav);background:var(--sur);border-right:1px solid var(--bdr);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;position:fixed;left:0;top:0;bottom:0;z-index:100}
@@ -252,7 +236,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .cup-result-modal.lost{border-left:3px solid var(--acc3)}
 
 /* ── TOAST ── */
-.toast-container{position:fixed;bottom:72px;right:14px;z-index:600;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:320px}
+.toast-container{position:fixed;bottom:72px;right:14px;z-index:10002;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:320px}
 .toast{display:flex;align-items:center;gap:8px;padding:10px 13px;border-radius:9px;font-size:12px;font-weight:500;background:var(--sur3);border:1px solid var(--bdr);box-shadow:0 4px 20px rgba(0,0,0,.4);transform:translateY(6px);opacity:0;transition:all .25s ease;pointer-events:all}
 .toast.vis{transform:translateY(0);opacity:1}
 .toast-success{border-color:var(--acc)}.toast-error{border-color:var(--acc3)}.toast-info{border-color:var(--bdr-a)}.toast-warning{border-color:var(--acc2)}
@@ -368,31 +352,15 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 <body>
 
 <!-- NEW GAME -->
+<!-- ENTRY — src/lib/ui/EntryScreen.svelte, mounted in main.js (R1,
+     docs/plan/07-redesign.md). Marketing home + club select. boot()
+     (src/ui/renderers.js) still owns whether #ng or #app is shown. -->
 <div id="ng">
-  <div class="ng-logo">PITCH</div>
-  <div class="ng-sub">Football Career Simulator · 2025/26</div>
-  <div style="display:flex;justify-content:center;margin-bottom:12px">
-    <button class="btn btn-s" id="btn-import-ng" style="font-size:12px;padding:6px 16px;min-height:44px;display:flex;align-items:center;gap:6px">📂 Import Save File</button>
-    <input type="file" id="import-save-ng" accept=".pitch" style="display:none">
-  </div>
-  <div style="width:100%;max-width:360px;margin-bottom:20px">
-    <div class="ng-label" style="font-size:18px;margin-bottom:8px">Your Name</div>
-    <input id="ng-manager-name" type="text" maxlength="30" placeholder="e.g. Alex Ferguson"
-      style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;color:var(--tx);font-family:var(--fb);font-size:15px;outline:none;transition:border-color .15s;box-sizing:border-box"
-      onfocus="this.style.borderColor='var(--bdr-a)'" onblur="this.style.borderColor='var(--bdr)'">
-    <div style="font-size:10px;color:var(--txd);margin-top:5px;font-family:var(--fm)">Optional · shown in-game as your manager profile</div>
-  </div>
-  <div class="ng-label">Choose Your Club</div>
-  <div class="ng-filters" id="ng-filters">
-    <button class="ng-f on" data-league="all">All</button>
-    <button class="ng-f" data-league="Premier League">🏴󠁧󠁢󠁥󠁮󠁧󠁿 PL</button>
-  </div>
-  <div id="team-grid"></div>
-  <div class="ng-start"><button id="btn-start" disabled>Start Season →</button></div>
+  <div id="entry-mount"></div>
 </div>
 
 <!-- APP -->
-<div id="app" style="display:none;width:100%;height:100%">
+<div id="app" tabindex="-1" style="display:none;width:100%;height:100%;outline:none">
 <nav class="sidebar">
   <div class="logo">P</div>
   <div class="nav-item" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="tip">Home</span></div>

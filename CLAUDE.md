@@ -29,7 +29,9 @@
   section: no context bar, no `<LegacyPanel>`, no URL routing). **What's next
   is now the redesign, `docs/plan/07-redesign.md` — a total visual and
   interaction rebuild taking no inspiration from Broadcast Kit, whose direction
-  is accepted and whose phases are R0–R8.** It supersedes
+  is accepted and whose phases are R0–R8. R0 (token layer, type system, UI
+  kit) and R1 (entry: marketing home + club select) are done; R2 (shell and
+  navigation) is next.** It supersedes
   `02-design-system.md` from R0 onward and absorbs most of the old Phase 7.
   Read it before touching any screen: three metaphors (Spine home, Chalk
   squad+tactics, Broadcast matchday) over one shared palette and type system,
@@ -160,6 +162,30 @@
   became real Vitest tests instead of bundle-eval checks; a `matchScreenSrc`
   read was added alongside the other `<name>ScreenSrc` reads for the
   string-presence checks that still make sense post-move.
+- **The entry route (`src/lib/ui/EntryScreen.svelte`, R1) is the marketing home
+  and the club picker in one scrolling page**, mounted into `#ng` — the only
+  island that lives outside `#app`. It replaced `renderNewGame()` and all of
+  `#ng`'s markup (manager-name field, emoji team grid, league filter buttons,
+  both import paths), which are deleted. `boot()` still decides whether `#ng`
+  or `#app` is shown, and both it and EntryScreen now reveal the shell through
+  one shared `enterGame()` in `src/ui/renderers.js` rather than each doing the
+  same four DOM steps by hand. Three things a later session will otherwise get
+  wrong: the picker shows **`startingBudget(reputation)`, never a club's
+  `budget` field** — `startNewGame()` recomputes budgets from reputation, so
+  the data figure is wrong for all but a couple of clubs (Arsenal's file says
+  £130M, a new save starts on £102M), which is why that formula was extracted
+  out of `startNewGame()` into an exported `startingBudget()` and is now the
+  single source for both; **`startNewGame()` does not clear a previous
+  career's fixtures/standings** (it uses `putFixturesBulk`/`putStandingsBulk`,
+  not the `replaceAll*` variants), which is harmless only because a new career
+  is unreachable while a save exists — fix it before making one reachable, and
+  it is `plan-gate` work; and **"Continue your career" is deliberately not
+  built** (deferred to R7 along with the Settings link that would make it
+  reachable) — an earlier `#menu` hash route was written and then removed in
+  code review for producing four defects at once. `src/game/clubStrength.js`
+  holds the squad-strength/key-player/difficulty maths, rating players via
+  `matchEngine.js`'s own `primaryRating()` so the picker agrees with the
+  simulation.
 - **Data reconciliation (Phase 6) replaced 7 of the 9 leagues' rosters with
   footy-sim's**, and along the way found the reconciliation's own premise
   half-wrong: `docs/plan/06-data-reconciliation.md`'s evidence section
@@ -234,7 +260,7 @@
   `JWT_SECRET` aren't set as secrets yet; `wrangler.jsonc`'s own comment block
   has the exact remaining steps. Until then `/api/auth/google` answers a
   clean 500 rather than breaking the deploy.
-- **Test coverage is still narrow.** `src/validate.js`'s 1193 checks run on
+- **Test coverage is still narrow.** `src/validate.js`'s 1209 checks run on
   every push and PR, joined by a Playwright smoke test that drives a real career,
   an accent-contrast check over all 186 clubs, and — since Phase 5 —
   `npm run test` (Vitest) for `src/game/`'s pure substitution/formation-change/
@@ -271,12 +297,12 @@
 |---|---|---|
 | Build | **Vite** (`vite.config.ts`, root `web/`, output `dist/`). `src/build.py` still concatenates for the validator only | Vite alone, once `validate.js` retires |
 | Modules | **Real ES modules** — 333 top-level names, 278 import bindings | same |
-| UI | **All 9 screens + the live-match route are real Svelte islands** (`src/lib/ui/`: TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen, MatchScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain, and `prematch.js`/`watchmatch.js` are deleted outright | Svelte 5 (runes) — **Phases 4, 5 and 6 done; Phase 7 (PWA and polish) is next** |
+| UI | **All 9 screens, the live-match route and the pre-game entry route are real Svelte islands** (`src/lib/ui/`: EntryScreen, TabBar, LeagueScreen, HomeScreen, SquadScreen, TacticsScreen, AcademyScreen, TrophiesScreen, SettingsScreen, TransfersScreen, MatchScreen), mounted from `src/main.js`. `src/ui/*.js` now holds only bridge/legacy-modal code (`home_transfers.js`, `squad_tactics_offers.js`, `inbox.js`, `helpers.js`, `renderers.js`) — no screen-level `innerHTML` renderers remain, and `prematch.js`/`watchmatch.js` are deleted outright | Svelte 5 (runes) — **Phases 4, 5 and 6 done; the redesign (R0–R8, `docs/plan/07-redesign.md`) supersedes the old Phase 7 — R0 and R1 shipped** |
 | Styling | `shell.html`'s CSS custom properties, plus `src/app.css` `@theme` tokens | Tailwind v4, `@theme` tokens |
 | Club accent | `src/lib/theme.mjs` — runtime `--color-club` with an oklch contrast guard | same |
 | Persistence | IndexedDB via `src/modules/db.js` (unchanged in the target too) | same |
 | Game logic (non-DOM) | `src/modules/` (simulation, data) + `src/game/` (pure UI-adjacent rules: substitution/formation-change validation, opponent stub generation) — the latter is new in Phase 5, covered by Vitest instead of `validate.js`'s bundle-eval checks | same |
-| Tests | `src/validate.js` (1193 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
+| Tests | `src/validate.js` (1209 checks) + Vitest (`src/game/*.test.js`, unit) + Playwright smoke at 390×844 | Vitest + Playwright — `validate.js` is retired section by section, not deleted wholesale |
 
 Don't introduce a different UI framework, CSS approach, or build tool than
 what's in the target column — the choice is already made and reasoned through
@@ -298,15 +324,16 @@ UX spec, tokens, and the design canvas it was drafted against.
   `fixtures` → `cups` → `transfers` → `potential` → `injuries` → `promotion` →
   `youthAcademy` → `save` → `season` → `gameweek` → `ui/*`); reordering breaks
   the build in ways that only surface at runtime.
-- `src/validate.js` — the 1193-check validator; `npm run build` runs it and
+- `src/validate.js` — the 1209-check validator; `npm run build` runs it and
   aborts on any failure.
 - `src/shell.html` — HTML/CSS shell, no JS.
 - `src/modules/` (13 files) — game logic, **no DOM access**. This boundary
   matters: it's what makes the planned UI rebuild tractable without touching
   the simulation.
-- `src/game/` (4 files, new in Phase 5) — UI-adjacent pure logic that isn't
+- `src/game/` (5 files, new in Phase 5) — UI-adjacent pure logic that isn't
   simulation math (substitution/formation-change validation, opponent stub
-  generation) and isn't rendering either. **No DOM access**, same rule as
+  generation, club-strength metrics for the entry picker) and isn't rendering
+  either. **No DOM access**, same rule as
   `modules/`. Covered by Vitest (`*.test.js` alongside each file, `npm run
   test`) instead of `validate.js`, since it's consumed by Svelte components
   via real imports and never enters `build.py`'s concatenated bundle.
@@ -369,7 +396,7 @@ npm run dev              # Vite dev server with HMR, :5173
 npm run build            # both paths: legacy bundle + validator, then the Vite app
 npm run build:legacy     # python3 src/build.py — bundle, validate, assemble index.html
 npm run build:app        # Vite → dist/
-npm run validate         # node src/validate.js — re-run just the 1193 checks
+npm run validate         # node src/validate.js — re-run just the 1209 checks
 npm run test             # Vitest — src/game/*.test.js (pure logic, no bundle needed)
 npm run check:accents    # club accent contrast, all 186 clubs
 npm run test:e2e         # Playwright, 390×844
@@ -418,7 +445,7 @@ These two are the *only* things in this repo that may be called a flake —
   home-win-rate check).
 - **`.claude/skills/verification-before-completion`** before claiming anything
   works, passes, or is done. A green build proves no known regression in what
-  the 1193 checks cover — never that a screen renders. Includes the screenshot
+  the 1209 checks cover — never that a screen renders. Includes the screenshot
   rule for any new or restyled screen.
 - **`.claude/skills/memory-hygiene`** when updating this file or a skill.
   `BRIEFING.md` (a duplicate, drifted-stale architecture doc) was removed —

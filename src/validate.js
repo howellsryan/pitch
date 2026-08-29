@@ -18,6 +18,7 @@ const ACADEMY_SCREEN = path.join(__dirname, 'lib', 'ui', 'AcademyScreen.svelte')
 const SETTINGS_SCREEN = path.join(__dirname, 'lib', 'ui', 'SettingsScreen.svelte');
 const TRANSFERS_SCREEN = path.join(__dirname, 'lib', 'ui', 'TransfersScreen.svelte');
 const MATCH_SCREEN = path.join(__dirname, 'lib', 'ui', 'MatchScreen.svelte');
+const ENTRY_SCREEN = path.join(__dirname, 'lib', 'ui', 'EntryScreen.svelte');
 const SUBSTITUTIONS = path.join(__dirname, 'game', 'substitutions.js');
 const FORMATION_CHANGE = path.join(__dirname, 'game', 'formationChange.js');
 const OPPONENTS = path.join(__dirname, 'game', 'opponents.js');
@@ -45,6 +46,7 @@ const academyScreenSrc = require('fs').readFileSync(${JSON.stringify(ACADEMY_SCR
 const settingsScreenSrc = require('fs').readFileSync(${JSON.stringify(SETTINGS_SCREEN)},'utf8');
 const transfersScreenSrc = require('fs').readFileSync(${JSON.stringify(TRANSFERS_SCREEN)},'utf8');
 const matchScreenSrc = require('fs').readFileSync(${JSON.stringify(MATCH_SCREEN)},'utf8');
+const entryScreenSrc = require('fs').readFileSync(${JSON.stringify(ENTRY_SCREEN)},'utf8');
 const substitutionsSrc = require('fs').readFileSync(${JSON.stringify(SUBSTITUTIONS)},'utf8');
 const formationChangeSrc = require('fs').readFileSync(${JSON.stringify(FORMATION_CHANGE)},'utf8');
 const opponentsSrc = require('fs').readFileSync(${JSON.stringify(OPPONENTS)},'utf8');
@@ -266,6 +268,56 @@ chk('simulateMatch passes lineup', code.includes('simulateMatch(') && code.inclu
 chk('buildLiveMatchState passes lineup', code.includes('buildLiveMatchState(') && code.includes('homeLineup') && code.includes('awayLineup'));
 chk('advanceOneFixture reads save.lineup', code.includes('save.lineup'));
 chk('Opponent form pills in Team News', matchScreenSrc.includes('tn-form-pill'));
+
+// --- ENTRY (R1, docs/plan/07-redesign.md) ---
+// renderNewGame() built #ng's manager-name field, league filters and emoji
+// team grid with innerHTML; all of it is src/lib/ui/EntryScreen.svelte now, a
+// real component outside shell.html and this concatenated bundle — so the
+// checks read the component source, same as every migrated screen above.
+// shell.html keeps #ng as the stage and #entry-mount as the mount point, and
+// those two ids ARE still in the bundle's HTML, so they are checked directly.
+chk('shell keeps #ng as the entry stage', shellSrc.includes('id="ng"'));
+chk('shell has the entry mount point', shellSrc.includes('id="entry-mount"'));
+chk('legacy team grid markup is gone from shell', !shellSrc.includes('id="team-grid"') && !shellSrc.includes('id="btn-start"'));
+chk('EntryScreen starts a career via startNewGame', entryScreenSrc.includes('startNewGame('));
+chk('EntryScreen hands off through enterGame (not its own show/hide)', entryScreenSrc.includes('enterGame(') && !entryScreenSrc.includes("getElementById('app')"));
+chk('EntryScreen themes the club before entering', entryScreenSrc.includes('themeForTeam('));
+chk('EntryScreen advertises the budget the save will actually hold', entryScreenSrc.includes('startingBudget('));
+chk('startNewGame uses the same startingBudget the picker shows', (() => {
+  const fn = code.indexOf('async function startNewGame(');
+  return fn > -1 && code.indexOf('startingBudget(', fn) > -1 && code.indexOf('startingBudget(', fn) < fn + 3000;
+})());
+chk('EntryScreen keeps both import paths (CLAUDE.md escape hatch)', entryScreenSrc.includes('importSaveFile') && entryScreenSrc.includes('importSaveFromCode'));
+chk('EntryScreen lists every club via getAllTeamData', entryScreenSrc.includes('getAllTeamData('));
+chk('EntryScreen shows squad strength, not just reputation', entryScreenSrc.includes('squadStrength(') && entryScreenSrc.includes("from '../../game/clubStrength.js'"));
+chk('EntryScreen waits for boot before offering to start a career', entryScreenSrc.includes('entryState.showing'));
+chk('boot signals the entry route rather than letting it self-start', code.includes('entryState.showing=true') || code.includes('entryState.showing = true'));
+// Regex-free on purpose: this TESTS block is a template literal, so a
+// backslash in a pattern is eaten before the check ever parses.
+chk('toasts sit above the entry route (z-index over #ng)', (() => {
+  const zOf = (selector) => {
+    const at = shellSrc.indexOf(selector + '{');
+    if (at < 0) return null;
+    const rule = shellSrc.slice(at, shellSrc.indexOf('}', at));
+    const key = rule.indexOf('z-index:');
+    if (key < 0) return null;
+    const num = parseInt(rule.slice(key + 'z-index:'.length), 10);
+    return Number.isFinite(num) ? num : null;
+  };
+  const toast = zOf('.toast-container');
+  const entry = zOf('#ng');
+  // An entry-screen toast is the only feedback a failed save import gives.
+  return toast !== null && entry !== null && toast > entry;
+})());
+chk('EntryScreen uses the Sheet primitive, not showModal', entryScreenSrc.includes('Sheet.svelte') && !entryScreenSrc.includes('showModal('));
+chk('EntryScreen crests are SVG, not the data emoji', entryScreenSrc.includes('Crest.svelte') && !entryScreenSrc.includes('.crest'));
+chk('enterGame is the single reveal path (boot no longer inlines it)', (() => {
+  const fn = code.indexOf('async function enterGame(');
+  if (fn < 0) return false;
+  const body = code.slice(fn, fn + 400);
+  return body.includes("getElementById('ng')") && body.includes("getElementById('app')")
+      && body.includes('initUI()') && body.includes("navigateTo('home')");
+})());
 chk('Key player card in Team News', matchScreenSrc.includes('tn-inform-card'));
 chk('Competition badge in Team News', matchScreenSrc.includes('tn-comp-badge'));
 chk('Sim Instantly action', matchScreenSrc.includes('Sim Instantly') && matchScreenSrc.includes('function simInstant'));
@@ -576,7 +628,7 @@ section('10. UI Functions');
   // section 4 instead.
   'renderHome',
   'renderOffers',
-  'renderNewGame',
+  'enterGame',
   'handleEndOfSeason','navigateTo','registerScreen','showModal','toast',
   'showLoader','hideLoader','boot',
 ].forEach(fn=>chk(fn+' defined', typeof eval(fn)==='function'));
@@ -1553,9 +1605,15 @@ chk('REG: import deletes old DB before restore', importSrc.includes('deleteDatab
 chk('REG: export button in SettingsScreen.svelte', settingsScreenSrc.includes('openExport'));
 chk('REG: import button in SettingsScreen.svelte', settingsScreenSrc.includes('openImport'));
 chk('REG: file input for import in SettingsScreen.svelte', settingsScreenSrc.includes('type="file"'));
-chk('REG: file input accepts .pitch', shellSrc.includes('.pitch'));
-chk('REG: new game screen has import button', shellSrc.includes('btn-import-ng'));
-chk('REG: new game screen has file input', shellSrc.includes('import-save-ng'));
+// The entry screen's import hatch moved out of shell.html with the rest of
+// #ng (R1, docs/plan/07-redesign.md). Same three guarantees, read off the
+// component that now provides them: import is reachable without a save, it
+// takes a .pitch file, and it takes a pasted code. This is the user's only
+// way back from a broken save (CLAUDE.md §1), so it stays checked.
+chk('REG: entry file input accepts .pitch', entryScreenSrc.includes('accept=".pitch"'));
+chk('REG: entry screen has an import affordance', entryScreenSrc.includes('importSheet'));
+chk('REG: entry screen has a file input', entryScreenSrc.includes('type="file"'));
+chk('REG: entry screen accepts a pasted save code', entryScreenSrc.includes('importSaveFromCode('));
 
 // --- REG-28: Export produces .pitch filename ---
 chk('REG: export generates .pitch filename', exportSrc.includes('.pitch'));
@@ -1567,7 +1625,7 @@ chk('REG: export uses base64 encoding', buildEnvelopeSrc.includes('btoa'));
 // initUI() (src/ui/renderers.js) used to wire these directly against static
 // shell.html elements at boot time; Phase 4 moved the wiring into the
 // component itself (querying its own dynamically-rendered elements would
-// have raced boot-time initUI(), see the comment above renderNewGame there).
+// have raced boot-time initUI(), see the comment above enterGame() there).
 chk('REG: SettingsScreen wires export', settingsScreenSrc.includes('exportSaveFile'));
 chk('REG: SettingsScreen wires import', settingsScreenSrc.includes('importSaveFromCode') && settingsScreenSrc.includes('importSaveFile'));
 chk('REG: import shows save code textarea', settingsScreenSrc.includes('save-code-input'));

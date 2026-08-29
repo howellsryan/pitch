@@ -1,20 +1,10 @@
 import { applyClubTheme } from '../lib/theme.mjs';
-import { BUNDESLIGA_TEAMS } from '../data/bundesliga.js';
-import { CHAMPIONSHIP_TEAMS } from '../data/championship.js';
-import { EREDIVISIE_TEAMS } from '../data/eredivisie.js';
-import { EXTRA_LEAGUES_TEAMS } from '../data/extraLeagues.js';
-import { LA_LIGA_TEAMS } from '../data/laLiga.js';
-import { LEAGUE_ONE_TEAMS } from '../data/leagueOne.js';
-import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
-import { LIGUE_1_TEAMS } from '../data/ligue1.js';
-import { PL_TEAMS } from '../data/plTeams.js';
-import { SERIE_A_TEAMS } from '../data/serieA.js';
-import { getSave, getTeam, importSaveFile, importSaveFromCode, openDB } from '../modules/db.js';
-import { startNewGame } from '../modules/save.js';
-import { fmt, navigateTo, registerScreen, showModal, toast } from './helpers.js';
+import { getSave, getTeam, openDB } from '../modules/db.js';
+import { navigateTo, registerScreen } from './helpers.js';
 import { renderHome } from './home_transfers.js';
 import { _updateInboxBadge, renderInbox } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
+import { entryState } from '../lib/state/entry.svelte.js';
 import { captureTokenFromHash, isSignedIn } from '../cloud/api.js';
 import { pullAndApplyCloudSave } from '../cloud/sync.js';
 
@@ -24,7 +14,7 @@ export function _showFullOverlay(msg) {
   const ov = document.createElement('div');
   ov.id = 'pitch-full-overlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:10001;background:var(--night,#0a0e14);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px';
-  ov.innerHTML = '<div class="loader-spin"></div><div style="color:var(--tx,#fff);font-family:var(--fd,sans-serif);font-size:18px;letter-spacing:1px">' + (msg || 'Loading…') + '</div>';
+  ov.innerHTML = '<div class="loader-spin" data-motion="essential"></div><div style="color:var(--tx,#fff);font-family:var(--fd,sans-serif);font-size:18px;letter-spacing:1px">' + (msg || 'Loading…') + '</div>';
   document.body.appendChild(ov);
 }
 export function _removeFullOverlay() {
@@ -50,130 +40,12 @@ export function _removeFullOverlay() {
 // island mounts and renders them — a boot-time getElementById() would have
 // raced that. registerScreen('settings', ...) below just bumps
 // screenTicks.settings.
-export function renderNewGame(){
-  const grid=document.getElementById('team-grid');
-  let selId=null,leagueFilter='all';
-
-  // Auto-collects all *_TEAMS arrays — add new leagues via csv_to_league.py, no code changes needed
-  const ALL_TEAMS_DATA=[
-    ...(typeof PL_TEAMS!=='undefined'?PL_TEAMS:[]),
-    ...(typeof EXTRA_LEAGUES_TEAMS!=='undefined'?EXTRA_LEAGUES_TEAMS:[]),
-    ...(typeof LA_LIGA_TEAMS!=='undefined'?LA_LIGA_TEAMS:[]),
-    ...(typeof SERIE_A_TEAMS!=='undefined'?SERIE_A_TEAMS:[]),
-    ...(typeof BUNDESLIGA_TEAMS!=='undefined'?BUNDESLIGA_TEAMS:[]),
-    ...(typeof LIGUE_1_TEAMS!=='undefined'?LIGUE_1_TEAMS:[]),
-    ...(typeof CHAMPIONSHIP_TEAMS!=='undefined'?CHAMPIONSHIP_TEAMS:[]),
-    ...(typeof LEAGUE_ONE_TEAMS!=='undefined'?LEAGUE_ONE_TEAMS:[]),
-    ...(typeof LEAGUE_TWO_TEAMS!=='undefined'?LEAGUE_TWO_TEAMS:[]),
-    ...(typeof SEGUNDA_TEAMS!=='undefined'?SEGUNDA_TEAMS:[]),
-    ...(typeof ZWEITE_LIGA_TEAMS!=='undefined'?ZWEITE_LIGA_TEAMS:[]),
-    ...(typeof SERIE_B_TEAMS!=='undefined'?SERIE_B_TEAMS:[]),
-    ...(typeof LIGUE_2_TEAMS!=='undefined'?LIGUE_2_TEAMS:[]),
-    ...(typeof EREDIVISIE_TEAMS!=='undefined'?EREDIVISIE_TEAMS:[]),
-  ];
-
-  const leagues=[...new Set(ALL_TEAMS_DATA.map(t=>t.league||'Premier League'))];
-
-  // Build league filter buttons
-  const filterEl=document.getElementById('ng-filters');
-  if(filterEl){
-    filterEl.innerHTML=`<button class="ng-f on" data-league="all">All (${ALL_TEAMS_DATA.length})</button>`
-      +leagues.map(l=>{
-        const count=ALL_TEAMS_DATA.filter(t=>(t.league||'Premier League')===l).length;
-        const icons={'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League One':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League Two':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','La Liga':'🇪🇸','Segunda División':'🇪🇸','Bundesliga':'🇩🇪','2. Bundesliga':'🇩🇪','Serie A':'🇮🇹','Serie B':'🇮🇹','Ligue 1':'🇫🇷','Ligue 2':'🇫🇷','Eredivisie':'🇳🇱'};
-        return `<button class="ng-f" data-league="${l}">${icons[l]||'🌐'} ${l} (${count})</button>`;
-      }).join('');
-  }
-
-  function buildGrid(){
-    const teams=leagueFilter==='all'?ALL_TEAMS_DATA:ALL_TEAMS_DATA.filter(t=>(t.league||'Premier League')===leagueFilter);
-    grid.innerHTML=teams.map(t=>`
-      <div class="team-card ${t.id===selId?'sel':''}" data-tid="${t.id}">
-        <div class="tc-crest">${t.crest}</div>
-        <div class="tc-name">${t.name}</div>
-        <div class="tc-rep">${t.league||'Premier League'} · Rep ${t.reputation}</div>
-        <div class="tc-budget">${fmt.money(t.budget)}</div>
-      </div>`).join('');
-    grid.querySelectorAll('.team-card').forEach(card=>{
-      card.onclick=()=>{
-        grid.querySelectorAll('.team-card').forEach(c=>c.classList.remove('sel'));
-        card.classList.add('sel');
-        selId=card.dataset.tid;
-        document.getElementById('btn-start').disabled=false;
-      };
-    });
-  }
-
-  buildGrid();
-
-  document.querySelectorAll('#ng-filters .ng-f').forEach(btn=>{
-    btn.onclick=()=>{
-      document.querySelectorAll('#ng-filters .ng-f').forEach(b=>b.classList.remove('on'));
-      btn.classList.add('on');
-      btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-      leagueFilter=btn.dataset.league;
-      buildGrid();
-    };
-  });
-
-  document.getElementById('btn-start').onclick=async()=>{
-    if(!selId) return;
-    const btn=document.getElementById('btn-start');
-    const managerName=(document.getElementById('ng-manager-name')?.value?.trim())||'The Manager';
-    btn.disabled=true; btn.textContent='Setting up…';
-    try{
-      await startNewGame(selId, managerName);
-      await themeForTeam(selId);
-      document.getElementById('ng').style.display='none';
-      document.getElementById('app').style.display='flex';
-      initUI();
-      await navigateTo('home');
-    }catch(err){
-      btn.disabled=false; btn.textContent='Start Season →';
-      toast(err.message,'error');
-    }
-  };
-
-  // ── Import save from new game screen ──────────────────────
-  const ngImportBtn = document.getElementById('btn-import-ng');
-  const ngImportInput = document.getElementById('import-save-ng');
-  ngImportBtn?.addEventListener('click', () => {
-    showModal('Import Save', `
-      <p style="color:var(--tx2);line-height:1.7;margin-bottom:10px">Paste a save code to resume a previous career.</p>
-      <textarea id="ng-save-code-input" placeholder="Paste save code here…" style="width:100%;height:90px;background:var(--sur);color:var(--tx);border:1px solid var(--bdr);border-radius:8px;padding:10px;font-family:monospace;font-size:10px;resize:none;word-break:break-all"></textarea>
-    `, [
-      { id:'ng-import-code', label:'📋 Load from Code', cls:'btn-p', handler: async () => {
-        const code = document.getElementById('ng-save-code-input')?.value?.trim();
-        if (!code) { toast('Paste a save code first', 'error'); return false; }
-        _showFullOverlay('Loading save…');
-        try {
-          await importSaveFromCode(code);
-          location.reload();
-        } catch (err) {
-          _removeFullOverlay();
-          toast('Import failed: ' + err.message, 'error');
-          return false;
-        }
-      }},
-      { id:'ng-import-file', label:'📂 Load from File', cls:'btn-s', handler: () => { ngImportInput?.click(); return false; } },
-      { id:'cancel', label:'Cancel', cls:'btn-s' }
-    ]);
-  });
-  ngImportInput?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    _showFullOverlay('Loading save…');
-    try {
-      await importSaveFile(file);
-      location.reload();
-    } catch (err) {
-      _removeFullOverlay();
-      toast('Import failed: ' + err.message, 'error');
-    } finally {
-      ngImportInput.value = '';
-    }
-  });
-}
+// ── ENTRY ────────────────────────────────────────────────────
+// Migrated to src/lib/ui/EntryScreen.svelte (R1, docs/plan/07-redesign.md).
+// renderNewGame() built the team grid, league filters, manager-name field and
+// both import paths with innerHTML; the component owns all of it now, and
+// reaches back into this file only for enterGame() below. boot() still decides
+// whether the entry route or the game shell is shown.
 
 // ── INIT UI ────────────────────────────────────────────────────
 export function initUI(){
@@ -191,6 +63,29 @@ export function initUI(){
   document.querySelectorAll('[data-nav]').forEach(el=>{
     el.addEventListener('click',()=>navigateTo(el.dataset.nav));
   });
+}
+
+// ── ENTER THE GAME SHELL ──────────────────────────────────────
+/**
+ * Hide the entry route, reveal the app, wire the screens, land on Home.
+ *
+ * Shared by boot()'s resume branch and EntryScreen's start-a-career and
+ * continue-a-career handoffs. Kept in one place deliberately: three callers
+ * doing these four things by hand is how the new-career path and the resume
+ * path drift out of step.
+ */
+export async function enterGame(){
+  document.getElementById('ng').style.display='none';
+  const app=document.getElementById('app');
+  app.style.display='flex';
+  initUI();
+  await navigateTo('home');
+  _updateInboxBadge();
+  // The entry route's sheet restores focus to the club card that started the
+  // career — which #ng's display:none has just removed from the page, leaving
+  // keyboard and screen-reader users on <body>. Park focus on the shell the
+  // player was moved to instead.
+  app.focus?.();
 }
 
 // ── BOOT ──────────────────────────────────────────────────────
@@ -221,14 +116,12 @@ export async function boot(){
     if(!save||save._deleted){
       document.getElementById('ng').style.display='flex';
       document.getElementById('app').style.display='none';
-      renderNewGame();
+      // Only now may EntryScreen offer to start a career: until the cloud
+      // pull above has settled, one might still arrive.
+      entryState.showing=true;
     } else {
       await themeForTeam(save.userTeamId);
-      document.getElementById('ng').style.display='none';
-      document.getElementById('app').style.display='flex';
-      initUI();
-      await navigateTo('home');
-      if(typeof _updateInboxBadge==='function') _updateInboxBadge();
+      await enterGame();
     }
   }catch(err){
     console.error('[boot]',err);

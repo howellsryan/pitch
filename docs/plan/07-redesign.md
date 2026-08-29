@@ -126,7 +126,8 @@ the `@theme` bug — verify it, do not assume it).
 manager-name field and a team grid.
 
 1. Marketing home: one offer, one primary action (*choose your club*), no
-   sign-up wall. "Continue your career" beneath it when a save exists.
+   sign-up wall. ~~"Continue your career" beneath it when a save exists.~~
+   **Deferred to R7 — see the status note below.**
 2. Club select: 186 clubs, filterable by league, showing the thing that
    actually decides the choice — reputation, budget, squad strength.
 3. Deliberately first among the screens: it is standalone, it is what a
@@ -134,6 +135,49 @@ manager-name field and a team grid.
    any in-game surgery.
 
 **Success:** a cold visitor reaches a started career in two taps.
+
+#### R1 status — done, with one item moved to R7
+
+Shipped as `src/lib/ui/EntryScreen.svelte`, replacing `renderNewGame()` and
+`#ng`'s markup outright. Two taps, as specified: tap a club, tap start. The
+hero's button only scrolls to the picker, so it is not a step.
+
+Three things worth knowing, because they diverge from this section's text:
+
+- **"Continue your career" moved to R7.** The button needs a state that is
+  actually reachable, and there is none: `boot()` sends a returning player
+  straight into the game, which is the right default and should stay. The
+  attempt to manufacture one — a `#menu` hash route — was built and then
+  removed during code review, because it produced four defects at once: the
+  hash was sticky across reloads, nothing linked to it, and it exposed a
+  latent bug (below) that only a save-wiping confirmation flow would contain.
+  It belongs with R7's Settings screen, which is where a "back to menu" or
+  "start a new career" link naturally lives and where the wipe can be done
+  properly.
+- **Blocker for that R7 work — `startNewGame()` does not clear the previous
+  career's data.** It uses `putFixturesBulk`/`putStandingsBulk`, not the
+  `replaceAll*` variants, so starting a second career over an existing save
+  leaves the first one's fixtures and standings in the stores (reproduced:
+  932 fixtures, 44 standings rows, the old club sitting in the new club's
+  table). Harmless today because a new career is only reachable with no save.
+  **Whoever makes a new career reachable from inside the game must fix this
+  first** — it is `plan-gate` work, not a UI change.
+- **The picker shows `startingBudget()`, not the data file's `budget`.**
+  `startNewGame()` recomputes every club's budget from reputation, so the raw
+  data figure is wrong for all but a couple of clubs — Arsenal's file says
+  £130M, a new save starts on £102M. That formula was inline in
+  `startNewGame()`; R1 extracted it to an exported `startingBudget()` in
+  `src/modules/save.js` (arithmetic unchanged) so the number advertised on the
+  deciding screen is the number the save is created with, by construction.
+  Not to be confused with `season.js`'s `reputationBudget()`, which adds ±6%
+  variance for the seasonal refresh and is therefore not usable here.
+
+Squad strength, the key player and the difficulty band come from a new pure
+`src/game/clubStrength.js` (Vitest-covered), rating players with
+`matchEngine.js`'s own `primaryRating()` so the picker's view of a player
+matches the simulation's. `Sheet.svelte`, which R0 shipped with nothing
+mounting it, is now exercised for real and covered by a Playwright test that
+asserts open, Escape-to-dismiss and focus restoration.
 
 ### R2 — Shell and navigation
 1. Replace `TabBar.svelte` with the Broadcast nav pill — one floating control
@@ -190,10 +234,18 @@ clipping after restyling; do not assume a CSS change is cosmetic here.
 ### R7 — Academy, Trophies, Settings, Inbox
 The remainder, plain treatment.
 
+Also picks up **"Continue your career" and the route back to the entry
+screen**, deferred from R1 (see its status note). Settings is where a "start a
+new career" link belongs, and it is the screen that can carry the confirmation
+that destructive action needs.
+
 **Watch:** Settings wires its own export/import/reset buttons *inside* the
 component, because querying `shell.html` elements at boot raced the island's
 mount. Keep that pattern. Do not regress `.pitch` export/import — it is the
-player's only escape hatch if a save breaks.
+player's only escape hatch if a save breaks. **Before making a new career
+reachable with a save present, fix `startNewGame()`'s stale-data bug** — R1's
+status note has the reproduction; it leaves the old career's fixtures and
+standings behind.
 
 ### R8 — Quality floor, light mode, PWA
 Absorbs the old Phase 7. Contrast verified across all 186 club accents
