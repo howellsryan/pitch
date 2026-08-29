@@ -447,3 +447,21 @@ they become automated assertions. Treat every red check as actionable.
 - Direct user/developer instructions outrank this file. Update this guide in
   the same change when it goes stale — especially the "current vs. target"
   table in §2 and the phase status in §0, which will go stale fastest.
+
+## 6) End-of-session handoff
+
+Whenever code is committed and pushed to GitHub:
+
+- Do not report completion until CI has finished successfully for the pushed
+  commit.
+- If the repository supports preview deployments, open and visually inspect
+  the final deployed preview.
+- Include a concise final summary containing:
+  - what was completed;
+  - important user-visible changes;
+  - verification results, including test counts where available;
+  - a link to the pull request;
+  - a direct link to the live preview;
+  - the next planned milestone;
+  - any checks that could not be completed.
+- If no live preview is available, explicitly explain why.
