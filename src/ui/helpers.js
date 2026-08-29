@@ -168,12 +168,26 @@ export function showModal(title, bodyHTML, actions = [], opts = {}) {
 export const _screens = new Map();
 export let _active = null;
 
+const ROUTE_PARAM = 'screen';
+
+function routeFromLocation() {
+  return new URL(window.location.href).searchParams.get(ROUTE_PARAM);
+}
+
+function writeRoute(id, mode) {
+  if (mode === 'none') return;
+  const url = new URL(window.location.href);
+  url.searchParams.set(ROUTE_PARAM, id);
+  const state = { ...(history.state || {}), pitchScreen: id };
+  history[mode === 'replace' ? 'replaceState' : 'pushState'](state, '', url);
+}
+
 export function registerScreen(id, onEnter) {
   const el = document.getElementById(`screen-${id}`);
   if (el) _screens.set(id, { el, onEnter });
 }
 
-export async function navigateTo(id) {
+export async function navigateTo(id, { history: historyMode = 'push' } = {}) {
   if (!_screens.has(id) || _active === id) return;
   if (_active) {
     _screens.get(_active).el.classList.remove('active');
@@ -185,7 +199,14 @@ export async function navigateTo(id) {
   s.el.scrollTop = 0;
   document.querySelectorAll(`[data-nav="${id}"]`).forEach(n => n.classList.add('active'));
   if (s.onEnter) { try { await s.onEnter(); } catch(e) { console.error(`[screen:${id}]`, e); } }
+  writeRoute(id, historyMode);
+  window.dispatchEvent(new CustomEvent('pitch:navigation', { detail: { id } }));
 }
 
 export const getActiveScreen = () => _active;
 
+/** Restore a browser-history entry without making a second history entry. */
+export function restoreScreenFromHistory() {
+  const id = history.state?.pitchScreen || routeFromLocation() || 'home';
+  return navigateTo(_screens.has(id) ? id : 'home', { history: 'none' });
+}

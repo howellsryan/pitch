@@ -68,15 +68,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .nav-sep{width:28px;height:1px;background:var(--bdr);margin:4px 0;flex-shrink:0}
 .mgr-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--color-raised-2),var(--acc));display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:16px;color:white;border:2px solid var(--bdr-a);margin-top:8px;cursor:pointer}
 
-/* ── BOTTOM NAV (mobile) ── */
-.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--sur);border-top:1px solid var(--bdr);padding:6px 0 env(safe-area-inset-bottom,4px)}
-.bot-nav-inner{display:flex;align-items:center}
-.bn{display:flex;flex:1 1 0;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:6px 2px;min-height:44px;color:var(--txd);transition:color .15s;background:none;border:none;-webkit-tap-highlight-color:transparent}
-.bn.play-btn{flex:0 0 auto}
-.bn.active{color:var(--acc)}
-.bn svg{width:20px;height:20px}
-.bn span{font-size:11px;font-family:var(--fm);letter-spacing:.5px}
-
 /* ── MAIN ── */
 #app{display:flex;width:100%;height:100%}
 .main{margin-left:var(--nav);flex:1;height:100vh;overflow:hidden;position:relative}
@@ -266,11 +257,10 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   :root{--nav:0px}
   body{flex-direction:column}
   .sidebar{display:none!important}
-  .bot-nav{display:block}
-  .main{margin-left:0!important;height:calc(100vh - 62px - env(safe-area-inset-bottom,0px))}
+  .main{margin-left:0!important;height:100vh}
   .screen{bottom:0}
 
-  .toast-container{bottom:74px;right:8px;left:8px;max-width:100%}
+  .toast-container{bottom:84px;right:8px;left:8px;max-width:100%}
   #screen-home{overflow-y:auto!important;display:block!important}
   .comp-layout{grid-template-columns:1fr;padding:10px 12px;height:auto}
   #screen-competitions,#screen-trophies,#screen-inbox{overflow-y:auto!important;display:block!important}
@@ -300,7 +290,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   :root{--nav:72px}
   body{flex-direction:row}
   .sidebar{display:flex!important}
-  .bot-nav{display:none!important}
   .main{margin-left:var(--nav)!important;height:100vh;flex:1}
 
 }

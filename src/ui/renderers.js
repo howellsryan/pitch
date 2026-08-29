@@ -1,6 +1,6 @@
 import { applyClubTheme } from '../lib/theme.mjs';
 import { getSave, getTeam, openDB } from '../modules/db.js';
-import { navigateTo, registerScreen } from './helpers.js';
+import { navigateTo, registerScreen, restoreScreenFromHistory } from './helpers.js';
 import { renderHome } from './home_transfers.js';
 import { _updateInboxBadge, renderInbox } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
@@ -60,9 +60,19 @@ export function initUI(){
   registerScreen('inbox',        renderInbox);
   registerScreen('settings',     () => { screenTicks.settings++; });
 
-  document.querySelectorAll('[data-nav]').forEach(el=>{
+  // Desktop sidebar is legacy HTML. The mobile Broadcast pill owns its own
+  // handlers in TabBar.svelte, so only these static controls are wired here.
+  document.querySelectorAll('.sidebar [data-nav]').forEach(el=>{
     el.addEventListener('click',()=>navigateTo(el.dataset.nav));
   });
+
+  // The shell is not a client-side router yet, but its destinations are real
+  // history entries. Keep the bridge narrow: a Back/Forward traversal changes
+  // screens without pushing another entry or re-running boot.
+  if (!window.__pitchHistoryWired) {
+    window.__pitchHistoryWired = true;
+    window.addEventListener('popstate', () => { restoreScreenFromHistory(); });
+  }
 }
 
 // ── ENTER THE GAME SHELL ──────────────────────────────────────
@@ -79,7 +89,7 @@ export async function enterGame(){
   const app=document.getElementById('app');
   app.style.display='flex';
   initUI();
-  await navigateTo('home');
+  await navigateTo('home', { history: 'replace' });
   _updateInboxBadge();
   // The entry route's sheet restores focus to the club card that started the
   // career — which #ng's display:none has just removed from the page, leaving
@@ -130,4 +140,3 @@ export async function boot(){
 }
 
 document.addEventListener('DOMContentLoaded',boot);
-

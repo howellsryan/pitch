@@ -316,7 +316,7 @@ chk('enterGame is the single reveal path (boot no longer inlines it)', (() => {
   if (fn < 0) return false;
   const body = code.slice(fn, fn + 400);
   return body.includes("getElementById('ng')") && body.includes("getElementById('app')")
-      && body.includes('initUI()') && body.includes("navigateTo('home')");
+      && body.includes('initUI()') && body.includes("navigateTo('home'");
 })());
 chk('Key player card in Team News', matchScreenSrc.includes('tn-inform-card'));
 chk('Competition badge in Team News', matchScreenSrc.includes('tn-comp-badge'));
