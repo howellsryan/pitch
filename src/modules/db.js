@@ -251,7 +251,11 @@ function _deleteNamedDB(name) {
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = resolve;
     req.onerror = () => reject(req.error);
-    req.onblocked = resolve;
+    // A CareerMenu refresh can still be finishing a read-only summary against
+    // this inactive DB. `blocked` is therefore a wait state, not successful
+    // deletion: that reader closes in its finally block and IndexedDB then
+    // delivers onsuccess. Resolving here left the old career visible/reopenable.
+    req.onblocked = () => {};
   });
 }
 
