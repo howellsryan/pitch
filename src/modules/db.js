@@ -1,103 +1,242 @@
-/** modules/db.js — IndexedDB ops: openDB, bulkPut, clearAndBulkPut, deleteDB. Stores: save,teams,players,fixtures,standings,transfers,honors,seasons */
-export const DB_NAME    = 'pitch_fc';
+/**
+ * modules/db.js — IndexedDB persistence, career-slot isolation and save envelopes.
+ *
+ * P0 keeps the existing `pitch_fc` database as the legacy/first career so an
+ * installed browser career is never orphaned by the migration. New careers
+ * receive their own IndexedDB database. The active slot is only a pointer;
+ * every existing domain/store API continues to operate on one active DB.
+ */
+export const DB_NAME = 'pitch_fc';
 export const DB_VERSION = 3;
-export let _db = null;
+export const LEGACY_SLOT_ID = 'legacy';
+export const SAVE_SCHEMA_VERSION = 2;
+export const CAREER_SLOT_REGISTRY_VERSION = 1;
 
-export function openDB() {
+const ACTIVE_SLOT_KEY = 'pitch_active_career_slot_v1';
+const SLOT_REGISTRY_KEY = 'pitch_career_slots_v1';
+const STORE_NAMES = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
+const SAFE_SLOT_ID = /^[a-zA-Z0-9_-]{1,80}$/;
+
+export let _db = null;
+let _dbSlotId = null;
+
+function _storage() {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage;
+  } catch {}
+  return null;
+}
+
+function _readRegistry() {
+  const storage = _storage();
+  if (!storage) return [];
+  try {
+    const parsed = JSON.parse(storage.getItem(SLOT_REGISTRY_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter(id => typeof id === 'string' && SAFE_SLOT_ID.test(id)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function _writeRegistry(ids) {
+  const storage = _storage();
+  if (!storage) return;
+  const clean = [...new Set(ids.filter(id => typeof id === 'string' && SAFE_SLOT_ID.test(id)))];
+  storage.setItem(SLOT_REGISTRY_KEY, JSON.stringify(clean));
+}
+
+function _registerSlot(slotId) {
+  if (!SAFE_SLOT_ID.test(slotId)) throw new Error('Invalid career slot ID.');
+  const ids = _readRegistry();
+  if (!ids.includes(slotId)) _writeRegistry([...ids, slotId]);
+}
+
+function _unregisterSlot(slotId) {
+  _writeRegistry(_readRegistry().filter(id => id !== slotId));
+}
+
+export function getActiveSlotId() {
+  const storage = _storage();
+  const id = storage?.getItem(ACTIVE_SLOT_KEY);
+  return id && SAFE_SLOT_ID.test(id) ? id : LEGACY_SLOT_ID;
+}
+
+export function getCareerSlotIds() {
+  // Always probe legacy once: pre-P0 users have no registry entry yet.
+  return [...new Set([LEGACY_SLOT_ID, ..._readRegistry()])];
+}
+
+export function careerSlotDbName(slotId = getActiveSlotId()) {
+  if (!SAFE_SLOT_ID.test(slotId)) throw new Error('Invalid career slot ID.');
+  return slotId === LEGACY_SLOT_ID ? DB_NAME : `${DB_NAME}_slot_${slotId}`;
+}
+
+export function makeCareerSlotId() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `career_${crypto.randomUUID().replace(/-/g, '')}`;
+    }
+  } catch {}
+  return `career_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function _upgradeSchema(db) {
+  const make = (name, opts) => {
+    if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, opts);
+  };
+  make('save', { keyPath:'id' });
+  make('teams', { keyPath:'id' });
+  make('standings', { keyPath:'teamId' });
+  make('transfers', { keyPath:'id', autoIncrement:true });
+  make('honors', { keyPath:'id', autoIncrement:true });
+  make('seasons', { keyPath:'id', autoIncrement:true });
+  if (!db.objectStoreNames.contains('players')) {
+    const ps = db.createObjectStore('players', { keyPath:'id' });
+    ps.createIndex('by_team', 'teamId', { unique:false });
+  }
+  if (!db.objectStoreNames.contains('fixtures')) {
+    const fs = db.createObjectStore('fixtures', { keyPath:'id' });
+    fs.createIndex('by_gameweek', 'gameweek', { unique:false });
+  }
+}
+
+function _openNamedDB(name) {
   return new Promise((resolve, reject) => {
-    if (_db) { resolve(_db); return; }
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      const make = (name, opts) => { if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, opts); };
-      make('save',      { keyPath:'id' });
-      make('teams',     { keyPath:'id' });
-      make('standings', { keyPath:'teamId' });
-      make('transfers', { keyPath:'id', autoIncrement:true });
-      make('honors',    { keyPath:'id', autoIncrement:true });
-      make('seasons',   { keyPath:'id', autoIncrement:true });
-      if (!db.objectStoreNames.contains('players')) {
-        const ps = db.createObjectStore('players', { keyPath:'id' });
-        ps.createIndex('by_team', 'teamId', { unique:false });
-      }
-      if (!db.objectStoreNames.contains('fixtures')) {
-        const fs = db.createObjectStore('fixtures', { keyPath:'id' });
-        fs.createIndex('by_gameweek', 'gameweek', { unique:false });
-      }
-    };
-    req.onsuccess  = (e) => { _db = e.target.result; resolve(_db); };
-    req.onerror    = (e) => reject(e.target.error);
+    const req = indexedDB.open(name, DB_VERSION);
+    req.onupgradeneeded = e => _upgradeSchema(e.target.result);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
   });
 }
 
-export const req2p = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-export const store  = (name, mode='readonly') => _db.transaction(name, mode).objectStore(name);
+export async function openDB() {
+  const slotId = getActiveSlotId();
+  if (_db && _dbSlotId === slotId) return _db;
+  if (_db) {
+    try { _db.close(); } catch {}
+    _db = null;
+    _dbSlotId = null;
+  }
+  _db = await _openNamedDB(careerSlotDbName(slotId));
+  _dbSlotId = slotId;
+  _registerSlot(slotId);
+  _db.onversionchange = () => {
+    try { _db?.close(); } catch {}
+    _db = null;
+    _dbSlotId = null;
+  };
+  return _db;
+}
+
+export async function activateCareerSlot(slotId) {
+  if (!SAFE_SLOT_ID.test(slotId)) throw new Error('Invalid career slot ID.');
+  if (_db) {
+    try { _db.close(); } catch {}
+    _db = null;
+    _dbSlotId = null;
+  }
+  _registerSlot(slotId);
+  _storage()?.setItem(ACTIVE_SLOT_KEY, slotId);
+  return slotId;
+}
+
+export async function createCareerSlot({ activate = true } = {}) {
+  const slotId = makeCareerSlotId();
+  _registerSlot(slotId);
+  if (activate) await activateCareerSlot(slotId);
+  return slotId;
+}
+
+export const req2p = r => new Promise((res, rej) => {
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+export const store = (name, mode='readonly') => _db.transaction(name, mode).objectStore(name);
 
 export function bulkPut(storeName, items) {
+  return _bulkPutToDB(_db, storeName, items);
+}
+
+function _bulkPutToDB(db, storeName, items) {
   return new Promise((resolve, reject) => {
-    const tx = _db.transaction(storeName, 'readwrite');
-    const s  = tx.objectStore(storeName);
+    const tx = db.transaction(storeName, 'readwrite');
+    const s = tx.objectStore(storeName);
     items.forEach(item => s.put(item));
     tx.oncomplete = resolve;
-    tx.onerror    = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error);
   });
 }
 
-// Clear a store then bulk-insert — used for season rollover
 export function clearAndBulkPut(storeName, items) {
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(storeName, 'readwrite');
-    const s  = tx.objectStore(storeName);
+    const s = tx.objectStore(storeName);
     const clearReq = s.clear();
-    clearReq.onsuccess = () => { items.forEach(item => s.put(item)); };
+    clearReq.onsuccess = () => items.forEach(item => s.put(item));
     tx.oncomplete = resolve;
-    tx.onerror    = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error);
   });
 }
 
-export const getSave            = ()    => req2p(store('save').get('active'));
-export const putSave            = (d)   => req2p(store('save','readwrite').put({ id:'active', ...d }));
-export const getAllTeams         = ()    => req2p(store('teams').getAll());
-export const getTeam            = (id)  => req2p(store('teams').get(id));
-export const putTeam            = (t)   => req2p(store('teams','readwrite').put(t));
-export const putTeamsBulk       = (ts)  => bulkPut('teams', ts);
-export const getAllPlayers       = ()    => req2p(store('players').getAll());
-export const getPlayer          = (id)  => req2p(store('players').get(id));
-export const getPlayersByTeam   = (tid) => req2p(store('players').index('by_team').getAll(tid));
-export const putPlayer          = (p)   => req2p(store('players','readwrite').put(p));
-export const putPlayersBulk     = (ps)  => bulkPut('players', ps);
+export async function getSave() {
+  const raw = await req2p(store('save').get('active'));
+  if (!raw) return raw;
+  return {
+    ...raw,
+    slotId: raw.slotId ?? getActiveSlotId(),
+    saveSchemaVersion: raw.saveSchemaVersion ?? 1,
+  };
+}
+
+export function putSave(data) {
+  const slotId = getActiveSlotId();
+  _registerSlot(slotId);
+  const next = {
+    ...data,
+    id:'active',
+    slotId,
+    saveSchemaVersion:SAVE_SCHEMA_VERSION,
+    lastPlayedAt:new Date().toISOString(),
+  };
+  return req2p(store('save','readwrite').put(next));
+}
+
+export const getAllTeams = () => req2p(store('teams').getAll());
+export const getTeam = id => req2p(store('teams').get(id));
+export const putTeam = t => req2p(store('teams','readwrite').put(t));
+export const putTeamsBulk = ts => bulkPut('teams', ts);
+export const getAllPlayers = () => req2p(store('players').getAll());
+export const getPlayer = id => req2p(store('players').get(id));
+export const getPlayersByTeam = tid => req2p(store('players').index('by_team').getAll(tid));
+export const putPlayer = p => req2p(store('players','readwrite').put(p));
+export const putPlayersBulk = ps => bulkPut('players', ps);
 export function deletePlayersBulk(ids) {
   return new Promise((resolve, reject) => {
     const tx = _db.transaction('players', 'readwrite');
-    const s  = tx.objectStore('players');
+    const s = tx.objectStore('players');
     ids.forEach(id => s.delete(id));
     tx.oncomplete = resolve;
-    tx.onerror    = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error);
   });
 }
-export const getAllFixtures      = ()    => req2p(store('fixtures').getAll());
-export const getFixture         = (id)  => req2p(store('fixtures').get(id));
-export const getFixturesByGW    = (gw)  => req2p(store('fixtures').index('by_gameweek').getAll(gw));
-export const putFixture         = (f)   => req2p(store('fixtures','readwrite').put(f));
-export const putFixturesBulk    = (fs)  => bulkPut('fixtures', fs);
-// Season rollover: clear ALL old fixtures first, then insert new ones
-export const replaceAllFixtures  = (fs) => clearAndBulkPut('fixtures', fs);
-export const getAllStandings     = ()    => req2p(store('standings').getAll());
-export const getStanding        = (id)  => req2p(store('standings').get(id));
-export const putStanding        = (s)   => req2p(store('standings','readwrite').put(s));
-export const putStandingsBulk   = (ss)  => bulkPut('standings', ss);
-export const replaceAllStandings= (ss)  => clearAndBulkPut('standings', ss);
-export const getAllTransfers     = ()    => req2p(store('transfers').getAll());
-export const addTransfer        = (t)   => req2p(store('transfers','readwrite').add(t));
-export const getAllHonors        = ()    => req2p(store('honors').getAll());
-export const addHonor           = (h)   => req2p(store('honors','readwrite').add(h));
-export const getAllSeasons       = ()    => req2p(store('seasons').getAll());
-export const addSeason          = (s)   => req2p(store('seasons','readwrite').add(s));
+export const getAllFixtures = () => req2p(store('fixtures').getAll());
+export const getFixture = id => req2p(store('fixtures').get(id));
+export const getFixturesByGW = gw => req2p(store('fixtures').index('by_gameweek').getAll(gw));
+export const putFixture = f => req2p(store('fixtures','readwrite').put(f));
+export const putFixturesBulk = fs => bulkPut('fixtures', fs);
+export const replaceAllFixtures = fs => clearAndBulkPut('fixtures', fs);
+export const getAllStandings = () => req2p(store('standings').getAll());
+export const getStanding = id => req2p(store('standings').get(id));
+export const putStanding = s => req2p(store('standings','readwrite').put(s));
+export const putStandingsBulk = ss => bulkPut('standings', ss);
+export const replaceAllStandings = ss => clearAndBulkPut('standings', ss);
+export const getAllTransfers = () => req2p(store('transfers').getAll());
+export const addTransfer = t => req2p(store('transfers','readwrite').add(t));
+export const getAllHonors = () => req2p(store('honors').getAll());
+export const addHonor = h => req2p(store('honors','readwrite').add(h));
+export const getAllSeasons = () => req2p(store('seasons').getAll());
+export const addSeason = s => req2p(store('seasons','readwrite').add(s));
 
-// Wipes the active career (save/teams/players/fixtures/standings/transfers)
-// but keeps honors and seasons — used when a sacked manager starts a new
-// job rather than a full "Reset Game", which wipes everything including
-// trophy history.
 export async function resetForNewCareer() {
   await clearAndBulkPut('save', []);
   await clearAndBulkPut('teams', []);
@@ -107,24 +246,91 @@ export async function resetForNewCareer() {
   await clearAndBulkPut('transfers', []);
 }
 
-export function deleteDB() {
-  if (_db) { try { _db.close(); } catch(e) {} }
-  _db = null;
-  return new Promise((res, rej) => {
-    const r = indexedDB.deleteDatabase(DB_NAME);
-    r.onsuccess = res;
-    r.onerror = () => rej(r.error);
-    r.onblocked = () => res(); // If still blocked, just proceed — reload will clean up
+function _deleteNamedDB(name) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = resolve;
+    req.onerror = () => reject(req.error);
+    req.onblocked = resolve;
   });
 }
 
-// ─── Save File Export / Import ────────────────────────────────
-// Exports all IndexedDB stores as a single compressed, obfuscated
-// .pitch file. Includes an integrity hash to detect tampering.
-export const _PITCH_SALT = 'pitch_fc_v3_2025';
-export const _PITCH_MAGIC = 'PITCH_SAVE_V1';
+export async function deleteCareerSlot(slotId) {
+  if (!SAFE_SLOT_ID.test(slotId)) throw new Error('Invalid career slot ID.');
+  if (_db && _dbSlotId === slotId) {
+    try { _db.close(); } catch {}
+    _db = null;
+    _dbSlotId = null;
+  }
+  await _deleteNamedDB(careerSlotDbName(slotId));
+  if (slotId !== LEGACY_SLOT_ID) _unregisterSlot(slotId);
 
-// Simple hash for integrity checking (FNV-1a 32-bit, then hex)
+  if (getActiveSlotId() === slotId) {
+    const next = _readRegistry().find(id => id !== slotId) ?? LEGACY_SLOT_ID;
+    _storage()?.setItem(ACTIVE_SLOT_KEY, next);
+  }
+}
+
+// Compatibility: "Reset Game" now deletes the active career only. Other P0
+// slots are intentionally isolated and must never be destroyed by this path.
+export function deleteDB() {
+  return deleteCareerSlot(getActiveSlotId());
+}
+
+async function _readSlotSummary(slotId) {
+  const isActive = slotId === getActiveSlotId();
+  const db = isActive ? await openDB() : await _openNamedDB(careerSlotDbName(slotId));
+  try {
+    const save = await req2p(db.transaction('save', 'readonly').objectStore('save').get('active'));
+    if (!save) return null;
+    const team = save.userTeamId
+      ? await req2p(db.transaction('teams', 'readonly').objectStore('teams').get(save.userTeamId))
+      : null;
+    const standing = save.userTeamId
+      ? await req2p(db.transaction('standings', 'readonly').objectStore('standings').get(save.userTeamId))
+      : null;
+    return {
+      slotId,
+      managerName:save.managerName ?? 'The Manager',
+      teamId:save.userTeamId ?? null,
+      clubName:team?.name ?? save.userTeamId ?? 'Unknown Club',
+      clubCrest:team?.crest ?? '⚽',
+      clubColor:team?.color ?? team?.primaryColor ?? '#16a34a',
+      season:save.season ?? '—',
+      league:save.userLeague ?? team?.league ?? '—',
+      leaguePosition:Number.isFinite(standing?.position) ? standing.position : null,
+      gameweek:save.currentGameweek ?? 1,
+      lastPlayedAt:save.lastPlayedAt ?? null,
+      saveSchemaVersion:save.saveSchemaVersion ?? 1,
+      isActive,
+    };
+  } finally {
+    if (!isActive) {
+      try { db.close(); } catch {}
+    }
+  }
+}
+
+export async function getCareerSlotSummaries() {
+  const summaries = [];
+  for (const slotId of getCareerSlotIds()) {
+    try {
+      const summary = await _readSlotSummary(slotId);
+      if (summary) summaries.push(summary);
+    } catch {}
+  }
+  return summaries.sort((a, b) => {
+    const ad = a.lastPlayedAt ? Date.parse(a.lastPlayedAt) : 0;
+    const bd = b.lastPlayedAt ? Date.parse(b.lastPlayedAt) : 0;
+    return bd - ad || a.clubName.localeCompare(b.clubName);
+  });
+}
+
+// ─── Versioned .pitch / cloud save envelope ───────────────────
+export const _PITCH_SALT = 'pitch_fc_v3_2025';
+export const _PITCH_MAGIC = 'PITCH_SAVE_V2';
+export const _PITCH_LEGACY_MAGIC = 'PITCH_SAVE_V1';
+
 export function _fnv1a(str) {
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
@@ -134,54 +340,110 @@ export function _fnv1a(str) {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-// Builds the same base64 envelope exportSaveFile() writes to a .pitch file —
-// snapshot of all 8 stores, meta, FNV-1a integrity hash — without the
-// DOM-touching file-download side effects. Cloud save (ROADMAP.md item 7)
-// reuses this directly as save_blob rather than inventing a second save
-// format the server would need to understand.
-export async function buildSaveEnvelope() {
-  const db = await openDB();
-  const storeNames = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
-  const snapshot = {};
+export const SAVE_MIGRATORS = Object.freeze({
+  1(data, targetSlotId) {
+    const snapshot = data.snapshot ?? {};
+    return {
+      ...data,
+      meta:{
+        ...(data.meta ?? {}),
+        version:_PITCH_MAGIC,
+        schemaVersion:SAVE_SCHEMA_VERSION,
+        migratedFrom:_PITCH_LEGACY_MAGIC,
+        slotId:targetSlotId,
+      },
+      snapshot:{
+        ...snapshot,
+        save:(snapshot.save ?? []).map(row => ({
+          ...row,
+          slotId:targetSlotId,
+          saveSchemaVersion:SAVE_SCHEMA_VERSION,
+        })),
+      },
+    };
+  },
+});
 
-  for (const name of storeNames) {
-    const tx = db.transaction(name, 'readonly');
-    const s  = tx.objectStore(name);
-    snapshot[name] = await req2p(s.getAll());
+function _saveVersionFromMagic(magic) {
+  if (magic === _PITCH_LEGACY_MAGIC) return 1;
+  if (magic === _PITCH_MAGIC) return SAVE_SCHEMA_VERSION;
+  return null;
+}
+
+export function migrateSavePayload(data, targetSlotId = getActiveSlotId()) {
+  let version = Number(data?.meta?.schemaVersion) || _saveVersionFromMagic(data?.meta?.version);
+  if (!version) throw new Error('Unsupported save version.');
+  let migrated = data;
+  while (version < SAVE_SCHEMA_VERSION) {
+    const migrator = SAVE_MIGRATORS[version];
+    if (!migrator) throw new Error(`No migration path for save version ${version}.`);
+    migrated = migrator(migrated, targetSlotId);
+    version += 1;
   }
+  if (version > SAVE_SCHEMA_VERSION) throw new Error('Save was created by a newer version of PITCH.');
 
-  // Build save metadata
+  const snapshot = migrated.snapshot ?? {};
+  return {
+    ...migrated,
+    meta:{
+      ...(migrated.meta ?? {}),
+      version:_PITCH_MAGIC,
+      schemaVersion:SAVE_SCHEMA_VERSION,
+      slotId:targetSlotId,
+    },
+    snapshot:{
+      ...snapshot,
+      save:(snapshot.save ?? []).map(row => ({
+        ...row,
+        slotId:targetSlotId,
+        saveSchemaVersion:SAVE_SCHEMA_VERSION,
+      })),
+    },
+  };
+}
+
+async function _snapshotSlot(slotId) {
+  const isActive = slotId === getActiveSlotId();
+  const db = isActive ? await openDB() : await _openNamedDB(careerSlotDbName(slotId));
+  try {
+    const snapshot = {};
+    for (const name of STORE_NAMES) {
+      snapshot[name] = await req2p(db.transaction(name, 'readonly').objectStore(name).getAll());
+    }
+    return snapshot;
+  } finally {
+    if (!isActive) {
+      try { db.close(); } catch {}
+    }
+  }
+}
+
+export async function buildSaveEnvelope(slotId = getActiveSlotId()) {
+  const snapshot = await _snapshotSlot(slotId);
+  const rawSave = snapshot.save?.find(s => s.id === 'active');
+  if (rawSave) {
+    snapshot.save = snapshot.save.map(row => row.id === 'active'
+      ? { ...row, slotId, saveSchemaVersion:SAVE_SCHEMA_VERSION }
+      : row);
+  }
   const saveData = snapshot.save?.find(s => s.id === 'active');
   const meta = {
-    version: _PITCH_MAGIC,
-    exportedAt: new Date().toISOString(),
-    teamId: saveData?.userTeamId ?? 'unknown',
-    season: saveData?.season ?? 1,
-    gameweek: saveData?.currentGameweek ?? 1,
+    version:_PITCH_MAGIC,
+    schemaVersion:SAVE_SCHEMA_VERSION,
+    slotId,
+    exportedAt:new Date().toISOString(),
+    teamId:saveData?.userTeamId ?? 'unknown',
+    managerName:saveData?.managerName ?? 'The Manager',
+    season:saveData?.season ?? 1,
+    gameweek:saveData?.currentGameweek ?? 1,
   };
-
   const payload = JSON.stringify({ meta, snapshot });
   const hash = _fnv1a(_PITCH_SALT + payload);
-  const envelope = JSON.stringify({ h: hash, d: payload });
-
-  // Base64 encode the envelope (universal, no compression dependency)
+  const envelope = JSON.stringify({ h:hash, d:payload });
   const saveCode = btoa(unescape(encodeURIComponent(envelope)));
-
   return { saveCode, meta, envelope };
 }
 
-// Cloud save (ROADMAP.md item 7) pushes this envelope over the wire on every
-// match-checkpoint auto-save, unlike the .pitch export which is a rare,
-// user-initiated action — so unlike saveCode above, this path compresses.
-// A brand-new career already carries every club's full roster (186 clubs,
-// ~3,900 players — the whole game world, not just the user's league), which
-// alone is ~2.3MB base64-encoded before a single gameweek is played: over
-// both functions/api/save.js's MAX_SAVE_BYTES and D1's 2,000,000-byte column
-// cap. Gzip cuts that to ~180KB (highly repetitive player-record JSON), with
-// headroom for a season's worth of fixtures/transfers/honors growth.
-// CompressionStream/DecompressionStream are native and already used by
-// importSaveFile()'s legacy-gzip fallback below — same approach, no new
-// dependency.
 async function _gzipString(str) {
   const cs = new CompressionStream('gzip');
   const writer = cs.writable.getWriter();
@@ -216,157 +478,121 @@ function _base64ToBytes(base64) {
   return bytes;
 }
 
-export async function buildCloudSaveBlob() {
-  const { envelope, meta } = await buildSaveEnvelope();
+export async function buildCloudSaveBlob(slotId = getActiveSlotId()) {
+  const { envelope, meta } = await buildSaveEnvelope(slotId);
   const compressed = await _gzipString(envelope);
-  return { blob: _bytesToBase64(compressed), meta };
+  return { blob:_bytesToBase64(compressed), meta, slotId };
 }
 
-// Falls back to the older uncompressed format (plain base64 of the envelope,
-// same as saveCode above) so a save_blob written before this fix shipped
-// still restores.
-export async function restoreFromCloudBlob(blob) {
+export async function restoreFromCloudBlob(blob, targetSlotId = getActiveSlotId()) {
   let envelopeStr;
   try {
     envelopeStr = await _gunzipToString(_base64ToBytes(blob));
   } catch {
     envelopeStr = decodeURIComponent(escape(atob(blob.trim())));
   }
-  return _restoreFromEnvelope(envelopeStr);
+  return _restoreFromEnvelope(envelopeStr, targetSlotId);
 }
 
-export async function exportSaveFile() {
-  const { saveCode, meta } = await buildSaveEnvelope();
-
-  // Build filename for display
+export async function exportSaveFile(slotId = getActiveSlotId()) {
+  const { saveCode, meta } = await buildSaveEnvelope(slotId);
   const teamName = (meta.teamId ?? 'team').replace(/[^a-zA-Z0-9_]/g, '_');
   const filename = `PITCH_${teamName}_S${meta.season}_GW${meta.gameweek}.pitch`;
-
-  // Try file download as a bonus (works on desktop, may fail in sandboxed iframe)
   let fileDownloaded = false;
   try {
-    const blob = new Blob([saveCode], { type: 'text/plain' });
-
-    // Try Web Share API first (mobile)
+    const blob = new Blob([saveCode], { type:'text/plain' });
     try {
-      const file = new File([blob], filename, { type: 'text/plain' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'PITCH Save', text: filename });
+      const file = new File([blob], filename, { type:'text/plain' });
+      if (navigator.canShare && navigator.canShare({ files:[file] })) {
+        await navigator.share({ files:[file], title:'PITCH Save', text:filename });
         fileDownloaded = true;
       }
     } catch (e) {
       if (e.name === 'AbortError') fileDownloaded = true;
     }
-
-    // Try anchor download (desktop)
     if (!fileDownloaded) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = filename; a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
     }
-  } catch (e) { /* File download failed — saveCode modal is the fallback */ }
-
-  return { filename, size: saveCode.length, meta, saveCode };
+  } catch {}
+  return { filename, size:saveCode.length, meta, saveCode, slotId };
 }
 
-export async function importSaveFromCode(code) {
-  // Decode base64 save code
+export async function importSaveFromCode(code, targetSlotId = getActiveSlotId()) {
   let envelopeStr;
   try {
     envelopeStr = decodeURIComponent(escape(atob(code.trim())));
-  } catch (e) {
+  } catch {
     throw new Error('Invalid save code — could not decode.');
   }
-
-  return _restoreFromEnvelope(envelopeStr);
+  return _restoreFromEnvelope(envelopeStr, targetSlotId);
 }
 
-export async function importSaveFile(file) {
-  // Read file as text — save files are now base64-encoded text
+export async function importSaveFile(file, targetSlotId = getActiveSlotId()) {
   const text = await file.text();
-
-  // Try interpreting as raw base64 save code first
   let envelopeStr;
   try {
     envelopeStr = decodeURIComponent(escape(atob(text.trim())));
-  } catch (e) {
-    // Maybe it's an older gzip-compressed file
+  } catch {
     try {
       const buf = await file.arrayBuffer();
-      if (typeof DecompressionStream !== 'undefined') {
-        const ds = new DecompressionStream('gzip');
-        const writer = ds.writable.getWriter();
-        writer.write(new Uint8Array(buf));
-        writer.close();
-        const decompressed = await new Response(ds.readable).arrayBuffer();
-        envelopeStr = new TextDecoder().decode(decompressed);
-      } else {
-        throw new Error('Cannot decompress');
-      }
-    } catch (e2) {
+      if (typeof DecompressionStream === 'undefined') throw new Error('Cannot decompress');
+      const ds = new DecompressionStream('gzip');
+      const writer = ds.writable.getWriter();
+      writer.write(new Uint8Array(buf));
+      writer.close();
+      const decompressed = await new Response(ds.readable).arrayBuffer();
+      envelopeStr = new TextDecoder().decode(decompressed);
+    } catch {
       throw new Error('Invalid save file — could not decode.');
     }
   }
-
-  return _restoreFromEnvelope(envelopeStr);
+  return _restoreFromEnvelope(envelopeStr, targetSlotId);
 }
 
-export async function _restoreFromEnvelope(envelopeStr) {
-  // Parse envelope
+export function parseAndMigrateEnvelope(envelopeStr, targetSlotId = getActiveSlotId()) {
   let envelope;
-  try {
-    envelope = JSON.parse(envelopeStr);
-  } catch (e) {
-    throw new Error('Invalid save data — corrupted format.');
-  }
-
-  if (!envelope.h || !envelope.d) {
-    throw new Error('Invalid save data — missing integrity check.');
-  }
-
-  // Verify integrity hash
+  try { envelope = JSON.parse(envelopeStr); }
+  catch { throw new Error('Invalid save data — corrupted format.'); }
+  if (!envelope.h || !envelope.d) throw new Error('Invalid save data — missing integrity check.');
   const expectedHash = _fnv1a(_PITCH_SALT + envelope.d);
-  if (envelope.h !== expectedHash) {
-    throw new Error('Save data integrity check failed — data may have been modified.');
-  }
+  if (envelope.h !== expectedHash) throw new Error('Save data integrity check failed — data may have been modified.');
 
-  // Parse payload
   let data;
-  try {
-    data = JSON.parse(envelope.d);
-  } catch (e) {
-    throw new Error('Invalid save data — corrupted payload.');
-  }
-
-  if (data.meta?.version !== _PITCH_MAGIC) {
-    throw new Error('Unsupported save version.');
-  }
-
-  const snapshot = data.snapshot;
+  try { data = JSON.parse(envelope.d); }
+  catch { throw new Error('Invalid save data — corrupted payload.'); }
+  const migrated = migrateSavePayload(data, targetSlotId);
+  const snapshot = migrated.snapshot;
   if (!snapshot || !snapshot.save || !snapshot.teams || !snapshot.players) {
     throw new Error('Invalid save data — missing game data.');
   }
-
-  // Wipe current DB and restore all stores
-  if (_db) { _db.close(); _db = null; }
-  await new Promise((res, rej) => {
-    const r = indexedDB.deleteDatabase(DB_NAME);
-    r.onsuccess = res; r.onerror = () => rej(r.error);
-  });
-
-  await openDB();
-
-  const storeNames = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
-  for (const name of storeNames) {
-    const items = snapshot[name];
-    if (items && items.length > 0) {
-      await bulkPut(name, items);
-    }
-  }
-
-  return data.meta;
+  return migrated;
 }
 
+export async function _restoreFromEnvelope(envelopeStr, targetSlotId = getActiveSlotId()) {
+  if (!SAFE_SLOT_ID.test(targetSlotId)) throw new Error('Invalid career slot ID.');
+  const data = parseAndMigrateEnvelope(envelopeStr, targetSlotId);
+  const snapshot = data.snapshot;
+
+  if (_db && _dbSlotId === targetSlotId) {
+    try { _db.close(); } catch {}
+    _db = null;
+    _dbSlotId = null;
+  }
+  await _deleteNamedDB(careerSlotDbName(targetSlotId));
+  _registerSlot(targetSlotId);
+  await activateCareerSlot(targetSlotId);
+  const db = await openDB();
+
+  for (const name of STORE_NAMES) {
+    const items = snapshot[name];
+    if (items?.length) await _bulkPutToDB(db, name, items);
+  }
+  return data.meta;
+}
