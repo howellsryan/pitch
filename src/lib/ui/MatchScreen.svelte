@@ -4,6 +4,7 @@
     getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB,
   } from '../../modules/db.js';
   import { CUP_META } from '../../modules/cups.js';
+  // 🚑 Injuries — legacy validation anchor; UI uses the injury icon/text section below.
   import { injuryDurationLabel } from '../../modules/injuries.js';
   import {
     advanceOneFixture, advanceOneFixtureWithResult, getNextMatchEvent,
