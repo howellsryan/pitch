@@ -1,6 +1,6 @@
 <script>
   import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
-  import { FORMATIONS, primaryRating } from '../../modules/matchEngine.js';
+  import { FORMATIONS, primaryRating, selectEleven } from '../../modules/matchEngine.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { contractYearsRemaining, renewContract } from '../../modules/transfers.js';
   import { fmt, posGroup, toast } from '../../ui/helpers.js';
@@ -56,7 +56,7 @@
   const slots = $derived(SLOT_LAYOUT[formation] ?? SLOT_LAYOUT['4-3-3']);
 
   const assignment = $derived.by(() => {
-    const avail = players.filter(p => !p.injured && !p.suspended).sort((a, b) => primaryRating(b) - primaryRating(a));
+    const avail = players.filter(p => p.inSquad !== false && !p.injured && !p.suspended).sort((a, b) => primaryRating(b) - primaryRating(a));
     const out = new Array(slots.length).fill(null);
     const usedIds = [];
     const use = (id) => usedIds.push(id);
@@ -83,7 +83,7 @@
 
   const bench = $derived(
     players
-      .filter(p => !p.injured && !p.suspended && !assignment.some(a => a?.id === p.id))
+      .filter(p => p.inSquad !== false && !p.injured && !p.suspended && !assignment.some(a => a?.id === p.id))
       .sort((a, b) => primaryRating(b) - primaryRating(a))
       .slice(0, 12)
   );
@@ -115,7 +115,15 @@
   function openPlayer(p) { playerSheet = p; rosterOpen = false; }
   function closePlayer() { playerSheet = null; }
   async function toggleSquad(p) {
-    await putPlayer({ ...p, inSquad: p.inSquad === false });
+    const adding = p.inSquad === false;
+    const updatedPlayer = { ...p, inSquad:adding };
+    await putPlayer(updatedPlayer);
+    const sv = await getSave();
+    if (!adding && sv?.lineup?.includes(p.id)) {
+      const eligiblePlayers = players.map(player => player.id === p.id ? updatedPlayer : player);
+      const replacementLineup = selectEleven(eligiblePlayers, formation, null).map(player => player.id);
+      await putSave({ ...sv, lineup:replacementLineup.length === 11 ? replacementLineup : null });
+    }
     toast(`${p.name} ${p.inSquad === false ? 'added to' : 'excluded from'} squad`, 'info', 2000);
     screenTicks.squad++;
   }
@@ -162,7 +170,7 @@
     const currentPlayer = assignment[swapSlotIdx];
     const naturalPositions = SWAP_POS_MAP[slot.p] ?? [slot.p];
     const slotGroup = posGroup(slot.p);
-    const candidates = players.filter(p => !p.injured && !p.suspended && p.id !== currentPlayer?.id);
+    const candidates = players.filter(p => p.inSquad !== false && !p.injured && !p.suspended && p.id !== currentPlayer?.id);
 
     const naturalFit = [], versatile = [], outOfPos = [];
     candidates.forEach(p => {

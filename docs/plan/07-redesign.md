@@ -275,7 +275,12 @@ takeover, hold and opponent kickoff. Player identity stays out of the Broadcast
 pitch and appears in the full-height, match-pausing Squad-style Tactics room,
 where formation and substitution choices apply immediately and a persistent
 Match control returns to play. Global navigation is unavailable for the full
-match route so an in-progress fixture cannot be abandoned accidentally. Penalty
+live fixture so an in-progress match cannot be abandoned accidentally, but it
+remains available on Team News so a blocked XI can be repaired in Squad. Team
+News refreshes the stored XI on return. Goalkeeper saves create a protected
+distribution phase instead of immediately replaying an older possession state,
+and free kicks wait for a wall and runners before a direct attempt or onside
+delivery. Penalty
 choreography is reserved until the result engine emits a real penalty event.
 
 ### R6 — Market and Table

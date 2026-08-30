@@ -127,6 +127,7 @@ describe('broadcast simulation', () => {
 
     const corner = create(); const cornerCarrier = corner.players.find(player => player.id === 'h-9');
     Object.assign(cornerCarrier, { x:50, y:20 }); Object.assign(corner.ball, { ownerId:cornerCarrier.id, x:50, y:20 });
+    Object.assign(corner.players.find(player => player.id === 'a-1'), { x:52, y:21 });
     Object.assign(corner, { mode:'live', nextActionAt:0, sequenceSinceRestart:4, outcomeIndex:1 });
     advanceBroadcastSimulation(corner, 33);
     expect(corner.action).toBe('SHOT BLOCKED · DEFLECTION');
@@ -140,6 +141,7 @@ describe('broadcast simulation', () => {
     const sim = create(); const carrier = sim.players.find(player => player.id === 'h-9');
     Object.assign(carrier, { x:50, y:20 });
     Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:20 });
+    Object.assign(sim.players.find(player => player.id === 'a-1'), { x:52, y:21 });
     Object.assign(sim, { mode:'live', nextActionAt:0, sequenceSinceRestart:4, outcomeIndex:1 });
     advanceBroadcastSimulation(sim, 33);
     while (sim.ball.flight) advanceBroadcastSimulation(sim, 33);
@@ -186,6 +188,85 @@ describe('broadcast simulation', () => {
     advanceBroadcastSimulation(sim, 33);
     expect(sim.ball.flight?.kind).toBe('save');
     expect(sim.action).toBe('SHOT · SAVED');
+  });
+
+  it('shoots from a clear central lane before reaching the six-yard box', () => {
+    const sim = create(); const striker = sim.players.find(player => player.id === 'h-9');
+    Object.assign(striker, { x:50, y:26 }); Object.assign(sim.ball, { ownerId:striker.id, x:50, y:26 });
+    Object.assign(sim, { mode:'live', nextActionAt:0, sequenceSinceRestart:0, outcomeIndex:0 });
+    advanceBroadcastSimulation(sim, 33);
+    expect(sim.action).toBe('SHOT · SAVED');
+    expect(sim.ball.flight?.kind).toBe('save');
+  });
+
+  it('does not invent a blocked corner when no defender can make the block', () => {
+    const sim = create(); const striker = sim.players.find(player => player.id === 'h-9');
+    Object.assign(striker, { x:50, y:16 }); Object.assign(sim.ball, { ownerId:striker.id, x:50, y:16 });
+    sim.players.filter(player => player.teamId === 'away' && player.position !== 'GK').forEach(player => Object.assign(player, { x:10, y:55 }));
+    Object.assign(sim, { mode:'live', nextActionAt:0, outcomeIndex:1 });
+    advanceBroadcastSimulation(sim, 33);
+    expect(sim.action).toBe('SHOT · SAVED');
+    expect(sim.ball.flight?.kind).toBe('save');
+  });
+
+  it('protects a goalkeeper save until a safe defensive distribution is completed', () => {
+    const sim = create(); const striker = sim.players.find(player => player.id === 'h-9');
+    Object.assign(striker, { x:50, y:12 }); Object.assign(sim.ball, { ownerId:striker.id, x:50, y:12 });
+    Object.assign(sim, { mode:'live', nextActionAt:0, outcomeIndex:0 });
+    advanceBroadcastSimulation(sim, 33);
+    while (sim.ball.flight) advanceBroadcastSimulation(sim, 33);
+    expect(sim.ball.ownerId).toBe('a-0');
+    updateBroadcastSimulation(sim, { phase:12, possessionTeamId:'home' });
+    let distributed = false;
+    for (let i = 0; i < 80; i++) {
+      advanceBroadcastSimulation(sim, 33);
+      if (sim.ball.flight?.kind === 'keeper-distribution') { distributed = true; break; }
+      expect(sim.action).not.toBe('TACKLE WON · TURNOVER');
+    }
+    expect(distributed).toBe(true);
+    expect(sim.ball.flight?.toId).toMatch(/^a-/);
+  });
+
+  it('waits for a wall and onside runners before crossing a free kick', () => {
+    const sim = create(); const carrier = sim.players.find(player => player.id === 'h-9');
+    Object.assign(carrier, { x:50, y:26 }); Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:26 });
+    Object.assign(sim, { mode:'live', nextActionAt:0, outcomeIndex:3 });
+    advanceBroadcastSimulation(sim, 33);
+    expect(sim.restart?.type).toBe('free-kick');
+    Object.assign(sim.restart.spot, { x:42, y:45 });
+    Object.assign(sim.ball, { x:42, y:45 });
+    let sawSetup = false; let crossed = false;
+    for (let i = 0; i < 500; i++) {
+      advanceBroadcastSimulation(sim, 33);
+      sawSetup ||= sim.action === 'FREE KICK · WALL AND RUNNERS SETTING';
+      if (sim.action === 'FREE KICK · CROSS INTO THE BOX') {
+        const receiver = sim.players.find(player => player.id === sim.ball.flight?.toId);
+        expect(receiver).toBeTruthy();
+        expect(isOnside(sim, receiver, 'home')).toBe(true);
+        crossed = true; break;
+      }
+    }
+    expect(sawSetup).toBe(true);
+    expect(crossed).toBe(true);
+  });
+
+  it('sets the wall before taking a direct free kick at goal', () => {
+    const sim = create(); const carrier = sim.players.find(player => player.id === 'h-9');
+    Object.assign(carrier, { x:50, y:26 }); Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:26 });
+    Object.assign(sim, { mode:'live', nextActionAt:0, outcomeIndex:3 });
+    advanceBroadcastSimulation(sim, 33);
+    expect(sim.restart).toMatchObject({ type:'free-kick', spot:{ x:50, y:26 } });
+    let sawSetup = false; let attemptedGoal = false;
+    for (let i = 0; i < 350; i++) {
+      advanceBroadcastSimulation(sim, 33);
+      sawSetup ||= sim.action === 'FREE KICK · WALL AND RUNNERS SETTING';
+      if (sim.ball.shooting) {
+        expect(['FREE KICK · ON TARGET', 'FREE KICK · WALL BLOCKS', 'FREE KICK · JUST WIDE']).toContain(sim.action);
+        attemptedGoal = true; break;
+      }
+    }
+    expect(sawSetup).toBe(true);
+    expect(attemptedGoal).toBe(true);
   });
 
   it('keeps current positions when a substitution changes the active lineup', () => {

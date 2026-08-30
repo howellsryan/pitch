@@ -164,19 +164,25 @@
     const userFormation = save.formation ?? '4-3-3';
     const userLineup    = save.lineup ?? null;
 
-    const injuredInLineup = userLineup
-      ? userPlayers.filter(p => p.injured && userLineup.includes(p.id))
-      : [];
-    const lineupIncomplete = !userLineup || userLineup.length !== 11
-      || userLineup.some(pid => !userPlayers.find(p => p.id === pid));
+    const { injuredInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers);
 
     return {
       event, save, userTeam, oppTeam, oppForm, oppInForm,
       matchTitle, compLabel, compColor, isLeague, userIsHome,
       userPlayers, userFormation, userLineup,
       injuredInLineup, lineupIncomplete,
-      lineupBlocked: injuredInLineup.length > 0 || lineupIncomplete,
+      lineupBlocked,
     };
+  }
+
+  function lineupAvailability(userLineup, userPlayers) {
+    const injuredInLineup = userLineup
+      ? userPlayers.filter(player => player.injured && userLineup.includes(player.id))
+      : [];
+    const lineupIncomplete = !userLineup || userLineup.length !== 11
+      || new Set(userLineup).size !== 11
+      || userLineup.some(playerId => !userPlayers.some(player => player.id === playerId && player.inSquad !== false));
+    return { injuredInLineup, lineupIncomplete, lineupBlocked:injuredInLineup.length > 0 || lineupIncomplete };
   }
 
   const blockMsg = $derived(
@@ -264,9 +270,24 @@
     cloudSaveCheckpoint();
   }
 
+  async function refreshTeamNewsLineup() {
+    if (!matchCtx || beat !== 'teamNews') return;
+    const freshSave = await getSave();
+    if (!freshSave || freshSave._deleted || beat !== 'teamNews') return;
+    const freshPlayers = await getPlayersByTeam(freshSave.userTeamId);
+    const userFormation = freshSave.formation ?? '4-3-3';
+    const userLineup = freshSave.lineup ?? null;
+    const availability = lineupAvailability(userLineup, freshPlayers);
+    matchCtx = {
+      ...matchCtx, save:freshSave, userPlayers:freshPlayers, userFormation, userLineup,
+      ...availability,
+    };
+  }
+
   $effect(() => {
     void screenTicks.match;
     if (!active) loadMatch();
+    else if (beat === 'teamNews') void Promise.resolve().then(refreshTeamNewsLineup);
   });
 
   // ── Resolve real home/away teams + players for kickoff ──────────────
@@ -357,6 +378,10 @@
     kickoffTimer = window.setTimeout(() => {
       if (beat === 'kickoff') { beat = 'live'; scheduleTick(); }
     }, 900);
+  }
+
+  async function openSquadFromTeamNews() {
+    await navigateTo('squad');
   }
 
   function skipKickoff() {
@@ -747,13 +772,15 @@
           {#each m.injuredInLineup as p (p.id)}
             <div class="tn-warning-line"><strong>{p.name}</strong> — {p.injuryName || 'Injured'} ({injuryDurationLabel(p.injuryGWsLeft)} remaining)</div>
           {/each}
-          <div class="tn-warning-cta">Go to Squad to fix your lineup before playing.</div>
+          <div class="tn-warning-cta">Replace the injured player before playing.</div>
+          <button class="tn-squad-link" onclick={openSquadFromTeamNews}>Open Squad →</button>
         </div>
       {/if}
       {#if m.lineupIncomplete}
         <div class="tn-warning tn-warning-warn">
           <div class="tn-warning-title">⚠️ Lineup Incomplete</div>
           <div class="tn-warning-cta">You must set a full starting XI in Squad before playing.</div>
+          <button class="tn-squad-link" onclick={openSquadFromTeamNews}>Open Squad →</button>
         </div>
       {/if}
     </div>
@@ -1034,6 +1061,7 @@
   .tn-warning-bad .tn-warning-title { color: var(--color-bad); }
   .tn-warning-warn .tn-warning-title { color: var(--color-warn); }
   .tn-warning-cta { color: var(--color-tx-2); margin-top: 4px; }
+  .tn-squad-link { margin-top: 9px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-club); border-radius: 8px; background: transparent; color: var(--color-club); font: 700 11px var(--font-body); cursor: pointer; }
 
   .tn-actions, .ft-actions, .after-actions { display: flex; gap: 10px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); flex-shrink: 0; }
 
@@ -1111,6 +1139,11 @@
   .speed-lbl { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); margin-right: 2px; }
   .speed-btn { font-size: 10px; min-width: 30px; padding: 7px 6px; border-radius: 6px; border: 1px solid var(--color-line); background: transparent; color: var(--color-tx-2); cursor: pointer; }
   .speed-btn.active { background: var(--color-club); color: var(--color-on-club, #fff); border-color: var(--color-club); }
+
+  @media (max-width: 768px) {
+    .broadcast-pitch { flex: 0 1 52dvh; min-height: 320px; max-height: 52dvh; }
+    .live-controls { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+  }
 
   /* ── Full time ─────────────────────────────────────────────── */
   .ft-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }

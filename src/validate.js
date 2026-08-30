@@ -1052,6 +1052,11 @@ chk('In-match tactics formation changes auto-apply', matchScreenSrc.includes('on
 chk('In-match tactics substitutions auto-apply', matchScreenSrc.includes('applyTacticsSub(tacticsSubIn, player)'));
 chk('In-match tactics has an explicit return to match', matchScreenSrc.includes('aria-label="Back to match"'));
 chk('In-match navigation is locked and released', matchScreenSrc.includes('setMatchNavigationLocked(true)')&&matchScreenSrc.includes('setMatchNavigationLocked(false)'));
+chk('Team News refreshes lineup after returning from Squad', matchScreenSrc.includes('refreshTeamNewsLineup')&&matchScreenSrc.includes('Promise.resolve().then(refreshTeamNewsLineup)'));
+chk('Team News links directly to Squad when lineup is blocked', matchScreenSrc.includes('openSquadFromTeamNews')&&matchScreenSrc.includes('Open Squad →'));
+chk('Squad exclusion repairs a selected lineup', squadScreenSrc.includes('replacementLineup = selectEleven')&&squadScreenSrc.includes('sv?.lineup?.includes(p.id)'));
+chk('Match navigation remains available until kickoff', shellSrc.includes('.match-navigation-locked .sidebar')&&!shellSrc.includes('.match-route-active .sidebar'));
+chk('Mobile match controls clear browser chrome', matchScreenSrc.includes('padding-bottom: calc(22px + env(safe-area-inset-bottom))'));
 chk('Injury auto-pauses the match', matchScreenSrc.includes("ev.type === 'injury'")&&matchScreenSrc.includes('togglePause()'));
 chk('Full Time beat shows scorers + verdict', matchScreenSrc.includes('ft-verdict')&&matchScreenSrc.includes('homeScorers'));
 chk('After beat commits via advanceOneFixtureWithResult', matchScreenSrc.includes('advanceOneFixtureWithResult'));
