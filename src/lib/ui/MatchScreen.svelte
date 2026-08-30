@@ -320,17 +320,18 @@
 
     const userIsHomeC = ctx.event.userIsHome ?? true;
     const realOpp = teamsById2.get(ctx.event.opponentId) ?? teamByName2(ctx.oppTeam.name) ?? ctx.oppTeam;
-    homeTeam = userIsHomeC ? ctx.userTeam : realOpp;
-    awayTeam = userIsHomeC ? realOpp : ctx.userTeam;
-    homePlayers = await getPlayersByTeam(homeTeam.id);
-    awayPlayers = realOpp?.id
+    const userPlayers = await getPlayersByTeam(ctx.userTeam.id);
+    let oppPlayers = realOpp?.id
       ? await getPlayersByTeam(realOpp.id).catch(() => [])
       : [];
-    if (!awayPlayers.length) {
+    if (!oppPlayers.length) {
       const strength = ctx.event.opponentRep ?? ctx.event.oppStrength ?? 72;
-      awayPlayers = generateStubPlayers(realOpp, strength);
+      oppPlayers = generateStubPlayers(realOpp, strength);
     }
-    if (!userIsHomeC) [homePlayers, awayPlayers] = [awayPlayers, homePlayers];
+    homeTeam = userIsHomeC ? ctx.userTeam : realOpp;
+    awayTeam = userIsHomeC ? realOpp : ctx.userTeam;
+    homePlayers = userIsHomeC ? userPlayers : oppPlayers;
+    awayPlayers = userIsHomeC ? oppPlayers : userPlayers;
     patchedEvent = { ...ctx.event, userIsHome: userIsHomeC };
     return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHomeC, patchedEvent };
   }
@@ -346,6 +347,8 @@
     const formation   = matchCtx.userFormation;
     const aiFormation = pickAIFormation();
     const userLineup  = matchCtx.save.lineup ?? null;
+    const homeFormation = resolved.userIsHome ? formation : aiFormation;
+    const awayFormation = resolved.userIsHome ? aiFormation : formation;
     const homeLineup  = resolved.userIsHome ? userLineup : null;
     const awayLineup  = resolved.userIsHome ? null : userLineup;
     const userMentality = matchCtx.save.mentality ?? 'balanced';
@@ -354,7 +357,7 @@
 
     const liveState = buildLiveMatchState(
       resolved.homeTeam, resolved.awayTeam, resolved.homePlayers, resolved.awayPlayers,
-      formation, aiFormation, homeLineup, awayLineup, homeMentality, awayMentality
+      homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality
     );
 
     live = {
