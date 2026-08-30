@@ -318,6 +318,30 @@ If the user is managing Arsenal in October and inspects Barcelona, Dortmund or A
 
 ---
 
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- A completed fixture writes one canonical match record. Standings, player statistics, form, history, awards and stories derive from that record instead of independently inventing results.
+- All supported leagues advance through the same world clock. Background fixtures use the fast authoritative engine; Broadcast remains user-match presentation only.
+- Store detailed current-season ledgers and compact immutable season summaries. Retention/compaction rules must be explicit so a 15-season mobile save stays viable.
+- Generate new players from calibrated league/nation/position cohorts at season rollover; never clone retired players or add unbounded talent.
+
+**Route**
+
+1. Define the canonical match/stat ledger and idempotent “apply result once” boundary.
+2. Expand the gameweek pipeline to simulate scheduled world fixtures in bounded batches while preserving the user's load-bearing pending-event queue.
+3. Build current-season player/club/competition projections, then season-close summaries and inspectable history.
+4. Add awards, transfers/loans and injury/form updates as consumers of the same ledger.
+5. Add cohort-based newgens and long-horizon population/quality checks.
+6. Benchmark gameweek time, career load time and IndexedDB growth on mobile-class targets before enabling full breadth by default.
+
+**Commit/push slices:** ledger contract/tests; batched world clock; current stats; historical summaries; awards/injuries/transfers integration; newgens; performance/E2E/docs.
+
+
+---
+
 ## P2 — Match Engine 2.0, Tactics and Manager DNA
 
 **Priority:** #2.
@@ -389,6 +413,30 @@ Simulation changes must gain deterministic/injectable RNG support and statistica
 
 ---
 
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Seeded/injectable RNG and a repeatable simulation benchmark land before tactical balance changes.
+- Represent tactics as a small config-driven set of orthogonal team instructions plus position-compatible player roles. Avoid free-form combinations that cannot be explained or tested.
+- Tactical effects are bounded trade-offs applied inside the authoritative match engine; no instruction is a universal rating boost.
+- AI tactical profiles and Manager DNA use the same tactic schema as the user. Broadcast visualises the authoritative event plan and never recalculates score, scorer or timing.
+
+**Route**
+
+1. Introduce the RNG boundary, deterministic fixtures and statistical baseline reports for goals, results, cards, possession and home advantage.
+2. Add the tactic/role schema, validation, defaults and save migration while preserving existing formation/mentality careers.
+3. Add engine modifiers one tactical dimension at a time, each with matchup tests and fitness/risk consequences.
+4. Add role suitability and AI manager profiles, then pre-match insights sourced from P1 history.
+5. Persist Manager DNA as an aggregate of actual selections and outcomes, not a user-selected badge.
+6. Map authoritative events into Broadcast and verify watched and quick-simmed results remain identical.
+
+**Commit/push slices:** deterministic harness; tactic schema/migration; team instructions; player roles; AI profiles/insights; Manager DNA; Broadcast parity/statistical regression/docs.
+
+
+---
+
 ## P3 — Player Model 2.0
 
 **Priority:** #3.
@@ -430,6 +478,30 @@ The manager can accelerate a return at a meaningful risk rather than waiting for
 ### Acceptance
 
 Rotation, development, selection, contracts, transfers and injuries all read from the same coherent player state rather than independent meters.
+
+---
+
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Persist durable baseline ability, potential/growth profile, position suitability and personal state; derive current effective level through one shared selector rather than storing competing “current rating” values.
+- Form, morale, sharpness and injury recovery are bounded inputs with distinct causes and decay. They must not all become aliases for recent match results.
+- Squad roles and playing-time promises are explicit agreements evaluated on scheduled checkpoints, feeding morale, contracts and transfer behaviour.
+- Multiple positions use a suitability map; conversion changes that map gradually and never silently rewrites a player's primary identity.
+
+**Route**
+
+1. Add a versioned player-state contract and shared selectors while adapting existing screens/engine calls to the old values through a compatibility layer.
+2. Introduce effective-level calculation and deterministic boundary tests, then individual morale, sharpness and promise evaluation.
+3. Add multi-position suitability and traits as engine/recruitment inputs.
+4. Replace uniform development with config-driven growth profiles and uncertain potential presentation.
+5. Add rehabilitation, medical availability and reinjury risk as an explicit state machine.
+6. Remove compatibility reads only after match, squad, market, academy, season rollover and import paths all consume the canonical model.
+
+**Commit/push slices:** player contract/selectors; migration/adapters; effective level; morale/roles/promises; positions/traits; growth profiles; rehabilitation/reinjury; UI/E2E/docs.
+
 
 ---
 
@@ -507,6 +579,30 @@ Inputs should include squad depth, aging, contracts, injuries, tactical identity
 ### Transfer world
 
 Maintain season-long transfer history, rumours/shortlist stories and visible competing activity so the market feels like a world rather than the user's shopping catalogue.
+
+---
+
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Model every transfer/renewal as a persisted state machine advanced by explicit user actions or gameweek deadlines; do not encode negotiation progress in modal state.
+- Use one typed terms model for fees, installments, clauses, bonuses, exchanges and loans. Finance P7 will consume its scheduled obligations rather than reinterpret deal text.
+- Player interest is a transparent scored decision with hard blockers and explainable reasons. AI clubs use the same rules.
+- AI recruitment starts from squad needs supplied by the shared squad-planning service, then ranks candidates by fit, affordability and likelihood—not raw overall alone.
+
+**Route**
+
+1. Define deal states, legal transitions, expiry/idempotency rules and the common terms contract.
+2. Migrate current instant offers and contracts into the new state machine without breaking existing pending offers.
+3. Add staged club/player negotiation and only the highest-value deal structures first; gate later clauses behind the same contract.
+4. Add player-interest explanations, rival bids and deadline progression.
+5. Build AI need generation and candidate selection on P1/P2/P3 data, with budget and squad-legality guards.
+6. Rebuild the existing transfer sheets as projections/commands over deal state, then add transfer history and rumour stories.
+
+**Commit/push slices:** state machine/tests; terms/migration; staged negotiation; priority clauses; interest/rival bids; AI needs/recruitment; UI/history/E2E/docs.
+
 
 ---
 
