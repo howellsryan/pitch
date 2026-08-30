@@ -1,0 +1,343 @@
+# Live Broadcast Match — Architecture and Invariants
+
+> **Reference, not a future phase.** R5 is implemented. This document records how the live Broadcast match works now, why it is split from the result engine, and the invariants future agents must preserve when polishing realism.
+>
+> Read this alongside `07-redesign.md` before changing `MatchScreen.svelte`, `broadcastSimulation.js`, substitutions, formations, or live-match navigation.
+
+## 1. The most important boundary
+
+Pitch has **two different match systems running together during a watched fixture**:
+
+1. **The authoritative result engine** in `src/modules/matchEngine.js` decides the actual football result: possession phases, goals, scorers, injuries, fitness, substitutions, and the final match result.
+2. **The Broadcast presentation simulation** in `src/game/broadcastSimulation.js` decides only where the 22 shirt markers and ball appear between those authoritative events.
+
+The Broadcast simulation is deliberately **non-authoritative**. It can construct a believable visual cause for an event the result engine already emitted, but it must never change the score, create a real injury, alter who scored, change a result-engine possession outcome, or write match data.
+
+This separation exists because the result engine has no spatial model. Trying to make the result engine spatial just to animate the pitch would couple a mature simulation to a UI problem and risk changing gameplay outcomes. Conversely, treating result-engine events as literal instantaneous coordinates produces nonsense: teleporting possession, goals with no build-up, corners with no preceding deflection, keepers giving the ball straight back, and attackers passing backwards when already through on goal.
+
+**Rule:** improve realism inside the presentation layer unless the underlying football outcome itself is wrong. If changing Broadcast code changes the actual result, the boundary has been crossed.
+
+## 2. End-to-end data flow
+
+The watched-match path lives in `src/lib/ui/MatchScreen.svelte`.
+
+### Result cadence
+
+`runTick()` advances the authoritative match one phase at a time with `simulateMatchSegment()`. The returned `updatedState` and `segEvents` are the source of truth.
+
+For each result tick, MatchScreen derives only two presentation inputs:
+
+- `possessionTeamId` — inferred from which side gained the phase;
+- the first goal event in that segment, if one exists.
+
+Those are passed to:
+
+```js
+updateBroadcastSimulation(broadcastSimulation, {
+  phase: endPhase,
+  possessionTeamId,
+  event: presentationEvent,
+});
+```
+
+### Presentation cadence
+
+Separately, `requestAnimationFrame` drives `advanceBroadcastSimulation()`. The presentation engine advances in small time steps and returns a render-only snapshot:
+
+- marker positions and shirt numbers;
+- ball position;
+- marker flags such as `pressing`, `receiving`, and `rushing`;
+- the current presentation `mode` and action label;
+- first/second-half state.
+
+The renderer never needs the presentation simulation's internal mutable state. `snapshotBroadcastSimulation()` is the UI boundary.
+
+The result engine therefore advances at match-tick cadence while the Broadcast layer animates smoothly at frame cadence. Do not merge those clocks.
+
+## 3. Match lifecycle
+
+`MatchScreen.svelte` remains a five-beat route:
+
+1. **Team News**
+2. **Kickoff transition**
+3. **Live Broadcast**
+4. **Full Time**
+5. **After**
+
+It is a route, not a modal.
+
+### Team News and lineup recovery
+
+Navigation is intentionally available during Team News. If the stored XI contains an injured, excluded, missing, duplicate, or otherwise invalid player, the player must be able to open Squad, repair the XI, and return.
+
+On return to Match, the existing match route is kept alive, but `refreshTeamNewsLineup()` re-reads both the save and the user's players, then recomputes lineup validity. This is why a player removed from the XI or excluded from the squad no longer remains falsely blocked on the pre-match screen.
+
+Do not "simplify" this by caching the Team News lineup for the lifetime of the route.
+
+### Navigation lock
+
+Once `startWatch()` begins the live fixture, `setMatchNavigationLocked(true)` removes global navigation so an in-progress fixture cannot be abandoned accidentally.
+
+The lock is released only when the match flow is finished and `finishToHome()` resets the route.
+
+**Invariant:** Team News must remain repairable; the live fixture must remain protected.
+
+## 4. Broadcast simulation lifecycle
+
+`createBroadcastSimulation()` receives:
+
+- home/away team IDs;
+- initial presentation possession;
+- both formations;
+- the current active home and away players.
+
+It assigns players to shared formation anchors from `formationLayout.js`, creates a legal kickoff shape, places the ball at the centre, and enters `kickoff` mode.
+
+The simulation has these presentation modes:
+
+- `kickoff`
+- `live`
+- `restart`
+- `goal`
+- `half-time`
+
+`advanceBroadcastSimulation()` owns transitions between those modes.
+
+### Frame safety
+
+Elapsed frame time is clamped to 50 ms before integration. Movement uses velocity steering rather than setting new coordinates directly, and nearby markers are separated locally.
+
+The regression test "never snaps a player between animation frames" exists for a reason. Avoid any fix that assigns a distant `x/y` position during normal live play simply because it makes one scene easier to stage.
+
+## 5. Spatial model
+
+Formation coordinates are **role anchors**, not live positions.
+
+Each player has:
+
+- `baseX/baseY` — formation anchor;
+- `x/y` — current position;
+- `targetX/targetY` — current intent;
+- `vx/vy` — movement velocity.
+
+`roleTarget()` shifts players relative to ball progression, possession, width, and role. The nearest defenders press the carrier; nearby attackers support; wide players retain more width; forwards are held against the offside line rather than sent beyond it.
+
+### Offside
+
+`isOnside()` uses the ball and second-last defender. Ordinary pass selection filters out offside receivers.
+
+When the result engine announces a goal, the named scorer may initially be in an impossible visual position. The presentation layer first makes that scorer check the run and get onside before releasing the final pass. It does **not** rewrite the scorer or cancel the goal.
+
+### Goalkeepers
+
+Keepers are intentionally conservative:
+
+- normally anchored close to the goal line;
+- small lateral movement follows central danger;
+- only rush several metres for a genuine close-range emergency;
+- when holding the ball, nearby defenders move into distribution positions.
+
+The tests explicitly protect both normal goal-line anchoring and the sweeper-zone ceiling.
+
+## 6. Ball movement and possession
+
+The ball has a real owner or a real flight; it should not teleport between markers.
+
+`startFlight()` creates a timed path. Passes, turnovers, shots and restarts travel through space with a small deterministic curve. A receiver's moving position is sampled during the flight so the ball leads them slightly rather than targeting a frozen coordinate.
+
+### Turnovers
+
+A result-engine possession change becomes a visible tackle/turnover flight to the nearest suitable player on the new team. Do not directly change ball ownership at the moment `possessionTeamId` changes.
+
+### Possession locks
+
+Some visual actions need to complete even if the next result tick says possession changed again.
+
+The current examples are goalkeeper saves and goalkeeper distribution. `possessionLockTeamId` / `possessionLockUntil` temporarily protect that presentation sequence. The latest authoritative possession is still retained in `enginePossessionTeamId`, and is adopted when the lock expires.
+
+This was added after saves could visually put the ball in the goalkeeper's hands and then immediately replay an older result-engine possession signal, causing the keeper to give the ball straight back to an attacker.
+
+**Do not delete the lock as "state duplication" without replacing the causal guarantee it provides.**
+
+## 7. Goals: authoritative outcome, constructed cause
+
+A goal event comes from the result engine. Broadcast then constructs a plausible sequence for that already-decided goal:
+
+1. store it as `pendingGoal`;
+2. move the named scorer toward an onside final-third receiving position;
+3. build possession until the scorer can receive legally;
+4. play the chance to the scorer;
+5. animate a shot toward goal;
+6. enter a short `GOAL` hold;
+7. reveal the score/goal takeover only when the presentation reaches the goal;
+8. restart with the **other team** at kickoff.
+
+The displayed scoreboard uses `displayHomeGoals` / `displayAwayGoals`, not the final result-engine score immediately, so the score reveal stays synchronised with the visual shot crossing the line.
+
+If a goal event arrives at the half-time boundary, goal choreography finishes first, then half time begins. Do not cut a goal sequence in half because phase 60 was crossed.
+
+## 8. Half time and ends
+
+Crossing phase 60 starts a real half-time hold unless a goal sequence is still resolving.
+
+After the hold:
+
+- `endsSwapped` becomes true;
+- every formation anchor flips vertically;
+- the team that did **not** take the first kickoff takes the second-half kickoff.
+
+This is presentation-only geometry. Match result state is unchanged.
+
+## 9. Open-play decision rules
+
+Broadcast decisions are deterministic enough to be testable. They are not intended to model every football probability; they exist to make the animation causally believable.
+
+Current important rules:
+
+- an attacker with a clear central shooting lane in the final third shoots rather than recycling backwards;
+- a player through inside the penalty area shoots;
+- ordinary final-third attacks eventually resolve to a shot/foul rather than endless passing;
+- a "corner" outcome is downgraded to a save if no defender is close enough to plausibly block the shot;
+- a blocked corner visually moves the blocking defender toward the shot before the deflection;
+- missed shots produce goal kicks;
+- saves end with the keeper in possession and a protected distribution sequence.
+
+When polishing realism, prefer adding a causal precondition like "a blocker must be near enough" over choosing a different arbitrary animation after the fact.
+
+## 10. Restarts are scenes, not result events
+
+Restarts in Broadcast are visual consequences. They do not add a corner, foul, throw-in, or goal kick to the authoritative match result.
+
+### Corners
+
+A corner can only be created by a preceding blocked/deflected shot. The restart spot is a corner coordinate. The kick is delayed until most attackers and defenders have visibly filled the penalty area, with a minimum setup time.
+
+Do not spawn a corner because a generic action chooser picked "corner" with no nearby defender or preceding deflection.
+
+### Goal kicks
+
+A goal kick follows a visible shot wide. Defenders spread for a short build-out before the restart.
+
+### Throw-ins
+
+A throw-in is created only when a wide ball carrier is under close defensive pressure and the defender visibly deflects the ball out. Being near the touchline alone is not enough.
+
+### Free kicks
+
+Free kicks choose a simple plan from location:
+
+- central and within roughly 30 pitch units of goal → direct shot;
+- within roughly 52 → crossed delivery;
+- deeper → onside pass.
+
+Before the kick is taken, defenders form a wall and attacking runners move into useful positions. Crossed free kicks wait for enough attackers in the box. Direct free kicks resolve to a save, wall-blocked corner, or miss.
+
+This replaced the visibly unrealistic sequence where a foul was followed by an immediate pass to an offside attacker while the opposition made no attempt to form a wall.
+
+## 11. Tactics and substitutions during a live match
+
+The Tactics room is part of the live route, not global navigation.
+
+Opening it records whether the match was already paused and pauses play if needed. Closing it resumes only if the player had not already paused manually.
+
+### Substitutions
+
+`applySubstitution()` remains authoritative for eligibility and result state. The existing rules still apply, including goalkeeper-for-goalkeeper and outfield-for-outfield compatibility and the substitution limit.
+
+After a successful substitution, MatchScreen calls `replaceBroadcastLineups()` with the result engine's new active players and formations.
+
+`replaceBroadcastLineups()` preserves the outgoing shirt slot's current spatial position for the incoming player so a substitution does not snap the formation back to its starting coordinates. If the removed player owned the ball, ownership is reassigned to a suitable active teammate.
+
+### Formation changes
+
+`applyFormationChange()` changes authoritative live-match formation state. MatchScreen then calls `replaceBroadcastLineups()` so Broadcast receives the new role anchors while retaining current positions and movement continuity.
+
+**Invariant:** result/tactics logic first; presentation lineup replacement second.
+
+## 12. Injury handling and the pre-match bug that was fixed
+
+A watched-match injury event for the user's team auto-pauses the match and surfaces a toast so the player can enter Tactics and substitute if desired.
+
+The separate pre-match blocker is based on the stored XI. A previous bug left an injured player effectively "stuck" in Team News even after the user removed them from the XI or excluded them from the squad, because the route retained stale `matchCtx` data.
+
+The fix is the Team News refresh path described in §3. Future changes to route caching, screen ticks or squad state must preserve that behavior.
+
+## 13. Rendering contract
+
+The live pitch intentionally shows **anonymous shirt markers** rather than player-name labels. Identity belongs in the Tactics room; the broadcast surface should stay readable at mobile width.
+
+Kits come from `resolveMatchKits()`. Marker state classes expose pressing/receiving/rushing visually. The ball has a shooting state. The lower pitch state label is fed by the presentation action string.
+
+The bottom control dock provides pause, 1×/2×/4× speed, skip and Tactics. Its vertical position is deliberately kept above mobile browser chrome; avoid increasing pitch height or bottom spacing without checking a real narrow mobile viewport.
+
+## 14. State and persistence invariants
+
+`matchCtx`, `live`, and `result` in MatchScreen use **`$state.raw()`**.
+
+Do not change them to plain `$state()` unless the IndexedDB serialization path is redesigned. Plain Svelte state deep-proxies nested objects. Watched-match state eventually reaches `advanceOneFixtureWithResult()` / `putFixture()`, and IndexedDB structured clone cannot serialize those proxies. This previously caused `DataCloneError` only on watched matches, while quick-sim continued to work.
+
+The objects are intentionally reassigned wholesale (`live = { ...live, ... }`) rather than deep-mutated.
+
+## 15. Tests that define the realism floor
+
+`src/game/broadcastSimulation.test.js` is not cosmetic test coverage. It records the invariants that stopped specific visible failures.
+
+It currently covers, among other things:
+
+- legal recognisable kickoff geometry;
+- ball movement through space instead of teleporting;
+- second-last-defender offside;
+- goalkeeper anchoring and limited rushing;
+- scorer checking an offside run before a goal chance;
+- ordinary passes selecting onside receivers;
+- animated turnovers;
+- goal build-up → shot → goal → opponent kickoff;
+- half-time hold, end swap and second kickoff;
+- goal kicks/corners derived from the preceding shot;
+- corner setup before delivery;
+- throw-ins only from pressured deflections;
+- shooting rather than passing backwards when through;
+- shooting from a clear central final-third lane;
+- no invented blocked corner without a plausible blocker;
+- protected goalkeeper save/distribution;
+- free-kick wall/runners and direct-attempt behaviour;
+- position continuity after a substitution;
+- no frame-to-frame marker snapping.
+
+When fixing a visible Broadcast bug, add or tighten a deterministic test for the causal invariant whenever practical. Do not replace these with screenshot-only checks; visual screenshots and pure simulation tests catch different classes of regression.
+
+## 16. What not to infer from Broadcast
+
+The spatial presentation is deliberately richer than the underlying result model. Therefore:
+
+- a Broadcast pass is not a recorded match pass statistic;
+- a Broadcast tackle is not necessarily a recorded tackle event;
+- a Broadcast corner/free kick/throw-in is not necessarily present in `result.events`;
+- possession shown between result ticks is a presentation interpolation, not a new authoritative phase;
+- marker coordinates must never be persisted as career state.
+
+If a future feature needs authoritative spatial statistics, that is a result-engine/product change and should be gated as such rather than silently promoting Broadcast state into game state.
+
+## 17. Known intentional limitation
+
+Penalty choreography is **not** invented by Broadcast. It should only exist when the result engine emits a real penalty event that can be synchronised to the presentation.
+
+The correct fallback is no bespoke penalty scene, not a fake penalty chosen by the visual engine.
+
+## 18. Safe change checklist
+
+Before changing the live Broadcast implementation:
+
+1. Decide whether the bug is in the authoritative result or only its spatial presentation.
+2. Keep result-engine outcomes authoritative.
+3. Preserve the two-clock design: match ticks vs animation frames.
+4. Preserve causal restarts and goalkeeper possession locks.
+5. Keep pass receivers onside and goal choreography score-synchronised.
+6. Apply substitutions/formations to result state before replacing Broadcast lineups.
+7. Keep Team News navigation available and refresh lineup state on return.
+8. Keep global navigation locked once the watched fixture starts.
+9. Keep `matchCtx` / `live` / `result` raw and wholesale-reassigned.
+10. Run the Broadcast Vitest suite and the normal repository verification.
+11. Open the real match route at mobile width and watch enough play to cover at least one restart, a shot/save or goal, Tactics open/close, and full-time exit.
+
+The goal of future R5 polish is not more random animation. It is **causal football**: each visible action should be a plausible consequence of the state immediately before it, while the authoritative match engine remains untouched.
