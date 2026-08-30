@@ -8,9 +8,8 @@
  * pull gets overwritten by it, and boot() then reveals the shell a second
  * time, binding every [data-nav] handler twice.
  *
- * So the island stays inert until boot() flips this, rather than probing the
- * database on its own clock. It doubles as the cost gate: building the picker
- * walks 186 rosters and resolves an accent per distinct shirt colour, which a
- * returning player should never pay for.
+ * R7 also makes the title route reachable from Settings without deleting the
+ * active career. `hasSave` lets the title/menu layer offer Continue while the
+ * normal club picker remains the cold-start route only.
  */
-export const entryState = $state({ showing: false });
+export const entryState = $state({ showing: false, hasSave: false });
