@@ -246,6 +246,21 @@ export async function resetForNewCareer() {
   await clearAndBulkPut('transfers', []);
 }
 
+async function _clearNamedDB(name) {
+  const db = await _openNamedDB(name);
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAMES, 'readwrite');
+      for (const storeName of STORE_NAMES) tx.objectStore(storeName).clear();
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } finally {
+    try { db.close(); } catch {}
+  }
+}
+
 function _deleteNamedDB(name) {
   return new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name);
@@ -254,7 +269,7 @@ function _deleteNamedDB(name) {
     // A CareerMenu refresh can still be finishing a read-only summary against
     // this inactive DB. `blocked` is therefore a wait state, not successful
     // deletion: that reader closes in its finally block and IndexedDB then
-    // delivers onsuccess. Resolving here left the old career visible/reopenable.
+    // delivers onsuccess.
     req.onblocked = () => {};
   });
 }
@@ -266,10 +281,15 @@ export async function deleteCareerSlot(slotId) {
     _db = null;
     _dbSlotId = null;
   }
-  await _deleteNamedDB(careerSlotDbName(slotId));
-  // Legacy is a real slot once it has been opened. Removing it from the
-  // registry is essential: otherwise a later active-slot deletion can select
-  // this now-empty DB ahead of another surviving career.
+  if (slotId === LEGACY_SLOT_ID) {
+    // The legacy DB name is deliberately probed forever so pre-P0 browsers can
+    // be discovered without a registry entry. Deleting that physical DB and
+    // immediately probing it again creates a race; clearing every store erases
+    // the career while preserving the compatibility anchor as an empty DB.
+    await _clearNamedDB(DB_NAME);
+  } else {
+    await _deleteNamedDB(careerSlotDbName(slotId));
+  }
   _unregisterSlot(slotId);
 
   if (getActiveSlotId() === slotId) {
