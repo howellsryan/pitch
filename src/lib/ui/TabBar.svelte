@@ -11,12 +11,19 @@
     { id: 'match', label: 'Play', icon: 'play' },
     { id: 'transfers', label: 'Market', icon: 'market' },
     { id: 'competitions', label: 'Table', icon: 'table' },
+    { id: 'academy', label: 'Academy', icon: 'academy' },
+    { id: 'trophies', label: 'Trophies', icon: 'trophy' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 
   async function choose(id) {
     await navigateTo(id);
     active = id;
     open = false;
+  }
+
+  function labelFor(id) {
+    return destinations.find((destination) => destination.id === id)?.label ?? 'Home';
   }
 
   function toggle() { open = !open; }
@@ -32,7 +39,7 @@
 
 <svelte:window onkeydown={handleKey} />
 
-<nav class="broadcast-nav" class:matchday={active === 'match'} aria-label="Game navigation">
+<nav class="broadcast-nav" aria-label="Game navigation">
   {#if open}
     <div class="fan" id="nav-destinations" aria-label="Destinations">
       {#each destinations as destination, i (destination.id)}
@@ -43,7 +50,7 @@
           onclick={() => choose(destination.id)}
           aria-current={active === destination.id ? 'page' : undefined}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
             {#if destination.icon === 'home'}
               <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
             {:else if destination.icon === 'squad'}
@@ -52,8 +59,14 @@
               <path d="m9 5 10 7-10 7z" fill="currentColor" stroke="none" />
             {:else if destination.icon === 'market'}
               <path d="m17 3 4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 21l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />
-            {:else}
+            {:else if destination.icon === 'table'}
               <path d="M4 4h16v16H4zM4 10h16M10 4v16" />
+            {:else if destination.icon === 'academy'}
+              <path d="m3 9 9-5 9 5-9 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M21 9v6" />
+            {:else if destination.icon === 'trophy'}
+              <path d="M8 4h8v4c0 4-1.5 7-4 7s-4-3-4-7z" /><path d="M8 7H4c0 4 2 6 5 6M16 7h4c0 4-2 6-5 6M12 15v4M8 21h8" />
+            {:else}
+              <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.1.4.32.75.6 1 .3.25.68.4 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6z" />
             {/if}
           </svg>
           <span>{destination.label}</span>
@@ -62,10 +75,10 @@
     </div>
   {/if}
   <div class="pill">
-    <span class="eyebrow">{active === 'competitions' ? 'Table' : active === 'transfers' ? 'Market' : active === 'squad' ? 'Squad' : active === 'match' ? 'Matchday' : 'Home'}</span>
+    <span class="eyebrow">{labelFor(active)}</span>
     <span class="divider"></span>
     <button class="menu" onclick={toggle} aria-label="Open navigation" aria-expanded={open} aria-controls="nav-destinations">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
   </div>
 </nav>
@@ -74,10 +87,6 @@
   .broadcast-nav { display: none; }
   @media (max-width: 768px) {
     .broadcast-nav { position: fixed; z-index: 110; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-    .broadcast-nav.matchday { top: 12px; right: 10px; bottom: auto; }
-    .broadcast-nav.matchday .pill { height: 40px; padding: 0; border-radius: 10px; }
-    .broadcast-nav.matchday .eyebrow, .broadcast-nav.matchday .divider { display: none; }
-    .broadcast-nav.matchday .menu { width: 38px; height: 38px; border-radius: 9px; }
     .pill { height: 54px; display: flex; align-items: center; gap: 11px; padding: 0 7px 0 16px; color: var(--color-tx); background: color-mix(in oklch, var(--color-raised) 94%, transparent); border: 1px solid var(--color-line); border-radius: 999px; box-shadow: 0 8px 28px rgba(0,0,0,.42); backdrop-filter: blur(14px); }
     .eyebrow { min-width: 54px; font: 700 18px/1 var(--font-display); letter-spacing: .055em; text-transform: uppercase; }
     .divider { width: 1px; height: 22px; background: var(--color-line); }
