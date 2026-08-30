@@ -165,6 +165,43 @@ Pitch's European competition model should be data-driven enough that rule change
 
 ---
 
+
+## 5.1 Delivery contract for future agents
+
+This document is a **plan only**. P0-P12 are programme phases, not instructions to implement the entire phase in one pull request. Each phase below has a high-level delivery route and suggested commit slices so a later agent can pick it up without reopening the main product and architecture decisions.
+
+### Phase packaging
+
+- Start each phase from the latest green `main` on a dedicated branch and open a draft pull request after the first coherent slice.
+- Treat each numbered work package as independently reviewable. Do not mix a later roadmap phase into the current phase merely because adjacent code is visible.
+- Before changing IndexedDB, the event queue, simulation maths, module ordering or the data pipeline, run the repository's `plan-gate` process and record the affected invariants in the pull request.
+- Reconcile `AGENTS.md` with the live plan at phase kickoff if its status is stale; do not create a second competing architecture guide.
+- Keep every pushed commit runnable and every completed work package playable. Temporary adapters are acceptable only when they preserve existing saves and both Quick Sim and Broadcast flows.
+
+### Commit and push cadence
+
+For **every** roadmap phase:
+
+1. commit and push the contract/test scaffold;
+2. commit and push each domain or data-model slice;
+3. commit and push persistence/migration work separately;
+4. commit and push user-facing integration separately;
+5. commit and push regression coverage, documentation and cleanup as the final slice.
+
+Aim for small, named commits around coherent behaviour rather than one phase-sized commit. Push after every slice so CI and the preview can expose regressions early. Do not claim a phase complete until the final pushed SHA is green and its affected mobile flows have been exercised.
+
+### Programme-wide definition of done
+
+A phase is complete only when:
+
+- old saves migrate or fail safely with an actionable recovery path;
+- Quick Sim and Broadcast consume the same authoritative football outcome;
+- deterministic unit/regression coverage exists for new domain rules;
+- the 390px mobile journey works, with wider responsive checks where the surface changed;
+- long-career storage and performance budgets have not regressed materially;
+- `AGENTS.md`, the phase status and user-facing help/settings are updated where behaviour changed;
+- the pull request explains shipped scope, deferred scope, migration impact and the next work package.
+
 # 6. Priority roadmap
 
 The order below is dependency-driven. A later phase may be designed early, but should not be fully implemented before the systems it depends on exist.
@@ -189,6 +226,26 @@ The order below is dependency-driven. A later phase may be designed early, but s
 - UEFA league phases and qualification paths match the configured season's rules.
 - Starting a second career does not require destroying/exporting the first.
 - Existing `.pitch` saves remain importable through explicit migration/version handling.
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Deliver competition rules and save architecture as two separate P0 work packages; both must finish before P1 expands persistent world state.
+- Competition behaviour comes from one versioned rules definition consumed by fixtures, cups, standings and season rollover. Do not add a second tournament engine.
+- Introduce a versioned save envelope with a stable `slotId`; existing careers migrate into a default first slot. Local and cloud storage share the same slot metadata contract even if cloud activation remains optional.
+- New Career creates isolated records for the selected slot rather than relying on the current single-save assumption or clearing another career's data.
+
+**Route**
+
+1. Characterise current domestic and UEFA behaviour with deterministic rule tests, then remove away goals and correct aggregate/extra-time/penalty handling.
+2. Extract competition format, entry, scheduling, tiebreak and advancement rules behind the existing event-queue flow; add the 36-team UEFA league phases without bypassing that queue.
+3. Add the save envelope, ordered migrators and import/export compatibility before changing IndexedDB stores or keys.
+4. Add slot-aware local repositories and then the Continue / New Career / Export / Delete UI. Extend the Worker/D1 contract only after local migration and rollback paths are proven.
+5. Run multi-season competition tests, old-save fixtures, slot-isolation tests and mobile entry-flow E2E coverage.
+
+**Commit/push slices:** rule characterisation; competition rules layer; UEFA format; save envelope/migrators; local slots; cloud-compatible contract; slot UI/E2E/docs.
+
 
 ---
 
