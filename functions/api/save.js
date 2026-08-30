@@ -1,14 +1,30 @@
 // GET/PUT /api/save — opaque cloud save blobs scoped by stable career slot.
 // The server never parses game state; it stores the same versioned envelope
 // used by .pitch exports. Existing pre-P0 rows migrate to slot_id='legacy'.
+// A small metadata JSON column mirrors the local career-summary contract so
+// slot pickers can list careers without inspecting the blob.
 import { requireAuth, json } from '../_lib/auth.js';
 
 const MAX_SAVE_BYTES = 1_800_000;
+const MAX_METADATA_BYTES = 8_000;
 const SLOT_ID_RE = /^[a-zA-Z0-9_-]{1,80}$/;
 
 function readSlotId(value) {
   const slotId = value || 'legacy';
   return SLOT_ID_RE.test(slotId) ? slotId : null;
+}
+
+function parseMetadata(value) {
+  if (!value) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function encodeMetadata(value) {
+  if (value == null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid metadata');
+  const text = JSON.stringify(value);
+  if (text.length > MAX_METADATA_BYTES) throw new Error('Metadata too large');
+  return text;
 }
 
 export async function onRequestGet({ request, env }) {
@@ -18,11 +34,12 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   if (url.searchParams.get('list') === '1') {
     const rows = await env.DB.prepare(
-      'SELECT slot_id, save_revision, updated_at FROM saves WHERE user_id = ? ORDER BY updated_at DESC',
+      'SELECT slot_id, metadata_json, save_revision, updated_at FROM saves WHERE user_id = ? ORDER BY updated_at DESC',
     ).bind(auth.identity.id).all();
     return json({
       slots:(rows.results ?? []).map(row => ({
         slotId:row.slot_id,
+        metadata:parseMetadata(row.metadata_json),
         save_revision:Number(row.save_revision) || 0,
         updatedAt:Number(row.updated_at) || 0,
       })),
@@ -33,7 +50,7 @@ export async function onRequestGet({ request, env }) {
   if (!slotId) return json({ error:'Invalid slotId' }, 400);
 
   const row = await env.DB.prepare(
-    'SELECT save_blob, save_revision, updated_at FROM saves WHERE user_id = ? AND slot_id = ?',
+    'SELECT save_blob, metadata_json, save_revision, updated_at FROM saves WHERE user_id = ? AND slot_id = ?',
   ).bind(auth.identity.id, slotId).first();
   if (!row) return json({ save:null, slotId });
 
@@ -41,6 +58,7 @@ export async function onRequestGet({ request, env }) {
     slotId,
     save:{
       save_blob:row.save_blob,
+      metadata:parseMetadata(row.metadata_json),
       save_revision:Number(row.save_revision) || 0,
       updatedAt:Number(row.updated_at) || 0,
     },
@@ -62,6 +80,10 @@ export async function onRequestPut({ request, env }) {
   if (typeof save_blob !== 'string' || !save_blob) return json({ error:'Missing save_blob' }, 400);
   if (save_blob.length > MAX_SAVE_BYTES) return json({ error:'Save too large' }, 413);
 
+  let metadataJson;
+  try { metadataJson = encodeMetadata(body?.metadata); }
+  catch (err) { return json({ error:err.message }, 400); }
+
   const now = Date.now();
   const existing = await env.DB.prepare(
     'SELECT save_revision FROM saves WHERE user_id = ? AND slot_id = ?',
@@ -69,13 +91,14 @@ export async function onRequestPut({ request, env }) {
   const nextRevision = (Number(existing?.save_revision) || 0) + 1;
 
   await env.DB.prepare(
-    `INSERT INTO saves (user_id, slot_id, save_blob, save_revision, updated_at)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO saves (user_id, slot_id, save_blob, metadata_json, save_revision, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id, slot_id) DO UPDATE SET
        save_blob = excluded.save_blob,
+       metadata_json = excluded.metadata_json,
        save_revision = excluded.save_revision,
        updated_at = excluded.updated_at`,
-  ).bind(auth.identity.id, slotId, save_blob, nextRevision, now).run();
+  ).bind(auth.identity.id, slotId, save_blob, metadataJson, nextRevision, now).run();
 
-  return json({ ok:true, slotId, updatedAt:now, save_revision:nextRevision });
+  return json({ ok:true, slotId, updatedAt:now, save_revision:nextRevision, metadata:body?.metadata ?? null });
 }
