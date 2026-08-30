@@ -3,9 +3,9 @@
  *
  * The floating Broadcast navigation owns the bottom-right interaction zone on
  * phones. Screens that finish with actionable content must either lift that
- * content above the nav or shorten their scroll viewport so controls can be
- * scrolled fully clear of it. Keep this file narrow: it is for shell-level
- * collisions that cannot be solved correctly by one screen in isolation.
+ * content above the nav or shorten their working viewport so controls never
+ * sit underneath it. Keep this file narrow: these are shell-level collisions,
+ * not screen redesigns.
  */
 @media (max-width: 768px) {
   /* The nav trigger itself is a primary mobile control, so it must meet the
@@ -24,25 +24,54 @@
     height: 44px !important;
   }
 
-  /* Home's waiting sheet is anchored to the viewport bottom. Increasing its
-     reserved footer lifts the last decision row above the fixed nav instead
-     of allowing the nav to sit on top of Sign in / offer / inbox actions. */
+  /* Home's waiting sheet is part of a document-flow screen rather than a
+     fixed footer. Extra padding merely made the document taller, so reserve
+     the nav zone by lifting the sheet itself. It is already styled as an
+     overlapping bottom sheet, so this preserves the intended metaphor. */
   #screen-home .waiting-sheet {
-    padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)) !important;
+    position: relative !important;
+    bottom: 40px !important;
+    margin-bottom: -40px !important;
   }
 
-  /* Chalk's bench is not vertically scrollable, so reserve the nav footprint
-     inside the strip itself. The pitch flexes upward; player cards remain
-     fully selectable rather than disappearing behind the menu pill. */
+  /* Chalk is mounted inside an overflow-y screen, so flex:1 alone does not
+     give its root a finite height. Give it a real mobile working viewport and
+     leave the bottom 76px to the floating nav. The pitch absorbs the shrink;
+     the bench stays fully visible and selectable. */
+  #screen-squad .tactics-screen {
+    height: calc(100dvh - 76px) !important;
+    max-height: calc(100dvh - 76px) !important;
+    overflow: hidden !important;
+  }
+
   #screen-squad .tac-bench-strip {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* Academy is vertically scrollable. Shortening the visible scroll viewport
-     is better than padding every youth card: the final actions can still be
-     scrolled into view, but nothing actionable sits underneath the nav. */
+  /* Academy already has its own vertical scroller. Constrain the whole island
+     rather than adding margin inside that scroller; this physically clips the
+     visible action area above the nav and lets the user scroll later cards up
+     into the safe region. */
+  #screen-academy .academy-screen {
+    height: calc(100dvh - 76px) !important;
+    max-height: calc(100dvh - 76px) !important;
+    overflow: hidden !important;
+  }
+
   #screen-academy .ac-scroll {
-    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    margin-bottom: 0 !important;
+    scroll-padding-bottom: 24px;
+  }
+
+  #screen-academy .btn-half {
+    min-height: 44px !important;
+  }
+
+  /* The potential-star chips are real filter controls, not decorative badges.
+     Keep the dense row but give each a comfortable thumb target. */
+  #screen-transfers .tr-pot-btn {
+    min-width: 36px !important;
+    min-height: 36px !important;
   }
 }
 
