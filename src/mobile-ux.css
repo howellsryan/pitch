@@ -48,13 +48,13 @@
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* Academy already has its own vertical scroller. Constrain the whole island
-     rather than adding margin inside that scroller; this physically clips the
-     visible action area above the nav and lets the user scroll later cards up
-     into the safe region. */
+  /* Academy already has its own vertical scroller. Its destructive Release
+     action needs more clearance than passive content because the floating nav
+     pill begins above the menu circle. Reserve 96px here so no youth action
+     can be partially covered, while keeping the cards scrollable. */
   #screen-academy .academy-screen {
-    height: calc(100dvh - 76px) !important;
-    max-height: calc(100dvh - 76px) !important;
+    height: calc(100dvh - 96px) !important;
+    max-height: calc(100dvh - 96px) !important;
     overflow: hidden !important;
   }
 
