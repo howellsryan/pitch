@@ -171,7 +171,7 @@
                     <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
                     <span class="ac-card-name">{p.name}</span>
                     {#if p.isWonderkid}<span class="ac-wk-badge">WK</span>{/if}
-                    {#if p.age >= 19}<span class="ac-age-warn" title="Will be released at season end">⚠</span>{/if}
+                    {#if p.age >= 19}<span class="ac-age-warn" title="Will be released at season end" aria-label="Warning">!</span>{/if}
                   </div>
                   <div class="ac-card-meta-line">
                     <span>Age {p.age}</span>
