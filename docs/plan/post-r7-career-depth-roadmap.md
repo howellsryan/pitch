@@ -316,8 +316,6 @@ Nine leagues are an advantage only if the browser remains fast. World simulation
 
 If the user is managing Arsenal in October and inspects Barcelona, Dortmund or Ajax, that club has actually played a coherent season with inspectable form, players and statistics. A manager can make scouting and job decisions from real simulated history.
 
----
-
 
 ### Delivery plan (high level)
 
@@ -411,8 +409,6 @@ Track a manager's emerging identity from actual choices/results: preferred shape
 
 Simulation changes must gain deterministic/injectable RNG support and statistical regression tests. The existing standing risk — stochastic balance without a reliable automated gate — becomes unacceptable once tactics materially alter results.
 
----
-
 
 ### Delivery plan (high level)
 
@@ -478,8 +474,6 @@ The manager can accelerate a return at a meaningful risk rather than waiting for
 ### Acceptance
 
 Rotation, development, selection, contracts, transfers and injuries all read from the same coherent player state rather than independent meters.
-
----
 
 
 ### Delivery plan (high level)
@@ -579,8 +573,6 @@ Inputs should include squad depth, aging, contracts, injuries, tactical identity
 ### Transfer world
 
 Maintain season-long transfer history, rumours/shortlist stories and visible competing activity so the market feels like a world rather than the user's shopping catalogue.
-
----
 
 
 ### Delivery plan (high level)
@@ -963,8 +955,6 @@ Depth should be configurable rather than forcing every user into maximum simulat
 
 All presets must be documented/config-driven so balance can be changed without branching game logic everywhere.
 
----
-
 
 ### Delivery plan (high level)
 
@@ -1027,8 +1017,6 @@ Start with a compact versioned JSON definition. Later add Cloudflare-backed shor
 ### Live starts
 
 Real-world live start points are a later extension of the same architecture, but require a reliable, legal and maintainable current-data pipeline before becoming a product promise.
-
----
 
 
 ### Delivery plan (high level)
