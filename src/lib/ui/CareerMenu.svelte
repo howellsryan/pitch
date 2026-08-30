@@ -1,7 +1,6 @@
 <script>
   import {
     activateCareerSlot,
-    createCareerSlot,
     deleteCareerSlot,
     exportSaveFile,
     getCareerSlotSummaries,
@@ -15,8 +14,8 @@
 
   let careers = $state.raw([]);
   let busySlot = $state(null);
-  let creating = $state(false);
   let deleteTarget = $state.raw(null);
+  let deleteOpen = $state(false);
   let exportMessage = $state('');
 
   let loading = false;
@@ -32,7 +31,7 @@
   }
 
   async function continueCareer(career) {
-    if (!career || busySlot || creating) return;
+    if (!career || busySlot) return;
     busySlot = career.slotId;
     try {
       await activateCareerSlot(career.slotId);
@@ -42,19 +41,17 @@
     }
   }
 
-  async function startNewCareer() {
-    if (busySlot || creating) return;
-    creating = true;
-    try {
-      await createCareerSlot({ activate:true });
-      window.location.reload();
-    } finally {
-      creating = false;
-    }
+  function startNewCareer() {
+    if (busySlot) return;
+    // Do not create/activate a blank slot here. EntryScreen will allocate the
+    // isolated slot only when the player actually starts or imports a career.
+    // Until then the existing active career remains a safe reload fallback.
+    entryState.newCareerRequested = true;
+    entryState.hasSave = false;
   }
 
   async function exportCareer(career) {
-    if (!career || busySlot || creating) return;
+    if (!career || busySlot) return;
     busySlot = career.slotId;
     exportMessage = '';
     try {
@@ -67,12 +64,25 @@
     }
   }
 
+  function askDelete(career) {
+    if (!career || busySlot) return;
+    deleteTarget = career;
+    deleteOpen = true;
+  }
+
+  function keepCareer() {
+    if (busySlot) return;
+    deleteOpen = false;
+    deleteTarget = null;
+  }
+
   async function confirmDelete() {
-    if (!deleteTarget || busySlot || creating) return;
+    if (!deleteTarget || busySlot) return;
     const target = deleteTarget;
     busySlot = target.slotId;
     try {
       await deleteCareerSlot(target.slotId);
+      deleteOpen = false;
       deleteTarget = null;
       if (target.isActive) {
         window.location.reload();
@@ -141,19 +151,19 @@
               <div class="last-played">{formatLastPlayed(career.lastPlayedAt)}</div>
 
               <div class="career-actions">
-                <Button variant="accent" size="md" onclick={() => continueCareer(career)} disabled={!!busySlot || creating}>
+                <Button variant="accent" size="md" onclick={() => continueCareer(career)} disabled={!!busySlot}>
                   {busySlot === career.slotId ? 'Opening…' : 'Continue'}
                 </Button>
-                <Button variant="ghost" size="md" onclick={() => exportCareer(career)} disabled={!!busySlot || creating}>Export</Button>
-                <Button variant="ghost" size="md" onclick={() => (deleteTarget = career)} disabled={!!busySlot || creating}>Delete</Button>
+                <Button variant="ghost" size="md" onclick={() => exportCareer(career)} disabled={!!busySlot}>Export</Button>
+                <Button variant="ghost" size="md" onclick={() => askDelete(career)} disabled={!!busySlot}>Delete</Button>
               </div>
             </article>
           {/each}
         </div>
       {/if}
 
-      <Button variant="ghost" size="lg" full onclick={startNewCareer} disabled={!!busySlot || creating}>
-        {creating ? 'Creating slot…' : '+ New career'}
+      <Button variant="ghost" size="lg" full onclick={startNewCareer} disabled={!!busySlot}>
+        + New career
       </Button>
 
       {#if exportMessage}<p class="status" role="status">{exportMessage}</p>{/if}
@@ -161,7 +171,7 @@
     </main>
   </div>
 
-  <Sheet open={!!deleteTarget} onclose={() => (deleteTarget = null)} title="Delete career?">
+  <Sheet bind:open={deleteOpen} title="Delete career?">
     {#if deleteTarget}
       <p class="confirm-copy">
         Delete <strong>{deleteTarget.managerName}</strong> at <strong>{deleteTarget.clubName}</strong>? This only removes this career slot. Export a <code>.pitch</code> backup first if you may want it later.
@@ -170,7 +180,7 @@
         <Button variant="danger" size="lg" full onclick={confirmDelete} disabled={!!busySlot}>
           {busySlot === deleteTarget.slotId ? 'Deleting…' : 'Delete this career'}
         </Button>
-        <Button variant="ghost" size="lg" full onclick={() => (deleteTarget = null)} disabled={!!busySlot}>Keep career</Button>
+        <Button variant="ghost" size="lg" full onclick={keepCareer} disabled={!!busySlot}>Keep career</Button>
       </div>
     {/if}
   </Sheet>
