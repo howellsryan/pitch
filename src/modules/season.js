@@ -2,6 +2,7 @@ import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllPlayers, ge
 import { blankStandingRow } from './standings.js';
 import { generateLeagueFixtures } from './fixtures.js';
 import { CUP_META, buildInitialCupState } from './cups.js';
+import { getCompetitionRules } from './competitionRules.js';
 import { agingValueAdjust, applyAgingDecline } from './potential.js';
 import { assignCupsFromPosition, processLeagueChanges } from './promotion.js';
 import { runYouthIntake } from './youthAcademy.js';
@@ -55,11 +56,11 @@ export const CUP_RUNNER_UP_PRIZE = {
 };
 // Prize paid for reaching each stage (on top of base participation fee).
 // These stack — reaching the SF gets you SF money + QF money + R16 money etc.
-// UCL: group/league-phase ~£15m, R16 +£10m, QF +£12m, SF +£15m (all below final prize)
-// UEL: league-phase ~£5m, R32 +£2m, R16 +£3m, QF +£4m, SF +£6m
+// UCL: league-phase ~£15m, R16 +£10m, QF +£12m, SF +£15m (all below final prize)
+// UEL: league-phase ~£5m, play-off +£2m, R16 +£3m, QF +£4m, SF +£6m
 // UECL: league-phase ~£3m, R16 +£1.5m, QF +£2m, SF +£3m
 export const CUP_ROUND_PRIZE = {
-  ucl:  { 0:15_000_000, 1:10_000_000, 2:12_000_000, 3:15_000_000 }, // R16,QF,SF,Final(winner/ru handled above)
+  ucl:  { 0:15_000_000, 1:10_000_000, 2:12_000_000, 3:15_000_000 },
   uel:  { 0: 5_000_000, 1: 2_000_000, 2: 3_000_000, 3: 4_000_000, 4: 6_000_000 },
   uecl: { 0: 3_000_000, 1: 1_500_000, 2: 2_000_000, 3: 3_000_000 },
 };
@@ -72,6 +73,38 @@ export const CUP_RUN_PRIZE = {
   coupe_de_france:700_000, trophee_des_champions:0,
   knvb_beker:100_000,
 };
+
+/**
+ * Convert P0's round-array index back into financial stages reached. The
+ * knockout play-off added two round indexes ahead of the R16, so raw
+ * `roundIndex` can no longer double as a count of prize stages. Season finance
+ * deliberately reads the competition rules to stay aligned with future format
+ * changes instead of duplicating numeric round assumptions here.
+ */
+export function europeanProgressPrize(cupId, state) {
+  const prizes = Object.values(CUP_ROUND_PRIZE[cupId] ?? {});
+  const rules = getCompetitionRules(cupId);
+  if (!rules?.leaguePhase || prizes.length === 0) return 0;
+
+  let total = prizes[0] ?? 0; // league-phase participation
+  let prizeOffset = 1;
+
+  // UEL's historical R32 allowance maps naturally to the modern knockout
+  // play-off. Only positions 9-24 play it; direct qualifiers must not receive
+  // a round they never entered.
+  if (cupId === 'uel') {
+    if (state?.qualificationRoute === 'playoff') total += prizes[1] ?? 0;
+    prizeOffset = 2;
+  }
+
+  const roundIndex = Number(state?.roundIndex ?? 0);
+  const stagePrefixes = ['R16 (Leg 1)', 'QF (Leg 1)', 'SF (Leg 1)'];
+  stagePrefixes.forEach((prefix, index) => {
+    const threshold = rules.rounds.findIndex(round => round === prefix);
+    if (threshold >= 0 && roundIndex >= threshold) total += prizes[prizeOffset + index] ?? 0;
+  });
+  return total;
+}
 
 export function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
   // League prize money — real EFL/PL distributions (2024/25 estimates) with
@@ -126,8 +159,8 @@ export function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
     const merit = Math.round(20_000 * (24 - leaguePosition));
     const bonus =
       leaguePosition === 1 ? 5_000_000 :
-      leaguePosition <= 2  ? 4_000_000 :
-      leaguePosition <= 6  ? 3_000_000 : 0;
+      leaguePosition <= 2 ? 4_000_000 :
+      leaguePosition <= 6 ? 3_000_000 : 0;
     leaguePrize = base + merit + bonus;
 
   } else {
@@ -149,10 +182,8 @@ export function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
           const entryRound = meta.entryRound?.[userLeague ?? 'Premier League'] ?? 0;
           for (let i = entryRound; i < meta.roundPrize.length; i++) cupPrize += meta.roundPrize[i];
         } else if (isEuropean) {
-          // European: winner prize + all round prizes accumulated
           cupPrize += CUP_WIN_PRIZE[cupId] ?? 0;
-          const rounds = CUP_ROUND_PRIZE[cupId] ?? {};
-          for (const prize of Object.values(rounds)) cupPrize += prize;
+          cupPrize += europeanProgressPrize(cupId, state);
         } else {
           cupPrize += CUP_WIN_PRIZE[cupId] ?? 0;
         }
@@ -165,9 +196,7 @@ export function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
           const finalIdx   = meta.roundPrize.length - 1;
           for (let i = entryRound; i < finalIdx; i++) cupPrize += meta.roundPrize[i];
         } else if (isEuropean) {
-          // European runner-up: all round prizes (they reached every round)
-          const rounds = CUP_ROUND_PRIZE[cupId] ?? {};
-          for (const prize of Object.values(rounds)) cupPrize += prize;
+          cupPrize += europeanProgressPrize(cupId, state);
         }
 
       } else if (state.status === 'eliminated' || state.status === 'active') {
@@ -179,12 +208,7 @@ export function calculatePrizeMoney(leaguePosition, cupState, userLeague) {
             cupPrize += meta.roundPrize[i];
           }
         } else if (isEuropean) {
-          // European: pay round prizes for each stage reached (roundIndex = stages completed)
-          // roundIndex 0 = league phase only, 1 = R16, 2 = QF, 3 = SF, 4 = Final (winner/ru above)
-          const rounds = CUP_ROUND_PRIZE[cupId] ?? {};
-          for (let i = 0; i < roundsPlayed && i < Object.keys(rounds).length; i++) {
-            cupPrize += rounds[i] ?? 0;
-          }
+          cupPrize += europeanProgressPrize(cupId, state);
         } else if (roundsPlayed >= 3) {
           cupPrize += CUP_RUN_PRIZE[cupId] ?? 0;
         }
@@ -553,4 +577,3 @@ export async function payWeeklyWages() {
     await putTeam({ ...t, budget: (t.budget ?? 0) - bill });
   }
 }
-
