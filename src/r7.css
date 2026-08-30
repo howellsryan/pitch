@@ -1,0 +1,311 @@
+/* R7 — Academy, Trophies, Settings and Inbox
+ *
+ * Plain means dense, flat and fast: ruled rows over floating cards, tabular
+ * metadata, one action accent, club colour reserved for identity. These
+ * overrides deliberately sit outside the Svelte components so R7 can give the
+ * four secondary surfaces one language without reopening their proven data
+ * and mutation logic. `!important` is intentional where component-scoped CSS
+ * would otherwise win the cascade.
+ */
+
+#screen-academy,
+#screen-trophies,
+#screen-settings,
+#screen-inbox {
+  background: var(--color-ground);
+}
+
+/* ── Shared secondary-screen header ───────────────────────── */
+#screen-academy .ac-hdr,
+#screen-trophies .tr-hdr,
+#screen-settings .set-hdr,
+#screen-inbox .ph {
+  padding: 14px 16px 10px !important;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-ground);
+}
+
+#screen-academy .ac-eyebrow,
+#screen-trophies .tr-eyebrow,
+#screen-settings .set-eyebrow,
+#screen-inbox .ph-left .pl {
+  color: var(--color-tx-3) !important;
+  letter-spacing: .18em !important;
+}
+
+#screen-academy .ac-title,
+#screen-trophies .tr-title,
+#screen-settings .set-title,
+#screen-inbox .ph-left .pt {
+  font-size: 27px !important;
+  letter-spacing: .02em !important;
+}
+
+/* ── Scroll geometry: preserve the floating-nav safe zone ── */
+#screen-academy .ac-scroll,
+#screen-trophies .tr-scroll,
+#screen-settings .set-scroll,
+#screen-inbox .inbox-list {
+  padding: 0 16px calc(104px + env(safe-area-inset-bottom)) !important;
+  gap: 0 !important;
+  scrollbar-width: thin;
+}
+
+/* ── Academy: a prospect ledger, not a card gallery ─────── */
+#screen-academy .ac-info-card,
+#screen-academy .ac-invest-card,
+#screen-academy .ac-card,
+#screen-academy .ac-intake-empty,
+#screen-academy .ac-warning {
+  margin: 0 !important;
+  padding: 12px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--color-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#screen-academy .ac-info-card,
+#screen-academy .ac-invest-card {
+  padding-top: 14px !important;
+}
+
+#screen-academy .ac-stats-grid {
+  gap: 0 !important;
+  border-block: 1px solid var(--color-line);
+}
+
+#screen-academy .stat-tile {
+  padding: 10px 9px !important;
+  border: 0 !important;
+  border-right: 1px solid var(--color-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+#screen-academy .stat-tile:last-child { border-right: 0 !important; }
+
+#screen-academy .ac-card-top { align-items: center !important; }
+#screen-academy .ac-card-rating {
+  min-width: 38px;
+  font-variant-numeric: tabular-nums;
+}
+#screen-academy .ac-card-value,
+#screen-academy .ac-invest-level,
+#screen-academy .ac-invest-amount,
+#screen-academy .ac-invest-preview {
+  font-variant-numeric: tabular-nums;
+}
+
+#screen-academy .ac-card-actions { gap: 8px !important; }
+#screen-academy .btn-primary,
+#screen-academy .btn-full.btn-primary,
+#screen-academy .btn-half.btn-primary {
+  background: var(--color-accent) !important;
+  color: var(--color-on-accent) !important;
+}
+#screen-academy .btn-half,
+#screen-academy .btn-full {
+  border-radius: 6px !important;
+}
+#screen-academy .ac-invest-fill { background: var(--color-accent) !important; }
+
+/* ── Trophies: competition/status ledger ─────────────────── */
+#screen-trophies .tr-scroll { gap: 18px !important; }
+#screen-trophies .tr-section { padding-top: 12px; }
+#screen-trophies .tr-section-hdr {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 8px !important;
+}
+#screen-trophies .tr-section-hdr-line {
+  border-top: 1px solid var(--color-line) !important;
+  padding-top: 14px !important;
+}
+#screen-trophies .tr-section-title { font-size: 15px !important; }
+
+#screen-trophies .cup-grid {
+  display: block !important;
+}
+#screen-trophies .cup-card {
+  display: grid !important;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  column-gap: 9px !important;
+  row-gap: 3px !important;
+  padding: 11px 0 !important;
+  border: 0 !important;
+  border-top: 1px solid var(--color-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+#screen-trophies .cup-card:first-child { border-top: 0 !important; }
+#screen-trophies .cup-icon { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+#screen-trophies .cup-name { grid-column: 2; grid-row: 1; padding: 0 !important; font-size: 14px !important; }
+#screen-trophies .cup-desc { grid-column: 2 / 4; grid-row: 2; margin: 0 !important; }
+#screen-trophies .cup-badge {
+  position: static !important;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  border-radius: 3px !important;
+  background: transparent !important;
+}
+#screen-trophies .cup-lp,
+#screen-trophies .cup-pw,
+#screen-trophies .cup-round,
+#screen-trophies .cup-results {
+  grid-column: 2 / 4;
+}
+#screen-trophies .cup-res-row {
+  padding: 2px 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+#screen-trophies .hon-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  border-top: 1px solid var(--color-line);
+}
+#screen-trophies .hon-card {
+  padding: 10px 8px !important;
+  border: 0 !important;
+  border-right: 1px solid var(--color-line) !important;
+  border-bottom: 1px solid var(--color-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+#screen-trophies .hon-card:nth-child(2n) { border-right: 0 !important; }
+#screen-trophies .hon-count { font-variant-numeric: tabular-nums; }
+#screen-trophies .hon-season { background: transparent !important; padding-inline: 0 !important; }
+
+/* ── Settings: simple grouped rows ───────────────────────── */
+#screen-settings .set-card {
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--color-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+#screen-settings .set-card-title {
+  padding-top: 14px;
+  margin-bottom: 1px !important;
+  font-size: 15px !important;
+}
+#screen-settings .set-card-sub { margin-bottom: 7px !important; }
+#screen-settings .set-row {
+  min-height: 58px;
+  padding: 9px 0 !important;
+}
+#screen-settings .set-nm { font-size: 12.5px !important; }
+#screen-settings .set-desc { max-width: 48ch; line-height: 1.35; }
+#screen-settings .btn-set,
+#screen-settings .btn-full {
+  border-radius: 6px !important;
+}
+#screen-settings .btn-primary {
+  background: var(--color-accent) !important;
+  color: var(--color-on-accent) !important;
+}
+#screen-settings .set-brand { color: var(--color-tx) !important; }
+#screen-settings .set-trophy-row {
+  padding: 7px 0 !important;
+  border-radius: 0 !important;
+  border-left: 0 !important;
+  border-top: 1px solid var(--color-line);
+  background: transparent !important;
+}
+#screen-settings .set-trophy-count { font-variant-numeric: tabular-nums; }
+
+/* ── Inbox / Team News: dense chronological feed ─────────── */
+#screen-inbox .ph { flex-shrink: 0; }
+#screen-inbox .ph-right {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-tx-3) !important;
+}
+#screen-inbox .inbox-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-line);
+  scrollbar-width: none;
+}
+#screen-inbox .inbox-tabs::-webkit-scrollbar { display: none; }
+#screen-inbox .inbox-tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--color-tx-2);
+  background: transparent;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+#screen-inbox .inbox-tab.on {
+  border-color: var(--color-line);
+  background: var(--color-raised);
+  color: var(--color-tx);
+}
+#screen-inbox .inbox-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#screen-inbox .inbox-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-line);
+  background: transparent;
+}
+#screen-inbox .inbox-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+}
+#screen-inbox .inbox-content { min-width: 0; }
+#screen-inbox .inbox-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+#screen-inbox .inbox-title { font-size: 12.5px; font-weight: 600; color: var(--color-tx); }
+#screen-inbox .inbox-time,
+#screen-inbox .inbox-meta { font: 400 9.5px/1.4 var(--font-mono); color: var(--color-tx-3); white-space: nowrap; }
+#screen-inbox .inbox-body { margin-top: 3px; color: var(--color-tx-2); font-size: 11px; line-height: 1.45; }
+#screen-inbox .inbox-meta { margin-top: 4px; }
+#screen-inbox .inbox-empty {
+  padding: 52px 20px;
+  text-align: center;
+  color: var(--color-tx-3);
+}
+#screen-inbox .inbox-empty-icon { margin-bottom: 10px; }
+#screen-inbox .inbox-empty-title { color: var(--color-tx); font-weight: 600; font-size: 13px; }
+#screen-inbox .inbox-empty-sub { margin-top: 4px; font-size: 11px; line-height: 1.5; }
+
+@media (min-width: 700px) {
+  #screen-academy .ac-scroll,
+  #screen-trophies .tr-scroll,
+  #screen-settings .set-scroll,
+  #screen-inbox .inbox-list {
+    padding-bottom: 28px !important;
+  }
+  #screen-trophies .hon-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  #screen-trophies .hon-card:nth-child(2n) { border-right: 1px solid var(--color-line) !important; }
+  #screen-trophies .hon-card:nth-child(4n) { border-right: 0 !important; }
+}
