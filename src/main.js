@@ -12,6 +12,7 @@
  */
 
 import './app.css';
+import './r6.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
