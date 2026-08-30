@@ -98,16 +98,23 @@ describe('P0 competition rules', () => {
     expect(getUefaKnockoutOpponentSeeds('ucl', 25, 'R16 (Leg 1)')).toEqual([]);
   });
 
-  it('builds exact home/away league-phase counts without a fixed cadence', () => {
-    const ucl = buildLeaguePhaseVenuePlan('ucl', () => 0.25);
-    const uecl = buildLeaguePhaseVenuePlan('uecl', () => 0.75);
+  it('builds UEFA-compliant home/away league-phase sequences', () => {
+    const plans = [
+      buildLeaguePhaseVenuePlan('ucl', () => 0),
+      buildLeaguePhaseVenuePlan('ucl', () => 0.99),
+      buildLeaguePhaseVenuePlan('uel', () => 0.42),
+      buildLeaguePhaseVenuePlan('uecl', () => 0.75),
+    ];
 
-    expect(ucl).toHaveLength(8);
-    expect(ucl.filter(Boolean)).toHaveLength(4);
-    expect(ucl.filter(value => !value)).toHaveLength(4);
-    expect(uecl).toHaveLength(6);
-    expect(uecl.filter(Boolean)).toHaveLength(3);
-    expect(uecl.filter(value => !value)).toHaveLength(3);
+    for (const plan of plans) {
+      const expectedHomes = plan.length === 6 ? 3 : 4;
+      expect(plan.filter(Boolean)).toHaveLength(expectedHomes);
+      expect(plan[0]).not.toBe(plan[1]);
+      expect(plan.at(-2)).not.toBe(plan.at(-1));
+      for (let index = 2; index < plan.length; index++) {
+        expect(plan[index] === plan[index - 1] && plan[index] === plan[index - 2]).toBe(false);
+      }
+    }
   });
 
   it('recognises configured domestic and European two-legged rounds', () => {
