@@ -2,7 +2,7 @@ import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, p
 import { pickAIFormation, simulateMatch } from './matchEngine.js';
 import { applyResult, recomputePositions, updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress } from './cups.js';
-import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
+import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
 import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
@@ -27,6 +27,37 @@ export function getEffectiveTotalGW(save) {
   return maxCupGW;
 }
 
+function currentBracketSeed(state) {
+  const value = state?.bracketSeed ?? state?.leaguePhase?.position ?? state?.seed ?? null;
+  return Number.isInteger(value) ? value : null;
+}
+
+function inheritBracketSeed(cupId, roundName, state, opponentSeed, progress) {
+  const current = currentBracketSeed(state);
+  // Leg one has not decided the tie yet. A losing side never inherits the
+  // winner's bracket position either.
+  if (isTwoLegRound(cupId, roundName, 1) || progress?.status === 'eliminated') return current;
+  if (!Number.isInteger(opponentSeed)) return current;
+  return current == null ? opponentSeed : Math.min(current, opponentSeed);
+}
+
+function resolveLeaguePhaseHome(state, phaseRules, matchday) {
+  const planned = state?.leaguePhase?.venues?.[matchday];
+  if (typeof planned === 'boolean') return planned;
+
+  // Pre-P0/in-progress saves have no persisted venue plan. Preserve them while
+  // still guaranteeing the official final home/away count by biasing only as
+  // much as the remaining schedule requires.
+  const completed = (state?.results ?? []).filter(result => result?.isLeaguePhaseMatchday);
+  const homePlayed = completed.filter(result => result.userIsHome).length;
+  const targetHomes = phaseRules.homeMatches ?? Math.floor(phaseRules.matches / 2);
+  const homesNeeded = targetHomes - homePlayed;
+  const matchesRemaining = phaseRules.matches - matchday;
+  if (homesNeeded <= 0) return false;
+  if (homesNeeded >= matchesRemaining) return true;
+  return Math.random() < homesNeeded / matchesRemaining;
+}
+
 function drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, allTeams) {
   if (isTwoLegRound(cupId, roundName, 2)) {
     const leg1 = state.results?.[state.results.length - 1];
@@ -39,21 +70,32 @@ function drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, a
           crest: known?.nation ?? known?.crest ?? '⚽',
           rep: known?.strength ?? known?.reputation ?? 70,
         },
+        opponentSeed: Number.isInteger(leg1.opponentSeed) ? leg1.opponentSeed : null,
         userIsHome: !(leg1.userIsHome ?? true),
       };
     }
   }
 
   if (isUefaCompetition(cupId)) {
-    const pool = UCL_CLUBS.filter(c => c.id !== userTeamId);
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    const position = state.leaguePhase?.position ?? state.seed ?? null;
+    const position = currentBracketSeed(state);
+    const allowedSeeds = getUefaKnockoutOpponentSeeds(cupId, position, roundName);
+    const opponentSeed = allowedSeeds.length
+      ? allowedSeeds[Math.floor(Math.random() * allowedSeeds.length)]
+      : null;
+    const rankedPool = UCL_CLUBS
+      .filter(c => c.id !== userTeamId)
+      .sort((a, b) => (b.strength ?? 0) - (a.strength ?? 0) || String(a.id).localeCompare(String(b.id)));
+    const pick = opponentSeed == null
+      ? rankedPool[Math.floor(Math.random() * rankedPool.length)]
+      : rankedPool[Math.min(opponentSeed - 1, rankedPool.length - 1)];
     const seeding = getUefaKnockoutSeeding(cupId, position, roundName);
     // Seeded sides host leg two, so their first leg is away. Unseeded sides
-    // host leg one. Once seeding no longer applies, venue remains a fair draw.
+    // host leg one. Once seeding cannot be derived from persisted bracket
+    // state, venue remains a fair draw rather than inventing a seed.
     const seededVenue = seeding.secondLegHome == null ? null : !seeding.secondLegHome;
     return {
       opponent: pick ? { id:pick.id, name:pick.name, crest:pick.nation, rep:pick.strength } : null,
+      opponentSeed,
       userIsHome: seededVenue ?? Math.random() < 0.5,
     };
   }
@@ -70,6 +112,7 @@ function drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, a
   const pick = eligible[Math.floor(Math.random() * eligible.length)];
   return {
     opponent: pick ? { id:pick.id, name:pick.name, crest:pick.crest ?? '⚽', rep:pick.reputation ?? 70 } : null,
+    opponentSeed: null,
     userIsHome: Math.random() < 0.5,
   };
 }
@@ -111,7 +154,7 @@ export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams)
           oppName: opp?.name ?? 'European Club',
           oppNation: opp?.nation ?? '🌍',
           oppStrength: opp?.strength ?? 72,
-          userIsHome: Math.random() < 0.5,
+          userIsHome: resolveLeaguePhaseHome(state, rules.leaguePhase, matchday),
         };
         if (cupId === 'ucl') {
           events.push({ type:'ucl_md', ...base });
@@ -150,6 +193,7 @@ export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams)
       opponentName: draw.opponent?.name ?? 'TBD',
       opponentCrest: draw.opponent?.crest ?? '⚽',
       opponentRep: draw.opponent?.rep ?? 70,
+      opponentSeed: draw.opponentSeed ?? null,
       userIsHome: draw.userIsHome,
     });
   }
@@ -203,6 +247,7 @@ export function updateLeaguePhaseCupState(cupId, cupState, matchResult, userTeam
     leaguePhaseComplete: true,
     qualificationRoute: finish?.route ?? 'eliminated',
     seed: finish?.seed ?? null,
+    bracketSeed: finish?.seed ?? null,
     roundIndex: finish?.roundIndex ?? 0,
     status: finish?.status ?? 'eliminated',
     results: nextResults,
@@ -334,12 +379,17 @@ export async function advanceOneFixture(overrideFormation) {
     const cupState = save.cups?.[event.cupId];
     const result = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, { ...event, userMentality:save.mentality ?? 'balanced' });
     const progress = resolveCupProgress(event.cupId, event.roundName, event.roundIdx ?? 0, cupState, result.userGoals, result.oppGoals, result.userWon, result.userIsHome);
-    const resultOut = progress.aggregate ? { ...result, userWon:progress.aggregate.userWon, aggregate:progress.aggregate } : result;
+    const resultOut = {
+      ...result,
+      opponentSeed:event.opponentSeed ?? null,
+      ...(progress.aggregate ? { userWon:progress.aggregate.userWon, aggregate:progress.aggregate } : {}),
+    };
 
     updatedCups[event.cupId] = {
       ...cupState,
       roundIndex:progress.roundIndex,
       status:progress.status,
+      bracketSeed:inheritBracketSeed(event.cupId, event.roundName, cupState, event.opponentSeed, progress),
       results:[...(cupState?.results ?? []), resultOut],
     };
     cupResults.push(resultOut);
@@ -459,10 +509,23 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
         ...cupState,
         roundIndex:progress.roundIndex,
         status:progress.status,
-        results:[...(cupState?.results ?? []), { userGoals, oppGoals, userWon:aggregate ? aggregate.userWon : userWon, userIsHome, opponentId:event0.opponentId, opponentName:event0.opponentName, ...(aggregate ? { aggregate } : {}) }],
+        bracketSeed:inheritBracketSeed(event0.cupId, event0.roundName, cupState, event0.opponentSeed, progress),
+        results:[
+          ...(cupState?.results ?? []),
+          {
+            userGoals,
+            oppGoals,
+            userWon:aggregate ? aggregate.userWon : userWon,
+            userIsHome,
+            opponentId:event0.opponentId,
+            opponentName:event0.opponentName,
+            opponentSeed:event0.opponentSeed ?? null,
+            ...(aggregate ? { aggregate } : {}),
+          },
+        ],
       };
       singleResult = buildCupMatchResult(
-        { userGoals, oppGoals, userIsHome, homeScorers:matchResult.homeScorers, awayScorers:matchResult.awayScorers, scorers:(matchResult.homeScorers ?? []).concat(matchResult.awayScorers ?? []), opponentId:event0.opponentId, opponentName:event0.opponentName, stats:matchResult.stats, events:matchResult.events, fitnessUpdates:matchResult.fitnessUpdates, aggregate },
+        { userGoals, oppGoals, userIsHome, homeScorers:matchResult.homeScorers, awayScorers:matchResult.awayScorers, scorers:(matchResult.homeScorers ?? []).concat(matchResult.awayScorers ?? []), opponentId:event0.opponentId, opponentName:event0.opponentName, opponentSeed:event0.opponentSeed ?? null, stats:matchResult.stats, events:matchResult.events, fitnessUpdates:matchResult.fitnessUpdates, aggregate },
         save.userTeamId, event0, allTeams,
       );
     }
