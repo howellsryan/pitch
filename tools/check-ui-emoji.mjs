@@ -11,6 +11,15 @@ const SAMPLE_LIMIT_PER_FILE = 8;
 // included so a composed glyph is reported as one offending run.
 const EMOJI = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:[\uFE0E\uFE0F\u200D]|[\u{E0020}-\u{E007F}]|\p{Extended_Pictographic}|\p{Regional_Indicator})*/gu;
 
+function isCommentOnlyLine(line) {
+  const trimmed = line.trim();
+  return trimmed.startsWith('//')
+    || trimmed.startsWith('<!--')
+    || trimmed.startsWith('/*')
+    || trimmed.startsWith('*')
+    || trimmed.startsWith('*/');
+}
+
 async function walk(dir) {
   const out = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -31,6 +40,7 @@ for (const file of files) {
     const before = text.slice(0, match.index);
     const line = before.split('\n').length;
     const sourceLine = lines[line - 1]?.trim() ?? '';
+    if (isCommentOnlyLine(sourceLine)) continue;
     findings.push({ file, line, glyph: match[0], sourceLine });
   }
 }
