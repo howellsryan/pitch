@@ -8,7 +8,12 @@ import { BUNDESLIGA_TEAMS } from '../data/bundesliga.js';
 import { SERIE_A_TEAMS } from '../data/serieA.js';
 import { LIGUE_1_TEAMS } from '../data/ligue1.js';
 import { EREDIVISIE_TEAMS } from '../data/eredivisie.js';
-import { clubBadgeProfile, clubCrestSvg, CURATED_BADGE_PROFILE_COUNT } from './clubIdentity.mjs';
+import {
+  resolvedClubBadgeProfile,
+  resolvedClubCrestSvg,
+  CUSTOM_BADGE_PROFILE_COUNT,
+  BADGE_NAME_ALIAS_COUNT,
+} from './clubIdentityResolved.mjs';
 
 const CLUBS = [
   ...PL_TEAMS,
@@ -26,7 +31,7 @@ describe('bespoke club identity', () => {
   it('covers all 186 playable clubs with renderable SVG', () => {
     expect(CLUBS).toHaveLength(186);
     for (const team of CLUBS) {
-      const svg = clubCrestSvg(team, { size: 32, label: `${team.name} crest` });
+      const svg = resolvedClubCrestSvg(team, { size: 32, label: `${team.name} crest` });
       expect(svg, team.name).toContain('<svg');
       expect(svg, team.name).toContain('viewBox="0 0 100 100"');
       expect(svg, team.name).toContain('aria-label=');
@@ -35,19 +40,18 @@ describe('bespoke club identity', () => {
   });
 
   it('keeps every club deterministic and club-specific', () => {
-    const rendered = CLUBS.map((team) => clubCrestSvg(team));
-    const renderedAgain = CLUBS.map((team) => clubCrestSvg(team));
+    const rendered = CLUBS.map((team) => resolvedClubCrestSvg(team));
+    const renderedAgain = CLUBS.map((team) => resolvedClubCrestSvg(team));
     expect(renderedAgain).toEqual(rendered);
-    // Shared badge families are expected, but ids/initials/colours should make
-    // almost every complete SVG distinct rather than one generic shield.
     expect(new Set(rendered).size).toBeGreaterThanOrEqual(180);
   });
 
   it('uses a curated real-identity profile for every playable club', () => {
-    expect(CURATED_BADGE_PROFILE_COUNT).toBeGreaterThan(120);
+    expect(CUSTOM_BADGE_PROFILE_COUNT).toBe(9);
+    expect(BADGE_NAME_ALIAS_COUNT).toBe(3);
     const missing = [];
     for (const team of CLUBS) {
-      const profile = clubBadgeProfile(team);
+      const profile = resolvedClubBadgeProfile(team);
       expect(profile.shape, team.name).toBeTruthy();
       expect(profile.primary, team.name).toMatch(/^#[0-9a-f]{6}$/i);
       expect(profile.motif, team.name).toBeTruthy();
