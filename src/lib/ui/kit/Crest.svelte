@@ -1,39 +1,48 @@
 <script>
   /**
-   * Club shield. SVG only — the design spec bans emoji as icons, and that
-   * explicitly includes crests (pitch shipped 🔴/🦁 emoji crests before the
-   * redesign). Tinted with the club's own colour.
+   * Club crest primitive.
    *
-   * `color` should be an already-guarded value: src/lib/theme.mjs walks a
-   * club's raw primaryColor in oklch until text on it clears AA, because a
-   * shirt colour is not a UI colour — Newcastle's #241F20 vanishes on this
-   * ground and Norwich's #FFF200 blinds. Passing a raw CSV colour here
-   * bypasses that guard, so prefer var(--color-club) for the active club.
+   * R6.5 replaces the old one-shape coloured shield with an original SVG
+   * interpretation of each club's real visual identity. Prefer passing the
+   * whole `team` object (id/name/shortName/primaryColor); `color` remains as a
+   * compatibility fallback while older callers are migrated in this branch.
    */
-  let { color = 'var(--color-club)', size = 26, label = null } = $props();
-  const h = $derived(Math.round(size * 1.16));
+  import { clubCrestSvg } from '../../clubIdentity.mjs';
+
+  let {
+    team = null,
+    color = 'var(--color-club)',
+    size = 26,
+    label = null,
+    class: className = '',
+  } = $props();
+
+  const fallback = $derived({
+    id: 'generic-club',
+    name: label?.replace(/ crest$/i, '') || 'Club',
+    shortName: 'FC',
+    primaryColor: /^#[0-9a-f]{6}$/i.test(color) ? color : '#59616B',
+  });
+
+  const svg = $derived(
+    clubCrestSvg(team ?? fallback, {
+      size,
+      label: label ?? (team?.name ? `${team.name} crest` : ''),
+      className,
+    }),
+  );
 </script>
 
-<svg
-  viewBox="0 0 26 30"
-  width={size}
-  height={h}
-  role={label ? 'img' : 'presentation'}
-  aria-label={label}
-  aria-hidden={label ? null : 'true'}
->
-  <path
-    d="M13 1 L24 5 V16 C24 23.5 18 27.5 13 29 C8 27.5 2 23.5 2 16 V5 Z"
-    fill={color}
-    stroke="var(--color-line)"
-    stroke-width="1"
-  ></path>
-  <path
-    d="M13 1 L24 5 V16 C24 23.5 18 27.5 13 29 Z"
-    fill="rgba(0,0,0,0.16)"
-  ></path>
-</svg>
+<span class="crest" style="width:{size}px;height:{size}px">
+  {@html svg}
+</span>
 
 <style>
-  svg { display: block; flex-shrink: 0; }
+  .crest {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    line-height: 0;
+  }
+  .crest :global(svg) { display: block; width: 100%; height: 100%; }
 </style>
