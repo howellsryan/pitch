@@ -4,6 +4,7 @@ import {
   COMPETITION_RULES,
   finishLeaguePhase,
   getLeaguePhaseQualification,
+  getUefaKnockoutSeeding,
   isTwoLegRound,
   resolveTwoLegTie,
 } from './competitionRules.js';
@@ -35,6 +36,23 @@ describe('P0 competition rules', () => {
     expect(getLeaguePhaseQualification('ucl', 24)).toMatchObject({ route: 'playoff', roundIndex: 0, status: 'active' });
     expect(getLeaguePhaseQualification('ucl', 25)).toMatchObject({ route: 'eliminated', status: 'eliminated' });
     expect(getLeaguePhaseQualification('ucl', 36)).toMatchObject({ route: 'eliminated', status: 'eliminated' });
+  });
+
+  it('turns UEFA league-phase rank into the correct second-leg venue advantage', () => {
+    expect(getUefaKnockoutSeeding('ucl', 9, 'Knockout Play-off (Leg 1)'))
+      .toEqual({ seeded:true, secondLegHome:true });
+    expect(getUefaKnockoutSeeding('ucl', 16, 'Knockout Play-off (Leg 2)'))
+      .toEqual({ seeded:true, secondLegHome:true });
+    expect(getUefaKnockoutSeeding('uel', 17, 'Knockout Play-off (Leg 1)'))
+      .toEqual({ seeded:false, secondLegHome:false });
+    expect(getUefaKnockoutSeeding('uecl', 24, 'Knockout Play-off (Leg 2)'))
+      .toEqual({ seeded:false, secondLegHome:false });
+    expect(getUefaKnockoutSeeding('ucl', 1, 'R16 (Leg 1)'))
+      .toEqual({ seeded:true, secondLegHome:true });
+    expect(getUefaKnockoutSeeding('ucl', 8, 'R16 (Leg 2)'))
+      .toEqual({ seeded:true, secondLegHome:true });
+    expect(getUefaKnockoutSeeding('ucl', 3, 'QF (Leg 1)'))
+      .toEqual({ seeded:null, secondLegHome:null });
   });
 
   it('recognises configured domestic and European two-legged rounds', () => {
