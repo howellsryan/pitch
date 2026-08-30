@@ -277,6 +277,28 @@ export function deleteDB() {
   return deleteCareerSlot(getActiveSlotId());
 }
 
+/**
+ * Stable metadata shared by local slot cards, .pitch envelopes and cloud rows.
+ * UI-only state such as `isActive` is deliberately added by callers instead
+ * of becoming part of the persisted metadata contract.
+ */
+export function buildCareerMetadata(slotId, save, team = null, standing = null) {
+  return {
+    slotId,
+    managerName:save?.managerName ?? 'The Manager',
+    teamId:save?.userTeamId ?? null,
+    clubName:team?.name ?? save?.userTeamId ?? 'Unknown Club',
+    clubCrest:team?.crest ?? '⚽',
+    clubColor:team?.color ?? team?.primaryColor ?? '#16a34a',
+    season:save?.season ?? '—',
+    league:save?.userLeague ?? team?.league ?? '—',
+    leaguePosition:Number.isFinite(standing?.position) ? standing.position : null,
+    gameweek:save?.currentGameweek ?? 1,
+    lastPlayedAt:save?.lastPlayedAt ?? null,
+    saveSchemaVersion:save?.saveSchemaVersion ?? 1,
+  };
+}
+
 async function _readSlotSummary(slotId) {
   const isActive = slotId === getActiveSlotId();
   const db = isActive ? await openDB() : await _openNamedDB(careerSlotDbName(slotId));
@@ -289,21 +311,7 @@ async function _readSlotSummary(slotId) {
     const standing = save.userTeamId
       ? await req2p(db.transaction('standings', 'readonly').objectStore('standings').get(save.userTeamId))
       : null;
-    return {
-      slotId,
-      managerName:save.managerName ?? 'The Manager',
-      teamId:save.userTeamId ?? null,
-      clubName:team?.name ?? save.userTeamId ?? 'Unknown Club',
-      clubCrest:team?.crest ?? '⚽',
-      clubColor:team?.color ?? team?.primaryColor ?? '#16a34a',
-      season:save.season ?? '—',
-      league:save.userLeague ?? team?.league ?? '—',
-      leaguePosition:Number.isFinite(standing?.position) ? standing.position : null,
-      gameweek:save.currentGameweek ?? 1,
-      lastPlayedAt:save.lastPlayedAt ?? null,
-      saveSchemaVersion:save.saveSchemaVersion ?? 1,
-      isActive,
-    };
+    return { ...buildCareerMetadata(slotId, save, team, standing), isActive };
   } finally {
     if (!isActive) {
       try { db.close(); } catch {}
@@ -427,15 +435,17 @@ export async function buildSaveEnvelope(slotId = getActiveSlotId()) {
       : row);
   }
   const saveData = snapshot.save?.find(s => s.id === 'active');
+  const teamData = saveData?.userTeamId
+    ? snapshot.teams?.find(team => team.id === saveData.userTeamId) ?? null
+    : null;
+  const standingData = saveData?.userTeamId
+    ? snapshot.standings?.find(row => row.teamId === saveData.userTeamId) ?? null
+    : null;
   const meta = {
     version:_PITCH_MAGIC,
     schemaVersion:SAVE_SCHEMA_VERSION,
-    slotId,
     exportedAt:new Date().toISOString(),
-    teamId:saveData?.userTeamId ?? 'unknown',
-    managerName:saveData?.managerName ?? 'The Manager',
-    season:saveData?.season ?? 1,
-    gameweek:saveData?.currentGameweek ?? 1,
+    ...buildCareerMetadata(slotId, saveData, teamData, standingData),
   };
   const payload = JSON.stringify({ meta, snapshot });
   const hash = _fnv1a(_PITCH_SALT + payload);
