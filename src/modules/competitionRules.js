@@ -216,11 +216,14 @@ export function getLeaguePhaseQualification(cupId, position) {
 }
 
 /**
- * League-phase ranking has a concrete knockout consequence before P1 owns a
- * full canonical UEFA bracket: the seeded side gets the second leg at home.
- * Positions 9–16 are seeded in the knockout play-off and positions 17–24 are
- * unseeded. In the round of 16, positions 1–8 stay seeded while every
- * play-off qualifier (positions 9–24) is unseeded. Later rounds are neutral.
+ * League-phase ranking controls return-leg venue advantage throughout the
+ * bracket. Positions 9–16 are seeded in the knockout play-off; positions 1–8
+ * are seeded in the round of 16. Under the 2026/27 UEFA regulations, league-
+ * phase ranks 1–4 also hold a quarter-final return-leg seed and ranks 1–2 a
+ * semi-final return-leg seed. A lower-ranked club can inherit one of those
+ * later-round bracket seeds by eliminating its holder; that inherited state
+ * must be supplied by the future bracket-state layer rather than guessed from
+ * the lower club's original league-phase position here.
  */
 export function getUefaKnockoutSeeding(cupId, position, roundName) {
   if (!isUefaCompetition(cupId) || !Number.isInteger(position)) {
@@ -234,6 +237,17 @@ export function getUefaKnockoutSeeding(cupId, position, roundName) {
   if (roundName?.startsWith('R16')) {
     if (position >= 1 && position <= 8) return { seeded:true, secondLegHome:true };
     if (position >= 9 && position <= 24) return { seeded:false, secondLegHome:false };
+    return { seeded:null, secondLegHome:null };
+  }
+  if (roundName?.startsWith('QF')) {
+    if (position >= 1 && position <= 4) return { seeded:true, secondLegHome:true };
+    if (position >= 5 && position <= 8) return { seeded:false, secondLegHome:false };
+    return { seeded:null, secondLegHome:null };
+  }
+  if (roundName?.startsWith('SF')) {
+    if (position >= 1 && position <= 2) return { seeded:true, secondLegHome:true };
+    if (position >= 3 && position <= 8) return { seeded:false, secondLegHome:false };
+    return { seeded:null, secondLegHome:null };
   }
   return { seeded:null, secondLegHome:null };
 }
