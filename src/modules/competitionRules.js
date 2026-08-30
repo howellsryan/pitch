@@ -295,22 +295,34 @@ export function getUefaKnockoutOpponentSeeds(cupId, position, roundName) {
   return [];
 }
 
+function hasVenueRunLongerThanTwo(venues) {
+  let run = 1;
+  for (let i = 1; i < venues.length; i++) {
+    run = venues[i] === venues[i - 1] ? run + 1 : 1;
+    if (run > 2) return true;
+  }
+  return false;
+}
+
 export function buildLeaguePhaseVenuePlan(cupId, rng = Math.random) {
   const phase = getCompetitionRules(cupId)?.leaguePhase;
   if (!phase) return [];
 
-  const venues = [
-    ...Array(phase.homeMatches ?? Math.floor(phase.matches / 2)).fill(true),
-    ...Array(phase.awayMatches ?? Math.ceil(phase.matches / 2)).fill(false),
-  ];
-
-  // Fisher-Yates with injectable RNG keeps tests deterministic while avoiding
-  // a fixed home/away cadence in every career.
-  for (let i = venues.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [venues[i], venues[j]] = [venues[j], venues[i]];
+  const validPlans = [];
+  const combinations = 2 ** phase.matches;
+  for (let mask = 0; mask < combinations; mask++) {
+    const venues = Array.from({ length:phase.matches }, (_, index) => Boolean(mask & (1 << index)));
+    if (venues.filter(Boolean).length !== phase.homeMatches) continue;
+    if (venues[0] === venues[1]) continue;
+    if (venues[venues.length - 2] === venues[venues.length - 1]) continue;
+    if (hasVenueRunLongerThanTwo(venues)) continue;
+    validPlans.push(venues);
   }
-  return venues.slice(0, phase.matches);
+
+  if (!validPlans.length) return [];
+  const raw = Number(rng());
+  const bounded = Number.isFinite(raw) ? Math.max(0, Math.min(0.999999999999, raw)) : 0;
+  return [...validPlans[Math.floor(bounded * validPlans.length)]];
 }
 
 export function buildLeaguePhaseState(cupId, opponents = [], rng = Math.random) {
