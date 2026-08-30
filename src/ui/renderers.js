@@ -48,7 +48,13 @@ export function _removeFullOverlay() {
 // whether the entry route or the game shell is shown.
 
 // ── INIT UI ────────────────────────────────────────────────────
+// R7 makes the title route reachable from inside a running career. Returning
+// from it must not bind the static sidebar/popstate handlers a second time.
+let uiInitialised = false;
 export function initUI(){
+  if (uiInitialised) return;
+  uiInitialised = true;
+
   registerScreen('home',         renderHome);
   registerScreen('match',        () => { screenTicks.match++; });
   registerScreen('transfers',    () => { screenTicks.transfers++; });
@@ -74,6 +80,27 @@ export function initUI(){
   }
 }
 
+// ── TITLE / ENTRY ROUTE ───────────────────────────────────────
+/**
+ * Return to PITCH's title route without touching IndexedDB.
+ *
+ * R1 deliberately had no route back here because manufacturing one with a
+ * sticky hash exposed stale-career data and doubled boot handlers. R7 makes
+ * it explicit and ephemeral instead: Settings calls this, the app shell is
+ * simply hidden, and CareerMenu offers Continue or a separately-confirmed
+ * destructive reset. Reloading still resumes the career directly.
+ */
+export function showEntryMenu(){
+  const ng = document.getElementById('ng');
+  const app = document.getElementById('app');
+  if (!ng || !app) return;
+  app.style.display='none';
+  ng.style.display='flex';
+  entryState.hasSave=true;
+  entryState.showing=true;
+  ng.focus?.();
+}
+
 // ── ENTER THE GAME SHELL ──────────────────────────────────────
 /**
  * Hide the entry route, reveal the app, wire the screens, land on Home.
@@ -84,6 +111,8 @@ export function initUI(){
  * path drift out of step.
  */
 export async function enterGame(){
+  entryState.showing=false;
+  entryState.hasSave=true;
   document.getElementById('ng').style.display='none';
   const app=document.getElementById('app');
   app.style.display='flex';
@@ -127,8 +156,10 @@ export async function boot(){
       document.getElementById('app').style.display='none';
       // Only now may EntryScreen offer to start a career: until the cloud
       // pull above has settled, one might still arrive.
+      entryState.hasSave=false;
       entryState.showing=true;
     } else {
+      entryState.hasSave=true;
       await themeForTeam(save.userTeamId);
       await enterGame();
     }
