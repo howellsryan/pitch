@@ -343,9 +343,6 @@ export function buildLeaguePhaseState(cupId, opponents = [], rng = Math.random) 
   return {
     matchday: 0,
     points: 0,
-    wins: 0,
-    awayGoals: 0,
-    awayWins: 0,
     gf: 0,
     ga: 0,
     gd: 0,
@@ -361,26 +358,42 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function metric(row, key) {
+function requiredMetric(row, key) {
   const value = Number(row?.[key]);
   return Number.isFinite(value) ? value : 0;
 }
 
+function optionalMetric(row, key) {
+  if (row?.[key] == null) return null;
+  const value = Number(row[key]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function compareOptionalHigher(a, b, key) {
+  const av = optionalMetric(a, key);
+  const bv = optionalMetric(b, key);
+  return av == null || bv == null ? 0 : bv - av;
+}
+
 /** UEFA Article 18 league-phase tiebreak order. P1 can populate the opponent
  * aggregate/discipline/coefficient fields from its canonical world ledger;
- * P0 already consumes them in the correct order whenever they are available. */
+ * P0 consumes every criterion in the correct order once both rows have it. */
 export function compareLeaguePhaseRows(a, b) {
-  return metric(b, 'points') - metric(a, 'points')
-    || metric(b, 'gd') - metric(a, 'gd')
-    || metric(b, 'gf') - metric(a, 'gf')
-    || metric(b, 'awayGoals') - metric(a, 'awayGoals')
-    || metric(b, 'wins') - metric(a, 'wins')
-    || metric(b, 'awayWins') - metric(a, 'awayWins')
-    || metric(b, 'opponentPoints') - metric(a, 'opponentPoints')
-    || metric(b, 'opponentGd') - metric(a, 'opponentGd')
-    || metric(b, 'opponentGoals') - metric(a, 'opponentGoals')
-    || metric(a, 'disciplinaryPoints') - metric(b, 'disciplinaryPoints')
-    || metric(b, 'coefficient') - metric(a, 'coefficient')
+  return requiredMetric(b, 'points') - requiredMetric(a, 'points')
+    || requiredMetric(b, 'gd') - requiredMetric(a, 'gd')
+    || requiredMetric(b, 'gf') - requiredMetric(a, 'gf')
+    || compareOptionalHigher(a, b, 'awayGoals')
+    || compareOptionalHigher(a, b, 'wins')
+    || compareOptionalHigher(a, b, 'awayWins')
+    || compareOptionalHigher(a, b, 'opponentPoints')
+    || compareOptionalHigher(a, b, 'opponentGd')
+    || compareOptionalHigher(a, b, 'opponentGoals')
+    || (() => {
+      const av = optionalMetric(a, 'disciplinaryPoints');
+      const bv = optionalMetric(b, 'disciplinaryPoints');
+      return av == null || bv == null ? 0 : av - bv;
+    })()
+    || compareOptionalHigher(a, b, 'coefficient')
     || String(a?.teamId ?? '').localeCompare(String(b?.teamId ?? ''));
 }
 
@@ -427,18 +440,18 @@ export function finaliseLeaguePhaseTable(cupId, leaguePhase, userTeamId, rng = M
   table.push({
     teamId: userTeamId,
     played: matches,
-    wins: Number(leaguePhase?.wins ?? 0),
     points: Number(leaguePhase?.points ?? 0),
     gf: Number(leaguePhase?.gf ?? 0),
     ga: Number(leaguePhase?.ga ?? 0),
     gd: Number(leaguePhase?.gd ?? 0),
-    awayGoals: Number(leaguePhase?.awayGoals ?? 0),
-    awayWins: Number(leaguePhase?.awayWins ?? 0),
-    opponentPoints: Number(leaguePhase?.opponentPoints ?? 0),
-    opponentGd: Number(leaguePhase?.opponentGd ?? 0),
-    opponentGoals: Number(leaguePhase?.opponentGoals ?? 0),
-    disciplinaryPoints: Number(leaguePhase?.disciplinaryPoints ?? 0),
-    coefficient: Number(leaguePhase?.coefficient ?? 0),
+    awayGoals: leaguePhase?.awayGoals ?? null,
+    wins: leaguePhase?.wins ?? null,
+    awayWins: leaguePhase?.awayWins ?? null,
+    opponentPoints: leaguePhase?.opponentPoints ?? null,
+    opponentGd: leaguePhase?.opponentGd ?? null,
+    opponentGoals: leaguePhase?.opponentGoals ?? null,
+    disciplinaryPoints: leaguePhase?.disciplinaryPoints ?? null,
+    coefficient: leaguePhase?.coefficient ?? null,
   });
 
   table.sort(compareLeaguePhaseRows);
