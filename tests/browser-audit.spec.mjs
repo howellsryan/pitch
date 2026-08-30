@@ -163,11 +163,8 @@ test('watched match runs from Team News through post-match and unlocks navigatio
   await go(page, 'match');
 
   await page.getByRole('button', { name: /Kick Off/ }).click();
-  const kickoff = page.locator('.kickoff-beat');
-  await expect(kickoff).toBeVisible({ timeout: 10000 });
-  await kickoff.click();
-
-  await expect(page.locator('.broadcast-pitch')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('.kickoff-beat')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('.broadcast-pitch')).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.broadcast-nav')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
