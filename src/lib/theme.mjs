@@ -83,8 +83,8 @@ export function contrastRatio(c1, c2) {
 
 /* ── the theming rules ────────────────────────────────────────────────── */
 
-export const GROUND = '#0A0E14';   // --color-ground
-export const ON_LIGHT = '#0A0E14';  // text used on a light accent
+export const GROUND = '#070D0A';   // --color-ground
+export const ON_LIGHT = '#070D0A';  // text used on a light accent
 export const ON_DARK  = '#FFFFFF';  // text used on a dark accent
 const AA = 4.5;
 const MIN_SURFACE_CONTRAST = 3;     // accent must be visible against the ground

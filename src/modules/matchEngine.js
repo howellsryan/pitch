@@ -518,7 +518,7 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
 // Simulates phases from startPhase to endPhase (1-120) using
 // provided live state. Returns events + updated live state.
 // Live state can be mutated between segments for real-time interventions.
-export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase) {
+export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase, controlledTeamId = null) {
   const {
     hActive, aActive, hFitness, aFitness,
     hBenchLeft, aBenchLeft, hSubsLeft, aSubsLeft,
@@ -607,7 +607,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
 
     if (phase % 10 === 0) {
       const trailH = curAGoals - curHGoals, trailA = curHGoals - curAGoals;
-      if (curHSubs > 0) {
+      if (curHSubs > 0 && homeTeam.id !== controlledTeamId) {
         const tired = curHActive.filter(p => p.position !== 'GK' && shouldSub(hFitness.get(p.id) ?? 90, minute, trailH));
         for (const out of tired.slice(0, curHSubs)) {
           const sub = curHBench.shift(); if (!sub) break;
@@ -616,7 +616,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
           segEvents.push({ type:'sub', minute, teamId:homeTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
-      if (curASubsLeft > 0) {
+      if (curASubsLeft > 0 && awayTeam.id !== controlledTeamId) {
         const tired = curAActive.filter(p => p.position !== 'GK' && shouldSub(aFitness.get(p.id) ?? 90, minute, trailA));
         for (const out of tired.slice(0, curASubsLeft)) {
           const sub = curABench.shift(); if (!sub) break;
@@ -735,4 +735,3 @@ export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMu
     fouls:         { home: Math.round(8 + Math.random()*7), away: Math.round(8 + Math.random()*7) },
   };
 }
-

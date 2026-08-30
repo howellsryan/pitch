@@ -1,0 +1,79 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Round 2 — big swings" },
+    { "id": "page-2", "name": "Round 1 — too safe" }
+  ],
+  "artboards": [
+    { "file": "SpineEntry.dc.html",     "page": "page-1", "x": 0,    "y": 0,    "w": 390, "h": 844, "title": "I · Spine — entry",        "is_interactive": false },
+    { "file": "BroadcastEntry.dc.html", "page": "page-1", "x": 470,  "y": 0,    "w": 390, "h": 844, "title": "II · Broadcast — entry" },
+    { "file": "ChalkEntry.dc.html",     "page": "page-1", "x": 940,  "y": 0,    "w": 390, "h": 844, "title": "III · Chalk — entry" },
+
+    { "file": "SpineHome.dc.html",      "page": "page-1", "x": 0,    "y": 984,  "w": 390, "h": 844, "title": "I · Spine — the season rail" },
+    { "file": "Main.dc.html",           "page": "page-1", "x": 470,  "y": 984,  "w": 390, "h": 844, "title": "II · Broadcast — matchday" },
+    { "file": "ChalkSquad.dc.html",     "page": "page-1", "x": 940,  "y": 984,  "w": 390, "h": 844, "title": "III · Chalk — the XI" },
+
+    { "file": "SpineMarket.dc.html",    "page": "page-1", "x": 0,    "y": 1968, "w": 390, "h": 844, "title": "I · Spine — market (density test)" },
+    { "file": "BroadcastSquad.dc.html", "page": "page-1", "x": 470,  "y": 1968, "w": 390, "h": 844, "title": "II · Broadcast — squad (density test)" },
+    { "file": "ChalkMatch.dc.html",     "page": "page-1", "x": 940,  "y": 1968, "w": 390, "h": 844, "title": "III · Chalk — matchday, same pitch" },
+
+    { "file": "Editorial.dc.html",      "page": "page-2", "x": 0,    "y": 0,   "w": 390, "h": 844, "title": "A · Editorial — home page" },
+    { "file": "Almanac.dc.html",        "page": "page-2", "x": 470,  "y": 0,   "w": 390, "h": 844, "title": "B · Almanac — home page" },
+    { "file": "Boardroom.dc.html",      "page": "page-2", "x": 940,  "y": 0,   "w": 390, "h": 844, "title": "C · Boardroom — home page" },
+    { "file": "Floodlight.dc.html",     "page": "page-2", "x": 1410, "y": 0,   "w": 390, "h": 844, "title": "D · Floodlight — home page" },
+    { "file": "EditorialApp.dc.html",   "page": "page-2", "x": 0,    "y": 984, "w": 390, "h": 844, "title": "A · Editorial — in game" },
+    { "file": "AlmanacApp.dc.html",     "page": "page-2", "x": 470,  "y": 984, "w": 390, "h": 844, "title": "B · Almanac — in game" },
+    { "file": "BoardroomApp.dc.html",   "page": "page-2", "x": 940,  "y": 984, "w": 390, "h": 844, "title": "C · Boardroom — in game" },
+    { "file": "FloodlightApp.dc.html",  "page": "page-2", "x": 1410, "y": 984, "w": 390, "h": 844, "title": "D · Floodlight — in game" }
+  ],
+  "annotations": [
+    {
+      "id": "brief2",
+      "page": "page-1",
+      "x": -600,
+      "y": 0,
+      "w": 490,
+      "text": "THREE BIG SWINGS\n\nRound one was four palettes, not four ideas — same flat screens, same tab bar, just recoloured. Fair hit. These three each change what the app fundamentally IS, not what colour it is. Each one commits to a different answer to: what is the thing you are actually looking at?\n\nThey move — the rails scroll, the ball runs, the chalk arrows draw themselves, the score bug flies in. That is the point. Sitting still is what made round one feel dead.\n\nEach column is one direction, three screens deep:\n\nROW 1 — the entry / marketing page.\nROW 2 — the direction's signature screen, where its whole idea lives or dies.\nROW 3 — a second screen chosen to stress-test it. Spine and Broadcast get their densest list (3,014 transfer targets, a 26-man squad). Chalk gets matchday, because its whole claim is that the pitch never leaves.\n\nStill sketches — nothing here is wired yet. Pick one (or a hybrid) and I build it as a working click-through across every screen."
+    },
+    {
+      "id": "dir-spine",
+      "page": "page-1",
+      "x": 0,
+      "y": -400,
+      "w": 390,
+      "text": "I · SPINE\n\nTHE IDEA: your career is one continuous timeline, and the app is a window onto it. Home is not a dashboard — it IS the season, a rail of gameweeks you physically pull through. Played results sit to the left, fixtures fade off to the right, the next match is magnified under your thumb. A second rail underneath carries cup ties, Europe, deadline day and youth intake, so you can see what is coming.\n\nTwo axes replace navigation: horizontal is time, vertical drags up context (squad, market, table) as a sheet over the spine. The 'Waiting on you' sheet at the bottom is always half-visible — decisions come to you rather than hiding behind a tab.\n\nFOR — Makes the thing a manager actually cares about, the shape of a season, the primary object on screen. Nothing else in the category does this. Scales beautifully to multi-season careers.\n\nAGAINST — The most novel, so the most to explain; a first-time player may not realise the rail scrubs. Also the most engineering: momentum scrolling, a sheet layer and a virtualised list all have to feel native, on mobile Safari.\n\nDensity test (below) is the transfer market: the rail metaphor steps aside entirely and it becomes a fast, plain, luminous list. Honest answer — the big idea does not stretch to every screen."
+    },
+    {
+      "id": "dir-broadcast",
+      "page": "page-1",
+      "x": 470,
+      "y": -400,
+      "w": 390,
+      "text": "II · BROADCAST\n\nTHE IDEA: the game is a televised match and you are the production. Matchday is not a text feed with a scoreline on top — it is a floodlit pitch in perspective with the ball actually moving, a score bug that flies in from the left, a momentum bar, and events cutting in like lower-thirds. Every other screen inherits the same graphics language.\n\nNavigation is a single floating pill, bottom-centre, in thumb reach: it shows where you are and fans out to five destinations on tap. No permanent bar eating 60px on every screen — which is what 'uninvasive' should actually mean.\n\nFOR — By far the most immersive at the moment that matters most. Watching your match is the emotional core of the entire product and this is the only direction that treats it as a spectacle. Instantly legible to anyone who has watched football.\n\nAGAINST — Heavy: the pitch, bloom and animation have a real cost on a mid-range phone, and it will need a reduced-motion path that is not just 'nothing moves'. Broadcast graphics are also a well-trodden look, so the craft has to carry it. And a floating pill is less discoverable than a labelled bar.\n\nDensity test (below) is the 26-man squad: the broadcast bars become row treatments, and it holds up — but the pill has to sit over content, which needs a scrim."
+    },
+    {
+      "id": "dir-chalk",
+      "page": "page-1",
+      "x": 940,
+      "y": -400,
+      "w": 390,
+      "text": "III · CHALK\n\nTHE IDEA: the pitch is the app. One persistent surface that never leaves — your XI stands on it, tapping a player draws his movement in chalk, and when you kick off it is the SAME pitch, now live, with both teams on it and the ball moving. No transition to a 'match screen' because you never left.\n\nSquad, tactics and team news collapse into one screen instead of three, which is the shortest click path of the three directions by some distance: the lineup you are looking at is the lineup that plays.\n\nFOR — The strongest single metaphor, and the most coherent. Compresses three screens into one. A drafting-table green with orange marker looks like nothing else, and works in daylight. Cheapest to make feel fast, because there is one canvas to animate rather than many.\n\nAGAINST — A pitch is a poor container for a 3,014-row transfer list or a 20-row table, so those screens have to leave the metaphor and will feel like a different app. Player discs at 42px on a 390px pitch is near the floor for touch, and 11 of them plus a bench is a crowded surface.\n\nThird screen (below) is matchday on the same pitch, showing the payoff — and the honest cost: at that size the players are dots, so the drama has to come from motion and the feed, not from faces."
+    },
+    {
+      "id": "decide2",
+      "page": "page-1",
+      "x": -600,
+      "y": 1120,
+      "w": 490,
+      "text": "PICKING\n\nName a numeral. Hybrids are genuinely on the table and probably right — the strongest combination is likely:\n\n· CHALK for squad and tactics (one pitch, one screen, shortest path)\n· BROADCAST for matchday (the spectacle, where it earns its cost)\n· SPINE for home (the season as the thing you navigate)\n\n…with a plain, fast, unornamented list for market and table in whichever palette wins. That is a real product rather than a style guide, but it is three metaphors in one app and needs one palette and one type system holding it together — so if you like that, say so and I will unify it rather than stapling them.\n\nTwo things I still need from you:\n\n1. LIGHT OR DARK by default. All three of these are dark, which suits matchday and suits nothing else — a stranger opening the marketing page on a phone in daylight is the case against. I can build any of them light-first with a dark match mode.\n\n2. HOW LOUD THE CLUB COLOUR GETS. Arsenal red drives the Spine frames; Broadcast keeps club colour to the bug stripe and uses broadcast yellow for its own voice. Louder feels personal, quieter keeps the design's identity — and 186 clubs includes white and near-black, which need a contrast guard either way."
+    },
+    {
+      "id": "round1-note",
+      "page": "page-2",
+      "x": -600,
+      "y": 0,
+      "w": 490,
+      "text": "ROUND 1 — KEPT FOR REFERENCE\n\nFour directions that were correctly rejected as not ambitious enough. They are all the same screen structure — a card, a list, a five-tab bar — differentiated only by palette and typeface. Nothing moves, and nothing about them is specific to football or to a game.\n\nWorth keeping visible for two reasons. The Editorial and Boardroom type systems are still the best of anything drawn so far for dense data, and whichever round-2 direction wins will need exactly that for the market and the league table. And they set the floor: whatever ships has to be more than this."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

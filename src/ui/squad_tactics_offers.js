@@ -7,7 +7,7 @@ import { renderHome } from './home_transfers.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 
 // Squad and Tactics screens moved to src/lib/ui/SquadScreen.svelte and
-// src/lib/ui/TacticsScreen.svelte (Phase 4, docs/plan/04-migration-phases.md).
+// src/lib/ui/SquadScreen.svelte (R4, docs/plan/07-redesign.md).
 // openSquadPlayerModal used to survive here for the (not yet migrated)
 // Transfers screen's desktop-width player-detail branch in home_transfers.js
 // — Transfers is migrated now too (src/lib/ui/TransfersScreen.svelte), using
@@ -50,7 +50,7 @@ export async function showOffersModal() {
                     <span class="pos ${g}">${pl.position}</span>
                     <span>Age ${pl.age}</span>
                     <span class="fb ${fl.cls}">${fl.text}</span>
-                    ${!isListed ? `<span style="color:var(--acc2);font-size:10px">⚠ Unsolicited bid</span>` : ''}
+                    ${!isListed ? `<span style="color:var(--acc2);font-size:10px">Unsolicited bid</span>` : ''}
                   </div>
                 </div>
               </div>
@@ -77,15 +77,12 @@ export async function showOffersModal() {
               </div>
             </div>
             <div class="offer-btns">
-              <button class="btn btn-p" data-offer-accept="${pl.id}">✅ Accept ${fmt.money(offer.fee)}</button>
-              <button class="btn btn-s" data-offer-counter="${pl.id}" data-offer-fee="${offer.fee}" data-offer-fav="${fav}" data-offer-listed="${isListed?1:0}" data-offer-name="${pl.name}" data-offer-club="${offer.clubName}">
-                💬 Counter
-              </button>
-              <button class="btn btn-d" data-offer-reject="${pl.id}">✕ Reject</button>
+              <button class="btn btn-p" data-offer-accept="${pl.id}">Accept ${fmt.money(offer.fee)}</button>
+              <button class="btn btn-s" data-offer-counter="${pl.id}" data-offer-fee="${offer.fee}" data-offer-fav="${fav}" data-offer-listed="${isListed?1:0}" data-offer-name="${pl.name}" data-offer-club="${offer.clubName}">Counter</button>
+              <button class="btn btn-d" data-offer-reject="${pl.id}">Reject</button>
             </div>
           </div>`;
         }).join('') : `<div style="background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:40px;text-align:center">
-          <div style="font-size:36px;margin-bottom:10px">📭</div>
           <div style="font-family:var(--fd);font-size:20px;letter-spacing:1px;margin-bottom:6px">No Pending Offers</div>
           <div style="font-size:12px;color:var(--tx2)">AI clubs bid each gameweek. List players to attract more offers.</div>
         </div>`}
@@ -105,7 +102,7 @@ export async function showOffersModal() {
           }).join('') : `<div style="font-size:12px;color:var(--txd)">No players listed. Go to Squad to list players.</div>`}
         </div>
         <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:16px">
-          <div style="font-family:var(--fd);font-size:14px;letter-spacing:1px;margin-bottom:8px;color:var(--acc2)">ℹ Offer Rules</div>
+          <div style="font-family:var(--fd);font-size:14px;letter-spacing:1px;margin-bottom:8px;color:var(--acc2)">Offer Rules</div>
           <div style="font-size:11px;color:var(--tx2);line-height:1.7">
             <div>• <strong>Listed players:</strong> AI offers from 85% of form value</div>
             <div>• <strong>Unlisted players:</strong> AI must offer 110%+ to tempt you</div>
@@ -117,7 +114,7 @@ export async function showOffersModal() {
 
     </div>`;
 
-  const modal = showModal('📨 Transfer Inbox', bodyHTML, [], { wide: true });
+  const modal = showModal('Transfer Inbox', bodyHTML, [], { wide: true });
 
   // ── Button handlers inside modal ────────────────────────
   const bd = document.getElementById('modal-bd');
@@ -128,12 +125,12 @@ export async function showOffersModal() {
       try {
         btn.closest('.offer-card-v2')?.remove();
         const { fee, buyerName } = await acceptOffer(btn.dataset.offerAccept);
-        toast(`✅ Sold for ${fmt.money(fee)} to ${buyerName}!`, 'success', 5000);
+        toast(`Sold for ${fmt.money(fee)} to ${buyerName}!`, 'success', 5000);
         _updateOffersBadge();
         modal.close();
         screenTicks.transfers++;
         await renderHome();
-      } catch(e) { toast(`❌ ${e.message}`, 'error', 4000); }
+      } catch(e) { toast(e.message, 'error', 4000); }
     };
   });
   bd.querySelectorAll('[data-offer-reject]').forEach(btn => {
@@ -166,14 +163,14 @@ export async function showOffersModal() {
 
       const likelihoodText = (v) => {
         const ratio = v / theirFee;
-        if (ratio <= 1.05) return { text: '🤝 Almost certain — close to their offer', color: 'var(--acc)' };
-        if (ratio <= 1.20) return { text: '✓ Good chance — reasonable ask', color: 'var(--acc)' };
-        if (ratio <= 1.40) return { text: '⚠️ May negotiate — they\'ll try to meet halfway', color: 'var(--acc2)' };
-        if (ratio <= 1.70) return { text: '🔥 Ambitious — they might walk away', color: 'var(--acc3)' };
-        return { text: '✕ Very unlikely — too far from their offer', color: 'var(--acc3)' };
+        if (ratio <= 1.05) return { text: 'Almost certain — close to their offer', color: 'var(--acc)' };
+        if (ratio <= 1.20) return { text: 'Good chance — reasonable ask', color: 'var(--acc)' };
+        if (ratio <= 1.40) return { text: 'May negotiate — they\'ll try to meet halfway', color: 'var(--acc2)' };
+        if (ratio <= 1.70) return { text: 'Ambitious — they might walk away', color: 'var(--acc3)' };
+        return { text: 'Very unlikely — too far from their offer', color: 'var(--acc3)' };
       };
 
-      showModal(`💬 Counter ${clubName}`, `
+      showModal(`Counter ${clubName}`, `
         <div class="ctr">
           <div class="ctr-pl"><strong>${pName}</strong></div>
           <div class="ctr-row"><span>Their Offer</span><strong style="color:var(--tx2)">${fmt.money(theirFee)}</strong></div>
@@ -190,15 +187,15 @@ export async function showOffersModal() {
           const result = await counterOffer(pid, askVal);
 
           if (result.outcome === 'accepted') {
-            toast(`✅ ${result.clubName} agreed to ${fmt.money(result.fee)}!`, 'success', 4000);
+            toast(`${result.clubName} agreed to ${fmt.money(result.fee)}!`, 'success', 4000);
             modal.close();
             await showOffersModal();
           } else if (result.outcome === 'counter') {
-            toast(`💬 ${result.clubName} counter: ${fmt.money(result.fee)} (was ${fmt.money(result.originalFee)})`, 'info', 5000);
+            toast(`${result.clubName} counter: ${fmt.money(result.fee)} (was ${fmt.money(result.originalFee)})`, 'info', 5000);
             modal.close();
             await showOffersModal();
           } else {
-            toast(`❌ ${result.clubName ?? 'Club'} withdrew their interest`, 'error', 4000);
+            toast(`${result.clubName ?? 'Club'} withdrew their interest`, 'error', 4000);
             _updateOffersBadge();
             modal.close();
             await showOffersModal();
@@ -241,4 +238,3 @@ export async function _updateOffersBadge() {
 
 // Keep old name as alias so nothing breaks if referenced elsewhere
 export async function renderOffers() { await showOffersModal(); }
-

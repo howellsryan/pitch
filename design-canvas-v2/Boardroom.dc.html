@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; background: #F2F3F5; font-family: Chivo, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #E23D28; } a:hover { color: #101317; }
+    * { box-sizing: border-box; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .kick { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F2F3F5; color: #101317; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 16px; border-bottom: 1px solid #101317;">
+    <div style="display: flex; align-items: center; gap: 9px;">
+      <div style="width: 12px; height: 12px; background: #E23D28;"></div>
+      <span style="font-size: 17px; font-weight: 900; letter-spacing: -0.02em;">PITCH</span>
+    </div>
+    <span class="kick" style="color: #5C6470;">v1 · Free</span>
+  </div>
+
+  <div style="padding: 34px 22px 0; display: flex; flex-direction: column; gap: 20px;">
+    <div style="font-size: 46px; font-weight: 900; line-height: 0.98em; letter-spacing: -0.035em;">Manage<br>the whole<br>season.</div>
+    <div style="font-size: 14.5px; line-height: 1.55em; color: #444C57; max-width: 296px; text-wrap: pretty;">A football management simulation that runs entirely in the browser tab. Nine leagues, 186 clubs, full transfer market, minute-by-minute match engine.</div>
+  </div>
+
+  <div style="padding: 26px 22px 0;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 56px; background: #E23D28; color: #FFFFFF; font-size: 15px; font-weight: 700; letter-spacing: 0.01em;">
+      SELECT A CLUB
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+    </div>
+  </div>
+  <div style="padding: 10px 22px 0;">
+    <div style="display: flex; align-items: center; justify-content: center; height: 46px; border: 1px solid #101317; font-size: 14px; font-weight: 500;">Resume saved career</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="border-top: 1px solid #101317;">
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));">
+      <div style="border-right: 1px solid #C9CDD3; border-bottom: 1px solid #C9CDD3; padding: 15px 18px; display: flex; flex-direction: column; gap: 5px;">
+        <span class="mono" style="font-size: 27px; font-weight: 600; line-height: 1em;">186</span>
+        <span class="kick" style="color: #5C6470;">Playable clubs</span>
+      </div>
+      <div style="border-bottom: 1px solid #C9CDD3; padding: 15px 18px; display: flex; flex-direction: column; gap: 5px;">
+        <span class="mono" style="font-size: 27px; font-weight: 600; line-height: 1em;">9</span>
+        <span class="kick" style="color: #5C6470;">Leagues</span>
+      </div>
+      <div style="border-right: 1px solid #C9CDD3; padding: 15px 18px; display: flex; flex-direction: column; gap: 5px;">
+        <span class="mono" style="font-size: 27px; font-weight: 600; line-height: 1em;">7</span>
+        <span class="kick" style="color: #5C6470;">Domestic cups</span>
+      </div>
+      <div style="padding: 15px 18px; display: flex; flex-direction: column; gap: 5px;">
+        <span class="mono" style="font-size: 27px; font-weight: 600; line-height: 1em;">0</span>
+        <span class="kick" style="color: #5C6470;">Accounts required</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="background: #101317; color: #F2F3F5; padding: 16px 22px 24px; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span class="kick" style="color: #8A929E;">Saved locally</span>
+      <span style="font-size: 13px; font-weight: 500;">Nothing leaves your device</span>
+    </div>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#E23D28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5"></rect><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"></path></svg>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

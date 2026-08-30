@@ -552,7 +552,14 @@ regression doesn't show up until a club goes bankrupt in March.
 
 ---
 
-## Phase 7 — PWA and polish (~1 day)
+## Phase 7 — PWA and polish (~1 day) — ⚠️ superseded in part
+
+**The screen-by-screen quality work (step 3) and the polish pass now belong to
+the redesign — see `07-redesign.md`, phase R8, which absorbs this phase.** The
+redesign replaces every screen, so running a quality floor over the current ones
+would be work thrown away. Steps 1, 2 and 5 below are still live and still
+independent of it.
+
 
 1. `vite-plugin-pwa`, `registerType: "prompt"`, maskable icons.
 2. `_headers` caching rules; `size-limit` budgets in CI.

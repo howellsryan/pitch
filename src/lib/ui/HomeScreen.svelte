@@ -1,7 +1,8 @@
 <script>
-  import { getSave, getTeam, getPlayersByTeam, getAllTeams, getAllPlayers, openDB } from '../../modules/db.js';
+  import { tick } from 'svelte';
+  import { getAllFixtures, getAllPlayers, getAllTeams, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
+  import { getUpcomingForTeam } from '../../modules/fixtures.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
-  import { getLastResultForTeam, getNextFixtureForTeam } from '../../modules/fixtures.js';
   import { isDeadlineDay, generateAIOffers, simulateAITransfers } from '../../modules/transfers.js';
   import { patchSave } from '../../modules/save.js';
   import { getEffectiveTotalGW } from '../../modules/gameweek.js';
@@ -10,21 +11,25 @@
   import { _makeNewsItem, addNewsItem } from '../../ui/inbox.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import { isSignedIn, startGoogleLogin } from '../../cloud/api.js';
+  import Button from './kit/Button.svelte';
+  import Crest from './kit/Crest.svelte';
+  import FormGuide from './kit/FormGuide.svelte';
+  import Icon from './kit/Icon.svelte';
+  import Money from './kit/Money.svelte';
 
   let loaded = $state(false);
-  // Sign-in entry point + local-only messaging (ROADMAP.md item 7). No
-  // account -> no cloud-save UI beyond this one plain line; re-read on every
-  // load() so signing in/out from Settings is reflected the next screen tick.
   let cloudSignedIn = $state(false);
   let save = $state(null);
   let team = $state(null);
   let squadSize = $state(0);
   let byId = $state(new Map());
-  let prev = $state(null);
-  let next = $state(null);
+  let playerById = $state(new Map());
+  let past = $state([]);
+  let upcoming = $state([]);
+  let railGameweeks = $state(38);
   let slice = $state([]);
-  let topScorers = $state([]);
-  let topAssists = $state([]);
+  let railEl = $state(null);
+  let activeCardEl = $state(null);
 
   let isEnd = $state(false);
   let ddInfo = $state({ isDeadline: false, window: null });
@@ -34,39 +39,67 @@
   let eoyBusy = $state(false);
   let deadlineBusy = $state(false);
 
-  const myRow = $derived(slice.find(r => r.isUserTeam) ?? null);
+  const next = $derived(upcoming[0] ?? null);
+  const future = $derived(upcoming.slice(1, 4));
+  const myRow = $derived(slice.find((row) => row.isUserTeam) ?? null);
   const form = $derived(myRow?.form ?? []);
-  // Backed by team.morale (standings.js's updateTeamMorale, eased from recent
-  // form each gameweek plus contract-driven nudges) — a real, stored value,
-  // not a label derived on the fly from the win rate.
+  const progress = $derived(save ? Math.min(100, Math.max(0, (save.currentGameweek / railGameweeks) * 100)) : 0);
+  const unread = $derived((save?.inbox ?? []).filter((item) => !item.read));
+  const pendingOffers = $derived((save?.inboundOffers ?? []).filter((offer) => offer.status === 'pending'));
+  const waitingItems = $derived.by(() => {
+    const items = pendingOffers.slice(0, 2).map((offer) => ({
+      id: `offer-${offer.playerId}`,
+      tone: 'good',
+      label: `${offer.clubName} bid ${fmt.money(offer.fee)} for ${playerById.get(offer.playerId)?.name ?? 'your player'}`,
+      destination: 'transfers',
+    }));
+    if (unread.length > 0) items.push({ id: `news-${unread[0].id}`, tone: 'neutral', label: unread[0].title, destination: 'inbox' });
+    if (!cloudSignedIn) items.push({ id: 'cloud-save', tone: 'warn', label: 'Progress is local-only on this browser', action: startGoogleLogin });
+    return items;
+  });
+  const board = $derived((() => {
+    const pct = Math.max(0, Math.min(100, save?.jobSecurity ?? 65));
+    const label = pct >= 75 ? 'Secure' : pct >= 45 ? 'Under scrutiny' : pct >= 20 ? 'On notice' : 'Facing the axe';
+    return { pct, label };
+  })());
   const morale = $derived((() => {
     const pct = Math.max(0, Math.min(100, team?.morale ?? 50));
-    const label = pct >= 75 ? 'Excellent' : pct >= 55 ? 'High' : pct >= 40 ? 'Good' : pct >= 20 ? 'Low' : 'Very Low';
-    return { label, pct };
+    return pct >= 75 ? 'Excellent' : pct >= 55 ? 'High' : pct >= 40 ? 'Good' : pct >= 20 ? 'Low' : 'Very low';
   })());
-  const board = $derived((() => {
-    const js = save?.jobSecurity ?? 65;
-    const pct = Math.max(0, Math.min(100, js));
-    const label = pct >= 75 ? 'Secure' : pct >= 45 ? 'Under Scrutiny' : pct >= 20 ? 'On Notice' : 'Facing the Axe';
-    const color = pct >= 60 ? 'var(--color-live)' : pct >= 30 ? 'var(--color-warn)' : 'var(--color-bad)';
-    return { pct, label, color };
-  })());
+
+  function opponent(fixture) {
+    if (!fixture || !save) return null;
+    return byId.get(fixture.homeTeamId === save.userTeamId ? fixture.awayTeamId : fixture.homeTeamId);
+  }
+
+  function isHome(fixture) { return fixture?.homeTeamId === save?.userTeamId; }
+
+  function resultFor(fixture) {
+    const userGoals = isHome(fixture) ? fixture.homeGoals : fixture.awayGoals;
+    const opponentGoals = isHome(fixture) ? fixture.awayGoals : fixture.homeGoals;
+    return { score: `${userGoals}—${opponentGoals}`, tone: userGoals > opponentGoals ? 'win' : userGoals < opponentGoals ? 'loss' : 'draw' };
+  }
+
+  function openWaiting(item) {
+    if (item.action) item.action();
+    else navigateTo(item.destination);
+  }
+
+  async function centreRail() {
+    await tick();
+    if (!railEl || !activeCardEl) return;
+    railEl.scrollLeft = Math.max(0, activeCardEl.offsetLeft - (railEl.clientWidth - activeCardEl.offsetWidth) / 2);
+  }
 
   async function closeWindow(dd) {
     const s = await getSave();
     const cur = new Date(s.currentDate);
-    const afterDeadline = dd.window === 'summer'
-      ? new Date(cur.getFullYear(), 8, 2)
-      : new Date(cur.getFullYear(), 1, 2);
-    const before = (s.inboundOffers ?? []).filter(o => o.status === 'expired').length;
-    const expiredOffers = (s.inboundOffers ?? []).map(o => o.status === 'pending' ? { ...o, status: 'expired' } : o);
-    const expiredCount = expiredOffers.filter(o => o.status === 'expired').length - before;
+    const afterDeadline = dd.window === 'summer' ? new Date(cur.getFullYear(), 8, 2) : new Date(cur.getFullYear(), 1, 2);
+    const before = (s.inboundOffers ?? []).filter((offer) => offer.status === 'expired').length;
+    const expiredOffers = (s.inboundOffers ?? []).map((offer) => offer.status === 'pending' ? { ...offer, status: 'expired' } : offer);
+    const expiredCount = expiredOffers.filter((offer) => offer.status === 'expired').length - before;
     await patchSave({ currentDate: afterDeadline.toISOString(), deadlineHoursUsed: null, inboundOffers: expiredOffers });
-    if (expiredCount > 0) {
-      toast(`⏰ Transfer window closed — ${expiredCount} pending offer${expiredCount > 1 ? 's' : ''} expired.`, 'info', 5000);
-    } else {
-      toast('⏰ Transfer window closed. Back to business!', 'info', 4000);
-    }
+    toast(expiredCount > 0 ? `Transfer window closed — ${expiredCount} pending offer${expiredCount > 1 ? 's' : ''} expired.` : 'Transfer window closed. Back to business!', 'info', 5000);
     screenTicks.home++;
   }
 
@@ -74,42 +107,24 @@
     if (deadlineBusy) return;
     deadlineBusy = true;
     try {
-      const sv = await getSave();
-      const used = sv.deadlineHoursUsed || 0;
-      const [deals, newOffers] = await Promise.all([
-        simulateAITransfers(sv).catch(() => []),
-        generateAIOffers().catch(() => []),
-      ]);
+      const s = await getSave();
+      const used = s.deadlineHoursUsed || 0;
+      const [deals, newOffers] = await Promise.all([simulateAITransfers(s).catch(() => []), generateAIOffers().catch(() => [])]);
       const newUsed = used + 1;
       await patchSave({ deadlineHoursUsed: newUsed });
-
       const parts = [];
       if (deals.length) parts.push(`${deals.length} AI deal${deals.length > 1 ? 's' : ''}`);
       if (newOffers.length) parts.push(`${newOffers.length} offer${newOffers.length > 1 ? 's' : ''} for your players`);
-      if (parts.length) {
-        toast(`⏰ Hour ${newUsed}: ${parts.join(' · ')}!`, 'success', 5000);
-      } else {
-        toast(`⏰ Hour ${newUsed}: Quiet on the market. (${10 - newUsed} left)`, 'info', 3500);
-      }
-
+      toast(parts.length ? `Hour ${newUsed}: ${parts.join(' · ')}!` : `Hour ${newUsed}: Quiet on the market. (${10 - newUsed} left)`, parts.length ? 'success' : 'info', 5000);
       if (deals.length) {
-        const dealList = deals.slice(0, 5).map(d => `${d.playerName}: ${d.fromTeamName} → ${d.toTeamName}`).join('\n');
+        const dealList = deals.slice(0, 5).map((deal) => `${deal.playerName}: ${deal.fromTeamName} → ${deal.toTeamName}`).join('\n');
         const extra = deals.length > 5 ? `\n…and ${deals.length - 5} more` : '';
-        await addNewsItem(_makeNewsItem('transfer_in',
-          `⏰ Deadline Day — Hour ${newUsed}`,
-          `${deals.length} deal${deals.length > 1 ? 's' : ''} completed:\n${dealList}${extra}`,
-          { gw: sv.currentGameweek, date: sv.currentDate, icon: '⏰' }));
+        await addNewsItem(_makeNewsItem('transfer_in', `Deadline Day — Hour ${newUsed}`, `${deals.length} deal${deals.length > 1 ? 's' : ''} completed:\n${dealList}${extra}`, { gw: s.currentGameweek, date: s.currentDate, icon: 'transfer' }));
       }
-
-      if (newUsed >= 10) {
-        toast('All deadline hours done. Closing transfer window…', 'info', 3000);
-        await new Promise(r => window.setTimeout(r, 1200));
-        await closeWindow(ddInfo);
-      } else {
-        screenTicks.home++;
-      }
-    } catch (err) {
-      console.error('Deadline hour error:', err);
+      if (newUsed >= 10) await closeWindow(ddInfo);
+      else screenTicks.home++;
+    } catch (error) {
+      console.error('Deadline hour error:', error);
       toast('Error simulating deadline hour.', 'error');
     } finally {
       deadlineBusy = false;
@@ -119,494 +134,207 @@
   async function doEndOfSeason() {
     if (eoyBusy) return;
     eoyBusy = true;
-    try {
-      await handleEndOfSeason();
-    } finally {
-      eoyBusy = false;
-    }
+    try { await handleEndOfSeason(); }
+    finally { eoyBusy = false; }
   }
 
   async function load() {
-    // See LeagueScreen.svelte — openDB() is idempotent, safe to call again here.
     await openDB();
     const s = await getSave();
     if (!s || s._deleted) return;
     cloudSignedIn = isSignedIn();
     save = s;
-    team = await getTeam(s.userTeamId);
-    const players = await getPlayersByTeam(s.userTeamId);
-    squadSize = players.length;
-    const allTeams = await getAllTeams();
-    byId = new Map(allTeams.map(t => [t.id, t]));
-    [prev, next, slice] = await Promise.all([
-      getLastResultForTeam(s.userTeamId),
-      getNextFixtureForTeam(s.userTeamId),
-      getTableSliceAroundTeam(s.userTeamId, 2),
+    const [club, players, allTeams, allPlayers, allFixtures, nextFixtures, tableSlice] = await Promise.all([
+      getTeam(s.userTeamId), getPlayersByTeam(s.userTeamId), getAllTeams(), getAllPlayers(), getAllFixtures(),
+      getUpcomingForTeam(s.userTeamId), getTableSliceAroundTeam(s.userTeamId, 2),
     ]);
+    team = club;
+    squadSize = players.length;
+    byId = new Map(allTeams.map((item) => [item.id, item]));
+    playerById = new Map(allPlayers.map((item) => [item.id, item]));
+    const userFixtures = allFixtures.filter((fixture) => fixture.homeTeamId === s.userTeamId || fixture.awayTeamId === s.userTeamId);
+    past = userFixtures.filter((fixture) => fixture.played).sort((a, b) => a.gameweek - b.gameweek).slice(-3);
+    upcoming = nextFixtures;
+    railGameweeks = Math.max(1, ...userFixtures.map((fixture) => fixture.gameweek));
+    slice = tableSlice;
 
-    const allPlayers = await getAllPlayers();
-    topScorers = [...allPlayers].filter(p => (p.goals || 0) > 0).sort((a, b) => b.goals - a.goals).slice(0, 7);
-    topAssists = [...allPlayers].filter(p => (p.assists || 0) > 0).sort((a, b) => b.assists - a.assists).slice(0, 7);
-
-    const mgrName = s.managerName || 'The Manager';
-    const mgrInitials = mgrName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const mgrAvEl = document.getElementById('mgr-av');
-    if (mgrAvEl) mgrAvEl.textContent = mgrInitials;
+    const managerName = s.managerName || 'The Manager';
+    const managerAvatar = document.getElementById('mgr-av');
+    if (managerAvatar) managerAvatar.textContent = managerName.split(' ').map((word) => word[0]).join('').slice(0, 2).toUpperCase();
 
     isEnd = s.currentGameweek > getEffectiveTotalGW(s);
     ddInfo = isDeadlineDay(s);
     onDeadlineDay = !isEnd && ddInfo.isDeadline;
     windowLabel = ddInfo.window === 'summer' ? 'Summer' : 'Winter';
     hoursLeft = 10 - (s.deadlineHoursUsed || 0);
-
     loaded = true;
-
-    if (onDeadlineDay && hoursLeft <= 0) {
-      // Already done all 10 hours — auto-close on next tick rather than
-      // leaving a dead "0 left" button on screen.
-      await closeWindow(ddInfo);
-      return;
-    }
-
+    await centreRail();
+    if (onDeadlineDay && hoursLeft <= 0) { await closeWindow(ddInfo); return; }
     if (onDeadlineDay) {
       const notifyKey = `deadlineDayNotified_${windowLabel}_${s.season}`;
       if (!s[notifyKey]) {
         await patchSave({ [notifyKey]: true, deadlineHoursUsed: s.deadlineHoursUsed || 0 });
-        toast(`⏰ Transfer Deadline Day! The ${windowLabel} window closes after 10 hours. Keep pressing "Skip One Hour" to simulate last-minute deals.`, 'info', 7000);
-        await addNewsItem(_makeNewsItem('transfer_in',
-          `⏰ ${windowLabel} Transfer Deadline Day`,
-          `The ${windowLabel} transfer window is about to close. Press "Skip One Hour" up to 10 times to simulate last-minute AI activity — deals and inbound offers for your players. The window closes automatically after all 10 hours.`,
-          { gw: s.currentGameweek, date: s.currentDate, icon: '⏰' }));
+        toast(`Transfer Deadline Day! The ${windowLabel} window closes after 10 hours.`, 'info', 7000);
+        await addNewsItem(_makeNewsItem('transfer_in', `${windowLabel} Transfer Deadline Day`, `The ${windowLabel} transfer window is about to close. Simulate up to 10 last-minute hours before it shuts.`, { gw: s.currentGameweek, date: s.currentDate, icon: 'transfer' }));
       }
     }
   }
 
   $effect(() => {
-    // renderHome() (src/ui/home_transfers.js) is still called imperatively
-    // from MatchScreen.svelte and squad_tactics_offers.js after a match, a
-    // squad change, etc. — it now just bumps this tick, regardless of
-    // whether Home is the visible screen, matching the old behaviour of
-    // always writing into #screen-home's (always-mounted) DOM.
+    // renderHome() remains an imperative bridge for match and squad events.
     void screenTicks.home;
     load();
   });
-
-  function resultClass(f) {
-    const isHome = f.homeTeamId === save.userTeamId;
-    const ug = isHome ? f.homeGoals : f.awayGoals;
-    const og = isHome ? f.awayGoals : f.homeGoals;
-    return ug > og ? 'win' : ug < og ? 'loss' : 'draw';
-  }
 </script>
 
 <div class="home-screen">
-  <div class="home-hdr">
-    <div class="home-hdr-top">
-      <div>
-        <div class="home-eyebrow">Dashboard</div>
-        <div class="home-title">Overview</div>
-      </div>
-      <div class="home-hdr-meta">
-        <div class="home-date">{save ? fmt.date(save.currentDate) : '—'}</div>
-        <div class="home-season-badge">Season {save?.season ?? '—'}</div>
-      </div>
-    </div>
-    <div class="home-hdr-actions">
-      {#if loaded && !isEnd && !onDeadlineDay}
-        <button id="btn-adv-header" class="action-btn play" onclick={() => navigateTo('match')}>▶ Play Next Match</button>
-      {/if}
-      {#if loaded && isEnd}
-        <button id="btn-eoy-header" class="action-btn eoy" disabled={eoyBusy} onclick={doEndOfSeason}>🏆 Next Season →</button>
-      {/if}
-      {#if loaded && onDeadlineDay}
-        <button id="btn-deadline-header" class="action-btn deadline" disabled={deadlineBusy} onclick={skipHour}>
-          {deadlineBusy ? '⏳ Simulating…' : `⏰ Skip One Hour (${hoursLeft} left)`}
-        </button>
-      {/if}
-      <button class="quick-btn" onclick={() => navigateTo('academy')}>Academy</button>
-      <button class="quick-btn" onclick={() => navigateTo('trophies')}>Trophies</button>
-      <button id="btn-inbox-header" class="icon-btn" aria-label="Inbox" onclick={() => navigateTo('inbox')}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        <span id="h-inbox-badge" class="icon-badge" style="display:none"></span>
-      </button>
-      <button class="icon-btn" aria-label="Settings" onclick={() => navigateTo('settings')}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
-    </div>
-  </div>
-
-  {#if loaded && !cloudSignedIn}
-    <div class="cloud-banner">
-      <span>Progress is local-only and will be lost if this browser's data is cleared.</span>
-      <button class="cloud-banner-btn" onclick={() => startGoogleLogin()}>Sign in with Google</button>
-    </div>
-  {/if}
-
   {#if !loaded}
-    <div class="home-empty">Loading…</div>
+    <div class="loading">Loading your season…</div>
   {:else}
-    <div class="home-body">
-      <div class="hero-card">
-        <div class="hero-crest">{team?.crest ?? ''}</div>
-        <div class="hero-info">
-          <div class="hero-name">{team?.name ?? ''}</div>
-          <div class="hero-sub">
-            <span>{team?.league || 'Premier League'}</span><span class="hero-dot"></span><span>{team?.stadium || ''}</span>
-          </div>
-        </div>
-        <div class="mgr-chip">
-          <div class="mgr-lbl">Manager</div>
-          <div class="mgr-name">{save?.managerName || 'The Manager'}</div>
-          <div class="mgr-since">Season {save?.season ?? ''}</div>
-        </div>
+    <header class="club-bar">
+      <Crest size={28} label={`${team?.name ?? 'Club'} crest`} />
+      <div class="club-copy">
+        <strong>{team?.name}</strong>
+        <span>{myRow?.displayPosition ?? myRow?.position ?? '—'}{myRow ? positionSuffix(myRow.displayPosition ?? myRow.position) : ''} · {myRow?.points ?? 0} pts · <Money value={team?.budget ?? 0} size="sm" tone="muted" /></span>
       </div>
+      <button id="btn-inbox-header" class="icon-button" aria-label="Inbox" onclick={() => navigateTo('inbox')}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 5h16v14H4zM4 7l8 6 8-6" /></svg>
+        <span id="h-inbox-badge" class="badge" style:display={unread.length ? 'grid' : 'none'}>{unread.length > 9 ? '9+' : unread.length}</span>
+      </button>
+    </header>
 
-      <div class="fixtures-row">
-        <div class="match-card">
-          <div class="mc-lbl">Previous Result</div>
-          {#if !prev}
-            <div class="no-data">No matches played yet</div>
+    <main>
+      <section class="season-stage" aria-labelledby="season-title">
+        <div class="section-label" id="season-title">The season · swipe to move through it</div>
+        <div class="season-rail" bind:this={railEl}>
+          {#each past as fixture (fixture.id)}
+            {@const result = resultFor(fixture)}
+            <article class="rail-card result-card">
+              <span>GW{fixture.gameweek}</span><strong class={result.tone}>{result.score}</strong><small>{opponent(fixture)?.name ?? 'Opponent'}</small>
+            </article>
+          {/each}
+          {#if next}
+            <article class="rail-card active-card" bind:this={activeCardEl}>
+              <div class="next-meta"><span>Gameweek {next.gameweek}</span><span>{fmt.dateShort(next.date)}</span></div>
+              <strong>{opponent(next)?.name ?? 'Opponent'}</strong>
+              <p>{isHome(next) ? team?.stadium ?? 'Home ground' : opponent(next)?.stadium ?? 'Opponent ground'} · {isHome(next) ? 'Home' : 'Away'}</p>
+              <FormGuide form={form} />
+            </article>
           {:else}
-            <div class="mc-fix">
-              <div class="mc-team">{byId.get(prev.homeTeamId)?.name || prev.homeTeamId}</div>
-              <div class="mc-score {resultClass(prev)}">{prev.homeGoals}-{prev.awayGoals}</div>
-              <div class="mc-team aw">{byId.get(prev.awayTeamId)?.name || prev.awayTeamId}</div>
-            </div>
-            <div class="mc-meta"><div class="mc-comp"><span class="mc-dot"></span>GW{prev.gameweek}</div><div>{fmt.dateShort(prev.date)}</div></div>
+            <article class="rail-card active-card complete" bind:this={activeCardEl}>
+              <span>Season complete</span><strong>Full time.</strong><p>Your final position is {myRow?.displayPosition ?? myRow?.position ?? '—'}.</p>
+            </article>
           {/if}
-        </div>
-        <div class="match-card">
-          <div class="mc-lbl">Next Fixture</div>
-          {#if !next}
-            <div class="no-data live">Season Complete!</div>
-          {:else}
-            <div class="mc-fix">
-              <div class="mc-team">{byId.get(next.homeTeamId)?.name || next.homeTeamId}</div>
-              <div class="mc-score vs">vs</div>
-              <div class="mc-team aw">{byId.get(next.awayTeamId)?.name || next.awayTeamId}</div>
-            </div>
-            <div class="mc-meta"><div class="mc-comp"><span class="mc-dot next"></span>GW{next.gameweek}</div><div>{fmt.dateShort(next.date)}</div></div>
-          {/if}
-        </div>
-      </div>
-
-      <div class="league-widget">
-        <div class="wdg-hdr">
-          <div class="wdg-title">League Table</div>
-          <button class="wdg-link" onclick={() => navigateTo('competitions')}>Full →</button>
-        </div>
-        <div class="mini-tbl-hdr"><div>#</div><div>Club</div><div>W</div><div>D</div><div>L</div><div>PTS</div></div>
-        <div class="mini-tbl-body">
-          {#each slice as row (row.teamId)}
-            <div class="mini-tbl-row" class:is-user={row.isUserTeam}>
-              <div class="rc">{row.displayPosition ?? row.position}</div>
-              <div class="tc">{row.teamName}</div>
-              <div class="sc">{row.won}</div><div class="sc">{row.drawn}</div><div class="sc">{row.lost}</div>
-              <div class="pc">{row.points}</div>
-            </div>
+          {#each future as fixture (fixture.id)}
+            <article class="rail-card future-card"><span>GW{fixture.gameweek}</span><strong>{opponent(fixture)?.name ?? 'Opponent'}</strong><small>{isHome(fixture) ? 'H' : 'A'} · {fmt.dateShort(fixture.date)}</small></article>
           {/each}
         </div>
-      </div>
+        <div class="season-progress"><div class="track"><span style:width={`${progress}%`}></span><i style:left={`${progress}%`}></i></div><span>{Math.min(save.currentGameweek, railGameweeks)} / {railGameweeks}</span></div>
+      </section>
 
-      <div class="stats-grid">
-        <div class="stat-tile"><div class="stl">Gameweek</div><div class="stv" style="color:var(--color-club)">{save.currentGameweek}</div><div class="sts">of {getEffectiveTotalGW(save)}</div></div>
-        <div class="stat-tile"><div class="stl">Budget</div><div class="stv" style="color:#7c83e8">{fmt.money(team?.budget || 0)}</div><div class="sts">Transfer funds</div></div>
-        <div class="stat-tile"><div class="stl">Squad</div><div class="stv" style="color:var(--color-live)">{squadSize}</div><div class="sts">players</div></div>
-        <div class="stat-tile"><div class="stl">Season</div><div class="stv" style="color:var(--color-warn)">{save.season}</div><div class="sts">{team?.league || 'League'}</div></div>
-      </div>
-
-      <div class="form-card">
-        <div class="form-title">Recent Form</div>
-        <div class="form-pills">
-          {#if form.length}
-            {#each form as r, i (i)}<div class="form-pill {r}">{r}</div>{/each}
-          {:else}
-            <span class="form-empty">No matches played</span>
-          {/if}
-        </div>
-        <div class="morale-block">
-          <div class="morale-lbl">Morale</div>
-          <div class="morale-track"><div class="morale-fill" style="width:{morale.pct}%"></div></div>
-          <div class="morale-txt">{morale.label}</div>
-        </div>
-        {#if save?.boardObjective}
-          <div class="morale-block">
-            <div class="morale-lbl">Board</div>
-            <div class="morale-track"><div class="morale-fill" style="width:{board.pct}%;background:{board.color}"></div></div>
-            <div class="morale-txt">{board.label}</div>
-          </div>
-          <div class="board-objective-txt">Objective: {save.boardObjective.label}</div>
+      <section class="primary-action" aria-label="Next action">
+        {#if !isEnd && !onDeadlineDay}
+          <Button id="btn-adv-header" size="lg" full onclick={() => navigateTo('match')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7z" /></svg>Play gameweek {save.currentGameweek}</Button>
+        {:else if isEnd}
+          <Button id="btn-eoy-header" size="lg" full disabled={eoyBusy} onclick={doEndOfSeason}>{eoyBusy ? 'Preparing next season…' : 'Start next season'}</Button>
+        {:else}
+          <Button id="btn-deadline-header" size="lg" full disabled={deadlineBusy} onclick={skipHour}>{deadlineBusy ? 'Simulating…' : `Skip one hour · ${hoursLeft} left`}</Button>
         {/if}
-      </div>
+      </section>
 
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-title">⚽ Top Scorers</div>
-          {#if topScorers.length}
-            {#each topScorers as p (p.id)}
-              <div class="chart-row"><div class="chart-name">{p.name}</div><div class="chart-bar-track"><div class="chart-bar" style="width:{Math.round((p.goals / topScorers[0].goals) * 100)}%;background:linear-gradient(90deg,var(--color-live),#7fff9a)"></div></div><div class="chart-val">{p.goals}</div></div>
-            {/each}
-          {:else}
-            <div class="chart-empty">Play matches to see stats</div>
-          {/if}
+      <section class="pulse-grid" aria-label="Club pulse">
+        <div><span>Form</span><FormGuide form={form} size="sm" /></div><div><span>Morale</span><strong>{morale}</strong></div><div><span>Board</span><strong>{board.label}</strong></div><div><span>Squad</span><strong>{squadSize} players</strong></div>
+      </section>
+      {#if save?.boardObjective}
+        <button class="objective" onclick={() => navigateTo('competitions')}><span>Board objective</span><strong>{save.boardObjective.label}</strong><i><b style:width={`${board.pct}%`}></b></i></button>
+      {/if}
+      <nav class="club-links" aria-label="Club areas"><button onclick={() => navigateTo('academy')}>Academy</button><button onclick={() => navigateTo('trophies')}>Trophies</button><button onclick={() => navigateTo('settings')}>Settings</button></nav>
+    </main>
+
+    <section class="waiting-sheet" aria-labelledby="waiting-title">
+      <div class="grabber"></div><div class="waiting-heading"><span id="waiting-title">Waiting on you</span><b>{waitingItems.length}</b></div>
+      {#if waitingItems.length}
+        <div class="waiting-list">
+          {#each waitingItems as item (item.id)}
+            <button onclick={() => openWaiting(item)}><span class="waiting-icon {item.tone}"><Icon name={item.tone === 'good' ? 'transfer' : item.tone === 'warn' ? 'warning' : 'info'} size={16} /></span><strong>{item.label}</strong><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></button>
+          {/each}
         </div>
-        <div class="chart-card">
-          <div class="chart-title">🎯 Top Assists</div>
-          {#if topAssists.length}
-            {#each topAssists as p (p.id)}
-              <div class="chart-row"><div class="chart-name">{p.name}</div><div class="chart-bar-track"><div class="chart-bar" style="width:{Math.round((p.assists / topAssists[0].assists) * 100)}%;background:linear-gradient(90deg,#7c83e8,#b8bcf7)"></div></div><div class="chart-val">{p.assists}</div></div>
-            {/each}
-          {:else}
-            <div class="chart-empty">Play matches to see stats</div>
-          {/if}
-        </div>
-      </div>
-    </div>
+      {:else}<p class="all-clear">Nothing needs a decision. Your next match is ready.</p>{/if}
+    </section>
   {/if}
 </div>
 
+<script module>
+  function positionSuffix(position) {
+    const n = Number(position);
+    if (n % 100 >= 11 && n % 100 <= 13) return 'th';
+    return n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
+  }
+</script>
+
 <style>
-  .home-screen {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 18px 16px 24px;
-    font-family: var(--font-body);
-    color: var(--color-tx);
-  }
-
-  .home-hdr { flex-shrink: 0; margin-bottom: 16px; }
-  .home-hdr-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-  .home-eyebrow {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--color-club);
-    margin-bottom: 3px;
-  }
-  .home-title { font-family: var(--font-display); font-size: clamp(24px, 5vw, 32px); letter-spacing: 1px; line-height: 1; }
-  .home-hdr-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-  .home-date { font-family: var(--font-mono); font-size: 11px; color: var(--color-tx-2); }
-  .home-season-badge {
-    background: var(--color-raised);
-    border: 1px solid var(--color-line);
-    padding: 3px 9px;
-    border-radius: 14px;
-    font-size: 10px;
-    color: var(--color-tx-2);
-    font-family: var(--font-mono);
-  }
-
-  .cloud-banner {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 0 0 12px;
-    padding: 8px 12px;
-    background: var(--color-raised);
-    border: 1px solid var(--color-line);
-    border-radius: 10px;
-    font-size: 11px;
-    color: var(--color-tx-2);
-  }
-  .cloud-banner-btn {
-    flex-shrink: 0;
-    border: none;
-    background: var(--color-club);
-    color: var(--color-on-club, #fff);
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: var(--font-body);
-    white-space: nowrap;
-  }
-
-  .home-hdr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-  .action-btn {
-    padding: 10px 20px;
-    min-height: 44px;
-    border-radius: 9px;
-    border: none;
-    font-family: var(--font-body);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .action-btn.play { background: var(--color-club); color: var(--color-on-club, #fff); }
-  .action-btn.eoy { border: 2px solid var(--color-warn); background: transparent; color: var(--color-warn); }
-  .action-btn.deadline { border: 2px solid #f97316; background: rgba(249,115,22,.12); color: #f97316; }
-  .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .quick-btn {
-    padding: 9px 14px;
-    min-height: 44px;
-    border-radius: 9px;
-    border: 1px solid var(--color-line);
-    background: var(--color-surface);
-    color: var(--color-tx-2);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .quick-btn:hover { color: var(--color-tx); background: var(--color-raised); }
-
-  .icon-btn {
-    position: relative;
-    width: 44px; height: 44px;
-    border-radius: 9px;
-    border: 1px solid var(--color-line);
-    background: var(--color-surface);
-    color: var(--color-tx-2);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .icon-btn:hover { background: var(--color-raised); color: var(--color-tx); }
-  .icon-badge {
-    position: absolute; top: -4px; right: -4px;
-    background: var(--color-warn);
-    color: #14171c;
-    font-size: 9px; font-family: var(--font-mono); font-weight: 700;
-    min-width: 16px; height: 16px; border-radius: 99px;
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 3px;
-  }
-
-  .home-empty { color: var(--color-tx-3); font-size: 12px; padding: 24px; text-align: center; }
-
-  .home-body { display: grid; grid-template-columns: 1fr; gap: 14px; }
-  @media (min-width: 900px) {
-    .home-body { grid-template-columns: 1fr 1fr; }
-    .hero-card, .fixtures-row, .stats-grid, .charts-grid { grid-column: 1 / -1; }
-  }
-
-  .hero-card {
-    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 16px;
-  }
-  .hero-crest { font-size: 40px; line-height: 1; }
-  .hero-info { flex: 1; min-width: 140px; }
-  .hero-name { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.5px; }
-  .hero-sub { display: flex; align-items: center; gap: 8px; color: var(--color-tx-2); font-size: 12px; margin-top: 2px; }
-  .hero-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--color-tx-3); }
-  .mgr-chip {
-    background: var(--color-raised);
-    border: 1px solid var(--color-line);
-    border-radius: 10px;
-    padding: 8px 14px;
-    text-align: right;
-  }
-  .mgr-lbl { font-size: 9px; color: var(--color-tx-3); text-transform: uppercase; letter-spacing: 1px; }
-  .mgr-name { font-size: 13px; font-weight: 600; }
-  .mgr-since { font-size: 10px; color: var(--color-tx-3); }
-
-  .fixtures-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .match-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 14px;
-  }
-  .mc-lbl { font-size: 10px; color: var(--color-tx-3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-  .no-data { color: var(--color-tx-3); font-size: 12px; }
-  .no-data.live { color: var(--color-live); }
-  .mc-fix { display: flex; align-items: center; gap: 8px; }
-  .mc-team { flex: 1; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mc-team.aw { text-align: right; }
-  .mc-score { font-family: var(--font-display); font-size: 20px; letter-spacing: 1px; flex-shrink: 0; }
-  .mc-score.vs { color: var(--color-tx-3); font-size: 14px; }
-  .mc-score.win { color: var(--color-live); }
-  .mc-score.loss { color: var(--color-bad); }
-  .mc-meta { display: flex; justify-content: space-between; color: var(--color-tx-3); font-size: 10px; font-family: var(--font-mono); margin-top: 8px; }
-  .mc-comp { display: flex; align-items: center; gap: 4px; }
-  .mc-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-tx-3); }
-  .mc-dot.next { background: var(--color-club); }
-
-  .league-widget {
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    overflow: hidden;
-  }
-  .wdg-hdr { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--color-line); }
-  .wdg-title { font-family: var(--font-display); font-size: 15px; letter-spacing: 0.5px; }
-  .wdg-link { background: none; border: none; color: var(--color-club); font-size: 11px; font-weight: 600; cursor: pointer; padding: 0; }
-  .mini-tbl-hdr, .mini-tbl-row {
-    display: grid;
-    grid-template-columns: 22px 1fr 22px 22px 22px 32px;
-    gap: 4px;
-    align-items: center;
-    padding: 6px 14px;
-  }
-  .mini-tbl-hdr { font-family: var(--font-mono); font-size: 9px; color: var(--color-tx-3); }
-  .mini-tbl-row { font-size: 12px; }
-  .mini-tbl-row.is-user { background: color-mix(in oklch, var(--color-club) 12%, transparent); }
-  .mini-tbl-row.is-user .tc { color: var(--color-tx); font-weight: 600; }
-  .rc { color: var(--color-tx-3); font-family: var(--font-mono); font-size: 10px; }
-  .tc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sc { text-align: center; color: var(--color-tx-2); font-family: var(--font-mono); font-size: 10px; }
-  .pc { text-align: center; font-weight: 700; font-family: var(--font-mono); font-size: 12px; }
-
-  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  @media (min-width: 560px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
-  .stat-tile {
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    padding: 12px;
-  }
-  .stl { font-size: 10px; color: var(--color-tx-2); margin-bottom: 3px; }
-  .stv { font-family: var(--font-display); font-size: clamp(18px, 3vw, 24px); line-height: 1; letter-spacing: 1px; }
-  .sts { font-size: 9px; color: var(--color-tx-3); margin-top: 3px; }
-
-  .form-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 14px;
-  }
-  .form-title { font-size: 10px; color: var(--color-tx-3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-  .form-pills { display: flex; gap: 5px; margin-bottom: 12px; }
-  .form-empty { color: var(--color-tx-3); font-size: 12px; }
-  .form-pill {
-    width: 22px; height: 22px; border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 700; font-family: var(--font-mono);
-  }
-  .form-pill.W { background: color-mix(in oklch, var(--color-live) 20%, transparent); color: var(--color-live); }
-  .form-pill.D { background: color-mix(in oklch, var(--color-warn) 18%, transparent); color: var(--color-warn); }
-  .form-pill.L { background: color-mix(in oklch, var(--color-bad) 18%, transparent); color: var(--color-bad); }
-  .morale-block { display: flex; align-items: center; gap: 10px; }
-  .morale-lbl { font-size: 11px; color: var(--color-tx-2); flex-shrink: 0; }
-  .morale-track { flex: 1; height: 6px; border-radius: 3px; background: var(--color-raised); overflow: hidden; }
-  .morale-fill { height: 100%; background: var(--color-club); border-radius: 3px; }
-  .morale-txt { font-size: 11px; font-weight: 600; flex-shrink: 0; }
-  .board-objective-txt { font-size: 10px; color: var(--color-tx-3); margin-top: -4px; }
-
-  .charts-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-  @media (min-width: 700px) { .charts-grid { grid-template-columns: 1fr 1fr; } }
-  .chart-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 14px;
-  }
-  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
-  .chart-empty { color: var(--color-tx-3); font-size: 11px; padding: 8px 0; }
-  .chart-row { display: grid; grid-template-columns: 90px 1fr 24px; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .chart-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .chart-bar-track { height: 8px; border-radius: 4px; background: var(--color-raised); overflow: hidden; }
-  .chart-bar { height: 100%; border-radius: 4px; }
-  .chart-val { font-size: 11px; font-family: var(--font-mono); text-align: right; color: var(--color-tx-2); }
+  .home-screen { position: relative; min-height: 100%; display: flex; flex-direction: column; color: var(--color-tx); background: radial-gradient(circle at 50% 34%, color-mix(in oklch, var(--color-club) 11%, transparent), transparent 34rem), var(--color-ground); font-family: var(--font-body); }
+  .loading { min-height: 100dvh; display: grid; place-items: center; color: var(--color-tx-3); font-size: 13px; }
+  .club-bar { display: flex; align-items: center; gap: 11px; padding: 18px 20px 0; }
+  .club-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+  .club-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+  .club-copy span { margin-top: 2px; color: var(--color-tx-3); font: 600 10px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+  .icon-button { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--color-tx-2); background: transparent; border: 1px solid var(--color-line); border-radius: 50%; cursor: pointer; }
+  .icon-button svg { width: 18px; }
+  .badge { position: absolute; top: -2px; right: -2px; min-width: 17px; height: 17px; padding: 0 4px; place-items: center; color: var(--color-on-accent); background: var(--color-accent); border: 2px solid var(--color-ground); border-radius: 999px; font: 700 8px/1 var(--font-mono); }
+  main { width: 100%; max-width: 1040px; margin: 0 auto; padding: 26px 0 24px; }
+  .section-label, .waiting-heading { color: var(--color-tx-3); font: 600 10px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; }
+  .section-label { padding: 0 20px 11px; }
+  .season-rail { display: flex; align-items: stretch; gap: 9px; padding: 0 max(20px, calc((100vw - 1040px) / 2)); overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-inline: contain; scrollbar-width: none; }
+  .season-rail::-webkit-scrollbar { display: none; }
+  .rail-card { flex: 0 0 78px; min-height: 116px; scroll-snap-align: center; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 10px; border-left: 1px solid var(--color-line); }
+  .rail-card > span, .rail-card small { color: var(--color-tx-3); font: 600 9px/1.25 var(--font-mono); letter-spacing: .07em; text-transform: uppercase; }
+  .result-card strong { font: 700 19px/1 var(--font-display); }
+  .result-card small, .future-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .win { color: var(--color-live); } .loss { color: var(--color-bad); } .draw { color: var(--color-tx-2); }
+  .active-card { position: relative; flex-basis: min(64vw, 320px); min-height: 174px; justify-content: flex-start; padding: 17px; overflow: hidden; background: linear-gradient(155deg, color-mix(in oklch, var(--color-club) 17%, transparent), color-mix(in oklch, var(--color-surface) 92%, transparent)); border: 1px solid color-mix(in oklch, var(--color-club) 45%, var(--color-line)); border-radius: var(--radius-card); box-shadow: 0 18px 52px rgba(0,0,0,.28); }
+  .active-card::after { content: ''; position: absolute; inset: 0 auto 0 -45%; width: 42%; background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--color-tx) 6%, transparent), transparent); animation: sweep 4.2s var(--ease-in-out) infinite; pointer-events: none; }
+  .next-meta { display: flex; justify-content: space-between; color: var(--color-tx-2); font: 600 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+  .next-meta span:first-child { color: color-mix(in oklch, var(--color-club) 65%, var(--color-tx)); }
+  .active-card > strong { margin-top: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 clamp(28px, 7vw, 42px)/.95 var(--font-display); letter-spacing: -.025em; }
+  .active-card p { color: var(--color-tx-2); font-size: 12px; }
+  .active-card :global(.form) { margin-top: auto; }
+  .active-card.complete > span { color: var(--color-accent); }
+  .future-card { justify-content: center; }
+  .future-card strong { font-size: 12px; }
+  .season-progress { display: flex; align-items: center; gap: 10px; padding: 15px 20px 0; color: var(--color-tx-3); font: 600 10px/1 var(--font-mono); }
+  .track { position: relative; flex: 1; height: 2px; background: var(--color-line); }
+  .track span { display: block; height: 100%; background: var(--color-club); }
+  .track i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; background: var(--color-tx); border-radius: 50%; }
+  .primary-action { padding: 24px 20px 0; }
+  .primary-action :global(button) { border-radius: var(--radius-card); text-transform: uppercase; font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: .04em; box-shadow: 0 14px 40px color-mix(in oklch, var(--color-accent) 19%, transparent); }
+  .primary-action svg { width: 18px; fill: currentColor; }
+  .pulse-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 24px 20px 0; overflow: hidden; background: var(--color-line); border: 1px solid var(--color-line); border-radius: var(--radius-card); }
+  .pulse-grid > div { min-height: 62px; display: flex; flex-direction: column; justify-content: center; gap: 7px; padding: 11px 13px; background: color-mix(in oklch, var(--color-surface) 92%, transparent); }
+  .pulse-grid span, .objective span { color: var(--color-tx-3); font: 600 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+  .pulse-grid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .objective { width: calc(100% - 40px); display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; margin: 12px 20px 0; padding: 13px; text-align: left; color: var(--color-tx); background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); cursor: pointer; }
+  .objective strong { font-size: 12px; }
+  .objective i { grid-column: 1 / -1; height: 3px; overflow: hidden; background: var(--color-raised); border-radius: 2px; }
+  .objective b { display: block; height: 100%; background: var(--color-club); }
+  .club-links { display: flex; gap: 8px; padding: 12px 20px 0; }
+  .club-links button { min-height: 44px; flex: 1; color: var(--color-tx-2); background: transparent; border: 1px solid var(--color-line); border-radius: var(--radius-bug); font: 600 12px/1 var(--font-body); cursor: pointer; }
+  .waiting-sheet { width: min(100% - 24px, 1016px); margin: auto auto 0; padding: 12px 16px calc(92px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, var(--color-raised), var(--color-surface)); border: 1px solid var(--color-line); border-bottom: 0; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: 0 -18px 48px rgba(0,0,0,.24); }
+  .grabber { width: 38px; height: 4px; margin: 0 auto 14px; background: color-mix(in oklch, var(--color-tx) 22%, transparent); border-radius: 3px; }
+  .waiting-heading { display: flex; align-items: center; gap: 7px; padding-bottom: 9px; }
+  .waiting-heading b { display: grid; min-width: 17px; height: 17px; place-items: center; color: var(--color-on-accent); background: var(--color-accent); border-radius: 99px; font-size: 9px; }
+  .waiting-list { max-height: 122px; overflow-y: auto; }
+  .waiting-list button { width: 100%; min-height: 54px; display: flex; align-items: center; gap: 11px; padding: 7px 0; text-align: left; color: var(--color-tx); background: transparent; border: 0; border-top: 1px solid var(--color-line); cursor: pointer; }
+  .waiting-list button:first-child { border-top: 0; }
+  .waiting-icon { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 10px; font: 700 14px/1 var(--font-mono); }
+  .waiting-icon.good { color: var(--color-live); background: color-mix(in oklch, var(--color-live) 12%, transparent); }
+  .waiting-icon.warn { color: var(--color-warn); background: color-mix(in oklch, var(--color-warn) 12%, transparent); }
+  .waiting-icon.neutral { color: var(--color-tx-2); background: var(--color-raised-2); }
+  .waiting-list strong { min-width: 0; flex: 1; font-size: 13px; font-weight: 500; }
+  .waiting-list svg { width: 16px; flex: 0 0 auto; fill: none; stroke: var(--color-tx-3); stroke-width: 2; }
+  .all-clear { padding: 7px 0 12px; color: var(--color-tx-2); font-size: 13px; }
+  button:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+  @keyframes sweep { from { transform: translateX(0); } to { transform: translateX(360%); } }
+  @media (min-width: 769px) { .club-bar { max-width: 1040px; width: 100%; margin: 0 auto; padding-top: 24px; } .season-rail { padding-inline: 20px; } .active-card { flex-basis: 360px; } .pulse-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .waiting-sheet { padding-bottom: 24px; } }
+  @media (max-width: 420px) { main { padding-top: 22px; } .active-card { flex-basis: 68vw; } .waiting-sheet { width: calc(100% - 16px); } }
 </style>

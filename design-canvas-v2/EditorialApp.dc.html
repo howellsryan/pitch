@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #F8F5EF; font-family: Archivo, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #B3361F; } a:hover { color: #16130D; }
+    * { box-sizing: border-box; }
+    .ser { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
+    .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .kick { font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F8F5EF; color: #16130D; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; gap: 11px; padding: 16px 20px 12px;">
+    <svg viewBox="0 0 26 30" width="26" height="30" aria-hidden="true"><path d="M13 1 L24 5 V16 C24 23.5 18 27.5 13 29 C8 27.5 2 23.5 2 16 V5 Z" fill="#EF0107" stroke="#16130D" stroke-width="1.2"></path></svg>
+    <div style="flex-grow: 1; min-width: 0;">
+      <div class="ser" style="font-size: 21px; line-height: 1.05em;">Arsenal</div>
+      <div class="num" style="font-size: 11px; color: #6E6659; margin-top: 1px;">Gameweek 12 of 38</div>
+    </div>
+    <div style="text-align: right;">
+      <div class="kick" style="color: #6E6659;">Budget</div>
+      <div class="ser num" style="font-size: 19px; line-height: 1.1em;">£48.5m</div>
+    </div>
+  </div>
+
+  <div style="height: 1px; background: #16130D;"></div>
+
+  <div style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 18px 20px 0; display: flex; flex-direction: column; gap: 18px;">
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <div class="kick" style="color: #B3361F;">Next fixture</div>
+        <div class="kick num" style="color: #6E6659;">Sat 15:00 · Emirates</div>
+      </div>
+      <div class="ser" style="font-size: 40px; line-height: 1em; letter-spacing: -0.02em;">Chelsea<span style="color: #9A9081;"> at home</span></div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="kick" style="color: #6E6659;">Form</span>
+        <div style="display: flex; gap: 4px;">
+          <div style="width: 22px; height: 4px; background: #2E5E3F;"></div>
+          <div style="width: 22px; height: 4px; background: #2E5E3F;"></div>
+          <div style="width: 22px; height: 4px; background: #C9C2B4;"></div>
+          <div style="width: 22px; height: 4px; background: #B3361F;"></div>
+          <div style="width: 22px; height: 4px; background: #2E5E3F;"></div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 56px; background: #16130D; color: #F8F5EF; font-size: 16px; font-weight: 600;">
+        Play the match
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>
+      </div>
+    </div>
+
+    <div style="height: 1px; background: #DFD8CA;"></div>
+
+    <div style="display: flex; flex-direction: column; gap: 9px;">
+      <div class="kick" style="color: #6E6659;">Premier League</div>
+      <div style="display: flex; align-items: center; gap: 12px; font-size: 14px; color: #6E6659;" class="num">
+        <span style="width: 18px;">2</span><span style="flex-grow: 1; color: #16130D;">Manchester City</span><span>28</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; border-left: 3px solid #EF0107; padding-left: 9px; margin-left: -12px;" class="num">
+        <span style="width: 18px;">3</span><span style="flex-grow: 1;">Arsenal</span><span>26</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; font-size: 14px; color: #6E6659;" class="num">
+        <span style="width: 18px;">4</span><span style="flex-grow: 1; color: #16130D;">Liverpool</span><span>25</span>
+      </div>
+    </div>
+
+    <div style="height: 1px; background: #DFD8CA;"></div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div class="kick" style="color: #6E6659;">Needs you</div>
+      <div style="display: flex; align-items: center; gap: 10px; font-size: 14px;">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: #B3361F; flex-shrink: 0;"></span>
+        <span style="flex-grow: 1;">Saliba is one booking from a ban</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; font-size: 14px;">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: #E0A21A; flex-shrink: 0;"></span>
+        <span style="flex-grow: 1;">Two bids waiting on Fábio Vieira</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="height: 1px; background: #16130D;"></div>
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: #F8F5EF; padding: 0 8px 22px;">
+    <div style="height: 52px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border-top: 2px solid #16130D; margin-top: -1px;">Home</div>
+    <div style="height: 52px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #6E6659;">Squad</div>
+    <div style="height: 52px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #6E6659;">Table</div>
+    <div style="height: 52px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #6E6659;">Market</div>
+    <div style="height: 52px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #6E6659;">Club</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -36,13 +36,15 @@ for (const name of CLUBS) {
     const expected = resolveAccent(raw);
 
     await page.goto('/');
-    await expect(page.locator('.team-card').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.club-card').first()).toBeVisible({ timeout: 15000 });
 
-    const card = page.locator('.team-card', { hasText: name }).first();
+    // Search rather than scroll: the picker holds 186 clubs and the lower
+    // divisions are a long way down.
+    await page.getByLabel('Search clubs by name').fill(name);
+    const card = page.locator('.club-card', { hasText: name }).first();
     if (!(await card.count())) test.skip(true, `${name} not selectable`);
-    await card.scrollIntoViewIfNeeded();
     await card.click();
-    await page.locator('#btn-start').click();
+    await page.getByRole('button', { name: /^Start with / }).click();
     await expect(page.locator('#app')).toBeVisible({ timeout: 30000 });
     await page.waitForTimeout(600);
 

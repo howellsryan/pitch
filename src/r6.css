@@ -1,0 +1,511 @@
+/**
+ * R6 — Market + Table (docs/plan/07-redesign.md).
+ *
+ * These are deliberately global, screen-scoped overrides rather than a
+ * rewrite of TransfersScreen/LeagueScreen. Both screens already own mature
+ * behaviour; R6's job is the visual/density pass. In particular, do not move
+ * Transfers' flex/overflow rules back into the shared shell: the buy list's
+ * windowed virtualization depends on the #screen-transfers -> component ->
+ * panel -> buy-scroll min-height chain remaining intact.
+ */
+
+/* ── Shared R6 density language ───────────────────────────────────── */
+#screen-transfers,
+#screen-competitions {
+  font-variant-numeric: tabular-nums;
+}
+
+#screen-transfers button,
+#screen-transfers input,
+#screen-transfers select,
+#screen-competitions button,
+#screen-competitions input,
+#screen-competitions select {
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+#screen-transfers button:focus-visible,
+#screen-transfers input:focus-visible,
+#screen-transfers select:focus-visible,
+#screen-competitions button:focus-visible,
+#screen-competitions input:focus-visible,
+#screen-competitions select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── MARKET ───────────────────────────────────────────────────────── */
+#screen-transfers .transfers-screen {
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-raised) 18%, transparent), transparent 150px),
+    var(--color-ground);
+}
+
+#screen-transfers .tr-hdr {
+  padding: 18px 18px 11px;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--color-line);
+}
+
+#screen-transfers .tr-eyebrow {
+  margin-bottom: 5px;
+  color: var(--color-tx-3);
+  font-size: 9px;
+  letter-spacing: .18em;
+  font-weight: 600;
+}
+
+#screen-transfers .tr-title {
+  font-size: clamp(25px, 7vw, 34px);
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+
+#screen-transfers .tr-budget {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+}
+
+#screen-transfers .tr-budget-lbl,
+#screen-transfers .tr-wage-lbl {
+  color: var(--color-tx-3);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#screen-transfers .tr-budget-val {
+  color: var(--color-live);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+#screen-transfers .tr-window-banner {
+  margin: 8px 18px 0;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in oklch, var(--color-bad) 30%, var(--color-line));
+  border-radius: var(--radius-bug);
+  background: color-mix(in oklch, var(--color-bad) 8%, transparent);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#screen-transfers .tr-tabs {
+  gap: 0;
+  padding: 10px 18px 9px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--color-line);
+}
+
+#screen-transfers .tr-tabs::-webkit-scrollbar { display: none; }
+
+#screen-transfers .tr-tab,
+#screen-transfers .tr-tab-offers {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-tx-2);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#screen-transfers .tr-tab:hover,
+#screen-transfers .tr-tab-offers:hover {
+  background: var(--color-surface);
+  color: var(--color-tx);
+}
+
+#screen-transfers .tr-tab.on {
+  border-bottom-color: var(--color-accent);
+  background: transparent;
+  color: var(--color-tx);
+}
+
+#screen-transfers .tr-tab-offers {
+  color: var(--color-warn);
+}
+
+#screen-transfers .offers-badge {
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 8px;
+}
+
+#screen-transfers .tr-panel {
+  padding: 10px 18px 18px;
+  gap: 7px;
+}
+
+#screen-transfers .tr-panel-title {
+  padding: 1px 0 6px;
+  color: var(--color-tx-2);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+#screen-transfers .tr-search-row {
+  gap: 8px;
+}
+
+#screen-transfers .tr-search {
+  min-height: 38px;
+  padding: 0 11px;
+  border-color: var(--color-line);
+  border-radius: var(--radius-bug);
+  background: var(--color-surface);
+  font-size: 12px;
+}
+
+#screen-transfers .tr-search::placeholder {
+  color: var(--color-tx-3);
+}
+
+#screen-transfers .tr-count {
+  color: var(--color-tx-3);
+  font-size: 9px;
+}
+
+#screen-transfers .ftabs {
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+#screen-transfers .ftabs::-webkit-scrollbar { display: none; }
+
+#screen-transfers .ftab {
+  min-height: 32px;
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border-color: var(--color-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-tx-2);
+  font-size: 10px;
+}
+
+#screen-transfers .ftab:hover {
+  border-color: color-mix(in oklch, var(--color-tx) 22%, var(--color-line));
+  color: var(--color-tx);
+}
+
+#screen-transfers .ftab.on {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+#screen-transfers .tr-reset {
+  color: var(--color-bad);
+}
+
+#screen-transfers .tr-adv {
+  border-width: 1px 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#screen-transfers .tr-adv summary {
+  padding: 8px 2px;
+  color: var(--color-tx-3);
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+
+#screen-transfers .tr-adv-body {
+  padding: 4px 0 10px;
+}
+
+#screen-transfers .tr-adv-row select {
+  min-height: 34px;
+  border-radius: var(--radius-bug);
+  background: var(--color-surface);
+}
+
+/*
+ * Virtualization contract: ROW_H remains 68 in TransfersScreen.svelte.
+ * The rendered row stays 62px high with the existing 3px top inset. R6 only
+ * removes the card treatment; it does not change the virtual coordinate
+ * system or any flex/overflow property in the height chain.
+ */
+#screen-transfers .buy-scroll {
+  scrollbar-color: var(--color-raised-2) transparent;
+  scrollbar-width: thin;
+}
+
+#screen-transfers .buy-row {
+  height: 62px;
+  margin-top: 3px;
+  padding: 7px 5px;
+  gap: 8px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+#screen-transfers .buy-row:hover,
+#screen-transfers .buy-row:focus-visible {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--color-accent) 7%, transparent), transparent 78%);
+}
+
+#screen-transfers .pl-flag {
+  width: 22px;
+  height: 20px;
+  color: var(--color-tx-3);
+  background: var(--color-raised);
+  border-radius: 2px;
+  font-size: 8px;
+  letter-spacing: .04em;
+}
+
+#screen-transfers .pl-info {
+  gap: 2px;
+}
+
+#screen-transfers .pl-name {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+#screen-transfers .pl-meta {
+  gap: 5px;
+  color: var(--color-tx-3);
+  font-size: 9px;
+  letter-spacing: .015em;
+}
+
+#screen-transfers .pl-tag,
+#screen-transfers .pos-badge {
+  border: 0;
+  border-radius: 2px;
+  background: var(--color-raised);
+}
+
+#screen-transfers .pl-val {
+  color: var(--color-tx);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+#screen-transfers .pl-rat {
+  color: var(--color-live);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+#screen-transfers .sell-scroll {
+  gap: 0;
+  scrollbar-color: var(--color-raised-2) transparent;
+  scrollbar-width: thin;
+}
+
+#screen-transfers .sell-row {
+  min-height: 58px;
+  padding: 7px 5px;
+  gap: 8px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+#screen-transfers .sell-row:hover {
+  background: var(--color-surface);
+}
+
+#screen-transfers .sell-btn {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-bug);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Negotiation remains a bottom sheet, but uses the same flat R6 treatment. */
+#screen-transfers ~ .sheet,
+body > .sheet {
+  border-color: var(--color-line);
+}
+
+@media (max-width: 560px) {
+  #screen-transfers .tr-hdr { padding-inline: 16px; }
+  #screen-transfers .tr-tabs { padding-inline: 16px; }
+  #screen-transfers .tr-panel {
+    padding-inline: 16px;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  }
+  #screen-transfers .tr-budget-val { font-size: 19px; }
+  #screen-transfers .tr-wage-lbl { max-width: 130px; }
+}
+
+/* ── TABLE ────────────────────────────────────────────────────────── */
+#screen-competitions .league-screen {
+  padding: 18px 18px calc(88px + env(safe-area-inset-bottom, 0px));
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-raised) 18%, transparent), transparent 150px),
+    var(--color-ground);
+}
+
+#screen-competitions .league-hdr {
+  margin-bottom: 11px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+#screen-competitions .league-eyebrow {
+  margin-bottom: 5px;
+  color: var(--color-tx-3);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .18em;
+}
+
+#screen-competitions .league-title {
+  font-size: clamp(25px, 7vw, 34px);
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+
+#screen-competitions .league-season {
+  color: var(--color-tx-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  vertical-align: middle;
+}
+
+#screen-competitions .league-body {
+  gap: 18px;
+}
+
+#screen-competitions .league-table-card,
+#screen-competitions .league-results-card {
+  overflow: visible;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#screen-competitions .league-table-hdr,
+#screen-competitions .league-row {
+  padding-inline: 5px;
+}
+
+#screen-competitions .league-table-hdr {
+  min-height: 32px;
+  padding-block: 7px;
+  border-bottom-color: color-mix(in oklch, var(--color-tx) 14%, transparent);
+  color: var(--color-tx-3);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#screen-competitions .league-row {
+  min-height: 39px;
+  padding-block: 7px;
+  border-bottom: 1px solid var(--color-line);
+  border-left-width: 2px;
+  background: transparent;
+  font-size: 12px;
+}
+
+#screen-competitions .league-row:hover {
+  background: var(--color-surface);
+}
+
+#screen-competitions .league-row.is-user {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--color-club) 11%, transparent), transparent 75%);
+}
+
+#screen-competitions .league-row.is-user .tc {
+  color: var(--color-tx);
+  font-weight: 700;
+}
+
+#screen-competitions .rc,
+#screen-competitions .sc {
+  color: var(--color-tx-3);
+}
+
+#screen-competitions .pc {
+  color: var(--color-tx);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#screen-competitions .league-results-hdr {
+  padding: 11px 4px 8px;
+  border-bottom-color: color-mix(in oklch, var(--color-tx) 14%, transparent);
+  color: var(--color-tx-2);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+#screen-competitions .league-results-list {
+  max-height: none;
+  padding: 0;
+}
+
+#screen-competitions .result-row {
+  margin: 0;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+}
+
+#screen-competitions .result-row.is-user {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--color-club) 9%, transparent), transparent 78%);
+}
+
+#screen-competitions .result-gw,
+#screen-competitions .result-date {
+  color: var(--color-tx-3);
+  font-size: 8px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+#screen-competitions .rsc {
+  color: var(--color-tx);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (min-width: 900px) {
+  #screen-competitions .league-screen {
+    padding-inline: 28px;
+    padding-bottom: 28px;
+  }
+  #screen-competitions .league-body {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+  }
+  #screen-competitions .league-results-list {
+    max-height: calc(100vh - 190px);
+    overflow-y: auto;
+  }
+}

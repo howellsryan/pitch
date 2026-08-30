@@ -3,6 +3,7 @@
   import { CUP_META } from '../../modules/cups.js';
   import { getHonorsForTeam } from '../../modules/season.js';
   import { screenTicks } from '../state/screens.svelte.js';
+  import Icon from './kit/Icon.svelte';
 
   const LEAGUE_TITLE_KEY = {
     'Premier League': 'premier_league', 'Championship': 'championship',
@@ -11,17 +12,34 @@
     'Serie A': 'serie_a', 'Ligue 1': 'ligue_1', 'Eredivisie': 'eredivisie',
   };
   const DOMESTIC_CUP_DEFS = {
-    'Premier League': [{ key: 'fa_cup', name: 'FA Cup', icon: '🏆', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: '🥛', color: '#c084fc' }],
-    'Championship':   [{ key: 'fa_cup', name: 'FA Cup', icon: '🏆', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: '🥛', color: '#c084fc' }],
-    'League One':     [{ key: 'fa_cup', name: 'FA Cup', icon: '🏆', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: '🥛', color: '#c084fc' }],
-    'League Two':     [{ key: 'fa_cup', name: 'FA Cup', icon: '🏆', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: '🥛', color: '#c084fc' }],
-    'Eredivisie':     [{ key: 'knvb_beker', name: 'KNVB Beker', icon: '🏆', color: '#FF6600' }],
-    'La Liga':        [{ key: 'copa_del_rey', name: 'Copa del Rey', icon: '👑', color: '#c8102e' }, { key: 'supercopa', name: 'Supercopa de España', icon: '🔴', color: '#f5c842' }],
-    'Bundesliga':     [{ key: 'dfb_pokal', name: 'DFB-Pokal', icon: '🏆', color: '#000000' }, { key: 'dfb_supercup', name: 'DFL-Supercup', icon: '⚡', color: '#d4a017' }],
-    'Serie A':        [{ key: 'coppa_italia', name: 'Coppa Italia', icon: '🏆', color: '#009246' }, { key: 'supercoppa', name: 'Supercoppa Italiana', icon: '🔵', color: '#009246' }],
-    'Ligue 1':        [{ key: 'coupe_de_france', name: 'Coupe de France', icon: '🏆', color: '#003189' }, { key: 'trophee_des_champions', name: 'Trophée des Champions', icon: '🔵', color: '#e8151b' }],
+    'Premier League': [{ key: 'fa_cup', name: 'FA Cup', icon: 'cup', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: 'cup', color: '#c084fc' }],
+    'Championship':   [{ key: 'fa_cup', name: 'FA Cup', icon: 'cup', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: 'cup', color: '#c084fc' }],
+    'League One':     [{ key: 'fa_cup', name: 'FA Cup', icon: 'cup', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: 'cup', color: '#c084fc' }],
+    'League Two':     [{ key: 'fa_cup', name: 'FA Cup', icon: 'cup', color: '#f5c842' }, { key: 'league_cup', name: 'Carabao Cup', icon: 'cup', color: '#c084fc' }],
+    'Eredivisie':     [{ key: 'knvb_beker', name: 'KNVB Beker', icon: 'cup', color: '#FF6600' }],
+    'La Liga':        [{ key: 'copa_del_rey', name: 'Copa del Rey', icon: 'cup', color: '#c8102e' }, { key: 'supercopa', name: 'Supercopa de España', icon: 'trophy', color: '#f5c842' }],
+    'Bundesliga':     [{ key: 'dfb_pokal', name: 'DFB-Pokal', icon: 'cup', color: '#000000' }, { key: 'dfb_supercup', name: 'DFL-Supercup', icon: 'trophy', color: '#d4a017' }],
+    'Serie A':        [{ key: 'coppa_italia', name: 'Coppa Italia', icon: 'cup', color: '#009246' }, { key: 'supercoppa', name: 'Supercoppa Italiana', icon: 'trophy', color: '#009246' }],
+    'Ligue 1':        [{ key: 'coupe_de_france', name: 'Coupe de France', icon: 'cup', color: '#003189' }, { key: 'trophee_des_champions', name: 'Trophée des Champions', icon: 'trophy', color: '#e8151b' }],
   };
   const INVITATION_GATED = new Set(['dfb_supercup', 'supercopa', 'supercoppa', 'trophee_des_champions']);
+
+  const CUP_ICON = {
+    ucl: 'star',
+    uel: 'spark',
+    uecl: 'cup',
+    fa_cup: 'cup',
+    league_cup: 'cup',
+    knvb_beker: 'cup',
+    copa_del_rey: 'cup',
+    supercopa: 'trophy',
+    dfb_pokal: 'cup',
+    dfb_supercup: 'trophy',
+    coppa_italia: 'cup',
+    supercoppa: 'trophy',
+    coupe_de_france: 'cup',
+    trophee_des_champions: 'trophy',
+  };
 
   let loaded = $state(false);
   let league = $state('Premier League');
@@ -49,13 +67,13 @@
 
   const trophyDefs = $derived.by(() => {
     const leagueTitleKey = LEAGUE_TITLE_KEY[league] ?? 'premier_league';
-    const domesticCupDefs = DOMESTIC_CUP_DEFS[league] ?? [{ key: 'fa_cup', name: 'FA Cup', icon: '🏆', color: '#f5c842' }, { key: 'league_cup', name: 'League Cup', icon: '🥛', color: '#c084fc' }];
+    const domesticCupDefs = DOMESTIC_CUP_DEFS[league] ?? [{ key: 'fa_cup', name: 'FA Cup', icon: 'cup', color: '#f5c842' }, { key: 'league_cup', name: 'League Cup', icon: 'cup', color: '#c084fc' }];
     return [
-      { key: leagueTitleKey, name: league, icon: '🏆', color: '#3b82f6' },
+      { key: leagueTitleKey, name: league, icon: 'trophy', color: '#3b82f6' },
       ...domesticCupDefs,
-      { key: 'ucl', name: 'Champions League', icon: '⭐', color: '#3b82f6' },
-      { key: 'uel', name: 'Europa League', icon: '🟠', color: '#f97316' },
-      { key: 'uecl', name: 'Conference Lge', icon: '🟢', color: '#22c55e' },
+      { key: 'ucl', name: 'Champions League', icon: 'star', color: '#3b82f6' },
+      { key: 'uel', name: 'Europa League', icon: 'spark', color: '#f97316' },
+      { key: 'uecl', name: 'Conference Lge', icon: 'cup', color: '#22c55e' },
     ];
   });
 
@@ -97,7 +115,7 @@
           return { won, label };
         });
 
-        return { cupId, meta, badge, leaguePhase, roundInfo, results };
+        return { cupId, meta, icon: CUP_ICON[cupId] ?? 'cup', badge, leaguePhase, roundInfo, results };
       });
   });
 
@@ -132,7 +150,7 @@
             {#each activeCups as c (c.cupId)}
               <div class="cup-card">
                 <div class="cup-badge cup-badge-{c.badge.cls}">{c.badge.text}</div>
-                <div class="cup-icon">{c.meta.icon}</div>
+                <div class="cup-icon" style="color:{c.meta.color}"><Icon name={c.icon} size={20} /></div>
                 <div class="cup-name">{c.meta.name}</div>
                 <div class="cup-desc">{c.meta.description}</div>
                 {#if c.leaguePhase}
@@ -171,7 +189,7 @@
         <div class="hon-grid">
           {#each honoursCards as h (h.key)}
             <div class="hon-card">
-              <div class="hon-icon">{h.icon}</div>
+              <div class="hon-icon" style="color:{h.color}"><Icon name={h.icon} size={18} /></div>
               <div class="hon-name">{h.name}</div>
               <div class="hon-count" style="color:{h.color}">{h.total}</div>
               <div class="hon-sub">All-time wins</div>
@@ -226,7 +244,7 @@
   .cup-badge-active { background: color-mix(in oklch, var(--color-live) 18%, transparent); color: var(--color-live); border: 1px solid color-mix(in oklch, var(--color-live) 35%, transparent); }
   .cup-badge-won { background: color-mix(in oklch, var(--color-warn) 20%, transparent); color: var(--color-warn); border: 1px solid color-mix(in oklch, var(--color-warn) 40%, transparent); }
   .cup-badge-out { background: color-mix(in oklch, var(--color-bad) 15%, transparent); color: var(--color-bad); border: 1px solid color-mix(in oklch, var(--color-bad) 30%, transparent); }
-  .cup-icon { font-size: 20px; line-height: 1; }
+  .cup-icon, .hon-icon { display: flex; align-items: center; line-height: 1; }
   .cup-name { font-family: var(--font-display); font-size: 15px; letter-spacing: 0.3px; padding-right: 44px; }
   .cup-desc { font-size: 11px; color: var(--color-tx-2); margin-bottom: 4px; line-height: 1.3; }
   .cup-pw { height: 5px; background: var(--color-raised); border-radius: 3px; overflow: hidden; }
@@ -248,7 +266,6 @@
     background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 12px;
     padding: 12px; display: flex; flex-direction: column; gap: 2px;
   }
-  .hon-icon { font-size: 18px; line-height: 1; }
   .hon-name { font-size: 11px; font-weight: 600; color: var(--color-tx-2); line-height: 1.2; margin-top: 4px; }
   .hon-count { font-family: var(--font-display); font-size: 28px; line-height: 1; }
   .hon-sub { font-size: 9px; color: var(--color-tx-3); }

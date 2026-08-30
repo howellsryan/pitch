@@ -1,0 +1,9 @@
+/* R7 mobile geometry corrections discovered by the browser audit.
+ * Keep interactive Academy rows physically clear of the floating Broadcast
+ * nav rather than relying on content being scrollable underneath it.
+ */
+@media (max-width: 699px) {
+  #screen-academy .ac-card {
+    padding-block: 10px !important;
+  }
+}

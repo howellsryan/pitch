@@ -5,16 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>PITCH — Football Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ── DESIGN TOKENS ── */
 :root{
-  --night:#080c10;--sur:#0f1419;--sur2:#161d26;--sur3:#1e2836;
-  --bdr:rgba(255,255,255,0.06);--bdr-a:rgba(18,168,100,0.4);
-  --tx:#f0f4f8;--tx2:#8a9ab0;--txd:#4a5a6a;
-  --acc:#12a864;--acc2:#f5c842;--acc3:#e84855;
-  --glow:rgba(18,168,100,0.12);
-  --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--fm:'Space Mono',monospace;
+  /* Kickoff (R0) — docs/plan/07-redesign.md.
+     These literals are the SOURCE OF TRUTH for the legacy build path.
+     src/build.py assembles this file into index.html for validate.js, and that
+     artifact never sees src/app.css — so tokens defined only in the @theme
+     block would resolve to nothing here and the whole page would render
+     unstyled. app.css mirrors these values for the Vite app and for Tailwind
+     utility generation; validate.js asserts the two agree, because a silent
+     drift between them is invisible until someone opens the legacy page. */
+  --color-ground:#070D0A;--color-surface:#0E1712;--color-raised:#16211B;--color-raised-2:#1E2B24;
+  --color-line:rgba(236,240,234,0.09);
+  --color-tx:#ECF0EA;--color-tx-2:#93A398;--color-tx-3:#64756A;
+  --color-club:#EF0107;--color-on-club:#FFFFFF;
+  --color-accent:#FFE14D;--color-on-accent:#070D0A;
+  --color-live:#34E27A;--color-warn:#FF8A3D;--color-bad:#FF5A6E;
+
+  /* Legacy shell chrome — sidebar, new-game screen, toasts — aliases the
+     tokens above rather than carrying a second palette. These die with R1/R2,
+     which replace the surfaces that use them. */
+  --night:var(--color-ground);--sur:var(--color-surface);--sur2:var(--color-raised);--sur3:var(--color-raised-2);
+  --bdr:var(--color-line);--bdr-a:rgba(255,225,77,0.4);
+  --tx:var(--color-tx);--tx2:var(--color-tx-2);--txd:var(--color-tx-3);
+  /* --acc and --glow are overwritten at runtime by theme.mjs with the club
+     colour; the literals are pre-save fallbacks only. --acc2 keeps its legacy
+     WARN meaning and maps to --color-warn — mapping it to --color-accent would
+     paint warning toasts and the EOY banner in the reserved action yellow. */
+  --acc:var(--color-club);--acc2:var(--color-warn);--acc3:var(--color-bad);
+  --glow:rgba(255,225,77,0.12);
+  --font-display:'Big Shoulders Display','Arial Narrow',sans-serif;
+  --font-body:'Familjen Grotesk',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  --fd:var(--font-display);--fb:var(--font-body);--fm:var(--font-mono);
   --nav:72px;--ease:cubic-bezier(.16,1,.3,1);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -22,30 +48,16 @@ html,body{height:100%;-webkit-text-size-adjust:100%}
 body{background:var(--night);color:var(--tx);font-family:var(--fb);overflow:hidden;display:flex}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none;z-index:50;opacity:.4}
 
-/* ── NEW GAME ── */
-#ng{position:fixed;inset:0;z-index:1000;background:var(--night);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;overflow-y:auto;overflow-x:hidden;gap:0}
-.ng-logo{font-family:var(--fd);font-size:clamp(52px,12vw,88px);color:var(--acc);letter-spacing:8px;margin-bottom:4px;line-height:1}
-.ng-sub{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
-.ng-label{font-family:var(--fd);font-size:clamp(20px,4vw,26px);letter-spacing:1px;margin-bottom:14px;text-align:center}
-.ng-filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;margin-bottom:14px;padding:4px 8px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;max-width:520px;align-self:stretch;box-sizing:border-box;-webkit-mask-image:linear-gradient(to right,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%);mask-image:linear-gradient(to right,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)}
-.ng-filters::-webkit-scrollbar{display:none}
-.ng-f{display:inline-flex;align-items:center;height:44px;padding:0 14px;border-radius:22px;font-size:12px;font-weight:500;line-height:1;cursor:pointer;transition:all .15s;color:var(--tx2);border:1px solid var(--bdr);background:transparent;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0;scroll-snap-align:start;box-sizing:border-box}
-.ng-f.on{background:var(--glow);color:var(--acc);border-color:var(--bdr-a)}
-#team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:100%;max-width:1100px;padding:4px}
-.team-card{background:var(--sur);border:2px solid var(--bdr);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
-.team-card:hover{border-color:var(--acc);background:var(--sur2)}
-.team-card.sel{border-color:var(--acc);background:var(--glow);box-shadow:0 0 0 2px var(--acc)}
-.tc-crest{font-size:26px;margin-bottom:6px}
-.tc-name{font-weight:600;font-size:12px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tc-rep{font-size:10px;color:var(--tx2)}
-.tc-budget{font-family:var(--fm);font-size:11px;color:var(--acc2);margin-top:2px}
-.ng-start{margin-top:20px}
-#btn-start{padding:14px 44px;border-radius:10px;border:none;background:var(--acc);color:white;font-family:var(--fb);font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-#btn-start:hover:not(:disabled){background:#14be72;transform:translateY(-1px)}
-#btn-start:disabled{opacity:.5;cursor:not-allowed}
+/* ── ENTRY (marketing home + club select) ── */
+/* Entry route container. src/lib/ui/EntryScreen.svelte owns everything
+   inside it, so this only has to be a full-viewport stage. */
+#ng{position:fixed;inset:0;z-index:1000;background:var(--color-ground);display:flex;flex-direction:column;overflow:hidden}
+#entry-mount{flex:1 1 auto;min-height:0;width:100%}
 
 /* ── SIDEBAR ── */
 .sidebar{width:var(--nav);background:var(--sur);border-right:1px solid var(--bdr);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;position:fixed;left:0;top:0;bottom:0;z-index:100}
+.match-navigation-locked .sidebar,.match-navigation-locked #tabbar-mount{display:none!important}
+.match-navigation-locked .main{margin-left:0}
 .logo{font-family:var(--fd);font-size:24px;color:var(--acc);letter-spacing:2px;margin-bottom:22px;position:relative}
 .logo::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:24px;height:2px;background:var(--acc);border-radius:2px}
 .nav-item{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .2s;color:var(--txd);-webkit-tap-highlight-color:transparent}
@@ -56,23 +68,14 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .nav-item:hover .tip{opacity:1;transform:translateX(0)}
 .nav-spc{flex:1}
 .nav-sep{width:28px;height:1px;background:var(--bdr);margin:4px 0;flex-shrink:0}
-.mgr-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#0d7c4c,var(--acc));display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:16px;color:white;border:2px solid var(--bdr-a);margin-top:8px;cursor:pointer}
-
-/* ── BOTTOM NAV (mobile) ── */
-.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--sur);border-top:1px solid var(--bdr);padding:6px 0 env(safe-area-inset-bottom,4px)}
-.bot-nav-inner{display:flex;align-items:center}
-.bn{display:flex;flex:1 1 0;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:6px 2px;min-height:44px;color:var(--txd);transition:color .15s;background:none;border:none;-webkit-tap-highlight-color:transparent}
-.bn.play-btn{flex:0 0 auto}
-.bn.active{color:var(--acc)}
-.bn svg{width:20px;height:20px}
-.bn span{font-size:11px;font-family:var(--fm);letter-spacing:.5px}
+.mgr-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--color-raised-2),var(--acc));display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:16px;color:white;border:2px solid var(--bdr-a);margin-top:8px;cursor:pointer}
 
 /* ── MAIN ── */
 #app{display:flex;width:100%;height:100%}
 .main{margin-left:var(--nav);flex:1;height:100vh;overflow:hidden;position:relative}
 .screen{position:absolute;inset:0;overflow-y:auto;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .3s ease,transform .3s var(--ease);-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
 .screen.active{opacity:1;pointer-events:all;transform:translateY(0)}
-.screen#screen-academy,.screen#screen-tactics,.screen#screen-trophies,.screen#screen-settings,.screen#screen-transfers,.screen#screen-competitions,.screen#screen-inbox{overflow:hidden;display:flex;flex-direction:column}
+.screen#screen-academy,.screen#screen-trophies,.screen#screen-settings,.screen#screen-transfers,.screen#screen-competitions,.screen#screen-inbox{overflow:hidden;display:flex;flex-direction:column}
 .screen::-webkit-scrollbar{width:3px}
 .screen::-webkit-scrollbar-thumb{background:var(--sur3);border-radius:3px}
 
@@ -93,18 +96,18 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .pos{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-family:var(--fm);font-weight:700;letter-spacing:.5px}
 .pos.ATT{background:rgba(232,72,85,.2);color:var(--acc3)}
 .pos.MID{background:rgba(245,200,66,.15);color:var(--acc2)}
-.pos.DEF{background:rgba(18,168,100,.15);color:var(--acc)}
+.pos.DEF{background:rgba(52,226,122,.15);color:var(--color-live)}
 .pos.GK{background:rgba(124,131,232,.15);color:#7c83e8}
 
 /* ── FORM BADGES ── */
 .fb{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-family:var(--fm);font-weight:700}
 .fb.hot{background:rgba(232,72,85,.2);color:var(--acc3)}
-.fb.good{background:rgba(18,168,100,.2);color:var(--acc)}
+.fb.good{background:rgba(52,226,122,.2);color:var(--color-live)}
 .fb.avg{background:rgba(245,200,66,.15);color:var(--acc2)}
 
 /* ── BTNS ── */
 .btn{padding:10px 18px;border-radius:9px;font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;letter-spacing:.3px;-webkit-tap-highlight-color:transparent}
-.btn-p{background:var(--acc);color:white}.btn-p:hover:not(:disabled){background:#14be72;transform:translateY(-1px)}
+.btn-p{background:var(--acc);color:var(--color-on-club)}.btn-p:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
 .btn-s{background:transparent;color:var(--tx);border:1px solid var(--bdr)}.btn-s:hover{border-color:var(--tx2)}
 .btn-d{background:rgba(232,72,85,.1);color:var(--acc3);border:1px solid rgba(232,72,85,.3)}.btn-d:hover{background:rgba(232,72,85,.2)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -135,7 +138,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .full-row.hl .tc{color:var(--acc);font-weight:600}
 .form-mini{display:flex;gap:2px}
 .fdot{width:15px;height:15px;border-radius:3px;font-size:8px;font-family:var(--fm);display:flex;align-items:center;justify-content:center;font-weight:700}
-.fd-W{background:rgba(18,168,100,.2);color:var(--acc)}
+.fd-W{background:rgba(52,226,122,.2);color:var(--color-live)}
 .fd-D{background:rgba(245,200,66,.15);color:var(--acc2)}
 .fd-L{background:rgba(232,72,85,.15);color:var(--acc3)}
 .res-row{padding:9px 13px;border-radius:7px;cursor:pointer;transition:background .15s;margin-bottom:2px}
@@ -199,7 +202,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .inbox-tab.on{background:var(--acc);color:#000;border-color:var(--acc);font-weight:700}
 .inbox-list{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .inbox-item{display:flex;gap:10px;background:var(--sur2);border:1px solid var(--bdr);border-radius:10px;padding:11px 12px;transition:background .15s}
-.inbox-item:not(.read){border-color:var(--bdr-a);background:rgba(18,168,100,.04)}
+.inbox-item:not(.read){border-color:var(--bdr-a);background:rgba(255,225,77,.05)}
 .inbox-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .inbox-content{flex:1;min-width:0}
 .inbox-header{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:3px}
@@ -226,7 +229,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .cup-result-modal.lost{border-left:3px solid var(--acc3)}
 
 /* ── TOAST ── */
-.toast-container{position:fixed;bottom:72px;right:14px;z-index:600;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:320px}
+.toast-container{position:fixed;bottom:72px;right:14px;z-index:10002;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:320px}
 .toast{display:flex;align-items:center;gap:8px;padding:10px 13px;border-radius:9px;font-size:12px;font-weight:500;background:var(--sur3);border:1px solid var(--bdr);box-shadow:0 4px 20px rgba(0,0,0,.4);transform:translateY(6px);opacity:0;transition:all .25s ease;pointer-events:all}
 .toast.vis{transform:translateY(0);opacity:1}
 .toast-success{border-color:var(--acc)}.toast-error{border-color:var(--acc3)}.toast-info{border-color:var(--bdr-a)}.toast-warning{border-color:var(--acc2)}
@@ -240,7 +243,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 .loader-msg{font-family:var(--fm);font-size:11px;color:var(--tx2);letter-spacing:2px;text-align:center}
 
 /* ── SEASON END ── */
-.eoy-banner{background:linear-gradient(135deg,rgba(245,200,66,.15),rgba(18,168,100,.1));border:1px solid var(--acc2);border-radius:14px;padding:18px 20px;text-align:center}
+.eoy-banner{background:linear-gradient(135deg,rgba(255,138,61,.15),rgba(52,226,122,.1));border:1px solid var(--acc2);border-radius:14px;padding:18px 20px;text-align:center}
 .eoy-banner .eoy-icon{font-size:40px;margin-bottom:8px}
 .eoy-banner .eoy-title{font-family:var(--fd);font-size:28px;letter-spacing:1px;color:var(--acc2);margin-bottom:6px}
 .eoy-banner .eoy-desc{font-size:13px;color:var(--tx2);margin-bottom:14px}
@@ -248,7 +251,7 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 /* ── ANIMATIONS ── */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes sUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(18,168,100,.3)}50%{box-shadow:0 0 0 4px rgba(18,168,100,.1)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,225,77,.3)}50%{box-shadow:0 0 0 4px rgba(255,225,77,.1)}}
 .comp-layout>*{animation:sUp .35s ease both}
 
 /* ── RESPONSIVE ── */
@@ -256,11 +259,10 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   :root{--nav:0px}
   body{flex-direction:column}
   .sidebar{display:none!important}
-  .bot-nav{display:block}
-  .main{margin-left:0!important;height:calc(100vh - 62px - env(safe-area-inset-bottom,0px))}
+  .main{margin-left:0!important;height:100vh}
   .screen{bottom:0}
 
-  .toast-container{bottom:74px;right:8px;left:8px;max-width:100%}
+  .toast-container{bottom:84px;right:8px;left:8px;max-width:100%}
   #screen-home{overflow-y:auto!important;display:block!important}
   .comp-layout{grid-template-columns:1fr;padding:10px 12px;height:auto}
   #screen-competitions,#screen-trophies,#screen-inbox{overflow-y:auto!important;display:block!important}
@@ -290,7 +292,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
   :root{--nav:72px}
   body{flex-direction:row}
   .sidebar{display:flex!important}
-  .bot-nav{display:none!important}
   .main{margin-left:var(--nav)!important;height:100vh;flex:1}
 
 }
@@ -342,36 +343,19 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 <body>
 
 <!-- NEW GAME -->
+<!-- ENTRY — src/lib/ui/EntryScreen.svelte, mounted in main.js (R1,
+     docs/plan/07-redesign.md). Marketing home + club select. boot()
+     (src/ui/renderers.js) still owns whether #ng or #app is shown. -->
 <div id="ng">
-  <div class="ng-logo">PITCH</div>
-  <div class="ng-sub">Football Career Simulator · 2025/26</div>
-  <div style="display:flex;justify-content:center;margin-bottom:12px">
-    <button class="btn btn-s" id="btn-import-ng" style="font-size:12px;padding:6px 16px;min-height:44px;display:flex;align-items:center;gap:6px">📂 Import Save File</button>
-    <input type="file" id="import-save-ng" accept=".pitch" style="display:none">
-  </div>
-  <div style="width:100%;max-width:360px;margin-bottom:20px">
-    <div class="ng-label" style="font-size:18px;margin-bottom:8px">Your Name</div>
-    <input id="ng-manager-name" type="text" maxlength="30" placeholder="e.g. Alex Ferguson"
-      style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;color:var(--tx);font-family:var(--fb);font-size:15px;outline:none;transition:border-color .15s;box-sizing:border-box"
-      onfocus="this.style.borderColor='var(--bdr-a)'" onblur="this.style.borderColor='var(--bdr)'">
-    <div style="font-size:10px;color:var(--txd);margin-top:5px;font-family:var(--fm)">Optional · shown in-game as your manager profile</div>
-  </div>
-  <div class="ng-label">Choose Your Club</div>
-  <div class="ng-filters" id="ng-filters">
-    <button class="ng-f on" data-league="all">All</button>
-    <button class="ng-f" data-league="Premier League">🏴󠁧󠁢󠁥󠁮󠁧󠁿 PL</button>
-  </div>
-  <div id="team-grid"></div>
-  <div class="ng-start"><button id="btn-start" disabled>Start Season →</button></div>
+  <div id="entry-mount"></div>
 </div>
 
 <!-- APP -->
-<div id="app" style="display:none;width:100%;height:100%">
+<div id="app" tabindex="-1" style="display:none;width:100%;height:100%;outline:none">
 <nav class="sidebar">
   <div class="logo">P</div>
   <div class="nav-item" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="tip">Home</span></div>
   <div class="nav-item" data-nav="squad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="tip">Squad</span></div>
-  <div class="nav-item" data-nav="tactics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span class="tip">Tactics</span></div>
   <div class="nav-sep"></div>
   <div class="nav-item" data-nav="transfers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span class="tip">Transfers</span></div>
   <div class="nav-item" data-nav="competitions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg><span class="tip">League</span></div>
@@ -384,14 +368,14 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 </nav>
 
 <!-- MOBILE NAV — Svelte TabBar (src/lib/ui/TabBar.svelte), mounted in main.js.
-     Nine legacy screens fold into five destinations here (Broadcast Kit,
-     docs/plan/02-design-system.md): Tactics/Academy/Trophies/Settings/Inbox
-     are reachable via quick-links on Home and Squad instead of a nav slot. -->
+     The game folds into five primary destinations. Academy, Trophies,
+     Settings and Inbox remain reachable through contextual links. -->
 <div id="tabbar-mount"></div>
 
 <div class="main">
-  <!-- HOME — src/lib/ui/HomeScreen.svelte, mounted in main.js (Phase 4,
-       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
+  <!-- HOME — src/lib/ui/HomeScreen.svelte, mounted in main.js. Phase 4 made
+       it a real Svelte island; redesign R3 made the season rail (Spine) the
+       screen. Real markup, no innerHTML. -->
   <div class="screen" id="screen-home"></div>
 
   <!-- MATCH — src/lib/ui/MatchScreen.svelte, mounted in main.js (Phase 5,
@@ -417,17 +401,13 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
        Svelte markup, no innerHTML. -->
   <div class="screen" id="screen-trophies"></div>
 
-  <!-- SQUAD — src/lib/ui/SquadScreen.svelte, mounted in main.js (Phase 4,
-       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
+  <!-- SQUAD + TACTICS — src/lib/ui/SquadScreen.svelte, mounted in main.js.
+       R4's Chalk screen is the single lineup, bench and roster surface. -->
   <div class="screen" id="screen-squad"></div>
 
   <!-- ACADEMY — src/lib/ui/AcademyScreen.svelte, mounted in main.js (Phase 4,
        docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
   <div class="screen" id="screen-academy"></div>
-
-  <!-- TACTICS — src/lib/ui/TacticsScreen.svelte, mounted in main.js (Phase 4,
-       docs/plan/04-migration-phases.md). Real Svelte markup, no innerHTML. -->
-  <div class="screen" id="screen-tactics"></div>
 
   <!-- INBOX -->
   <div class="screen" id="screen-inbox"></div>
@@ -439,6 +419,6 @@ input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
 </div><!-- #app -->
 
 <div class="toast-container" id="toast-container"></div>
-<div id="loader"><div style="text-align:center"><div class="loader-spin"></div><div class="loader-msg" id="loader-msg">Loading…</div></div></div>
+<div id="loader"><div style="text-align:center"><div class="loader-spin" data-motion="essential"></div><div class="loader-msg" id="loader-msg">Loading…</div></div></div>
 
 <script>

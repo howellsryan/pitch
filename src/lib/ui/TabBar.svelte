@@ -1,54 +1,102 @@
 <script>
-  import { navigateTo } from '../../ui/helpers.js';
+  import { onMount } from 'svelte';
+  import { getActiveScreen, navigateTo } from '../../ui/helpers.js';
 
-  // Play navigates straight to the Match route (src/lib/ui/MatchScreen.svelte,
-  // Phase 5, docs/plan/04-migration-phases.md), which pops the next event off
-  // save.pendingEvents itself on entry — the queue-draining logic (Phase 3
-  // watch note) stays exactly where it is, just reached directly now instead
-  // of via Home's button, matching the design's "always one thumb away" Play
-  // action.
-  async function play() {
-    await navigateTo('match');
+  let open = $state(false);
+  let active = $state('home');
+
+  const destinations = [
+    { id: 'home', label: 'Home', icon: 'home' },
+    { id: 'squad', label: 'Squad', icon: 'squad' },
+    { id: 'match', label: 'Play', icon: 'play' },
+    { id: 'transfers', label: 'Market', icon: 'market' },
+    { id: 'competitions', label: 'Table', icon: 'table' },
+    { id: 'academy', label: 'Academy', icon: 'academy' },
+    { id: 'trophies', label: 'Trophies', icon: 'trophy' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
+  ];
+
+  async function choose(id) {
+    await navigateTo(id);
+    active = id;
+    open = false;
   }
+
+  function labelFor(id) {
+    return destinations.find((destination) => destination.id === id)?.label ?? 'Home';
+  }
+
+  function toggle() { open = !open; }
+  function handleKey(event) { if (event.key === 'Escape') open = false; }
+
+  onMount(() => {
+    active = getActiveScreen() || 'home';
+    const update = (event) => { active = event.detail.id; };
+    window.addEventListener('pitch:navigation', update);
+    return () => window.removeEventListener('pitch:navigation', update);
+  });
 </script>
 
-<nav class="bot-nav">
-  <div class="bot-nav-inner">
-    <button class="bn" data-nav="home" onclick={() => navigateTo('home')}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      <span>Home</span>
-    </button>
-    <button class="bn" data-nav="squad" onclick={() => navigateTo('squad')}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span>Squad</span>
-    </button>
-    <button class="bn play-btn" onclick={play} aria-label="Play next match">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-    </button>
-    <button class="bn" data-nav="transfers" onclick={() => navigateTo('transfers')}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-      <span>Transfers</span>
-    </button>
-    <button class="bn" data-nav="competitions" onclick={() => navigateTo('competitions')}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
-      <span>League</span>
+<svelte:window onkeydown={handleKey} />
+
+<nav class="broadcast-nav" aria-label="Game navigation">
+  {#if open}
+    <div class="fan" id="nav-destinations" aria-label="Destinations">
+      {#each destinations as destination, i (destination.id)}
+        <button
+          class:current={active === destination.id}
+          class="destination"
+          style:--i={i}
+          onclick={() => choose(destination.id)}
+          aria-current={active === destination.id ? 'page' : undefined}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            {#if destination.icon === 'home'}
+              <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+            {:else if destination.icon === 'squad'}
+              <circle cx="9" cy="7" r="3.5" /><path d="M2 21v-1a6 6 0 0 1 12 0v1M16 4.5a3.5 3.5 0 0 1 0 6.8M17 14.5a5.5 5.5 0 0 1 5 5.5v1" />
+            {:else if destination.icon === 'play'}
+              <path d="m9 5 10 7-10 7z" fill="currentColor" stroke="none" />
+            {:else if destination.icon === 'market'}
+              <path d="m17 3 4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 21l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" />
+            {:else if destination.icon === 'table'}
+              <path d="M4 4h16v16H4zM4 10h16M10 4v16" />
+            {:else if destination.icon === 'academy'}
+              <path d="m3 9 9-5 9 5-9 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M21 9v6" />
+            {:else if destination.icon === 'trophy'}
+              <path d="M8 4h8v4c0 4-1.5 7-4 7s-4-3-4-7z" /><path d="M8 7H4c0 4 2 6 5 6M16 7h4c0 4-2 6-5 6M12 15v4M8 21h8" />
+            {:else}
+              <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.1.4.32.75.6 1 .3.25.68.4 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7.6z" />
+            {/if}
+          </svg>
+          <span>{destination.label}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+  <div class="pill">
+    <span class="eyebrow">{labelFor(active)}</span>
+    <span class="divider"></span>
+    <button class="menu" onclick={toggle} aria-label="Open navigation" aria-expanded={open} aria-controls="nav-destinations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
   </div>
 </nav>
 
 <style>
-  .play-btn {
-    position: relative;
-    top: -16px;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: var(--color-club, var(--acc));
-    color: var(--color-on-club, #fff);
-    box-shadow: 0 4px 16px color-mix(in oklch, var(--color-club, var(--acc)) 45%, transparent);
-    transition: transform 0.15s;
+  .broadcast-nav { display: none; }
+  @media (max-width: 768px) {
+    .broadcast-nav { position: fixed; z-index: 110; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .pill { height: 54px; display: flex; align-items: center; gap: 11px; padding: 0 7px 0 16px; color: var(--color-tx); background: color-mix(in oklch, var(--color-raised) 94%, transparent); border: 1px solid var(--color-line); border-radius: 999px; box-shadow: 0 8px 28px rgba(0,0,0,.42); backdrop-filter: blur(14px); }
+    .eyebrow { min-width: 54px; font: 700 18px/1 var(--font-display); letter-spacing: .055em; text-transform: uppercase; }
+    .divider { width: 1px; height: 22px; background: var(--color-line); }
+    .menu { width: 40px; height: 40px; display: grid; place-items: center; color: var(--color-on-accent); background: var(--color-accent); border: 0; border-radius: 50%; cursor: pointer; }
+    .menu svg { width: 19px; height: 19px; }
+    .fan { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .destination { min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 8px 14px 8px 11px; color: var(--color-tx-2); background: color-mix(in oklch, var(--color-raised) 96%, transparent); border: 1px solid var(--color-line); border-radius: 999px; box-shadow: 0 5px 18px rgba(0,0,0,.3); font: 600 13px/1 var(--font-body); cursor: pointer; animation: fan-in var(--dur-base) var(--ease-out) both; animation-delay: calc(var(--i) * 30ms); }
+    .destination.current { color: var(--color-on-accent); background: var(--color-accent); border-color: var(--color-accent); }
+    .destination svg { width: 19px; height: 19px; }
+    button:focus-visible { outline: 3px solid var(--color-club); outline-offset: 3px; }
   }
-  .play-btn svg { width: 22px; height: 22px; }
-  .play-btn:active { transform: translateY(-16px) scale(0.94); }
-  .play-btn:hover { color: var(--color-on-club, #fff); }
+  @keyframes fan-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 </style>

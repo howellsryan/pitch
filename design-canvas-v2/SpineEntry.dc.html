@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Public+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #08090F; font-family: "Public Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #7DF9C4; } a:hover { color: #F2F4F8; }
+    * { box-sizing: border-box; }
+    .disp { font-family: Unbounded, "Arial Black", sans-serif; }
+    .num { font-variant-numeric: tabular-nums; }
+    .kick { font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
+    @keyframes railA { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    @keyframes railB { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+    @keyframes glow { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+    .rail-a { animation: railA 26s linear infinite; }
+    .rail-b { animation: railB 34s linear infinite; }
+    .pulse { animation: glow 3.2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #08090F; color: #F2F4F8; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="position: absolute; top: 180px; left: 50%; margin-left: -260px; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(125,249,196,0.10) 0%, rgba(125,249,196,0) 65%); pointer-events: none;"></div>
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 0; position: relative; z-index: 2;">
+    <div class="disp" style="font-size: 17px; font-weight: 800; letter-spacing: -0.03em;">PITCH</div>
+    <div class="kick" style="color: #5A6272;">No account needed</div>
+  </div>
+
+  <div style="padding: 44px 22px 0; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 18px;">
+    <div class="disp" style="font-size: 41px; font-weight: 800; line-height: 1.02em; letter-spacing: -0.05em;">A career,<br>end to end.</div>
+    <div style="font-size: 15px; line-height: 1.6em; color: #98A1B4; max-width: 300px; text-wrap: pretty;">Take any of 186 clubs and run it season after season. Every fixture, every window, every ninety minutes — laid out on one continuous timeline you pull through.</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; padding-bottom: 30px;">
+    <div class="kick" style="color: #5A6272; padding: 0 22px 4px;">Season 1 · 38 gameweeks · then do it again</div>
+
+    <div style="overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);">
+      <div class="rail-a" style="display: flex; gap: 8px; width: max-content;">
+        <div style="display: flex; gap: 8px;">
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.13); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(242,244,248,0.03);"><span class="kick num" style="color: #4E5566; font-size: 8.5px;">GW 9</span><span class="disp num" style="font-size: 15px; font-weight: 600; color: #7DF9C4;">3—0</span><span style="font-size: 10.5px; color: #98A1B4;">Everton (A)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.13); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(242,244,248,0.03);"><span class="kick num" style="color: #4E5566; font-size: 8.5px;">GW 10</span><span class="disp num" style="font-size: 15px; font-weight: 600; color: #98A1B4;">1—1</span><span style="font-size: 10.5px; color: #98A1B4;">Brighton (H)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.13); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(242,244,248,0.03);"><span class="kick num" style="color: #4E5566; font-size: 8.5px;">GW 11</span><span class="disp num" style="font-size: 15px; font-weight: 600; color: #FF6B7A;">0—2</span><span style="font-size: 10.5px; color: #98A1B4;">Liverpool (A)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(125,249,196,0.5); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(125,249,196,0.09);"><span class="kick num" style="color: #7DF9C4; font-size: 8.5px;">GW 12</span><span class="disp" style="font-size: 15px; font-weight: 600;">NEXT</span><span style="font-size: 10.5px; color: #C9D0DC;">Chelsea (H)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px;"><span class="kick num" style="color: #3B4150; font-size: 8.5px;">GW 13</span><span class="disp" style="font-size: 15px; font-weight: 600; color: #3B4150;">—</span><span style="font-size: 10.5px; color: #5A6272;">Spurs (A)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px;"><span class="kick num" style="color: #3B4150; font-size: 8.5px;">GW 14</span><span class="disp" style="font-size: 15px; font-weight: 600; color: #3B4150;">—</span><span style="font-size: 10.5px; color: #5A6272;">Fulham (H)</span></div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.13); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(242,244,248,0.03);"><span class="kick num" style="color: #4E5566; font-size: 8.5px;">GW 9</span><span class="disp num" style="font-size: 15px; font-weight: 600; color: #7DF9C4;">3—0</span><span style="font-size: 10.5px; color: #98A1B4;">Everton (A)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.13); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(242,244,248,0.03);"><span class="kick num" style="color: #4E5566; font-size: 8.5px;">GW 10</span><span class="disp num" style="font-size: 15px; font-weight: 600; color: #98A1B4;">1—1</span><span style="font-size: 10.5px; color: #98A1B4;">Brighton (H)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.13); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(242,244,248,0.03);"><span class="kick num" style="color: #4E5566; font-size: 8.5px;">GW 11</span><span class="disp num" style="font-size: 15px; font-weight: 600; color: #FF6B7A;">0—2</span><span style="font-size: 10.5px; color: #98A1B4;">Liverpool (A)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(125,249,196,0.5); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px; background: rgba(125,249,196,0.09);"><span class="kick num" style="color: #7DF9C4; font-size: 8.5px;">GW 12</span><span class="disp" style="font-size: 15px; font-weight: 600;">NEXT</span><span style="font-size: 10.5px; color: #C9D0DC;">Chelsea (H)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px;"><span class="kick num" style="color: #3B4150; font-size: 8.5px;">GW 13</span><span class="disp" style="font-size: 15px; font-weight: 600; color: #3B4150;">—</span><span style="font-size: 10.5px; color: #5A6272;">Spurs (A)</span></div>
+          <div style="width: 96px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 5px;"><span class="kick num" style="color: #3B4150; font-size: 8.5px;">GW 14</span><span class="disp" style="font-size: 15px; font-weight: 600; color: #3B4150;">—</span><span style="font-size: 10.5px; color: #5A6272;">Fulham (H)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="overflow: hidden; opacity: 0.4; mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);">
+      <div class="rail-b" style="display: flex; gap: 8px; width: max-content;">
+        <div style="display: flex; gap: 8px;">
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">FA Cup · R3</span></div>
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">Champions League</span></div>
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">Deadline day</span></div>
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">Youth intake</span></div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">FA Cup · R3</span></div>
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">Champions League</span></div>
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">Deadline day</span></div>
+          <div style="width: 118px; border: 1px solid rgba(242,244,248,0.08); border-radius: 10px; padding: 8px 10px;"><span style="font-size: 10.5px; color: #5A6272;">Youth intake</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 0 22px 26px; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 12px;">
+    <div class="pulse" style="position: absolute; inset: -14px 8px 12px; border-radius: 999px; background: radial-gradient(ellipse at center, rgba(125,249,196,0.22) 0%, rgba(125,249,196,0) 70%); pointer-events: none;"></div>
+    <div style="position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; height: 60px; border-radius: 999px; background: #7DF9C4; color: #08090F; font-size: 16px; font-weight: 700;">
+      <span class="disp" style="font-size: 15px; font-weight: 800; letter-spacing: -0.02em;">CHOOSE YOUR CLUB</span>
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+    </div>
+    <div style="position: relative; display: flex; align-items: center; justify-content: center; height: 44px; font-size: 14px; font-weight: 500; color: #98A1B4;">Continue your career</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

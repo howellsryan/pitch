@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; background: #0C2718; font-family: "Familjen Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #FF8A3D; } a:hover { color: #F4F1E8; }
+    * { box-sizing: border-box; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .kick { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; }
+    @keyframes draw1 { 0%, 4% { stroke-dashoffset: 200; } 30%, 62% { stroke-dashoffset: 0; } 84%, 100% { stroke-dashoffset: -200; } }
+    @keyframes draw2 { 0%, 18% { stroke-dashoffset: 200; } 44%, 70% { stroke-dashoffset: 0; } 92%, 100% { stroke-dashoffset: -200; } }
+    @keyframes shift { 0%, 100% { transform: translate(0, 0); } 33% { transform: translate(9px, -7px); } 66% { transform: translate(-6px, 5px); } }
+    .a1 { stroke-dasharray: 200; animation: draw1 9s ease-in-out infinite; }
+    .a2 { stroke-dasharray: 200; animation: draw2 9s ease-in-out infinite; }
+    .s1 { animation: shift 11s ease-in-out infinite; }
+    .s2 { animation: shift 13s ease-in-out infinite reverse; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #0C2718; color: #F4F1E8; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 38px, transparent 38px, transparent 76px); pointer-events: none;"></div>
+
+  <svg viewBox="0 0 390 844" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;" aria-hidden="true">
+    <g fill="none" stroke="rgba(244,241,232,0.13)" stroke-width="1.4">
+      <circle cx="195" cy="420" r="150"></circle>
+      <line x1="0" y1="420" x2="390" y2="420"></line>
+      <rect x="105" y="-60" width="180" height="120"></rect>
+      <rect x="105" y="784" width="180" height="120"></rect>
+    </g>
+    <g opacity="0.85">
+      <circle class="s1" cx="120" cy="520" r="7" fill="#F4F1E8"></circle>
+      <circle class="s2" cx="235" cy="470" r="7" fill="#F4F1E8"></circle>
+      <circle class="s1" cx="290" cy="560" r="7" fill="#5BC8E8"></circle>
+      <circle class="s2" cx="160" cy="610" r="7" fill="#5BC8E8"></circle>
+    </g>
+    <path class="a1" d="M 128 512 C 165 470 205 452 232 466" stroke="#FF8A3D" stroke-width="2.6" fill="none" stroke-linecap="round"></path>
+    <path class="a2" d="M 240 462 C 268 430 292 400 300 352" stroke="#FF8A3D" stroke-width="2.6" fill="none" stroke-linecap="round"></path>
+  </svg>
+
+  <div style="position: relative; z-index: 3; display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 0;">
+    <div style="font-size: 20px; font-weight: 700; letter-spacing: -0.02em;">Pitch</div>
+    <div class="kick" style="color: #7FA08D;">Free forever</div>
+  </div>
+
+  <div style="position: relative; z-index: 3; padding: 46px 20px 0; display: flex; flex-direction: column; gap: 18px;">
+    <div class="kick" style="color: #FF8A3D;">Football career simulator</div>
+    <div style="font-size: 47px; font-weight: 700; line-height: 1.03em; letter-spacing: -0.035em; text-wrap: pretty;">You pick the shape. They play it out.</div>
+    <div style="font-size: 15px; line-height: 1.6em; color: #A9C0B2; max-width: 302px; text-wrap: pretty;">186 clubs across nine leagues. Set your formation, work the transfer market, bring through the academy — then watch all ninety minutes happen.</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="position: relative; z-index: 3; padding: 0 20px 18px;">
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: rgba(244,241,232,0.13); border: 1px solid rgba(244,241,232,0.13);">
+      <div style="background: #0C2718; padding: 13px 12px; display: flex; flex-direction: column; gap: 5px;">
+        <span class="mono" style="font-size: 22px; font-weight: 600;">186</span>
+        <span class="kick" style="font-size: 8.5px; color: #7FA08D;">Clubs</span>
+      </div>
+      <div style="background: #0C2718; padding: 13px 12px; display: flex; flex-direction: column; gap: 5px;">
+        <span class="mono" style="font-size: 22px; font-weight: 600;">9</span>
+        <span class="kick" style="font-size: 8.5px; color: #7FA08D;">Leagues</span>
+      </div>
+      <div style="background: #0C2718; padding: 13px 12px; display: flex; flex-direction: column; gap: 5px;">
+        <span class="mono" style="font-size: 22px; font-weight: 600;">∞</span>
+        <span class="kick" style="font-size: 8.5px; color: #7FA08D;">Seasons</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: relative; z-index: 3; padding: 0 20px 12px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 58px; background: #FF8A3D; color: #0C2718; border-radius: 4px;">
+      <span style="font-size: 16px; font-weight: 700;">Choose your club</span>
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; height: 46px; border: 1px solid rgba(244,241,232,0.22); border-radius: 4px; font-size: 14px; font-weight: 600; color: #F4F1E8;">Continue your career</div>
+  </div>
+
+  <div style="position: relative; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 11px; padding: 0 20px 26px;" class="kick">
+    <span style="color: #6B8878;">No account</span>
+    <span style="width: 3px; height: 3px; border-radius: 50%; background: #2E4A3A;"></span>
+    <span style="color: #6B8878;">No ads</span>
+    <span style="width: 3px; height: 3px; border-radius: 50%; background: #2E4A3A;"></span>
+    <span style="color: #6B8878;">Saves in your browser</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

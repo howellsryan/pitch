@@ -1,50 +1,135 @@
 /**
- * Design tokens — "Broadcast Kit" (docs/plan/02-design-system.md).
+ * Design tokens — "Kickoff" (docs/plan/07-redesign.md, phase R0).
  *
- * Phase 2 landed this block without `@import "tailwindcss"` — the Vite
- * plugin never processed it, so `@theme` shipped to the browser as literal,
- * invalid CSS and none of these custom properties actually existed at
- * runtime. Phase 3 is the first thing that consumes them outside theme.mjs's
- * direct `--color-club` write, which is what surfaced it. src/shell.html
- * still carries the live styling and its own --acc family; src/lib/theme.mjs
- * sets both this --color-club token and those legacy vars, so the club
- * accent works on today's screens and on the Phase 3 ones without a flag day.
+ * Replaces Broadcast Kit's palette and type. Every token NAME here is
+ * unchanged from that system deliberately: ~600 references across
+ * src/lib/ui/*.svelte consume these as raw var(--color-…), so swapping the
+ * VALUES re-themes every existing screen without touching a component. That
+ * is R0's whole success criterion — new look, no rewrites.
  *
- * `@theme` alone only emits a `:root` custom property for a token Tailwind's
+ * `@theme static` is load-bearing — do not "tidy" it to plain `@theme`.
+ * Plain @theme only emits a :root custom property for a token Tailwind's
  * scanner sees referenced by an actual utility class (e.g. `bg-surface`).
- * Every screen here consumes these purely as raw `var(--color-surface)`
- * inside a component's own <style> block, which the scanner can't see as
- * "used" — so every token except --font-mono (a name Tailwind already ships
- * a built-in default for) was silently absent from :root, and anything that
- * referenced one fell back to the property's CSS-initial value (background:
- * var(--color-surface) → transparent). `@theme static` forces Tailwind to
- * emit the whole block regardless of scanned usage — found via a real
- * getComputedStyle() check that came up empty on a Squad-screen bottom sheet
- * that should have been opaque, not by inspecting the built CSS on faith.
+ * Everything here is consumed as raw var() inside component <style> blocks,
+ * which the scanner cannot see as "used", so every token except --font-mono
+ * (a name Tailwind ships a default for) silently vanished from :root and
+ * fell back to the property's CSS-initial value — `background:
+ * var(--color-surface)` quietly became `transparent`. `static` forces the
+ * whole block out regardless of scanned usage. Verify with a real check on
+ * the built CSS, never on faith; that bug shipped live on two screens.
+ *
+ * The through-line: all three of the redesign's metaphors are the same pitch
+ * at three distances — the season (Spine), the broadcast (Broadcast), the XI
+ * (Chalk). So the ground is a floodlit-pitch green-black rather than a
+ * neutral one, and it is the same ground on every screen.
+ *
+ * Dark-first, but light is a value swap at :root and nothing more — no
+ * component may hard-code a light or dark value. Light mode is R8.
  */
 @import "tailwindcss";
 
 @theme static {
-  --color-ground:  #0A0E14;
-  --color-surface: #131A23;
-  --color-raised:  #1C2530;
-  --color-line:    rgba(255, 255, 255, 0.07);
+  /* ── Ground ──────────────────────────────────────────────────────────
+     Green-black, not neutral-black: this is a pitch at night. */
+  --color-ground:  #070D0A;
+  --color-surface: #0E1712;
+  --color-raised:  #16211B;
+  --color-raised-2:#1E2B24;
+  --color-line:    rgba(236, 240, 234, 0.09);
 
-  --color-tx:      #EDF1F5;
-  --color-tx-2:    #8695A8;
-  --color-tx-3:    #5A6878;
+  /* ── Type ────────────────────────────────────────────────────────────
+     Chalk-white, warm rather than blue, so it sits on the green ground. */
+  --color-tx:      #ECF0EA;
+  --color-tx-2:    #93A398;
+  --color-tx-3:    #64756A;
 
-  /* Set at runtime from the club's primaryColor — see src/lib/theme.mjs.
-     The value here is only the fallback before a save is loaded. */
+  /* ── Identity ────────────────────────────────────────────────────────
+     Club colour carries identity — crest, your-row markers, team accents —
+     and nothing else. Set at runtime from the club's primaryColor via
+     src/lib/theme.mjs, which walks it in oklch until text on it clears AA.
+     The value here is only the fallback before a save loads. */
   --color-club:    #EF0107;
   --color-on-club: #FFFFFF;
 
-  /* Semantic only. Green means live / positive / fit, and nothing else. */
-  --color-live:    #2BD97C;
-  --color-warn:    #F5B93D;
-  --color-bad:     #F0576B;
+  /* ── Action ──────────────────────────────────────────────────────────
+     One accent carries primary actions app-wide. Broadcast yellow: it reads
+     as floodlight and TV graphics, it is unmistakably not a club colour, and
+     near-black on it clears AA comfortably. Never use the club colour to
+     mean "press this", and never use this to mean "good". */
+  --color-accent:    #FFE14D;
+  --color-on-accent: #070D0A;
 
-  --font-display:  "Saira Condensed", "Arial Narrow", sans-serif;
-  --font-body:     "Figtree", system-ui, sans-serif;
+  /* ── Semantic ────────────────────────────────────────────────────────
+     Four distinct hues, one meaning each. Green means live, positive, fit —
+     and nothing else; that reservation is the reason the pre-redesign
+     palette had nothing left to mean "good". Warn is orange, deliberately
+     far enough from --color-accent's yellow to survive a glance. */
+  --color-live:    #34E27A;
+  --color-warn:    #FF8A3D;
+  --color-bad:     #FF5A6E;
+
+  /* ── Pitch surfaces ──────────────────────────────────────────────────
+     Shared by Chalk's XI pitch and Broadcast's perspective pitch so the two
+     cannot drift apart, the same way SLOT_LAYOUT is shared. */
+  --color-turf:    #10361F;
+  --color-turf-2:  #0D2C1A;
+  --color-chalk:   rgba(236, 240, 234, 0.26);
+
+  /* ── Type stacks ─────────────────────────────────────────────────────
+     Three families, the stated maximum. Display is condensed and sporty for
+     scores, big numerals and screen titles; body is a crisp grotesk that
+     holds up at 11–13px; mono is for anything tabular, where column
+     alignment matters more than character. Fallbacks are metric-close
+     because PNG/PDF export and first paint both show them. */
+  --font-display:  "Big Shoulders Display", "Arial Narrow", sans-serif;
+  --font-body:     "Familjen Grotesk", system-ui, sans-serif;
   --font-mono:     "IBM Plex Mono", ui-monospace, monospace;
+
+  /* ── Motion ──────────────────────────────────────────────────────────
+     Every animation in the app opts into one of these, so reduced-motion is
+     one guard rather than a per-component decision. See the block below. */
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --dur-fast:   140ms;
+  --dur-base:   240ms;
+  --dur-slow:   420ms;
+  --dur-beat:   620ms;
+
+  /* ── Radius ──────────────────────────────────────────────────────────
+     Broadcast graphics are near-square; sheets and cards are softer. */
+  --radius-bug:   4px;
+  --radius-card:  12px;
+  --radius-sheet: 20px;
+}
+
+/**
+ * Reduced motion, once, for everything.
+ *
+ * The rule that matters: reduced motion renders the FINAL state, never
+ * nothing. A pass animation that never draws leaves an empty pitch and the
+ * player loses the information, which is worse than the motion. So durations
+ * collapse to instant rather than animations being removed — anything that
+ * genuinely cannot be shown statically has to say so in its own component.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-slow: 1ms;
+    --dur-beat: 1ms;
+  }
+  /* `[data-motion="essential"]` opts an element out. It exists for exactly one
+     class of animation: a looping indicator whose motion IS the information —
+     the loading spinner. Collapsing that to a single 1ms iteration freezes it
+     mid-rotation for the length of a whole simulation, and the app reads as
+     hung rather than as respectful. Everything else collapses to its final
+     state, which is the rule this block is here to enforce. */
+  *:not([data-motion="essential"]),
+  *:not([data-motion="essential"])::before,
+  *:not([data-motion="essential"])::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  html { scroll-behavior: auto !important; }
 }

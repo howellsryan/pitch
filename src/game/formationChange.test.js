@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildLiveMatchState } from '../modules/matchEngine.js';
-import { applyFormationChange } from './formationChange.js';
+import { applyFormationChange, applyMentalityChange } from './formationChange.js';
 
 function squad(tid) {
   const gks = [
@@ -51,5 +51,36 @@ describe('applyFormationChange', () => {
     const back = applyFormationChange(changed, true, '4-3-3');
     expect(back.homeFormation).toBe('4-3-3');
     expect(back.hActive).toHaveLength(11);
+  });
+
+  it('never treats a formation change as a free substitution', () => {
+    const ls = makeLiveState();
+    const activeIds = ls.hActive.map(player => player.id).sort();
+    const benchIds = ls.hBenchLeft.map(player => player.id).sort();
+    const after = applyFormationChange(ls, true, '3-5-2');
+    expect(after.hActive.map(player => player.id).sort()).toEqual(activeIds);
+    expect(after.hBenchLeft.map(player => player.id).sort()).toEqual(benchIds);
+    expect(after.hSubsLeft).toBe(3);
+  });
+});
+
+describe('applyMentalityChange', () => {
+  it('updates the user side modifiers and possession weighting immediately', () => {
+    const ls = makeLiveState();
+    const after = applyMentalityChange(ls, true, 'attacking');
+
+    expect(after.homeMentality).toBe('attacking');
+    expect(after.awayMentality).toBe('balanced');
+    expect(after.hMods.goalProbMult).toBeGreaterThan(ls.hMods.goalProbMult);
+    expect(after.hMidShare).toBeGreaterThan(ls.hMidShare);
+  });
+
+  it('changes the away side without altering the home mentality', () => {
+    const ls = makeLiveState();
+    const after = applyMentalityChange(ls, false, 'defensive');
+
+    expect(after.homeMentality).toBe('balanced');
+    expect(after.awayMentality).toBe('defensive');
+    expect(after.aMods.defResistMult).toBeGreaterThan(ls.aMods.defResistMult);
   });
 });

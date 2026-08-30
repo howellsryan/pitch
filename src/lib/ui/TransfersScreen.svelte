@@ -851,7 +851,7 @@
   }
   .sell-row.is-locked { opacity: 0.5; }
 
-  .pl-flag { font-size: 20px; flex-shrink: 0; width: 26px; text-align: center; }
+  .pl-flag { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 22px; color: var(--color-tx-3); font: 700 8px/1 var(--font-mono); letter-spacing: .06em; }
   .pl-flag-sm {
     width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     font-family: var(--font-mono); font-size: 9px; font-weight: 700; border: 1px solid;

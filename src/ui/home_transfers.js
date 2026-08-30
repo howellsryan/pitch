@@ -37,6 +37,19 @@ export async function renderHome(){
   screenTicks.home++;
 }
 
+function eosIcon(kind){
+  const paths={
+    trophy:'<path d="M8 4h8v4c0 4-1.5 7-4 7s-4-3-4-7z"/><path d="M8 7H4c0 4 2 6 5 6M16 7h4c0 4-2 6-5 6M12 15v4M8 21h8"/>',
+    up:'<path d="M12 20V5M6 11l6-6 6 6"/>',
+    down:'<path d="M12 4v15M6 13l6 6 6-6"/>',
+    pitch:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16M4 12h16"/><circle cx="12" cy="12" r="3"/>',
+    target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="m15 9 5-5M17 4h3v3"/>',
+    money:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5c-.8-.7-1.9-1-3.1-1-1.8 0-3 .8-3 2 0 3.2 6.2 1.3 6.2 4.7 0 1.3-1.2 2.3-3.2 2.3-1.5 0-2.8-.5-3.8-1.4M12 5.5v13"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.5-7 8-7s7.2 2 8 7"/>',
+  };
+  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:5px">${paths[kind]||paths.trophy}</svg>`;
+}
+
 // ── END OF SEASON
 export async function handleEndOfSeason(){
   const btn=document.getElementById('btn-eoy');
@@ -46,11 +59,11 @@ export async function handleEndOfSeason(){
     const {summary,leagueWinner,newSave,prizeMoney,leagueChanges,newYouthCohort}=await processEndOfSeason();
     hideLoader();
     const trophies=[];
-    if(leagueWinner?.teamId===newSave.userTeamId) trophies.push('🏆 League Champions!');
+    if(leagueWinner?.teamId===newSave.userTeamId) trophies.push('League Champions!');
     if(summary.cups) for(const[cid,st]of Object.entries(summary.cups)){
-      if(st.status==='winner') trophies.push(`${CUP_META[cid]?.icon||'🏆'} ${CUP_META[cid]?.name||cid} Winners!`);
+      if(st.status==='winner') trophies.push(`${CUP_META[cid]?.name||cid} Winners!`);
     }
-    const tHtml=trophies.length?`<div style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:8px;padding:12px;margin-bottom:12px">${trophies.map(t=>`<div style="color:var(--acc2);font-size:14px;font-weight:600">${t}</div>`).join('')}</div>`:'';
+    const tHtml=trophies.length?`<div style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:8px;padding:12px;margin-bottom:12px">${trophies.map(t=>`<div style="color:var(--acc2);font-size:14px;font-weight:600">${eosIcon('trophy')}${t}</div>`).join('')}</div>`:'';
     const ord=n=>n+(['st','nd','rd'][n-1]||'th');
 
     // Build league changes HTML (promotion/relegation/playoffs)
@@ -59,16 +72,16 @@ export async function handleEndOfSeason(){
       const uri=leagueChanges.userRelInfo||{};
       if(uri.promoted&&uri.promotedViaPlayoff){
         lcHtml+=`<div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:10px;margin-bottom:8px">
-          <div style="font-size:13px;font-weight:700;color:#3b82f6">🎉 PROMOTED via Play-offs!</div>
+          <div style="font-size:13px;font-weight:700;color:#3b82f6">${eosIcon('up')}PROMOTED via Play-offs!</div>
           <div style="font-size:11px;color:var(--tx2);margin-top:4px">Your team won the play-off final and earned promotion!</div>
         </div>`;
       } else if(uri.promoted){
         lcHtml+=`<div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:10px;margin-bottom:8px">
-          <div style="font-size:13px;font-weight:700;color:#3b82f6">⬆️ PROMOTED! Automatic promotion secured!</div>
+          <div style="font-size:13px;font-weight:700;color:#3b82f6">${eosIcon('up')}PROMOTED! Automatic promotion secured!</div>
         </div>`;
       } else if(uri.relegated){
         lcHtml+=`<div style="background:rgba(232,72,85,.1);border:1px solid rgba(232,72,85,.3);border-radius:8px;padding:10px;margin-bottom:8px">
-          <div style="font-size:13px;font-weight:700;color:var(--acc3)">⬇️ RELEGATED</div>
+          <div style="font-size:13px;font-weight:700;color:var(--acc3)">${eosIcon('down')}RELEGATED</div>
           <div style="font-size:11px;color:var(--tx2);margin-top:4px">Your team has been relegated to the division below.</div>
         </div>`;
       }
@@ -79,7 +92,7 @@ export async function handleEndOfSeason(){
       if(po){
         const sf1=po.semi1, sf2=po.semi2, fin=po.final;
         lcHtml+=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:8px">
-          <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:6px">🏟️ Play-off Results</div>
+          <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:6px">${eosIcon('pitch')}Play-off Results</div>
           <div style="font-size:11px;color:var(--tx2);margin-bottom:4px"><strong>Semi-Final 1:</strong> ${sf1.team1.name} vs ${sf1.team2.name}</div>
           <div style="font-size:10px;color:var(--txd);margin-bottom:2px;padding-left:8px">Leg 1: ${sf1.team1.name} ${sf1.leg1.home}-${sf1.leg1.away} ${sf1.team2.name}</div>
           <div style="font-size:10px;color:var(--txd);margin-bottom:4px;padding-left:8px">Leg 2: ${sf1.team2.name} ${sf1.leg2.home}-${sf1.leg2.away} ${sf1.team1.name} (Agg: ${sf1.agg.team1}-${sf1.agg.team2}${sf1.penalties?' pens':''})</div>
@@ -87,7 +100,7 @@ export async function handleEndOfSeason(){
           <div style="font-size:10px;color:var(--txd);margin-bottom:2px;padding-left:8px">Leg 1: ${sf2.team1.name} ${sf2.leg1.home}-${sf2.leg1.away} ${sf2.team2.name}</div>
           <div style="font-size:10px;color:var(--txd);margin-bottom:4px;padding-left:8px">Leg 2: ${sf2.team2.name} ${sf2.leg2.home}-${sf2.leg2.away} ${sf2.team1.name} (Agg: ${sf2.agg.team1}-${sf2.agg.team2}${sf2.penalties?' pens':''})</div>
           <div style="font-size:11px;color:var(--acc);margin-top:4px"><strong>Final:</strong> ${fin.team1.name} ${fin.score.team1}-${fin.score.team2} ${fin.team2.name}${fin.penalties?' (pens)':''}</div>
-          <div style="font-size:11px;color:#3b82f6;font-weight:600;margin-top:4px">🏆 ${(fin.winnerId===fin.team1.id?fin.team1.name:fin.team2.name)} promoted!</div>
+          <div style="font-size:11px;color:#3b82f6;font-weight:600;margin-top:4px">${eosIcon('trophy')}${(fin.winnerId===fin.team1.id?fin.team1.name:fin.team2.name)} promoted!</div>
         </div>`;
       }
 
@@ -97,8 +110,8 @@ export async function handleEndOfSeason(){
         const promos=mvs.filter(m=>m.reason.includes('Promoted')||m.reason.includes('Playoff'));
         const rels=mvs.filter(m=>m.reason==='Relegated');
         let mvHtml='';
-        if(promos.length) mvHtml+=`<div style="margin-bottom:4px"><span style="color:#3b82f6;font-weight:600;font-size:10px">⬆️ PROMOTED:</span> <span style="font-size:10px;color:var(--tx2)">${promos.map(m=>{const allT=typeof getAllTeams==='function';return m.teamId;}).join(', ')}</span></div>`;
-        if(rels.length) mvHtml+=`<div><span style="color:var(--acc3);font-weight:600;font-size:10px">⬇️ RELEGATED:</span> <span style="font-size:10px;color:var(--tx2)">${rels.map(m=>m.teamId).join(', ')}</span></div>`;
+        if(promos.length) mvHtml+=`<div style="margin-bottom:4px"><span style="color:#3b82f6;font-weight:600;font-size:10px">${eosIcon('up')}PROMOTED:</span> <span style="font-size:10px;color:var(--tx2)">${promos.map(m=>{const allT=typeof getAllTeams==='function';return m.teamId;}).join(', ')}</span></div>`;
+        if(rels.length) mvHtml+=`<div><span style="color:var(--acc3);font-weight:600;font-size:10px">${eosIcon('down')}RELEGATED:</span> <span style="font-size:10px;color:var(--tx2)">${rels.map(m=>m.teamId).join(', ')}</span></div>`;
         if(mvHtml) lcHtml+=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:8px;margin-bottom:8px">${mvHtml}</div>`;
       }
     }
@@ -107,11 +120,11 @@ export async function handleEndOfSeason(){
     let boardHtml='';
     if(summary.boardObjective){
       const metColor=summary.objectiveMet?'var(--acc)':'var(--acc3)';
-      const metIcon=summary.objectiveMet?'✅':'❌';
+      const metLabel=summary.objectiveMet?'MET':'MISSED';
       boardHtml=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">🎯 Board Objective</div>
+        <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">${eosIcon('target')}Board Objective</div>
         <div style="font-size:12px;color:var(--tx2)">${summary.boardObjective.label}</div>
-        <div style="font-size:12px;margin-top:4px;color:${metColor};font-weight:600">${metIcon} ${summary.objectiveMet?'Objective met':'Objective missed'}</div>
+        <div style="font-size:12px;margin-top:4px;color:${metColor};font-weight:600">${metLabel} — ${summary.objectiveMet?'Objective met':'Objective missed'}</div>
       </div>`;
     }
 
@@ -126,13 +139,13 @@ export async function handleEndOfSeason(){
       return;
     }
 
-    showModal('Season Complete! 🎉',`<div>${tHtml}
+    showModal('Season Complete!',`<div>${tHtml}
       <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
-      ${prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">💰 Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
+      ${prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">${eosIcon('money')}Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
       ${boardHtml}
       ${lcHtml}
       ${summary.retirements&&summary.retirements.length?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:600;color:var(--acc3);margin-bottom:4px">👋 Retirements</div>
+        <div style="font-size:12px;font-weight:600;color:var(--acc3);margin-bottom:4px">${eosIcon('user')}Retirements</div>
         ${summary.retirements.map(r=>`<div style="font-size:12px;color:var(--tx2)">${r.name} (${r.position}, ${r.age}) has retired</div>`).join('')}
       </div>`:''}
       <div style="font-size:12px;color:var(--tx2)">All players aged +1 year. New season fixtures generated.</div>

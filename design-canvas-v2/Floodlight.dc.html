@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0B120E; font-family: Barlow, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #F2A83B; } a:hover { color: #ECEFEA; }
+    * { box-sizing: border-box; }
+    .disp { font-family: Anton, "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: 0.005em; }
+    .num { font-variant-numeric: tabular-nums; }
+    .kick { font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #0B120E; color: #ECEFEA; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="position: absolute; top: -120px; left: -60px; width: 340px; height: 340px; border-radius: 50%; background: radial-gradient(circle, rgba(242,168,59,0.20) 0%, rgba(242,168,59,0) 68%); pointer-events: none;"></div>
+  <div style="position: absolute; top: -90px; right: -80px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(242,168,59,0.12) 0%, rgba(242,168,59,0) 70%); pointer-events: none;"></div>
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 0; position: relative;">
+    <div class="disp" style="font-size: 23px; letter-spacing: 0.04em;">PITCH</div>
+    <div class="kick" style="color: #7C8A80;">Free to play</div>
+  </div>
+
+  <div style="padding: 40px 22px 0; display: flex; flex-direction: column; gap: 16px; position: relative;">
+    <div class="kick" style="color: #F2A83B;">Saturday, 3pm, forever</div>
+    <div class="disp" style="font-size: 60px; line-height: 0.9em; text-transform: uppercase;">Ninety<br>minutes<br>that are<br><span style="color: #F2A83B;">yours.</span></div>
+    <div style="font-size: 15px; line-height: 1.55em; color: #A7B3AB; max-width: 300px; text-wrap: pretty;">Take a club, build a squad, and watch every match play out minute by minute. Nine leagues, 186 clubs, no sign-up.</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="padding: 0 22px; position: relative;">
+    <div style="border: 1px solid rgba(236,239,234,0.14); background: rgba(236,239,234,0.035); padding: 14px 15px; display: flex; flex-direction: column; gap: 11px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: #38D07A;"></span>
+        <span class="kick" style="color: #38D07A;">Live · 71'</span>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <span class="disp" style="font-size: 24px;">ARSENAL</span>
+        <span class="disp num" style="font-size: 30px; color: #F2A83B;">2 &nbsp;1</span>
+        <span class="disp" style="font-size: 24px;">CHELSEA</span>
+      </div>
+      <div style="height: 1px; background: rgba(236,239,234,0.12);"></div>
+      <div style="display: flex; align-items: center; gap: 9px; font-size: 13px; color: #A7B3AB;">
+        <span class="num disp" style="font-size: 13px; color: #F2A83B; width: 26px;">71'</span>
+        <span style="color: #ECEFEA;">Ødegaard fires in from the edge of the box</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 18px 22px 0; display: flex; flex-direction: column; gap: 10px; position: relative;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 58px; background: #F2A83B; color: #0B120E; font-size: 16px; font-weight: 700;">
+      <span class="disp" style="font-size: 19px; letter-spacing: 0.03em;">CHOOSE YOUR CLUB</span>
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; height: 44px; font-size: 14px; font-weight: 500; color: #A7B3AB;">Continue your career</div>
+  </div>
+
+  <div style="display: flex; align-items: center; justify-content: center; gap: 14px; padding: 12px 22px 24px; position: relative;" class="kick">
+    <span style="color: #7C8A80;">186 clubs</span>
+    <span style="color: #38413A;">/</span>
+    <span style="color: #7C8A80;">9 leagues</span>
+    <span style="color: #38413A;">/</span>
+    <span style="color: #7C8A80;">no account</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -8,7 +8,7 @@ import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
 import { LIGUE_1_TEAMS } from '../data/ligue1.js';
 import { PL_TEAMS } from '../data/plTeams.js';
 import { SERIE_A_TEAMS } from '../data/serieA.js';
-import { getSave, openDB, putFixturesBulk, putPlayersBulk, putSave, putStandingsBulk, putTeamsBulk } from './db.js';
+import { getSave, openDB, putPlayersBulk, putSave, putTeamsBulk, replaceAllFixtures, replaceAllStandings } from './db.js';
 import { selectEleven } from './matchEngine.js';
 import { blankStandingRow } from './standings.js';
 import { generateLeagueFixtures } from './fixtures.js';
@@ -48,6 +48,32 @@ export async function initApp() {
   return save ?? null;
 }
 
+/**
+ * The budget a club actually starts a career with, from its reputation.
+ *
+ * Exported because the entry screen's club select (src/lib/ui/EntryScreen.svelte,
+ * R1) advertises this number while the player is choosing — the data files'
+ * own `budget` field is NOT what a new save gets, so showing that instead
+ * misreports all but a couple of clubs.
+ *
+ * Deliberately deterministic, unlike season.js's reputationBudget(), which
+ * adds ±6% variance for the seasonal refresh: the figure shown in the picker
+ * has to be the figure the save is created with.
+ */
+export function startingBudget(reputation) {
+  const rep = Number.isFinite(reputation) ? reputation : 70;
+  return Math.round(
+    rep >= 95 ? 180_000_000 + (rep - 95) * 10_000_000 :
+    rep >= 90 ? 120_000_000 + (rep - 90) * 12_000_000 :
+    rep >= 85 ? 75_000_000  + (rep - 85) *  9_000_000 :
+    rep >= 80 ? 45_000_000  + (rep - 80) *  6_000_000 :
+    rep >= 75 ? 28_000_000  + (rep - 75) *  3_400_000 :
+    rep >= 70 ? 18_000_000  + (rep - 70) *  2_000_000 :
+    rep >= 65 ? 10_000_000  + (rep - 65) *  1_600_000 :
+                 5_000_000  + rep * 77_000
+  );
+}
+
 export async function startNewGame(userTeamId, managerName) {
   await openDB();
 
@@ -84,22 +110,11 @@ export async function startNewGame(userTeamId, managerName) {
   };
 
   // Store all teams (strip players array) with reputation-scaled budgets
-  const teams = allTeamData.map(({ players: _, ...rest }) => {
-    // Apply reputation-based starting budget using reputationBudget formula
-    const isUser = rest.id === userTeamId;
-    const rep = rest.reputation ?? 70;
-    const repBudget = Math.round(
-      rep >= 95 ? 180_000_000 + (rep - 95) * 10_000_000 :
-      rep >= 90 ? 120_000_000 + (rep - 90) * 12_000_000 :
-      rep >= 85 ? 75_000_000  + (rep - 85) *  9_000_000 :
-      rep >= 80 ? 45_000_000  + (rep - 80) *  6_000_000 :
-      rep >= 75 ? 28_000_000  + (rep - 75) *  3_400_000 :
-      rep >= 70 ? 18_000_000  + (rep - 70) *  2_000_000 :
-      rep >= 65 ? 10_000_000  + (rep - 65) *  1_600_000 :
-                   5_000_000  + rep * 77_000
-    );
-    return { ...rest, budget: repBudget, academyInvestment: 0 };
-  });
+  const teams = allTeamData.map(({ players: _, ...rest }) => ({
+    ...rest,
+    budget: startingBudget(rest.reputation ?? 70),
+    academyInvestment: 0,
+  }));
 
   // Store all players with teamId. Contracts run 1-4 years so the whole
   // league doesn't come out of contract in the same season.
@@ -122,8 +137,11 @@ export async function startNewGame(userTeamId, managerName) {
 
   await putTeamsBulk(teams);
   await putPlayersBulk(assignPotentials(players));
-  await putStandingsBulk(standings);
-  await putFixturesBulk(fixtures);
+  // A career can now be started while another save exists (R7). Fixtures and
+  // standings use league-specific primary keys, so bulk-put would leave rows
+  // from the previous league behind. Replace the stores atomically instead.
+  await replaceAllStandings(standings);
+  await replaceAllFixtures(fixtures);
 
   // Auto-generate starting lineup so player can immediately play
   const userPlayers = players.filter(p => p.teamId === userTeamId);
@@ -141,4 +159,3 @@ export async function patchSave(patch) {
   await putSave(updated);
   return updated;
 }
-

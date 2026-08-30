@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; background: #0C2718; font-family: "Familjen Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #FF8A3D; } a:hover { color: #F4F1E8; }
+    * { box-sizing: border-box; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .kick { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9.5px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; }
+    @keyframes pass { 0% { stroke-dashoffset: 260; } 40%, 100% { stroke-dashoffset: 0; } }
+    @keyframes ballMove { 0% { offset-distance: 0%; } 40%, 100% { offset-distance: 100%; } }
+    @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes flash { 0%, 86%, 100% { opacity: 0; } 90% { opacity: 0.5; } }
+    .pass { stroke-dasharray: 260; animation: pass 6s cubic-bezier(0.3, 0, 0.2, 1) infinite; }
+    .live { animation: livePulse 1.4s ease-in-out infinite; }
+    .flash { animation: flash 6s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #0C2718; color: #F4F1E8; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div class="flash" style="position: absolute; inset: 0; background: #FF8A3D; z-index: 8; pointer-events: none;"></div>
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 15px 18px 12px; position: relative; z-index: 4; border-bottom: 1px solid rgba(244,241,232,0.10);">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="live" style="width: 7px; height: 7px; border-radius: 50%; background: #6BE59A;"></span>
+      <span class="mono" style="font-size: 19px; font-weight: 600; color: #6BE59A;">71'</span>
+    </div>
+    <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 12px;">
+      <span style="font-size: 15px; font-weight: 700;">ARS</span>
+      <span class="mono" style="font-size: 25px; font-weight: 600; letter-spacing: -0.02em;">2–1</span>
+      <span style="font-size: 15px; font-weight: 700; color: #A9C0B2;">CHE</span>
+    </div>
+    <div style="width: 36px; height: 36px; border: 1px solid rgba(244,241,232,0.22); border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="#F4F1E8" aria-hidden="true"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; min-height: 0; position: relative; margin: 12px 12px 0; border-radius: 6px; overflow: hidden; background: linear-gradient(180deg, #10361F 0%, #0D2C1A 100%);">
+    <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.022) 0px, rgba(255,255,255,0.022) 32px, transparent 32px, transparent 64px);"></div>
+
+    <svg viewBox="0 0 300 500" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%;" aria-hidden="true">
+      <g fill="none" stroke="rgba(244,241,232,0.24)" stroke-width="1.5">
+        <rect x="10" y="10" width="280" height="480"></rect>
+        <line x1="10" y1="250" x2="290" y2="250"></line>
+        <circle cx="150" cy="250" r="48"></circle>
+        <rect x="68" y="10" width="164" height="70"></rect>
+        <rect x="68" y="420" width="164" height="70"></rect>
+      </g>
+
+      <g fill="#EF0107" stroke="rgba(244,241,232,0.5)" stroke-width="1">
+        <circle cx="150" cy="452" r="7"></circle>
+        <circle cx="62" cy="368" r="7"></circle>
+        <circle cx="118" cy="384" r="7"></circle>
+        <circle cx="184" cy="384" r="7"></circle>
+        <circle cx="240" cy="368" r="7"></circle>
+        <circle cx="96" cy="268" r="7"></circle>
+        <circle cx="150" cy="296" r="7"></circle>
+        <circle cx="208" cy="262" r="7"></circle>
+        <circle cx="70" cy="150" r="7"></circle>
+        <circle cx="152" cy="112" r="7"></circle>
+        <circle cx="236" cy="146" r="7"></circle>
+      </g>
+      <g fill="#2C4C8F" stroke="rgba(244,241,232,0.4)" stroke-width="1" opacity="0.9">
+        <circle cx="150" cy="52" r="7"></circle>
+        <circle cx="84" cy="122" r="7"></circle>
+        <circle cx="150" cy="140" r="7"></circle>
+        <circle cx="220" cy="126" r="7"></circle>
+        <circle cx="110" cy="212" r="7"></circle>
+        <circle cx="190" cy="206" r="7"></circle>
+        <circle cx="150" cy="182" r="7"></circle>
+      </g>
+
+      <path id="passpath" class="pass" d="M 208 262 C 214 214 200 168 168 122" fill="none" stroke="#FF8A3D" stroke-width="2.8" stroke-linecap="round"></path>
+      <circle r="4.5" fill="#F4F1E8">
+        <animateMotion dur="6s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;0.4;1" calcMode="linear" path="M 208 262 C 214 214 200 168 168 122"></animateMotion>
+      </circle>
+    </svg>
+
+    <div style="position: absolute; left: 10px; bottom: 10px; right: 10px; display: flex; align-items: center; gap: 8px;">
+      <span class="kick" style="font-size: 8px; color: #7FA08D;">ARS</span>
+      <div style="flex-grow: 1; height: 4px; border-radius: 3px; overflow: hidden; display: flex; background: rgba(0,0,0,0.3);">
+        <div style="width: 64%; background: #EF0107;"></div>
+        <div style="width: 36%; background: #2C4C8F;"></div>
+      </div>
+      <span class="kick" style="font-size: 8px; color: #7FA08D;">CHE</span>
+    </div>
+  </div>
+
+  <div style="padding: 12px 18px 0; position: relative; z-index: 4; display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 4px; background: rgba(255,138,61,0.13); border-left: 3px solid #FF8A3D;">
+      <span class="mono" style="font-size: 15px; font-weight: 600; color: #FF8A3D; width: 28px;">71'</span>
+      <span style="font-size: 14px; font-weight: 600; flex-grow: 1;">Ødegaard scores — Bruno's pass</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 11px; padding: 6px 12px; opacity: 0.55;">
+      <span class="mono" style="font-size: 13px; color: #7FA08D; width: 28px;">66'</span>
+      <span style="font-size: 13px; flex-grow: 1; color: #A9C0B2;">Jorginho on for Rice</span>
+    </div>
+  </div>
+
+  <div style="padding: 12px 12px 26px; position: relative; z-index: 4; display: flex; align-items: center; gap: 8px;">
+    <div style="flex-grow: 1; height: 52px; border: 1px solid rgba(244,241,232,0.18); border-radius: 4px; display: flex; align-items: center; padding: 3px;">
+      <div style="flex-grow: 1; height: 44px; display: flex; align-items: center; justify-content: center;"><span class="mono" style="font-size: 14px; font-weight: 600; color: #7FA08D;">1×</span></div>
+      <div style="flex-grow: 1; height: 44px; border-radius: 3px; background: #FF8A3D; display: flex; align-items: center; justify-content: center;"><span class="mono" style="font-size: 14px; font-weight: 600; color: #0C2718;">2×</span></div>
+      <div style="flex-grow: 1; height: 44px; display: flex; align-items: center; justify-content: center;"><span class="mono" style="font-size: 14px; font-weight: 600; color: #7FA08D;">4×</span></div>
+      <div style="flex-grow: 1; height: 44px; display: flex; align-items: center; justify-content: center;"><span class="mono" style="font-size: 12px; font-weight: 600; color: #7FA08D;">SKIP</span></div>
+    </div>
+    <div style="height: 52px; padding: 0 16px; border-radius: 4px; background: rgba(244,241,232,0.10); display: flex; align-items: center; gap: 8px;">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#F4F1E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 4 7 20"></path><path d="M6 8h6"></path><path d="M12 16h6"></path></svg>
+      <span class="mono" style="font-size: 14px; font-weight: 600;">2</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

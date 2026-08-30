@@ -1,0 +1,63 @@
+import { describe, expect, it } from 'vitest';
+import { PL_TEAMS } from '../data/plTeams.js';
+import { CHAMPIONSHIP_TEAMS } from '../data/championship.js';
+import { LEAGUE_ONE_TEAMS } from '../data/leagueOne.js';
+import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
+import { LA_LIGA_TEAMS } from '../data/laLiga.js';
+import { BUNDESLIGA_TEAMS } from '../data/bundesliga.js';
+import { SERIE_A_TEAMS } from '../data/serieA.js';
+import { LIGUE_1_TEAMS } from '../data/ligue1.js';
+import { EREDIVISIE_TEAMS } from '../data/eredivisie.js';
+import {
+  resolvedClubBadgeProfile,
+  resolvedClubCrestSvg,
+  CUSTOM_BADGE_PROFILE_COUNT,
+  BADGE_NAME_ALIAS_COUNT,
+} from './clubIdentityResolved.mjs';
+
+const CLUBS = [
+  ...PL_TEAMS,
+  ...CHAMPIONSHIP_TEAMS,
+  ...LEAGUE_ONE_TEAMS,
+  ...LEAGUE_TWO_TEAMS,
+  ...LA_LIGA_TEAMS,
+  ...BUNDESLIGA_TEAMS,
+  ...SERIE_A_TEAMS,
+  ...LIGUE_1_TEAMS,
+  ...EREDIVISIE_TEAMS,
+];
+
+describe('bespoke club identity', () => {
+  it('covers all 186 playable clubs with renderable SVG', () => {
+    expect(CLUBS).toHaveLength(186);
+    for (const team of CLUBS) {
+      const svg = resolvedClubCrestSvg(team, { size: 32, label: `${team.name} crest` });
+      expect(svg, team.name).toContain('<svg');
+      expect(svg, `${team.name} standalone SVG namespace`).toContain('xmlns="http://www.w3.org/2000/svg"');
+      expect(svg, team.name).toContain('viewBox="0 0 100 100"');
+      expect(svg, team.name).toContain('aria-label=');
+      expect(svg, team.name).not.toContain(team.crest ?? '__never__');
+    }
+  });
+
+  it('keeps every club deterministic and club-specific', () => {
+    const rendered = CLUBS.map((team) => resolvedClubCrestSvg(team));
+    const renderedAgain = CLUBS.map((team) => resolvedClubCrestSvg(team));
+    expect(renderedAgain).toEqual(rendered);
+    expect(new Set(rendered).size).toBeGreaterThanOrEqual(180);
+  });
+
+  it('uses a curated real-identity profile for every playable club', () => {
+    expect(CUSTOM_BADGE_PROFILE_COUNT).toBe(9);
+    expect(BADGE_NAME_ALIAS_COUNT).toBe(3);
+    const missing = [];
+    for (const team of CLUBS) {
+      const profile = resolvedClubBadgeProfile(team);
+      expect(profile.shape, team.name).toBeTruthy();
+      expect(profile.primary, team.name).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(profile.motif, team.name).toBeTruthy();
+      if (profile.motif === 'monogram') missing.push(team.name);
+    }
+    expect(missing, `Uncurated club identities: ${missing.join(', ')}`).toEqual([]);
+  });
+});
