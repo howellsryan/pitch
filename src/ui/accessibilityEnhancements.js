@@ -1,11 +1,11 @@
 /*
  * Accessible-name bridge for controls that still live in older screen markup.
  *
- * Most screens are Svelte islands now, but a few range inputs pre-date the
- * shared field primitives and render without an associated label. The browser
- * audit caught them because a visual heading beside a slider is not an
- * accessible name. Keep the mapping explicit and idempotent while those
- * screens are migrated; component-local labels can replace these entries later.
+ * Most screens are Svelte islands now, but a few range/select controls pre-date
+ * the shared field primitives and render without an associated label. The
+ * browser audit caught them because nearby visual copy is not an accessible
+ * name. Keep the mapping explicit and idempotent while those screens are
+ * migrated; component-local labels can replace these entries later.
  */
 
 function setLabels(nodes, labels) {
@@ -19,6 +19,9 @@ function setLabels(nodes, labels) {
 export function applyAccessibleControlNames(root = document) {
   const transferRoot = root.querySelector?.('#screen-transfers') || document.querySelector('#screen-transfers');
   if (transferRoot) {
+    const sortRow = transferRoot.querySelector('.tr-adv-row');
+    if (sortRow) setLabels([...sortRow.querySelectorAll('select')], ['Sort players', 'Filter by league']);
+
     const groups = transferRoot.querySelectorAll('.tr-adv-grid > div');
     if (groups[0]) setLabels([...groups[0].querySelectorAll('input[type="range"]')], ['Minimum age', 'Maximum age']);
     if (groups[1]) setLabels([...groups[1].querySelectorAll('input[type="range"]')], ['Minimum rating', 'Maximum rating']);
