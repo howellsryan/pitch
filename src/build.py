@@ -133,7 +133,10 @@ def check_duplicates(bundle: str):
 def run_validation() -> bool:
     print('\n── Running validation suite ────────────────────────────')
     env = {**os.environ, 'PITCH_BUNDLE': str(BUNDLE), 'PITCH_SHELL': str(SHELL)}
-    r = subprocess.run(['node', str(BASE / 'validate.js')], capture_output=False, env=env)
+    # P0 keeps the 1,200+ legacy assertions authoritative, but a narrow bridge
+    # replaces only the assertions that describe intentionally retired P0
+    # behaviour/source layout with deterministic Vitest contracts.
+    r = subprocess.run(['python3', str(BASE / 'validate_p0.py')], capture_output=False, env=env)
     return r.returncode == 0
 
 
