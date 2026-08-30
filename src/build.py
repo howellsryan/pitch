@@ -1,70 +1,56 @@
 #!/usr/bin/env python3
 """
 PITCH — Build Script
-Usage:  python3 src/build.py           (paths below resolve relative to this
-                                         file, so it runs the same anywhere —
-                                         this machine, CI, or a fresh clone)
-Output: index.html at the repo root    (also .build/bundle_final.js, the
-                                         intermediate bundle validate.js checks)
+Usage:  python3 src/build.py
+Output: index.html at the repo root (plus .build/bundle_final.js)
 
-Steps:
-  1. Bundle all JS modules into .build/bundle_final.js
-  2. Run validate.js — abort if any check fails
-  3. Assemble shell.html + bundle → index.html
-  4. Final structural checks → write to the repo root
-
-Module load order matters for dependency resolution.
-All ES module import/export syntax is stripped since we
-bundle everything into a single plain-JS file.
+Module load order matters for dependency resolution. ES module import/export
+syntax is stripped because the legacy bundle is emitted as one plain script.
 """
 
 import os, re, subprocess, sys, collections
 from pathlib import Path
 
-BASE   = Path(__file__).resolve().parent   # src/
-REPO   = BASE.parent                       # repo root
+BASE   = Path(__file__).resolve().parent
+REPO   = BASE.parent
 SHELL  = BASE / 'shell.html'
 OUTPUT = REPO / 'index.html'
 BUNDLE = REPO / '.build' / 'bundle_final.js'
 
-# ── Module load order (dependencies first) ──────────────────────────────────
-MODULES = [
-    # Data files are auto-discovered from data/*.js (sorted alphabetically)
-    # They must come before all modules since modules reference them as globals.
-]
+MODULES = []
 
-# Auto-discover data files
 _data_dir = BASE / 'data'
 _data_files = sorted(_data_dir.glob('*.js'))
 for df in _data_files:
     label = df.stem.upper().replace('_', ' ')
     MODULES.append((f'data/{df.name}', label))
 
-# Core modules (order matters — dependencies flow top→bottom)
+# Core modules (dependencies first). P0's competitionRules.js is deliberately
+# immediately before cups.js: it is pure format data/helpers consumed by cups,
+# while gameweek continues to consume cups after that adapter layer.
 MODULES += [
-    ('modules/db.js',             'DATABASE'),
-    ('modules/matchEngine.js',    'MATCH ENGINE'),
-    ('modules/standings.js',      'STANDINGS'),
-    ('modules/fixtures.js',       'FIXTURES'),
-    ('modules/cups.js',           'CUPS'),
-    ('modules/transfers.js',      'TRANSFERS'),
-    ('modules/potential.js',      'POTENTIAL'),
-    ('modules/injuries.js',       'INJURIES'),
-    ('modules/promotion.js',      'PROMOTION'),
-    ('modules/youthAcademy.js',   'YOUTH ACADEMY'),
-    ('modules/save.js',           'SAVE'),
-    ('modules/season.js',         'SEASON'),
-    ('modules/gameweek.js',       'GAMEWEEK'),
-    ('lib/theme.mjs',             'CLUB THEME'),
-    ('ui/helpers.js',             'UI HELPERS'),
-    ('ui/home_transfers.js',      'HOME & TRANSFERS'),
-    ('ui/renderers.js',           'RENDERERS'),
-    ('ui/squad_tactics_offers.js','SQUAD TACTICS OFFERS'),
-    ('ui/inbox.js',               'INBOX'),
+    ('modules/db.js',               'DATABASE'),
+    ('modules/matchEngine.js',      'MATCH ENGINE'),
+    ('modules/standings.js',        'STANDINGS'),
+    ('modules/fixtures.js',         'FIXTURES'),
+    ('modules/competitionRules.js', 'COMPETITION RULES'),
+    ('modules/cups.js',             'CUPS'),
+    ('modules/transfers.js',        'TRANSFERS'),
+    ('modules/potential.js',        'POTENTIAL'),
+    ('modules/injuries.js',         'INJURIES'),
+    ('modules/promotion.js',        'PROMOTION'),
+    ('modules/youthAcademy.js',     'YOUTH ACADEMY'),
+    ('modules/save.js',             'SAVE'),
+    ('modules/season.js',           'SEASON'),
+    ('modules/gameweek.js',         'GAMEWEEK'),
+    ('lib/theme.mjs',               'CLUB THEME'),
+    ('ui/helpers.js',               'UI HELPERS'),
+    ('ui/home_transfers.js',        'HOME & TRANSFERS'),
+    ('ui/renderers.js',             'RENDERERS'),
+    ('ui/squad_tactics_offers.js',  'SQUAD TACTICS OFFERS'),
+    ('ui/inbox.js',                 'INBOX'),
 ]
 
-# ── Naming fixes: old name → correct name ───────────────────────────────────
-# Add to this list whenever a rename happens across modules.
 RENAMES = [
     ('fmtMoney(',        'fmt.money('),
     ('fmtWage(',         'fmt.wage('),
@@ -76,7 +62,6 @@ RENAMES = [
     ('potentialAgingDecline', 'applyAgingDecline'),
 ]
 
-# ── Dynamic import fix (season.js has one leftover) ─────────────────────────
 DYNAMIC_IMPORT_FIX = (
     "await import('./cups.js').catch(() => ({ buildInitialCupState: resetCups }))",
     "{ buildInitialCupState: typeof buildInitialCupState !== 'undefined' ? buildInitialCupState : resetCups }",
@@ -84,7 +69,6 @@ DYNAMIC_IMPORT_FIX = (
 
 
 def strip_modules(src: str) -> str:
-    """Remove ES module import/export syntax for plain-JS bundling."""
     src = re.sub(r'import\s*\{[^}]*\}\s*from\s*[\'"][^\'"]+[\'"];\s*', '', src, flags=re.DOTALL)
     src = re.sub(r'import\s+\w+\s+from\s*[\'"][^\'"]+[\'"];\s*', '', src)
     src = re.sub(r'\bexport\s+async\s+function\b', 'async function', src)
@@ -108,17 +92,10 @@ def build_bundle() -> str:
         print(f'  ✅ {path}  ({full.stat().st_size:,} bytes)')
 
     bundle = '\n'.join(parts)
-
-    # Clean up any stray import statements that survived
     bundle = re.sub(r'import\s*\{[^}]*\}\s*from\s*[\'"][^\'"]+[\'"];\s*', '', bundle, flags=re.DOTALL)
-
-    # Apply dynamic import fix
     bundle = bundle.replace(*DYNAMIC_IMPORT_FIX)
-
-    # Apply all renames
     for old, new in RENAMES:
         bundle = bundle.replace(old, new)
-
     return bundle
 
 
@@ -127,7 +104,6 @@ def check_syntax(bundle: str) -> bool:
     if r.returncode != 0:
         print('\n❌ SYNTAX ERROR:')
         print(r.stderr[:600])
-        # Try to show context around the error line
         lines = bundle.split('\n')
         for seg in r.stderr.split(':'):
             try:
@@ -146,7 +122,6 @@ def check_syntax(bundle: str) -> bool:
 
 def check_duplicates(bundle: str):
     fn_counts = collections.Counter(re.findall(r'(?:async )?function (\w+)\s*\(', bundle))
-    # These are known harmless duplicates (identical implementations in different modules)
     allowed_dups = {'primaryRating', 'agingValueAdjust'}
     dups = {k: v for k, v in fn_counts.items() if v > 1 and k not in allowed_dups}
     if dups:
@@ -173,19 +148,6 @@ def assemble_html(bundle: str) -> str:
 def check_html(final: str) -> bool:
     script = final[final.index('<script>')+8 : final.rindex('</script>')]
     ob, cb = script.count('{'), script.count('}')
-
-    # 'hdrPlay.onclick wired' and 'ph-play-btn CSS' used to check here.
-    # Phase 4 (docs/plan/04-migration-phases.md) moved the Play/EOY/Deadline
-    # header buttons and their wiring into src/lib/ui/HomeScreen.svelte, a
-    # real Svelte component outside this concatenated bundle entirely — like
-    # League before it, there's no legacy identifier left in `final` to check
-    # for. 'btn-adv-header present', 'pm-xi-preview present' and 'HOME on
-    # left in report' held only because ui/prematch.js's
-    # handleAdvanceOneFixture()/showPreMatchModal() and ui/home_transfers.js's
-    # showMatchReport() referenced those strings directly — Phase 5 deleted
-    # both files (their UI moved into src/lib/ui/MatchScreen.svelte, same as
-    # Home before it), so all three checks are gone too rather than left
-    # passing on a stale comment match.
     required = {
         'Braces balanced':           ob == cb,
         'Single <script> tag':       final.count('<script>') == 1,
@@ -217,35 +179,29 @@ def main():
     print('║              PITCH — Build Pipeline                  ║')
     print('╚══════════════════════════════════════════════════════╝\n')
 
-    # 1. Build bundle
     bundle = build_bundle()
     BUNDLE.parent.mkdir(parents=True, exist_ok=True)
     BUNDLE.write_text(bundle)
     print(f'\n  Bundle: {len(bundle):,} chars')
 
-    # 2. Syntax check
     print('\n── Syntax check ────────────────────────────────────────')
     if not check_syntax(bundle):
         sys.exit(1)
     print('  ✅ Syntax OK')
     check_duplicates(bundle)
 
-    # 3. Validation suite
     if not run_validation():
         print('\n❌ Validation failed — fix all failures before shipping.')
         sys.exit(1)
 
-    # 4. Assemble HTML
     print('\n── Assembling HTML ─────────────────────────────────────')
     final = assemble_html(bundle)
 
-    # 5. HTML structural checks
     print('\n── HTML structural checks ──────────────────────────────')
     if not check_html(final):
         print('\n❌ HTML checks failed.')
         sys.exit(1)
 
-    # 6. Write output
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(final)
     print(f'\n╔══════════════════════════════════════════════════════╗')
