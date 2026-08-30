@@ -60,7 +60,7 @@ async function auditActiveScreen(page, id) {
       const aria = (el.getAttribute('aria-label') || '').trim();
       if (aria) return aria;
       const labelledBy = (el.getAttribute('aria-labelledby') || '').trim();
-      if (labelledBy) return labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ').trim();
+      if (labelledBy) return labelledBy.split(/\s+/).map((labelId) => document.getElementById(labelId)?.textContent || '').join(' ').trim();
       const label = labelFor(el);
       if (label) return (label.textContent || '').trim();
       const title = (el.getAttribute('title') || '').trim();
@@ -155,5 +155,37 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
     }
   }
 
+  expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
+});
+
+test('watched match runs from Team News through post-match and unlocks navigation', async ({ page }) => {
+  await startArsenalCareer(page);
+  await go(page, 'match');
+
+  await page.getByRole('button', { name: /Kick Off/ }).click();
+  const kickoff = page.locator('.kickoff-beat');
+  await expect(kickoff).toBeVisible({ timeout: 10000 });
+  await kickoff.click();
+
+  await expect(page.locator('.broadcast-pitch')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('.broadcast-nav')).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await page.getByRole('button', { name: /Tactics/ }).click();
+  await expect(page.getByRole('region', { name: 'Live match tactics' })).toBeVisible();
+  await page.getByRole('button', { name: /Back to match/ }).click();
+  await expect(page.locator('.broadcast-pitch')).toBeVisible();
+
+  await page.getByRole('button', { name: '4×' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: /Skip/ }).click();
+
+  await expect(page.locator('.ft-status')).toHaveText('FULL TIME', { timeout: 15000 });
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.locator('.after-wrap')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: /Continue/ }).click();
+
+  await expect(page.locator('#screen-home')).toHaveClass(/active/, { timeout: 15000 });
+  await expect(page.locator('.broadcast-nav')).toBeVisible();
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });
