@@ -8,7 +8,7 @@ import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
 import { LIGUE_1_TEAMS } from '../data/ligue1.js';
 import { PL_TEAMS } from '../data/plTeams.js';
 import { SERIE_A_TEAMS } from '../data/serieA.js';
-import { getSave, openDB, putFixturesBulk, putPlayersBulk, putSave, putStandingsBulk, putTeamsBulk } from './db.js';
+import { getSave, openDB, putPlayersBulk, putSave, putTeamsBulk, replaceAllFixtures, replaceAllStandings } from './db.js';
 import { selectEleven } from './matchEngine.js';
 import { blankStandingRow } from './standings.js';
 import { generateLeagueFixtures } from './fixtures.js';
@@ -137,8 +137,11 @@ export async function startNewGame(userTeamId, managerName) {
 
   await putTeamsBulk(teams);
   await putPlayersBulk(assignPotentials(players));
-  await putStandingsBulk(standings);
-  await putFixturesBulk(fixtures);
+  // A career can now be started while another save exists (R7). Fixtures and
+  // standings use league-specific primary keys, so bulk-put would leave rows
+  // from the previous league behind. Replace the stores atomically instead.
+  await replaceAllStandings(standings);
+  await replaceAllFixtures(fixtures);
 
   // Auto-generate starting lineup so player can immediately play
   const userPlayers = players.filter(p => p.teamId === userTeamId);
@@ -156,4 +159,3 @@ export async function patchSave(patch) {
   await putSave(updated);
   return updated;
 }
-
