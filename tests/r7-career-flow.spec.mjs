@@ -75,6 +75,11 @@ test('P0 mobile career menu creates, switches and deletes isolated save slots', 
 });
 
 test('P0 deleting the legacy career cannot strand another surviving slot', async ({ page }) => {
+  // This intentionally performs three full career creations/reloads and two
+  // slot deletions. The default 60s budget is appropriate for normal smoke
+  // tests but not for this persistence regression on CI hardware.
+  test.setTimeout(120_000);
+
   await startArsenalCareer(page);
 
   let menu = await openCareerMenu(page);
