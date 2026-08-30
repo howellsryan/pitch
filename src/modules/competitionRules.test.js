@@ -98,6 +98,15 @@ describe('P0 competition rules', () => {
     expect(getUefaKnockoutOpponentSeeds('ucl', 25, 'R16 (Leg 1)')).toEqual([]);
   });
 
+  it('carries the fixed QF and SF bracket seed paths for inheritance', () => {
+    expect(getUefaKnockoutOpponentSeeds('ucl', 1, 'QF (Leg 1)')).toEqual([7, 8]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 8, 'QF (Leg 1)')).toEqual([1, 2]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 3, 'QF (Leg 1)')).toEqual([5, 6]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 6, 'QF (Leg 1)')).toEqual([3, 4]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 1, 'SF (Leg 1)')).toEqual([3, 4]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 4, 'SF (Leg 1)')).toEqual([1, 2]);
+  });
+
   it('builds UEFA-compliant home/away league-phase sequences', () => {
     const plans = [
       buildLeaguePhaseVenuePlan('ucl', () => 0),
