@@ -17,8 +17,8 @@
   let deleteTarget = $state.raw(null);
   let deleteOpen = $state(false);
   let exportMessage = $state('');
+  let loading = $state(false);
 
-  let loading = false;
   $effect(() => {
     if (!entryState.showing || !entryState.hasSave || loading) return;
     loading = true;
