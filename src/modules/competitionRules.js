@@ -215,6 +215,28 @@ export function getLeaguePhaseQualification(cupId, position) {
   return { route: 'eliminated', status: 'eliminated', roundIndex: 0, seed: position };
 }
 
+/**
+ * League-phase ranking has a concrete knockout consequence before P1 owns a
+ * full canonical UEFA bracket: the seeded side gets the second leg at home.
+ * Positions 9–16 are seeded in the knockout play-off, positions 17–24 are
+ * unseeded; positions 1–8 enter the round of 16 seeded. Later rounds are not
+ * league-phase seeded and therefore return a neutral venue contract.
+ */
+export function getUefaKnockoutSeeding(cupId, position, roundName) {
+  if (!isUefaCompetition(cupId) || !Number.isInteger(position)) {
+    return { seeded:null, secondLegHome:null };
+  }
+  if (roundName?.startsWith('Knockout Play-off')) {
+    if (position >= 9 && position <= 16) return { seeded:true, secondLegHome:true };
+    if (position >= 17 && position <= 24) return { seeded:false, secondLegHome:false };
+    return { seeded:null, secondLegHome:null };
+  }
+  if (roundName?.startsWith('R16') && position >= 1 && position <= 8) {
+    return { seeded:true, secondLegHome:true };
+  }
+  return { seeded:null, secondLegHome:null };
+}
+
 export function buildLeaguePhaseState(cupId, opponents = []) {
   const phase = getCompetitionRules(cupId)?.leaguePhase;
   if (!phase) return null;
