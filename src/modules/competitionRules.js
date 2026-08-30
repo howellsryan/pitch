@@ -343,6 +343,9 @@ export function buildLeaguePhaseState(cupId, opponents = [], rng = Math.random) 
   return {
     matchday: 0,
     points: 0,
+    wins: 0,
+    awayGoals: 0,
+    awayWins: 0,
     gf: 0,
     ga: 0,
     gd: 0,
@@ -356,6 +359,29 @@ export function buildLeaguePhaseState(cupId, opponents = [], rng = Math.random) 
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function metric(row, key) {
+  const value = Number(row?.[key]);
+  return Number.isFinite(value) ? value : 0;
+}
+
+/** UEFA Article 18 league-phase tiebreak order. P1 can populate the opponent
+ * aggregate/discipline/coefficient fields from its canonical world ledger;
+ * P0 already consumes them in the correct order whenever they are available. */
+export function compareLeaguePhaseRows(a, b) {
+  return metric(b, 'points') - metric(a, 'points')
+    || metric(b, 'gd') - metric(a, 'gd')
+    || metric(b, 'gf') - metric(a, 'gf')
+    || metric(b, 'awayGoals') - metric(a, 'awayGoals')
+    || metric(b, 'wins') - metric(a, 'wins')
+    || metric(b, 'awayWins') - metric(a, 'awayWins')
+    || metric(b, 'opponentPoints') - metric(a, 'opponentPoints')
+    || metric(b, 'opponentGd') - metric(a, 'opponentGd')
+    || metric(b, 'opponentGoals') - metric(a, 'opponentGoals')
+    || metric(a, 'disciplinaryPoints') - metric(b, 'disciplinaryPoints')
+    || metric(b, 'coefficient') - metric(a, 'coefficient')
+    || String(a?.teamId ?? '').localeCompare(String(b?.teamId ?? ''));
 }
 
 /**
@@ -381,6 +407,8 @@ export function finaliseLeaguePhaseTable(cupId, leaguePhase, userTeamId, rng = M
     const losses = Math.max(0, matches - wins - draws);
     const gf = Math.max(1, wins * 2 + draws + Math.floor(rng() * 5));
     const ga = Math.max(0, losses * 2 + draws + Math.floor(rng() * 5));
+    const awayGoals = Math.min(gf, Math.max(0, Math.floor(gf / 2) + Math.floor(rng() * 3) - 1));
+    const awayWins = Math.min(wins, Math.max(0, Math.floor(wins / 2) + (rng() > 0.7 ? 1 : 0)));
     table.push({
       teamId: `${cupId}_field_${i + 1}`,
       played: matches,
@@ -391,24 +419,29 @@ export function finaliseLeaguePhaseTable(cupId, leaguePhase, userTeamId, rng = M
       gf,
       ga,
       gd: gf - ga,
+      awayGoals,
+      awayWins,
     });
   }
 
   table.push({
     teamId: userTeamId,
     played: matches,
+    wins: Number(leaguePhase?.wins ?? 0),
     points: Number(leaguePhase?.points ?? 0),
     gf: Number(leaguePhase?.gf ?? 0),
     ga: Number(leaguePhase?.ga ?? 0),
     gd: Number(leaguePhase?.gd ?? 0),
+    awayGoals: Number(leaguePhase?.awayGoals ?? 0),
+    awayWins: Number(leaguePhase?.awayWins ?? 0),
+    opponentPoints: Number(leaguePhase?.opponentPoints ?? 0),
+    opponentGd: Number(leaguePhase?.opponentGd ?? 0),
+    opponentGoals: Number(leaguePhase?.opponentGoals ?? 0),
+    disciplinaryPoints: Number(leaguePhase?.disciplinaryPoints ?? 0),
+    coefficient: Number(leaguePhase?.coefficient ?? 0),
   });
 
-  table.sort((a, b) =>
-    b.points - a.points ||
-    b.gd - a.gd ||
-    b.gf - a.gf ||
-    String(a.teamId).localeCompare(String(b.teamId))
-  );
+  table.sort(compareLeaguePhaseRows);
 
   return table.map((row, index) => ({ ...row, position: index + 1 }));
 }
