@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { calculatePrizeMoney, europeanProgressPrize } from './season.js';
@@ -37,5 +39,16 @@ describe('P0 UEFA season finance integration', () => {
     expect(calculatePrizeMoney(20, {
       uel:{ status:'winner', qualificationRoute:'direct', roundIndex:9 },
     }, 'Bundesliga')).toBe(71_000_000);
+  });
+
+  it('keeps AI offer generation in the watched-match gameweek closeout path', () => {
+    const source = readFileSync(new URL('./gameweek.js', import.meta.url), 'utf8');
+    const start = source.indexOf('export async function advanceOneFixtureWithResult');
+    const end = source.indexOf('export function buildCupMatchResult', start);
+    const functionSource = start >= 0 && end > start ? source.slice(start, end) : '';
+
+    expect(functionSource).toContain('generateAIOffers');
+    expect(functionSource).toContain('simulateAITransfers');
+    expect(functionSource).toContain('simulateAILoans');
   });
 });
