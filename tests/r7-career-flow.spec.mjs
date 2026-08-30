@@ -110,7 +110,7 @@ test('R7 secondary screens keep dense mobile geometry including Team News', asyn
       const overlapsNav = navRect ? controls.some((r) => r.left < navRect.right && r.right > navRect.left && r.top < navRect.bottom && r.bottom > navRect.top) : false;
       return {
         docWidth: document.documentElement.scrollWidth,
-        viewportWidth: innerWidth,
+        viewportWidth: window.innerWidth,
         overlapsNav,
       };
     }, id);
