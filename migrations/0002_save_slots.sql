@@ -1,17 +1,16 @@
 -- P0: one cloud save row per user + career slot.
 -- Existing users are preserved as the stable legacy/first slot.
 CREATE TABLE saves_v2 (
-  user_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id),
   slot_id TEXT NOT NULL DEFAULT 'legacy',
   save_blob TEXT NOT NULL,
-  revision INTEGER NOT NULL DEFAULT 1,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (user_id, slot_id),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  save_revision INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, slot_id)
 );
 
-INSERT INTO saves_v2 (user_id, slot_id, save_blob, revision, updated_at)
-SELECT user_id, 'legacy', save_blob, revision, updated_at
+INSERT INTO saves_v2 (user_id, slot_id, save_blob, save_revision, updated_at)
+SELECT user_id, 'legacy', save_blob, save_revision, updated_at
 FROM saves;
 
 DROP TABLE saves;
