@@ -4,6 +4,7 @@ import { extname, join } from 'node:path';
 const ROOTS = ['src/lib/ui', 'src/ui'];
 const EXTRA = ['src/shell.html'];
 const EXTENSIONS = new Set(['.svelte', '.js', '.mjs', '.html']);
+const SAMPLE_LIMIT_PER_FILE = 8;
 
 // Extended pictographs cover normal emoji; regional indicators and tag
 // characters cover country/subdivision flags. Variation selectors / ZWJ are
@@ -25,18 +26,37 @@ const findings = [];
 
 for (const file of files) {
   const text = await readFile(file, 'utf8');
+  const lines = text.split('\n');
   for (const match of text.matchAll(EMOJI)) {
     const before = text.slice(0, match.index);
     const line = before.split('\n').length;
-    const sourceLine = text.split('\n')[line - 1]?.trim() ?? '';
+    const sourceLine = lines[line - 1]?.trim() ?? '';
     findings.push({ file, line, glyph: match[0], sourceLine });
   }
 }
 
 if (findings.length) {
-  console.error(`UI emoji audit failed: ${findings.length} glyph(s) remain.`);
-  for (const f of findings) {
-    console.error(`  ${f.file}:${f.line}  ${JSON.stringify(f.glyph)}  ${f.sourceLine}`);
+  const grouped = new Map();
+  for (const finding of findings) {
+    const group = grouped.get(finding.file) ?? [];
+    group.push(finding);
+    grouped.set(finding.file, group);
+  }
+
+  console.error(`UI emoji audit failed: ${findings.length} glyph(s) remain across ${grouped.size} file(s).`);
+  console.error('Remaining by file:');
+  for (const [file, group] of [...grouped.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))) {
+    console.error(`  ${String(group.length).padStart(3)}  ${file}`);
+  }
+
+  console.error(`\nSamples (up to ${SAMPLE_LIMIT_PER_FILE} per file):`);
+  for (const [file, group] of [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    for (const f of group.slice(0, SAMPLE_LIMIT_PER_FILE)) {
+      console.error(`  ${file}:${f.line}  ${JSON.stringify(f.glyph)}  ${f.sourceLine}`);
+    }
+    if (group.length > SAMPLE_LIMIT_PER_FILE) {
+      console.error(`  ${file}  … ${group.length - SAMPLE_LIMIT_PER_FILE} more`);
+    }
   }
   process.exitCode = 1;
 } else {
