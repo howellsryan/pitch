@@ -1,0 +1,57 @@
+/*
+ * Cross-screen mobile ergonomics found by the browser audit.
+ *
+ * The floating Broadcast navigation owns the bottom-right interaction zone on
+ * phones. Screens that finish with actionable content must either lift that
+ * content above the nav or shorten their scroll viewport so controls can be
+ * scrolled fully clear of it. Keep this file narrow: it is for shell-level
+ * collisions that cannot be solved correctly by one screen in isolation.
+ */
+@media (max-width: 768px) {
+  /* The nav trigger itself is a primary mobile control, so it must meet the
+     same 44px touch target as the destination pills. */
+  .broadcast-nav .menu {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .broadcast-nav.matchday .pill {
+    height: 46px !important;
+  }
+
+  .broadcast-nav.matchday .menu {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* Home's waiting sheet is anchored to the viewport bottom. Increasing its
+     reserved footer lifts the last decision row above the fixed nav instead
+     of allowing the nav to sit on top of Sign in / offer / inbox actions. */
+  #screen-home .waiting-sheet {
+    padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Chalk's bench is not vertically scrollable, so reserve the nav footprint
+     inside the strip itself. The pitch flexes upward; player cards remain
+     fully selectable rather than disappearing behind the menu pill. */
+  #screen-squad .tac-bench-strip {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Academy is vertically scrollable. Shortening the visible scroll viewport
+     is better than padding every youth card: the final actions can still be
+     scrolled into view, but nothing actionable sits underneath the nav. */
+  #screen-academy .ac-scroll {
+    margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* R6 keeps club colour as identity on the left edge of the user's table row.
+   Preserve qualification/relegation information too: put its semantic marker
+   on the opposite edge instead of suppressing it for the highlighted row. */
+#screen-competitions .league-row.is-user.zone-ucl { box-shadow: inset -3px 0 0 #3b82f6 !important; }
+#screen-competitions .league-row.is-user.zone-uel { box-shadow: inset -3px 0 0 var(--color-warn) !important; }
+#screen-competitions .league-row.is-user.zone-uecl { box-shadow: inset -3px 0 0 #8b5cf6 !important; }
+#screen-competitions .league-row.is-user.zone-auto,
+#screen-competitions .league-row.is-user.zone-playoff { box-shadow: inset -3px 0 0 var(--color-live) !important; }
+#screen-competitions .league-row.is-user.zone-rel { box-shadow: inset -3px 0 0 var(--color-bad) !important; }
