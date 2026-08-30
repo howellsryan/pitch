@@ -1046,7 +1046,7 @@ chk('Pause/resume wired', matchScreenSrc.includes('function togglePause'));
 chk('Skip wired', matchScreenSrc.includes('function skipMatch'));
 chk('Substitution sheet uses src/game/substitutions.js', matchScreenSrc.includes("from '../../game/substitutions.js'")&&matchScreenSrc.includes('applySubstitution'));
 chk('Tactics sheet uses src/game/formationChange.js', matchScreenSrc.includes("from '../../game/formationChange.js'")&&matchScreenSrc.includes('applyFormationChange'));
-chk('Sub sheet pauses while open', matchScreenSrc.includes('subSheetWasPaused'));
+chk('Tactics room pauses while open', matchScreenSrc.includes('tacticsSheetWasPaused'));
 chk('Tactics sheet pauses while open', matchScreenSrc.includes('tacticsSheetWasPaused'));
 chk('Injury auto-pauses the match', matchScreenSrc.includes("ev.type === 'injury'")&&matchScreenSrc.includes('togglePause()'));
 chk('Full Time beat shows scorers + verdict', matchScreenSrc.includes('ft-verdict')&&matchScreenSrc.includes('homeScorers'));

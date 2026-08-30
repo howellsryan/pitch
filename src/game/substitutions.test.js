@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLiveMatchState } from '../modules/matchEngine.js';
+import { buildLiveMatchState, simulateMatchSegment } from '../modules/matchEngine.js';
 import { applySubstitution, eligibleSubOutTargets, validateSubstitution } from './substitutions.js';
 
 // Same player-shape used by src/validate.js's old "SUB FLOW" / "GK on Bench"
@@ -162,5 +162,16 @@ describe('backup GK stays on the bench (not filtered out)', () => {
     expect(ls.hBenchLeft.some(p => p.position === 'GK')).toBe(true);
     expect(ls.aBenchLeft.some(p => p.position === 'GK')).toBe(true);
     expect(ls.hActive.filter(p => p.position === 'GK')).toHaveLength(1);
+  });
+});
+
+describe('user-controlled live substitutions', () => {
+  it('never lets the simulation silently spend the user team substitutions', () => {
+    const ls = makeLiveState(true);
+    const home = { id:'h', name:'Home' };
+    const away = { id:'a', name:'Away' };
+    const { updatedState } = simulateMatchSegment(home, away, ls, 1, 120, 'h');
+    expect(updatedState.hSubsLeft).toBe(3);
+    expect(updatedState.hBenchLeft.map(player => player.id)).toEqual(ls.hBenchLeft.map(player => player.id));
   });
 });

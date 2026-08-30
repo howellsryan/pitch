@@ -52,4 +52,14 @@ describe('applyFormationChange', () => {
     expect(back.homeFormation).toBe('4-3-3');
     expect(back.hActive).toHaveLength(11);
   });
+
+  it('never treats a formation change as a free substitution', () => {
+    const ls = makeLiveState();
+    const activeIds = ls.hActive.map(player => player.id).sort();
+    const benchIds = ls.hBenchLeft.map(player => player.id).sort();
+    const after = applyFormationChange(ls, true, '3-5-2');
+    expect(after.hActive.map(player => player.id).sort()).toEqual(activeIds);
+    expect(after.hBenchLeft.map(player => player.id).sort()).toEqual(benchIds);
+    expect(after.hSubsLeft).toBe(3);
+  });
 });

@@ -71,7 +71,8 @@ spatial presentation simulation. Two options were considered:
 
 `src/game/broadcastSimulation.js` is DOM-free and owns both layers a believable
 match view needs. Its high-level state selects kickoff, live possession,
-turnover, restart, chance, shot, goal hold and post-goal kickoff. Its low-level
+turnover, causal restart, half-time/end swap, chance, shot, goal hold and
+post-goal kickoff. Its low-level
 steering preserves velocity, accelerates towards role targets, brakes on
 arrival and separates nearby markers. The ball has an explicit owner or a
 time-based curved flight; it is never independently eased towards an unrelated
@@ -81,9 +82,12 @@ In-possession players form support triangles and offer width. Out-of-possession
 players retain a compact line and only the nearest one or two press. The ball
 and second-last defender create a hard offside boundary for forward movement,
 goalkeepers stay within a bounded sweeper zone, and kickoff positions obey the
-own-half and centre-circle laws. Engine goal events still supply the real team,
-scorer and minute; the presentation engine builds the lead-in and shot around
-that outcome.
+own-half and centre-circle laws. A miss produces a goal kick, a deflection the
+correct-side corner and cross, a foul a free kick at the challenge spot, and a
+touchline exit a throw-in. Engine goal events still supply the real team,
+scorer and minute; the presentation engine advances that scorer into the final
+third, builds the lead-in and only updates the visible score when the shot
+reaches goal.
 
 **Determinism is a requirement, not a nicety.** Selection variation uses FNV-1a
 hashes of the sequence and player ids, never `Math.random()`. Tests cover legal
@@ -260,12 +264,15 @@ bug, a full-screen pitch with 22 anonymous shirt markers, possession momentum,
 and a bottom control dock. `src/game/broadcastSimulation.js` is the single
 spatial presentation engine: a continuous possession state machine with a real
 ball owner/flight, role-based support and defensive shapes, local pressure,
-turnovers, legal kickoff geometry, enforced onside runs and bounded goalkeeper
-movement. Deterministic throw-ins, free kicks, corners and goal kicks pace the
-presentation between engine phases; they are visual scenes, not result events.
+turnovers, legal kickoff geometry, a real half-time end swap and second kickoff,
+enforced onside runs and bounded goalkeeper movement. Deterministic throw-ins,
+free kicks, corners and goal kicks are caused by spatial incidents rather than
+inserted between engine phases; they remain visual scenes, not result events.
 Formation coordinates are role anchors, never fresh rendered positions. Goals
-receive a constructed chance, shot, full-pitch takeover, hold and opponent
-kickoff. Player identity and lineup management remain in Squad. Penalty
+receive a final-third constructed chance, shot, score-synchronised full-pitch
+takeover, hold and opponent kickoff. Player identity stays out of the Broadcast
+pitch and appears in the full-height, match-pausing Squad-style Tactics room,
+where formation and substitution controls share one screen. Penalty
 choreography is reserved until the result engine emits a real penalty event.
 
 ### R6 — Market and Table

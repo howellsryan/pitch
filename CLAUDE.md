@@ -131,8 +131,9 @@
   (opponent form, key player, XI-on-pitch preview reusing
   `src/game/formationLayout.js`'s `SLOT_LAYOUT`/`SLOT_POS_MAP` — now shared
   with R4's merged `SquadScreen.svelte` instead of each holding its own copy) → a
-  brief kickoff transition → live (tick engine, score bug, event feed, 1×/
-  2×/4×/skip, pause, sub and tactics bottom sheets) → full time (score,
+  brief kickoff transition → live (tick engine, score bug, event feed and one
+  single-row pause/speed/skip/tactics dock; Tactics is a full-height,
+  match-pausing Squad-style XI + bench room) → full time (score,
   scorers, one-line verdict) → after (stats, subs, injuries, a 3-row league
   slice with `animate:flip` seeded from a pre-match snapshot so the reveal
   actually animates the reorder, not just a static post-match table).

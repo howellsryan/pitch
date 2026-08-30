@@ -84,9 +84,43 @@ describe('broadcast simulation', () => {
   it('builds a goal sequence and gives the restart to the other team', () => {
     const sim = create(); for (let i = 0; i < 35; i++) advanceBroadcastSimulation(sim, 33);
     updateBroadcastSimulation(sim, { phase:2, possessionTeamId:'home', event:{type:'goal',minute:2,teamId:'home',playerId:'h-9',playerName:'Nine'} });
-    let sawShot = false; let sawGoal = false; let sawAwayKickoff = false;
-    for (let i = 0; i < 120; i++) { advanceBroadcastSimulation(sim, 33); sawShot ||= sim.action === 'SHOT · ON GOAL'; sawGoal ||= sim.action === 'GOAL'; sawAwayKickoff ||= sim.mode === 'kickoff' && sim.possessionTeamId === 'away'; }
+    let sawShot = false; let sawGoal = false; let sawAwayKickoff = false; let shotY = null;
+    for (let i = 0; i < 180; i++) {
+      advanceBroadcastSimulation(sim, 33);
+      if (!sawShot && sim.action === 'SHOT · ON GOAL') { sawShot = true; shotY = sim.ball.y; }
+      sawGoal ||= sim.action === 'GOAL';
+      sawAwayKickoff ||= sim.mode === 'kickoff' && sim.possessionTeamId === 'away';
+    }
     expect(sawShot).toBe(true); expect(sawGoal).toBe(true); expect(sawAwayKickoff).toBe(true);
+    expect(shotY).toBeLessThanOrEqual(33);
+  });
+
+  it('holds half time, swaps ends, and gives the second kickoff to the other team', () => {
+    const sim = create();
+    updateBroadcastSimulation(sim, { phase:60, possessionTeamId:'home' });
+    expect(sim.mode).toBe('half-time');
+    expect(sim.action).toBe('HALF TIME');
+    for (let i = 0; i < 65; i++) advanceBroadcastSimulation(sim, 33);
+    expect(sim.halftimeCompleted).toBe(true);
+    expect(sim.endsSwapped).toBe(true);
+    expect(sim.possessionTeamId).toBe('away');
+    expect(['kickoff', 'live']).toContain(sim.mode);
+  });
+
+  it('derives goal kicks and corners from the preceding shot outcome', () => {
+    const sim = create();
+    const actions = [];
+    let cornerSpot = null;
+    for (let i = 0; i < 900; i++) {
+      advanceBroadcastSimulation(sim, 33);
+      if (actions.at(-1) !== sim.action) actions.push(sim.action);
+      if (sim.restart?.type === 'corner') cornerSpot = sim.restart.spot;
+    }
+    expect(actions.indexOf('SHOT · WIDE')).toBeLessThan(actions.indexOf('GOAL-KICK · SHOT WIDE'));
+    expect(actions.indexOf('SHOT BLOCKED · DEFLECTION')).toBeLessThan(actions.indexOf('CORNER · DEFLECTED BEHIND'));
+    expect(actions).toContain('CORNER · CROSS INTO THE BOX');
+    expect([3, 97]).toContain(cornerSpot.x);
+    expect([3, 97]).toContain(cornerSpot.y);
   });
 
   it('keeps current positions when a substitution changes the active lineup', () => {

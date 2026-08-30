@@ -7,9 +7,17 @@ const WIDE = new Set(['RB', 'LB', 'RW', 'LW', 'RM', 'LM']);
 function clamp(value, min = 3, max = 97) { return Math.max(min, Math.min(max, value)); }
 function hash(value) { let h = 2166136261; for (const c of String(value)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
 function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-function direction(sim, teamId) { return teamId === sim.homeTeamId ? -1 : 1; }
+function direction(sim, teamId) {
+  const homeDirection = sim.endsSwapped ? 1 : -1;
+  return teamId === sim.homeTeamId ? homeDirection : -homeDirection;
+}
 function teamPlayers(sim, teamId) { return sim.players.filter(player => player.teamId === teamId); }
 function opponentPlayers(sim, teamId) { return sim.players.filter(player => player.teamId !== teamId); }
+function otherTeamId(sim, teamId) { return teamId === sim.homeTeamId ? sim.awayTeamId : sim.homeTeamId; }
+function attackingGoalY(sim, teamId) { return direction(sim, teamId) < 0 ? 2.5 : 97.5; }
+function inFinalThird(sim, player, teamId = player.teamId) {
+  return direction(sim, teamId) < 0 ? player.y <= 33 : player.y >= 67;
+}
 
 function assign(players, formation, home, teamId) {
   const slots = SLOT_LAYOUT[formation] ?? SLOT_LAYOUT['4-3-3'];
@@ -28,25 +36,20 @@ function assign(players, formation, home, teamId) {
   }).filter(Boolean);
 }
 
-function kickoffPoint(player, takingTeamId, homeTeamId, kickerId) {
-  const home = player.teamId === homeTeamId;
+function kickoffPoint(sim, player, takingTeamId, kickerId) {
+  const dir = direction(sim, player.teamId);
   if (player.id === kickerId) return { x: 50, y: 50 };
-  if (player.position === 'GK') return { x: 50, y: home ? 91 : 9 };
-  if (DEFENDERS.has(player.position)) return { x: player.baseX, y: home ? 76 : 24 };
+  if (player.position === 'GK') return { x: 50, y: dir < 0 ? 91 : 9 };
+  if (DEFENDERS.has(player.position)) return { x: player.baseX, y: dir < 0 ? 76 : 24 };
   if (FORWARDS.has(player.position)) {
     const taking = player.teamId === takingTeamId;
-    return { x: player.baseX, y: home ? (taking ? 58 : 60) : (taking ? 42 : 40) };
+    return { x: player.baseX, y: dir < 0 ? (taking ? 58 : 60) : (taking ? 42 : 40) };
   }
-  return { x: player.baseX, y: home ? 64 : 36 };
+  return { x: player.baseX, y: dir < 0 ? 64 : 36 };
 }
 
 function closest(players, point, predicate = () => true) {
   return players.filter(predicate).sort((a, b) => distance(a, point) - distance(b, point))[0] ?? null;
-}
-
-function kickoffSupport(sim, teamId, kickerId) {
-  const kicker = sim.players.find(player => player.id === kickerId);
-  return closest(teamPlayers(sim, teamId), kicker, player => player.id !== kickerId && player.position !== 'GK');
 }
 
 function prepareKickoff(sim, takingTeamId) {
@@ -54,43 +57,53 @@ function prepareKickoff(sim, takingTeamId) {
   const kicker = closest(side, { x: 50, y: 50 }, player => FORWARDS.has(player.position))
     ?? closest(side, { x: 50, y: 50 }, player => player.position !== 'GK');
   for (const player of sim.players) {
-    const point = kickoffPoint(player, takingTeamId, sim.homeTeamId, kicker.id);
-    player.x = point.x; player.y = point.y; player.targetX = point.x; player.targetY = point.y;
-    player.vx = 0; player.vy = 0; player.pressing = false; player.receiving = false; player.rushing = false;
+    const point = kickoffPoint(sim, player, takingTeamId, kicker.id);
+    Object.assign(player, { x:point.x, y:point.y, targetX:point.x, targetY:point.y, vx:0, vy:0, pressing:false, receiving:false, rushing:false });
   }
   sim.possessionTeamId = takingTeamId;
   sim.desiredPossessionTeamId = takingTeamId;
   sim.ball = { x: 50, y: 50, ownerId: kicker.id, flight: null, shooting: false };
-  sim.mode = 'kickoff'; sim.action = 'KICK OFF · TEAMS SET'; sim.nextActionAt = sim.clock + 650;
+  sim.mode = 'kickoff';
+  sim.action = sim.halftimeCompleted ? 'SECOND HALF · TEAMS SET' : 'KICK OFF · TEAMS SET';
+  sim.nextActionAt = sim.clock + 650;
   sim.kickoffKickerId = kicker.id;
+  sim.sequenceSinceRestart = 0;
 }
 
 export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers }) {
   const sim = {
     homeTeamId, awayTeamId, possessionTeamId, desiredPossessionTeamId: possessionTeamId,
+    firstKickoffTeamId: possessionTeamId, endsSwapped: false, halftimeCompleted: false,
+    halftimePending: false, halftimeHoldUntil: 0, phase: 0,
     players: [...assign(homePlayers, homeFormation, true, homeTeamId), ...assign(awayPlayers, awayFormation, false, awayTeamId)],
-    ball: null, clock: 0, sequence: 0, nextActionAt: 0, mode: 'kickoff', action: 'KICK OFF',
-    pendingGoal: null, goalHoldUntil: 0, restart: null, restartKey: null, kickoffKickerId: null,
+    ball: null, clock: 0, sequence: 0, sequenceSinceRestart: 0, outcomeIndex: 0,
+    nextActionAt: 0, mode: 'kickoff', action: 'KICK OFF',
+    pendingGoal: null, goalHoldUntil: 0, restart: null, kickoffKickerId: null,
   };
   prepareKickoff(sim, possessionTeamId);
   return sim;
 }
 
-export function derivedRestart(phase) {
-  if (!phase || phase % 13 !== 0) return null;
-  const types = ['throw-in', 'free-kick', 'corner', 'goal-kick'];
-  return { type: types[Math.floor(phase / 13) % types.length], variant: Math.floor(phase / 13), key: phase };
+function beginHalfTime(sim) {
+  sim.halftimePending = false; sim.mode = 'half-time'; sim.action = 'HALF TIME';
+  sim.ball.ownerId = null; sim.ball.flight = null; sim.ball.shooting = false;
+  sim.halftimeHoldUntil = sim.clock + 1800; sim.nextActionAt = Number.POSITIVE_INFINITY;
+  for (const player of sim.players) {
+    Object.assign(player, { targetX:player.x, targetY:player.y, vx:player.vx * .25, vy:player.vy * .25, pressing:false, receiving:false, rushing:false });
+  }
 }
 
-export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event = null, restart = null }) {
+export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event = null }) {
   sim.desiredPossessionTeamId = possessionTeamId;
+  const crossedHalfTime = !sim.halftimeCompleted && phase >= 60 && sim.phase < 60;
   if (event?.type === 'goal' && sim.pendingGoal?.key !== `${event.minute}:${event.playerId}`) {
-    sim.pendingGoal = { ...event, key: `${event.minute}:${event.playerId}`, stage: 'create' };
+    sim.pendingGoal = { ...event, key: `${event.minute}:${event.playerId}`, stage: 'build' };
     sim.restart = null;
     sim.nextActionAt = Math.min(sim.nextActionAt, sim.clock + 120);
-  } else if (restart && !sim.pendingGoal && sim.restartKey !== restart.key) {
-    sim.restartKey = restart.key;
-    beginRestart(sim, restart, possessionTeamId);
+    if (crossedHalfTime) sim.halftimePending = true;
+  } else if (crossedHalfTime) {
+    if (sim.mode === 'goal' || sim.pendingGoal) sim.halftimePending = true;
+    else beginHalfTime(sim);
   }
   sim.phase = phase;
   return sim;
@@ -101,6 +114,7 @@ export function replaceBroadcastLineups(sim, { homeFormation, awayFormation, hom
     ...assign(homePlayers, homeFormation, true, sim.homeTeamId),
     ...assign(awayPlayers, awayFormation, false, sim.awayTeamId),
   ];
+  if (sim.endsSwapped) fresh.forEach(player => { player.baseY = 100 - player.baseY; });
   const existingById = new Map(sim.players.map(player => [player.id, player]));
   sim.players = fresh.map(next => {
     const existing = existingById.get(next.id)
@@ -118,8 +132,7 @@ function offsideLine(sim, attackingTeamId) {
   const dir = direction(sim, attackingTeamId);
   const defenders = opponentPlayers(sim, attackingTeamId).map(player => player.y).sort((a, b) => a - b);
   const secondLast = dir < 0 ? defenders[1] : defenders[defenders.length - 2];
-  if (dir < 0) return Math.min(sim.ball.y, secondLast) + 1.5;
-  return Math.max(sim.ball.y, secondLast) - 1.5;
+  return dir < 0 ? Math.min(sim.ball.y, secondLast) + 1.5 : Math.max(sim.ball.y, secondLast) - 1.5;
 }
 
 export function isOnside(sim, player, teamId = player.teamId) {
@@ -147,12 +160,13 @@ function roleTarget(sim, player) {
 }
 
 function setGoalkeeperTarget(sim, player) {
-  const home = player.teamId === sim.homeTeamId;
+  const dir = direction(sim, player.teamId);
   const ownPossession = player.teamId === sim.possessionTeamId;
-  const danger = home ? sim.ball.y > 72 : sim.ball.y < 28;
+  const danger = dir < 0 ? sim.ball.y > 72 : sim.ball.y < 28;
   player.targetX = clamp(50 + (sim.ball.x - 50) * (danger ? .28 : .08), 38, 62);
-  if (home) player.targetY = clamp(ownPossession ? 86 : (danger ? 82 - (sim.ball.y - 72) * .28 : 90), 76, 93);
-  else player.targetY = clamp(ownPossession ? 14 : (danger ? 18 + (28 - sim.ball.y) * .28 : 10), 7, 24);
+  player.targetY = dir < 0
+    ? clamp(ownPossession ? 86 : (danger ? 82 - (sim.ball.y - 72) * .28 : 90), 76, 93)
+    : clamp(ownPossession ? 14 : (danger ? 18 + (28 - sim.ball.y) * .28 : 10), 7, 24);
   player.rushing = danger && !ownPossession;
 }
 
@@ -163,73 +177,95 @@ function updateLiveTargets(sim) {
   for (const player of sim.players) {
     player.pressing = false; player.receiving = sim.ball.flight?.toId === player.id; player.rushing = false;
     if (player.position === 'GK') { setGoalkeeperTarget(sim, player); continue; }
-    const target = roleTarget(sim, player); player.targetX = target.x; player.targetY = target.y;
+    Object.assign(player, { targetX:roleTarget(sim, player).x, targetY:roleTarget(sim, player).y });
   }
   if (!carrier) return;
   const dir = direction(sim, sim.possessionTeamId);
   carrier.targetX = clamp(carrier.x + (50 - carrier.x) * .06, 5, 95);
   carrier.targetY = clamp(carrier.y + dir * 4, 7, 93);
-
-  const support = attack.filter(player => player.id !== carrier.id && player.position !== 'GK')
-    .sort((a, b) => distance(a, carrier) - distance(b, carrier)).slice(0, 2);
-  support.forEach((player, index) => {
-    player.targetX = clamp(carrier.x + (index ? 10 : -10), 6, 94);
-    player.targetY = clamp(carrier.y - dir * (index ? 5 : 8), 7, 93);
-  });
-
-  const pressers = defence.filter(player => player.position !== 'GK')
-    .sort((a, b) => distance(a, carrier) - distance(b, carrier)).slice(0, sim.ball.y > 30 && sim.ball.y < 70 ? 2 : 1);
-  pressers.forEach((player, index) => {
-    player.targetX = clamp(carrier.x + (index ? 2.8 : -2.8), 5, 95);
-    player.targetY = clamp(carrier.y - dir * 1.5, 5, 95);
-    player.pressing = true;
-  });
-
+  attack.filter(player => player.id !== carrier.id && player.position !== 'GK')
+    .sort((a, b) => distance(a, carrier) - distance(b, carrier)).slice(0, 2)
+    .forEach((player, index) => {
+      player.targetX = clamp(carrier.x + (index ? 10 : -10), 6, 94);
+      player.targetY = clamp(carrier.y - dir * (index ? 5 : 8), 7, 93);
+    });
+  defence.filter(player => player.position !== 'GK')
+    .sort((a, b) => distance(a, carrier) - distance(b, carrier)).slice(0, sim.ball.y > 30 && sim.ball.y < 70 ? 2 : 1)
+    .forEach((player, index) => {
+      player.targetX = clamp(carrier.x + (index ? 2.8 : -2.8), 5, 95);
+      player.targetY = clamp(carrier.y - dir * 1.5, 5, 95);
+      player.pressing = true;
+    });
   const line = offsideLine(sim, sim.possessionTeamId);
   for (const player of attack) {
     if (!FORWARDS.has(player.position) || player.id === carrier.id) continue;
     player.targetY = dir < 0 ? Math.max(player.targetY, line) : Math.min(player.targetY, line);
   }
+  const scorer = sim.pendingGoal && sim.players.find(player => player.id === sim.pendingGoal.playerId);
+  if (scorer && sim.pendingGoal.stage === 'build') {
+    scorer.targetX = clamp(scorer.baseX + (50 - scorer.baseX) * .22, 24, 76);
+    const desiredY = dir < 0 ? 27 : 73;
+    scorer.targetY = dir < 0 ? Math.max(desiredY, line) : Math.min(desiredY, line);
+    scorer.receiving = true;
+    if (scorer.id === carrier.id) scorer.targetY = desiredY;
+  }
 }
 
 function updateKickoffTargets(sim) {
   for (const player of sim.players) {
-    const point = kickoffPoint(player, sim.possessionTeamId, sim.homeTeamId, sim.kickoffKickerId);
-    player.targetX = point.x; player.targetY = point.y; player.pressing = false; player.receiving = false; player.rushing = false;
+    const point = kickoffPoint(sim, player, sim.possessionTeamId, sim.kickoffKickerId);
+    Object.assign(player, { targetX:point.x, targetY:point.y, pressing:false, receiving:false, rushing:false });
   }
 }
 
-function restartSpot(sim, restart, teamId) {
-  const dir = direction(sim, teamId); const side = restart.variant % 2 ? 5 : 95;
-  if (restart.type === 'throw-in') return { x: side, y: 44 };
-  if (restart.type === 'free-kick') return { x: 50, y: dir < 0 ? 31 : 69 };
-  if (restart.type === 'corner') return { x: side, y: dir < 0 ? 4 : 96 };
-  return { x: 50, y: dir < 0 ? 88 : 12 };
-}
-
-function beginRestart(sim, restart, teamId) {
-  const spot = restartSpot(sim, restart, teamId);
+function beginRestart(sim, type, teamId, spot, cause) {
+  const restartSpot = { x: clamp(spot.x), y: clamp(spot.y) };
   const side = teamPlayers(sim, teamId);
-  const taker = restart.type === 'goal-kick'
+  const taker = type === 'goal-kick'
     ? side.find(player => player.position === 'GK')
-    : closest(side, spot, player => player.position !== 'GK');
-  sim.restart = { ...restart, teamId, takerId: taker.id, spot };
+    : closest(side, restartSpot, player => player.position !== 'GK');
+  sim.restart = { type, teamId, takerId: taker.id, spot: restartSpot, cause };
   sim.mode = 'restart'; sim.possessionTeamId = teamId; sim.desiredPossessionTeamId = teamId;
-  sim.ball.ownerId = null; sim.ball.flight = null; sim.ball.x = spot.x; sim.ball.y = spot.y; sim.ball.shooting = false;
-  sim.action = `${restart.type.toUpperCase()} · PLAYERS RESETTING`;
+  Object.assign(sim.ball, { ownerId:null, flight:null, x:restartSpot.x, y:restartSpot.y, shooting:false });
+  sim.action = `${type.toUpperCase()} · ${cause}`;
   sim.nextActionAt = sim.clock + 850;
+  sim.sequenceSinceRestart = 0;
 }
 
 function updateRestartTargets(sim) {
-  updateLiveTargets(sim);
   const restart = sim.restart;
   const taker = sim.players.find(player => player.id === restart.takerId);
-  taker.targetX = restart.spot.x; taker.targetY = restart.spot.y;
-  taker.receiving = true;
+  for (const player of sim.players) {
+    player.pressing = false; player.receiving = false; player.rushing = false;
+    if (player.position === 'GK') setGoalkeeperTarget(sim, player);
+    else Object.assign(player, { targetX:roleTarget(sim, player).x, targetY:roleTarget(sim, player).y });
+  }
+  taker.targetX = restart.spot.x; taker.targetY = restart.spot.y; taker.receiving = true;
+  const dir = direction(sim, restart.teamId);
+  const attack = teamPlayers(sim, restart.teamId).filter(player => player.id !== taker.id && player.position !== 'GK');
+  const defence = opponentPlayers(sim, restart.teamId).filter(player => player.position !== 'GK');
   if (restart.type === 'corner') {
-    const dir = direction(sim, restart.teamId);
-    teamPlayers(sim, restart.teamId).filter(player => player.id !== taker.id && player.position !== 'GK').forEach((player, index) => {
-      player.targetX = clamp(35 + (index % 4) * 10, 8, 92); player.targetY = dir < 0 ? 14 + (index % 3) * 5 : 86 - (index % 3) * 5;
+    attack.forEach((player, index) => {
+      player.targetX = 34 + (index % 5) * 8; player.targetY = dir < 0 ? 10 + (index % 3) * 5 : 90 - (index % 3) * 5;
+    });
+    defence.forEach((player, index) => {
+      player.targetX = 35 + (index % 5) * 7.5; player.targetY = dir < 0 ? 7 + (index % 3) * 4 : 93 - (index % 3) * 4;
+    });
+  } else if (restart.type === 'free-kick') {
+    const goalY = attackingGoalY(sim, restart.teamId);
+    const wallY = restart.spot.y + (goalY - restart.spot.y) * .28;
+    defence.slice(0, 4).forEach((player, index) => { player.targetX = 44 + index * 4; player.targetY = wallY; });
+    attack.slice(0, 5).forEach((player, index) => {
+      player.targetX = 32 + index * 9; player.targetY = dir < 0 ? 17 + (index % 2) * 7 : 83 - (index % 2) * 7;
+    });
+  } else if (restart.type === 'goal-kick') {
+    attack.filter(player => DEFENDERS.has(player.position)).slice(0, 4).forEach((player, index) => {
+      player.targetX = index % 2 ? 72 : 28; player.targetY = dir < 0 ? 78 - Math.floor(index / 2) * 9 : 22 + Math.floor(index / 2) * 9;
+    });
+  } else if (restart.type === 'throw-in') {
+    attack.slice(0, 3).forEach((player, index) => {
+      player.targetX = restart.spot.x === 3 ? 11 + index * 5 : 89 - index * 5;
+      player.targetY = clamp(restart.spot.y + (index - 1) * 8, 10, 90);
     });
   }
 }
@@ -239,71 +275,142 @@ function candidateScore(sim, carrier, candidate) {
   const dist = distance(carrier, candidate);
   const forward = (candidate.y - carrier.y) * dir;
   const space = Math.min(...opponentPlayers(sim, carrier.teamId).map(player => distance(player, candidate)));
-  const variation = (hash(`${sim.sequence}:${candidate.id}`) % 100) / 100;
-  return forward * .55 + space * .34 - Math.abs(dist - 18) * .23 + variation * 4;
+  return forward * .55 + space * .34 - Math.abs(dist - 18) * .23 + (hash(`${sim.sequence}:${candidate.id}`) % 100) / 25;
 }
 
-function selectPass(sim, carrier) {
-  const all = teamPlayers(sim, carrier.teamId).filter(player => player.id !== carrier.id && player.position !== 'GK' && isOnside(sim, player));
-  const maximum = sim.sequence % 7 === 6 ? 58 : 34;
-  const candidates = all.filter(player => distance(carrier, player) <= maximum);
-  if (!candidates.length && all.length) return all.sort((a, b) => distance(a, carrier) - distance(b, carrier))[0];
+function selectPass(sim, carrier, predicate = () => true) {
+  const all = teamPlayers(sim, carrier.teamId).filter(player => player.id !== carrier.id && player.position !== 'GK' && isOnside(sim, player) && predicate(player));
+  const candidates = all.filter(player => distance(carrier, player) <= (sim.sequence % 7 === 6 ? 58 : 34));
+  if (!candidates.length && all.length) return [...all].sort((a, b) => distance(a, carrier) - distance(b, carrier))[0];
   if (!candidates.length) return closest(teamPlayers(sim, carrier.teamId), carrier, player => player.id !== carrier.id);
   const ranked = candidates.map(player => ({ player, score: candidateScore(sim, carrier, player) })).sort((a, b) => b.score - a.score);
   return ranked[Math.min(ranked.length - 1, sim.sequence % 4 === 3 ? 1 : 0)].player;
 }
 
-function startPass(sim, from, to, action = 'PASSING MOVE') {
-  const dist = distance(from, to);
-  const curveSign = hash(`${sim.sequence}:${from.id}:${to.id}`) % 2 ? 1 : -1;
+function startFlight(sim, kind, from, { to = null, end = null, duration, curve = 0, action, meta = {} }) {
   sim.ball.ownerId = null;
-  sim.ball.flight = { kind: 'pass', fromId: from.id, toId: to.id, startX: sim.ball.x, startY: sim.ball.y, elapsed: 0, duration: clamp(260 + dist * 11, 340, 720), curve: curveSign * Math.min(3.2, dist * .08) };
-  sim.action = action; sim.sequence++; sim.nextActionAt = Number.POSITIVE_INFINITY;
+  sim.ball.flight = {
+    kind, fromId: from?.id ?? null, toId: to?.id ?? null, startX: sim.ball.x, startY: sim.ball.y,
+    endX: end?.x, endY: end?.y, elapsed: 0, duration, curve, ...meta,
+  };
+  sim.action = action; sim.sequence++; sim.sequenceSinceRestart++; sim.nextActionAt = Number.POSITIVE_INFINITY;
 }
 
-function startShot(sim, scorer) {
-  const dir = direction(sim, scorer.teamId);
-  sim.ball.ownerId = null;
-  sim.ball.flight = { kind: 'shot', fromId: scorer.id, toId: null, startX: sim.ball.x, startY: sim.ball.y, endX: 50, endY: dir < 0 ? 2.5 : 97.5, elapsed: 0, duration: 430, curve: (hash(scorer.id) % 2 ? 1 : -1) * 1.4 };
-  sim.ball.shooting = true; sim.action = 'SHOT · ON GOAL'; sim.nextActionAt = Number.POSITIVE_INFINITY;
+function startPass(sim, from, to, action = 'PASSING MOVE', kind = 'pass') {
+  const dist = distance(from, to);
+  const curveSign = hash(`${sim.sequence}:${from.id}:${to.id}`) % 2 ? 1 : -1;
+  startFlight(sim, kind, from, { to, duration:clamp(260 + dist * 11, 340, 720), curve:curveSign * Math.min(3.2, dist * .08), action });
+}
+
+function startGoalShot(sim, scorer) {
+  startFlight(sim, 'goal-shot', scorer, {
+    end:{ x:50, y:attackingGoalY(sim, scorer.teamId) }, duration:430,
+    curve:(hash(scorer.id) % 2 ? 1 : -1) * 1.4, action:'SHOT · ON GOAL',
+    meta:{ scoringTeamId:scorer.teamId },
+  });
+  sim.ball.shooting = true; sim.pendingGoal.stage = 'shooting';
+}
+
+function startOpenPlayOutcome(sim, carrier) {
+  const attackingTeamId = carrier.teamId; const defendingTeamId = otherTeamId(sim, attackingTeamId);
+  const dir = direction(sim, attackingTeamId); const goalY = attackingGoalY(sim, attackingTeamId);
+  const outcome = ['save', 'wide', 'corner', 'foul', 'throw-in'][sim.outcomeIndex++ % 5];
+  if (outcome === 'foul') {
+    beginRestart(sim, 'free-kick', attackingTeamId, { x:sim.ball.x, y:sim.ball.y }, 'FOUL WON'); return;
+  }
+  if (outcome === 'throw-in') {
+    const sideX = carrier.x < 50 ? 3 : 97;
+    startFlight(sim, 'throw-out', carrier, { end:{ x:sideX, y:clamp(carrier.y + dir * 8, 10, 90) }, duration:360, action:'BALL OUT · LAST TOUCH', meta:{ restartTeamId:defendingTeamId } }); return;
+  }
+  if (outcome === 'save') {
+    const keeper = teamPlayers(sim, defendingTeamId).find(player => player.position === 'GK');
+    startFlight(sim, 'save', carrier, { to:keeper, duration:420, curve:(carrier.x < 50 ? 1 : -1) * 1.2, action:'SHOT · SAVED', meta:{ restartTeamId:defendingTeamId } });
+    sim.ball.shooting = true; return;
+  }
+  if (outcome === 'wide') {
+    const sideX = carrier.x < 50 ? 31 : 69;
+    startFlight(sim, 'shot-wide', carrier, { end:{ x:sideX, y:goalY }, duration:450, curve:(sideX < 50 ? -1 : 1) * 2, action:'SHOT · WIDE', meta:{ restartTeamId:defendingTeamId } });
+    sim.ball.shooting = true; return;
+  }
+  const sideX = carrier.x < 50 ? 3 : 97;
+  startFlight(sim, 'blocked-corner', carrier, { end:{ x:sideX, y:goalY }, duration:420, curve:(sideX < 50 ? -1 : 1) * 2.5, action:'SHOT BLOCKED · DEFLECTION', meta:{ restartTeamId:attackingTeamId } });
+  sim.ball.shooting = true;
 }
 
 function beginTurnover(sim) {
   const oldCarrier = sim.players.find(player => player.id === sim.ball.ownerId) ?? { x: sim.ball.x, y: sim.ball.y };
   const winner = closest(teamPlayers(sim, sim.desiredPossessionTeamId), oldCarrier, player => player.position !== 'GK');
   sim.possessionTeamId = sim.desiredPossessionTeamId;
-  sim.ball.ownerId = null;
-  sim.ball.flight = { kind:'turnover', fromId:oldCarrier.id, toId:winner.id, startX:sim.ball.x, startY:sim.ball.y, elapsed:0, duration:280, curve:0 };
-  sim.action = 'TACKLE WON · TURNOVER'; sim.nextActionAt = Number.POSITIVE_INFINITY; sim.sequence++;
+  startFlight(sim, 'turnover', oldCarrier, { to:winner, duration:280, action:'TACKLE WON · TURNOVER' });
+}
+
+function restartReceiver(sim, restart, taker) {
+  const side = teamPlayers(sim, restart.teamId).filter(player => player.id !== taker.id);
+  if (restart.type === 'corner' || restart.type === 'free-kick') {
+    return closest(side, { x:50, y:direction(sim, restart.teamId) < 0 ? 15 : 85 }, player => player.position !== 'GK');
+  }
+  if (restart.type === 'goal-kick') return closest(side, taker, player => DEFENDERS.has(player.position));
+  return closest(side, restart.spot, player => player.position !== 'GK');
 }
 
 function decide(sim) {
-  if (sim.mode === 'goal') return;
+  if (sim.mode === 'goal' || sim.mode === 'half-time') return;
   if (sim.mode === 'kickoff') {
     const kicker = sim.players.find(player => player.id === sim.kickoffKickerId);
-    const support = kickoffSupport(sim, sim.possessionTeamId, kicker.id);
-    startPass(sim, kicker, support, 'KICK OFF · PLAYED BACK'); sim.mode = 'live';
-    return;
+    const support = closest(teamPlayers(sim, sim.possessionTeamId), kicker, player => player.id !== kicker.id && player.position !== 'GK');
+    startPass(sim, kicker, support, sim.halftimeCompleted ? 'SECOND HALF · PLAYED BACK' : 'KICK OFF · PLAYED BACK');
+    sim.mode = 'live'; return;
   }
   if (sim.mode === 'restart') {
     const taker = sim.players.find(player => player.id === sim.restart.takerId);
-    sim.ball.ownerId = taker.id; sim.ball.x = taker.x; sim.ball.y = taker.y;
-    const receiver = selectPass(sim, taker);
-    startPass(sim, taker, receiver, `${sim.restart.type.toUpperCase()} · IN PLAY`);
-    sim.restart = null; sim.mode = 'live';
-    return;
+    if (distance(taker, sim.restart.spot) > 2.2) {
+      sim.action = `${sim.restart.type.toUpperCase()} · WAITING FOR THE WHISTLE`; sim.nextActionAt = sim.clock + 180; return;
+    }
+    Object.assign(sim.ball, { ownerId:taker.id, x:sim.restart.spot.x, y:sim.restart.spot.y });
+    const receiver = restartReceiver(sim, sim.restart, taker);
+    const action = sim.restart.type === 'corner' ? 'CORNER · CROSS INTO THE BOX'
+      : sim.restart.type === 'free-kick' ? 'FREE KICK · DELIVERED'
+      : sim.restart.type === 'goal-kick' ? 'GOAL KICK · PLAYED SHORT'
+      : 'THROW-IN · BACK IN PLAY';
+    startPass(sim, taker, receiver, action, sim.restart.type === 'corner' ? 'cross' : 'pass');
+    sim.restart = null; sim.mode = 'live'; return;
   }
-  if (sim.desiredPossessionTeamId !== sim.possessionTeamId) { beginTurnover(sim); return; }
   const carrier = sim.players.find(player => player.id === sim.ball.ownerId);
   if (!carrier) return;
   if (sim.pendingGoal) {
-    const scorer = sim.players.find(player => player.id === sim.pendingGoal.playerId);
-    if (scorer && !isOnside(sim, scorer)) { sim.action = 'ATTACKER CHECKS THE RUN'; sim.nextActionAt = sim.clock + 100; return; }
-    if (scorer && scorer.id !== carrier.id) { startPass(sim, carrier, scorer, `CHANCE · ${sim.pendingGoal.playerName}`); sim.pendingGoal.stage = 'receiving'; return; }
-    startShot(sim, scorer ?? carrier); sim.pendingGoal.stage = 'shooting'; return;
+    const scorer = sim.players.find(player => player.id === sim.pendingGoal.playerId) ?? carrier;
+    const ready = inFinalThird(sim, scorer) && isOnside(sim, scorer);
+    if (scorer.id === carrier.id && inFinalThird(sim, scorer)) { startGoalShot(sim, scorer); return; }
+    if (ready) { startPass(sim, carrier, scorer, `CHANCE · ${sim.pendingGoal.playerName}`); sim.pendingGoal.stage = 'receiving'; return; }
+    if (!isOnside(sim, scorer)) { sim.action = 'ATTACKER CHECKS THE RUN'; sim.nextActionAt = sim.clock + 160; return; }
+    startPass(sim, carrier, selectPass(sim, carrier, player => player.id !== scorer.id), 'BUILDING THE ATTACK'); return;
   }
+  if (sim.desiredPossessionTeamId !== sim.possessionTeamId) { beginTurnover(sim); return; }
+  if (inFinalThird(sim, carrier) && sim.sequenceSinceRestart >= 4) { startOpenPlayOutcome(sim, carrier); return; }
   const receiver = selectPass(sim, carrier);
   startPass(sim, carrier, receiver, distance(carrier, receiver) > 42 ? 'SWITCHING PLAY' : FORWARDS.has(receiver.position) ? 'PROGRESSIVE PASS' : 'PASSING TRIANGLE');
+}
+
+function completeFlight(sim, flight, receiver) {
+  sim.ball.flight = null; sim.ball.shooting = false;
+  if (flight.kind === 'goal-shot') {
+    sim.action = 'GOAL'; sim.mode = 'goal'; sim.goalHoldUntil = sim.clock + 1500; return;
+  }
+  if (flight.kind === 'shot-wide') {
+    const teamId = flight.restartTeamId;
+    beginRestart(sim, 'goal-kick', teamId, { x:50, y:direction(sim, teamId) < 0 ? 92 : 8 }, 'SHOT WIDE'); return;
+  }
+  if (flight.kind === 'blocked-corner') {
+    beginRestart(sim, 'corner', flight.restartTeamId, { x:flight.endX, y:flight.endY }, 'DEFLECTED BEHIND'); return;
+  }
+  if (flight.kind === 'throw-out') {
+    beginRestart(sim, 'throw-in', flight.restartTeamId, { x:flight.endX, y:flight.endY }, 'BALL OUT OF PLAY'); return;
+  }
+  if (!receiver) return;
+  sim.ball.ownerId = receiver.id; sim.possessionTeamId = receiver.teamId;
+  sim.nextActionAt = sim.clock + (flight.kind === 'save' ? 780 : 360 + (hash(`${sim.sequence}:${receiver.id}`) % 260));
+  if (flight.kind === 'save') sim.action = 'GOALKEEPER SAVES · LOOKING TO DISTRIBUTE';
+  if (sim.pendingGoal?.stage === 'receiving') sim.nextActionAt = sim.clock + 180;
 }
 
 function advanceBall(sim, elapsedMs) {
@@ -327,15 +434,7 @@ function advanceBall(sim, elapsedMs) {
   const curveX = (-dy / length) * Math.sin(Math.PI * t) * flight.curve;
   const curveY = (dx / length) * Math.sin(Math.PI * t) * flight.curve;
   sim.ball.x = clamp(flight.startX + dx * t + curveX); sim.ball.y = clamp(flight.startY + dy * t + curveY);
-  if (t < 1) return;
-  sim.ball.flight = null;
-  if (flight.kind === 'shot') {
-    sim.action = 'GOAL'; sim.mode = 'goal'; sim.goalHoldUntil = sim.clock + 1500;
-    return;
-  }
-  sim.ball.ownerId = receiver.id; sim.possessionTeamId = receiver.teamId; sim.ball.shooting = false;
-  sim.nextActionAt = sim.clock + 360 + (hash(`${sim.sequence}:${receiver.id}`) % 260);
-  if (sim.pendingGoal?.stage === 'receiving') sim.nextActionAt = sim.clock + 180;
+  if (t >= 1) completeFlight(sim, flight, receiver);
 }
 
 function maxSpeed(player) {
@@ -355,7 +454,8 @@ function steer(player, dt) {
 
 function separate(sim, dt) {
   for (let i = 0; i < sim.players.length; i++) for (let j = i + 1; j < sim.players.length; j++) {
-    const a = sim.players[i]; const b = sim.players[j]; const dx = a.x - b.x; const dy = a.y - b.y; const dist = Math.hypot(dx, dy); const minimum = a.pressing || b.pressing ? 2.7 : 3.6;
+    const a = sim.players[i]; const b = sim.players[j]; const dx = a.x - b.x; const dy = a.y - b.y;
+    const dist = Math.hypot(dx, dy); const minimum = a.pressing || b.pressing ? 2.7 : 3.6;
     if (dist >= minimum) continue;
     const nx = dist > .001 ? dx / dist : (i % 2 ? 1 : -1); const ny = dist > .001 ? dy / dist : (j % 2 ? .25 : -.25); const force = (minimum - dist) * 8;
     a.vx += nx * force * dt; a.vy += ny * force * dt; b.vx -= nx * force * dt; b.vy -= ny * force * dt;
@@ -366,12 +466,18 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
   const safeElapsed = clamp(elapsedMs, 0, 50); const dt = safeElapsed / 1000; sim.clock += safeElapsed;
   if (sim.mode === 'goal' && sim.clock >= sim.goalHoldUntil) {
     const scoringTeam = sim.pendingGoal?.teamId ?? sim.possessionTeamId;
-    const takingTeam = scoringTeam === sim.homeTeamId ? sim.awayTeamId : sim.homeTeamId;
-    sim.pendingGoal = null; prepareKickoff(sim, takingTeam);
+    sim.pendingGoal = null;
+    if (sim.halftimePending) beginHalfTime(sim);
+    else prepareKickoff(sim, otherTeamId(sim, scoringTeam));
+  }
+  if (sim.mode === 'half-time' && sim.clock >= sim.halftimeHoldUntil) {
+    sim.endsSwapped = true; sim.halftimeCompleted = true;
+    for (const player of sim.players) player.baseY = 100 - player.baseY;
+    prepareKickoff(sim, otherTeamId(sim, sim.firstKickoffTeamId));
   }
   if (sim.mode === 'kickoff') updateKickoffTargets(sim);
   else if (sim.mode === 'restart') updateRestartTargets(sim);
-  else updateLiveTargets(sim);
+  else if (sim.mode === 'live') updateLiveTargets(sim);
   if (!sim.ball.flight && sim.clock >= sim.nextActionAt) decide(sim);
   for (const player of sim.players) steer(player, dt);
   separate(sim, dt);
@@ -382,7 +488,7 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
 
 export function snapshotBroadcastSimulation(sim) {
   return {
-    action: sim.action,
+    action: sim.action, mode:sim.mode, half:sim.halftimeCompleted ? 2 : 1,
     markers: sim.players.map(player => ({ id: player.id, shirt: player.shirt, position: player.position, team: player.team, x: player.x, y: player.y, pressing: player.pressing, receiving: player.receiving, rushing: player.rushing })),
     ball: { x: sim.ball.x, y: sim.ball.y, shooting: sim.ball.shooting },
   };

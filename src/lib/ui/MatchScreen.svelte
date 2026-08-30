@@ -10,14 +10,15 @@
   } from '../../modules/gameweek.js';
   import {
     buildLiveMatchState, finaliseLiveMatch, pickAIFormation,
-    positionGroup, selectEleven, simulateMatchSegment,
+    positionGroup, primaryRating, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
-  import { advanceBroadcastSimulation, createBroadcastSimulation, derivedRestart, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import { advanceBroadcastSimulation, createBroadcastSimulation, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import { resolveMatchKits } from '../../game/matchKits.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
@@ -72,22 +73,21 @@
   let presentationAt = 0;
   let presentationPossession = null;
   let presentationEvent = null;
-  let presentationRestart = null;
   let goalNotice = $state(null);
   let queuedGoalNotice = null;
   let goalNoticeTimer = null;
+  let displayHomeGoals = $state(0);
+  let displayAwayGoals = $state(0);
 
   let result          = $state.raw(null); // finalised match result (same shape whether from finaliseLiveMatch or advanceOneFixture's singleResult)
   let resultCommitted = $state(false);
   let committing       = $state(false);
 
-  let subSheetOpen      = $state(false);
-  let subPickerOpen     = $state(false);
-  let subSheetInPlayer  = $state(null);
-  let subSheetWasPaused = false;
   let tacticsSheetOpen       = $state(false);
   let tacticsPickerFormation = $state('4-3-3');
   let tacticsSheetWasPaused  = false;
+  let tacticsSubInId         = $state(null);
+  let tacticsSubOutId        = $state(null);
 
   function vibrate(pattern) {
     try { window.navigator?.vibrate?.(pattern); } catch { /* not supported */ }
@@ -341,6 +341,8 @@
       matchEvent: resolved.patchedEvent,
       currentPhase: 0, paused: false, speedMultiplier: 1,
     };
+    displayHomeGoals = 0;
+    displayAwayGoals = 0;
     presentationPossession = resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id;
     broadcastSimulation = createBroadcastSimulation({
       homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id,
@@ -401,16 +403,17 @@
     const startPhase = live.currentPhase + 1;
     const endPhase   = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
     const beforeState = live.liveState;
-    const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase);
+    const { segEvents, updatedState } = simulateMatchSegment(
+      live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase, live.userTeam.id
+    );
     live = { ...live, liveState: updatedState, currentPhase: endPhase, allEvents: [...live.allEvents, ...segEvents] };
     const possessionTeamId = updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id;
     presentationPossession = possessionTeamId;
     presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
-    presentationRestart = presentationEvent ? null : derivedRestart(endPhase);
-    updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent, restart: presentationRestart });
+    updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent });
     handleNewEvents(segEvents);
     if (live.currentPhase >= TOTAL_PHASES) finishMatch();
-    else scheduleTick(presentationEvent ? 2600 : presentationRestart ? 1200 : 0);
+    else scheduleTick(presentationEvent ? 4200 : endPhase === 60 ? 2100 : 0);
   }
 
   function handleNewEvents(segEvents) {
@@ -429,6 +432,8 @@
     if (!queuedGoalNotice) return;
     goalNotice = queuedGoalNotice;
     queuedGoalNotice = null;
+    if (goalNotice.teamId === live.homeTeam.id) displayHomeGoals += 1;
+    else if (goalNotice.teamId === live.awayTeam.id) displayAwayGoals += 1;
     vibrate([60]);
     window.clearTimeout(goalNoticeTimer);
     goalNoticeTimer = window.setTimeout(() => { goalNotice = null; }, 3200);
@@ -473,7 +478,9 @@
     window.clearTimeout(tickTimer);
     const startPhase = live.currentPhase + 1;
     const beforeState = live.liveState;
-    const { segEvents, updatedState } = simulateMatchSegment(live.homeTeam, live.awayTeam, beforeState, startPhase, TOTAL_PHASES);
+    const { segEvents, updatedState } = simulateMatchSegment(
+      live.homeTeam, live.awayTeam, beforeState, startPhase, TOTAL_PHASES, live.userTeam.id
+    );
     live = { ...live, liveState: updatedState, currentPhase: TOTAL_PHASES, allEvents: [...live.allEvents, ...segEvents] };
     updateBroadcastSimulation(broadcastSimulation, { phase: TOTAL_PHASES, possessionTeamId: updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id, event: segEvents.find(event => event.type === 'goal') ?? null });
     handleNewEvents(segEvents);
@@ -500,37 +507,48 @@
     const bench = live.userIsHome ? live.liveState.hBenchLeft : live.liveState.aBenchLeft;
     return [...bench].sort((a, b) => (b.fitness ?? 90) - (a.fitness ?? 90));
   });
-  const fitnessMap = $derived(live?.liveState ? (live.userIsHome ? live.liveState.hFitness : live.liveState.aFitness) : null);
 
-  function openSubSheet(subInPlayer) {
-    if (subsLeft <= 0) { toast('No substitutions remaining', 'error'); return; }
-    if (subInPlayer.injured) { toast(`🚑 ${subInPlayer.name} is injured and cannot play.`, 'error', 4000); return; }
-    subSheetWasPaused = live.paused;
-    if (!live.paused) togglePause();
-    subSheetInPlayer = subInPlayer;
-    subSheetOpen = true;
-  }
-  function openSubPicker() {
-    if (subsLeft <= 0) { toast('No substitutions remaining', 'error'); return; }
-    subPickerOpen = true;
-  }
-  function chooseSub(player) { subPickerOpen = false; openSubSheet(player); }
-  const subOutOptions = $derived(subSheetInPlayer && live?.liveState ? eligibleSubOutTargets(live.liveState, live.userIsHome, subSheetInPlayer) : []);
+  const matchKits = $derived(live ? resolveMatchKits(live.homeTeam, live.awayTeam) : null);
+  const tacticsSlots = $derived(SLOT_LAYOUT[tacticsPickerFormation] ?? SLOT_LAYOUT['4-3-3']);
+  const tacticsActivePlayers = $derived.by(() => {
+    if (!live?.liveState) return [];
+    return live.userIsHome ? live.liveState.hActive : live.liveState.aActive;
+  });
+  const tacticsAssignment = $derived(assignToSlots(tacticsActivePlayers, tacticsSlots));
+  const tacticsSubIn = $derived(tacticsSubInId ? benchList.find(player => player.id === tacticsSubInId) ?? null : null);
+  const tacticsSubOut = $derived(tacticsSubOutId ? tacticsActivePlayers.find(player => player.id === tacticsSubOutId) ?? null : null);
+  const subOutOptions = $derived(tacticsSubIn && live?.liveState ? eligibleSubOutTargets(live.liveState, live.userIsHome, tacticsSubIn) : []);
+  const canConfirmSub = $derived(!!tacticsSubIn && !!tacticsSubOut && subOutOptions.some(player => player.id === tacticsSubOut.id));
 
-  function pickSubOut(subOutPlayer) {
+  function chooseTacticsBench(player) {
+    if (subsLeft <= 0) { toast('No substitutions remaining', 'error'); return; }
+    if (player.injured) { toast(`🚑 ${player.name} is injured and cannot play.`, 'error', 4000); return; }
+    tacticsSubInId = tacticsSubInId === player.id ? null : player.id;
+    if (tacticsSubInId && tacticsSubOutId && !eligibleSubOutTargets(live.liveState, live.userIsHome, player).some(p => p.id === tacticsSubOutId)) {
+      tacticsSubOutId = null;
+    }
+  }
+
+  function chooseTacticsStarter(player) {
+    if (!tacticsSubIn) { tacticsSubOutId = tacticsSubOutId === player.id ? null : player.id; return; }
+    if (!subOutOptions.some(option => option.id === player.id)) {
+      toast(tacticsSubIn.position === 'GK' ? 'A goalkeeper can only replace the goalkeeper' : 'Outfield players cannot replace the goalkeeper', 'error', 3000);
+      return;
+    }
+    tacticsSubOutId = tacticsSubOutId === player.id ? null : player.id;
+  }
+
+  function confirmTacticsSub() {
+    if (!canConfirmSub) return;
     const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90);
-    const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, subSheetInPlayer.id, subOutPlayer.id, minute, live.userTeam.id);
+    const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, tacticsSubIn.id, tacticsSubOut.id, minute, live.userTeam.id);
     if (ok) {
       live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
       replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
       toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
     }
-    closeSubSheet();
-  }
-  function closeSubSheet() {
-    subSheetOpen = false;
-    subSheetInPlayer = null;
-    if (!subSheetWasPaused) togglePause();
+    tacticsSubInId = null;
+    tacticsSubOutId = null;
   }
 
   // ── Formation change (src/game/formationChange.js) ───────────────────
@@ -538,21 +556,20 @@
     tacticsSheetWasPaused = live.paused;
     if (!live.paused) togglePause();
     tacticsPickerFormation = live.userIsHome ? live.liveState.homeFormation : live.liveState.awayFormation;
+    tacticsSubInId = null;
+    tacticsSubOutId = null;
     tacticsSheetOpen = true;
   }
-  const tacticsXIPreview = $derived.by(() => {
-    if (!tacticsSheetOpen || !live) return [];
-    return selectEleven(live.userPlayers.map(p => ({ ...p, fitness: p.fitness ?? 90, inSquad: p.inSquad !== false })), tacticsPickerFormation);
-  });
   function applyTactics() {
     const newLs = applyFormationChange(live.liveState, live.userIsHome, tacticsPickerFormation);
     live = { ...live, liveState: newLs };
     replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
     toast(`Formation changed to ${tacticsPickerFormation}`, 'info', 3000);
-    closeTacticsSheet();
   }
   function closeTacticsSheet() {
     tacticsSheetOpen = false;
+    tacticsSubInId = null;
+    tacticsSubOutId = null;
     if (!tacticsSheetWasPaused) togglePause();
   }
 
@@ -632,10 +649,6 @@
     const og = isHome ? r.awayGoals : r.homeGoals;
     return ug > og ? 'WIN' : ug < og ? 'LOSS' : 'DRAW';
   }
-  function fitClass(fit) {
-    return fit >= 70 ? 'fit-high' : fit >= 50 ? 'fit-mid' : 'fit-low';
-  }
-
   const MENTALITY_ICONS = { defensive: '🛡️', balanced: '⚖️', possession: '🎯', attacking: '⚡' };
   function mentalityIcon(mentality) {
     return MENTALITY_ICONS[mentality] ?? MENTALITY_ICONS.balanced;
@@ -761,10 +774,10 @@
         </div>
         <div class="sb-centre">
           <div class="sb-score">
-            <span>{live.liveState.hGoals}</span><span class="sb-sep">–</span><span>{live.liveState.aGoals}</span>
+            <span>{displayHomeGoals}</span><span class="sb-sep">–</span><span>{displayAwayGoals}</span>
           </div>
           <div class="sb-clock">{minute}'</div>
-          <div class="sb-status">{live.paused ? 'PAUSED' : minute <= 45 ? 'FIRST HALF' : 'SECOND HALF'}</div>
+          <div class="sb-status">{live.paused ? 'PAUSED' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
         </div>
         <div class="sb-team">
           <div class="sb-crest">{live.awayTeam.crest ?? '⚽'}</div>
@@ -775,7 +788,13 @@
       <div class="broadcast-pitch">
         <div class="pitch-stripes"></div><div class="pitch-half"></div><div class="pitch-circle"></div><div class="pitch-box pitch-box-top"></div><div class="pitch-box pitch-box-bottom"></div>
         {#each broadcastFrame?.markers ?? [] as marker (marker.id)}
-          <div class="broadcast-player {marker.team}" class:pressing={marker.pressing} class:receiving={marker.receiving} class:rushing={marker.rushing} style="left:{marker.x}%;top:{marker.y}%">{marker.shirt}</div>
+          <div
+            class="broadcast-player {marker.team}"
+            class:pressing={marker.pressing}
+            class:receiving={marker.receiving}
+            class:rushing={marker.rushing}
+            style="left:{marker.x}%;top:{marker.y}%;background:{marker.team === 'home' ? matchKits?.home.color : matchKits?.away.color};color:{marker.team === 'home' ? matchKits?.home.numberColor : matchKits?.away.numberColor}"
+          >{marker.shirt}</div>
         {/each}
         {#if broadcastFrame?.ball}<div class="broadcast-ball" class:shooting={broadcastFrame.ball.shooting} style="left:{broadcastFrame.ball.x}%;top:{broadcastFrame.ball.y}%"></div>{/if}
         <div class="broadcast-state">{broadcastFrame?.action ?? (live.paused ? 'PAUSED' : 'IN PLAY')}</div>
@@ -793,15 +812,13 @@
 
     <div class="live-controls">
       <button class="ctrl-btn" onclick={togglePause}>{live.paused ? '▶ Resume' : '⏸ Pause'}</button>
-      <button class="ctrl-btn" onclick={openSubPicker}>⇄ Subs ({subsLeft})</button>
       <div class="speed-wrap">
-        <span class="speed-lbl">SPEED</span>
         {#each [1, 2, 4] as s (s)}
           <button class="speed-btn" class:active={live.speedMultiplier === s} onclick={() => setSpeed(s)}>{s}×</button>
         {/each}
       </div>
       <button class="ctrl-btn" onclick={skipMatch}>⏩ Skip</button>
-      <button class="ctrl-btn" onclick={openTacticsSheet}>📋 Tactics</button>
+      <button class="ctrl-btn tactics-control" onclick={openTacticsSheet}>📋 Tactics <span>{subsLeft}</span></button>
     </div>
 
   {:else if beat === 'fulltime' && result}
@@ -896,60 +913,80 @@
     </div>
   {/if}
 
-  {#if subSheetOpen && subSheetInPlayer}
-    <button class="sheet-backdrop" onclick={closeSubSheet} aria-label="Close"></button>
-    <div class="sheet">
-      <div class="sheet-handle"></div>
-      <div class="sheet-title">Make Substitution</div>
-      <div class="sub-sheet-in">
-        Bringing on: <strong>{subSheetInPlayer.name}</strong>
-        <span class="pos {positionGroup(subSheetInPlayer.position)}">{subSheetInPlayer.position}</span>
-      </div>
-      <div class="sub-sheet-lbl">WHO COMES OFF?</div>
-      <div class="sub-out-list">
-        {#each subOutOptions as p (p.id)}
-          {@const fit = Math.round(fitnessMap?.get(p.id) ?? 90)}
-          <div class="sub-out-row" role="button" tabindex="0" onclick={() => pickSubOut(p)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && pickSubOut(p)}>
-            <span class="pos {positionGroup(p.position)}">{p.position}</span>
-            <span class="sub-out-name">{p.name}</span>
-            <span class="fitness-pct {fitClass(fit)}">{fit}%</span>
-          </div>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  {#if subPickerOpen}
-    <button class="sheet-backdrop" onclick={() => (subPickerOpen = false)} aria-label="Close"></button>
-    <div class="sheet">
-      <div class="sheet-handle"></div><div class="sheet-title">Choose substitute</div>
-      <div class="sub-out-list">
-        {#each benchList as player (player.id)}
-          <button class="sub-out-row" onclick={() => chooseSub(player)}><span class="pos {positionGroup(player.position)}">{player.position}</span><span class="sub-out-name">{player.name}</span></button>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
   {#if tacticsSheetOpen && live}
-    <button class="sheet-backdrop" onclick={closeTacticsSheet} aria-label="Close"></button>
-    <div class="sheet">
-      <div class="sheet-handle"></div>
-      <div class="sheet-title">Tactical Change</div>
-      <div class="tactics-sheet-note">Change takes effect immediately</div>
-      <div class="tactics-fm-grid">
+    <section class="match-tactics" aria-label="Live match tactics">
+      <header class="match-tactics-header">
+        <div><span>LIVE · PAUSED</span><strong>{live.userTeam.name} Tactics</strong></div>
+        <button class="match-tactics-close" onclick={closeTacticsSheet} aria-label="Close tactics">✕</button>
+      </header>
+
+      <div class="match-tactics-formations" aria-label="Formation">
         {#each Object.keys(SLOT_LAYOUT) as f (f)}
-          <button class="tactics-fm-btn" class:active={f === tacticsPickerFormation} onclick={() => (tacticsPickerFormation = f)}>{f}</button>
+          <button class:active={f === tacticsPickerFormation} onclick={() => (tacticsPickerFormation = f)}>{f}</button>
         {/each}
       </div>
-      <div class="tactics-xi-lbl">Best XI preview:</div>
-      <div class="tactics-xi-preview">
-        {#each tacticsXIPreview as p (p.id)}<span class="tactics-xi-name">{p.name.split(' ').pop()}</span>{/each}
+
+      <div class="match-tactics-scroll">
+        <div class="match-tactics-pitch-wrap">
+          <div class="match-tactics-pitch">
+            <div class="mtp-half"></div><div class="mtp-circle"></div>
+            <div class="mtp-box top"></div><div class="mtp-box bottom"></div>
+            {#each tacticsSlots as slot, i (i)}
+              {@const player = tacticsAssignment[i]}
+              {#if player}
+                {@const eligible = !tacticsSubIn || subOutOptions.some(option => option.id === player.id)}
+                <button
+                  class="match-tactics-slot pos-{positionGroup(player.position)}"
+                  class:selected={tacticsSubOutId === player.id}
+                  class:unavailable={!eligible}
+                  style="left:{slot.x}%;top:{slot.y}%"
+                  onclick={() => chooseTacticsStarter(player)}
+                  aria-label="Select {player.name}"
+                >
+                  <span class="mts-rating">{primaryRating(player)}</span>
+                  <span class="mts-pos">{player.position}</span>
+                  <small>{player.name.split(' ').pop()}</small>
+                </button>
+              {/if}
+            {/each}
+          </div>
+        </div>
+
+        <div class="match-tactics-bench">
+          <div class="mtb-heading">
+            <div><span>Bench</span><small>Select a substitute, then the player coming off</small></div>
+            <strong>{subsLeft} left</strong>
+          </div>
+          <div class="match-tactics-bench-row">
+            {#each benchList as player (player.id)}
+              {@const fit = Math.round(player.fitness ?? 90)}
+              <button class:selected={tacticsSubInId === player.id} onclick={() => chooseTacticsBench(player)}>
+                <span class="mtb-avatar pos-{positionGroup(player.position)}">{player.name.split(' ').map(word => word[0]).join('').slice(0, 2)}</span>
+                <span class="mtb-pos">{player.position}</span>
+                <span class="mtb-name">{player.name.split(' ').pop()}</span>
+                <span class="mtb-meta">{primaryRating(player)} · {fit}%</span>
+              </button>
+            {/each}
+          </div>
+        </div>
       </div>
-      <div class="sheet-actions">
-        <button class="btn-full btn-primary" onclick={applyTactics}>Apply Formation</button>
-      </div>
-    </div>
+
+      <footer class="match-tactics-actions">
+        <div class="match-tactics-selection">
+          {#if tacticsSubIn && tacticsSubOut}
+            <span>↑ {tacticsSubIn.name}</span><span>↓ {tacticsSubOut.name}</span>
+          {:else if tacticsSubIn}
+            <span>↑ {tacticsSubIn.name}</span><small>Now choose who comes off</small>
+          {:else if tacticsSubOut}
+            <span>↓ {tacticsSubOut.name}</span><small>Now choose a bench player</small>
+          {:else}
+            <small>The match stays paused while this screen is open</small>
+          {/if}
+        </div>
+        <button class="formation-apply" onclick={applyTactics}>Apply {tacticsPickerFormation}</button>
+        <button class="sub-confirm" disabled={!canConfirmSub} onclick={confirmTacticsSub}>Make sub</button>
+      </footer>
+    </section>
   {/if}
 </div>
 
@@ -1035,8 +1072,7 @@
   .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
   .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
   .broadcast-player { position: absolute; z-index: 2; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 1.5px solid rgba(255,255,255,.78); color: white; font: 700 8px var(--font-mono); will-change: left, top; }
-  .broadcast-player.home { background: var(--color-club); } .broadcast-player.away { background: #df3155; }
-  .broadcast-player { color: #07110c; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
+  .broadcast-player { text-shadow: 0 1px 0 rgba(255,255,255,.35); }
   .broadcast-player.pressing { box-shadow: 0 0 0 3px rgba(255,255,255,.13); }
   .broadcast-player.receiving { box-shadow: 0 0 0 2px rgba(255,255,255,.1); } .broadcast-player.rushing { box-shadow: 0 0 0 3px rgba(255,219,102,.2); }
   .broadcast-ball { position: absolute; z-index: 4; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 4px rgba(0,0,0,.8); will-change: left, top; }
@@ -1074,11 +1110,13 @@
   .bench-row.bench-injured { opacity: 0.6; }
   .sub-on-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--color-club); background: transparent; color: var(--color-club); cursor: pointer; }
 
-  .live-controls { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 64px calc(9px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: wrap; }
-  .ctrl-btn { font-size: 11px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
-  .speed-wrap { display: flex; align-items: center; gap: 4px; }
+  .live-controls { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .live-controls::-webkit-scrollbar { display: none; }
+  .ctrl-btn { flex: 0 0 auto; white-space: nowrap; font-size: 10px; padding: 8px 9px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
+  .tactics-control span { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 2px; border-radius: 50%; background: var(--color-club); color: var(--color-on-club, #fff); font: 700 9px var(--font-mono); }
+  .speed-wrap { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; }
   .speed-lbl { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); margin-right: 2px; }
-  .speed-btn { font-size: 11px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--color-line); background: transparent; color: var(--color-tx-2); cursor: pointer; }
+  .speed-btn { font-size: 10px; min-width: 30px; padding: 7px 6px; border-radius: 6px; border: 1px solid var(--color-line); background: transparent; color: var(--color-tx-2); cursor: pointer; }
   .speed-btn.active { background: var(--color-club); color: var(--color-on-club, #fff); border-color: var(--color-club); }
 
   /* ── Full time ─────────────────────────────────────────────── */
@@ -1121,42 +1159,97 @@
   .after-table-name { flex: 1; }
   .after-table-pts { font-family: var(--font-mono); color: var(--color-tx-2); }
 
-  /* ── Bottom sheets (Sub / Tactics) ─────────────────────────── */
-  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 900; animation: fade-in 0.2s ease; border: none; padding: 0; cursor: default; }
-  .sheet {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 901;
-    max-height: 78dvh; overflow-y: auto; overscroll-behavior: contain;
-    background: var(--color-surface); border: 1px solid var(--color-line); border-bottom: none;
-    border-radius: 18px 18px 0 0; padding: 10px 18px calc(20px + env(safe-area-inset-bottom));
-    animation: slide-up 0.22s ease; font-family: var(--font-body); color: var(--color-tx);
-  }
-  @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet, .kickoff-beat, .lower-third { animation: none; } .motion-layer { display: none; } }
-  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--color-line); margin: 4px auto 14px; }
-  .sheet-title { font-family: var(--font-display); font-size: 19px; letter-spacing: 0.5px; margin-bottom: 10px; }
-
-  .sub-sheet-in { font-size: 13px; color: var(--color-tx-2); margin-bottom: 14px; }
-  .sub-sheet-in strong { color: var(--color-club); }
-  .sub-sheet-lbl, .tactics-xi-lbl { font-size: 11px; color: var(--color-tx-3); font-family: var(--font-mono); letter-spacing: 1px; margin-bottom: 8px; }
-  .sub-out-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-  .sub-out-row { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 9px; cursor: pointer; background: var(--color-raised); border: 1px solid var(--color-line); }
-  .sub-out-name { flex: 1; font-size: 13px; font-weight: 500; }
-
-  .tactics-sheet-note { font-size: 12px; color: var(--color-warn); margin-bottom: 14px; }
-  .tactics-fm-grid { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
-  .tactics-fm-btn { font-size: 11px; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); cursor: pointer; }
-  .tactics-fm-btn.active { background: var(--color-club); color: var(--color-on-club, #fff); border-color: var(--color-club); }
-  .tactics-xi-preview { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
-  .tactics-xi-name { font-size: 10px; padding: 3px 7px; border-radius: 5px; background: var(--color-raised); color: var(--color-tx-2); }
-
-  .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
   .btn-full { min-height: 44px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-body); flex: 1; }
   .btn-full:disabled { opacity: 0.6; cursor: not-allowed; }
   .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
   .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }
 
+  /* ── Live tactics room: full-height so browser chrome never covers it ── */
+  .match-tactics {
+    position: fixed; inset: 0; z-index: 1000; height: 100dvh; min-height: 0;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--color-ground); color: var(--color-tx); font-family: var(--font-body);
+  }
+  .match-tactics-header {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+    padding: max(14px, env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--color-line);
+    background: var(--color-surface);
+  }
+  .match-tactics-header span { display: block; margin-bottom: 4px; color: var(--color-live); font: 700 9px var(--font-mono); letter-spacing: 1.6px; }
+  .match-tactics-header strong { display: block; font: 700 21px var(--font-display); letter-spacing: .4px; }
+  .match-tactics-close { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
+  .match-tactics-formations {
+    flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px;
+    border-bottom: 1px solid var(--color-line); scrollbar-width: none;
+  }
+  .match-tactics-formations::-webkit-scrollbar, .match-tactics-bench-row::-webkit-scrollbar { display: none; }
+  .match-tactics-formations button {
+    flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line);
+    border-radius: 8px; background: var(--color-raised); color: var(--color-tx-2); font: 600 11px var(--font-mono); cursor: pointer;
+  }
+  .match-tactics-formations button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
+  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; }
+  .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
+  .match-tactics-pitch {
+    position: relative; width: 100%; aspect-ratio: 68 / 91; overflow: hidden;
+    border: 2px solid rgba(255,255,255,.18); border-radius: 8px;
+    background: linear-gradient(180deg, #123d32, #0d3128);
+    box-shadow: inset 0 0 42px rgba(0,0,0,.3);
+  }
+  .match-tactics-pitch::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 10%, transparent 10% 20%); }
+  .mtp-half { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; border-top: 1px solid rgba(255,255,255,.24); }
+  .mtp-circle { position: absolute; z-index: 1; left: 50%; top: 50%; width: 22%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; transform: translate(-50%,-50%); }
+  .mtp-box { position: absolute; z-index: 1; left: 22%; width: 56%; height: 15%; border: 1px solid rgba(255,255,255,.24); }
+  .mtp-box.top { top: 0; border-top: 0; } .mtp-box.bottom { bottom: 0; border-bottom: 0; }
+  .match-tactics-slot {
+    position: absolute; z-index: 2; width: 48px; min-height: 58px; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transform: translate(-50%,-50%); border: 2px solid; border-radius: 50%;
+    background: var(--color-surface); color: var(--color-tx); cursor: pointer;
+  }
+  .match-tactics-slot.pos-GK { border-color: #7c83e8; }
+  .match-tactics-slot.pos-DEF { border-color: var(--color-live); }
+  .match-tactics-slot.pos-MID { border-color: var(--color-warn); }
+  .match-tactics-slot.pos-ATT { border-color: var(--color-bad); }
+  .match-tactics-slot.selected { box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-club) 45%, transparent); border-color: var(--color-club); }
+  .match-tactics-slot.unavailable { opacity: .35; }
+  .mts-rating { font: 700 14px/1 var(--font-display); }
+  .mts-pos { color: var(--color-tx-3); font: 700 8px/1.3 var(--font-mono); }
+  .match-tactics-slot small {
+    position: absolute; top: calc(100% + 3px); max-width: 68px; overflow: hidden; text-overflow: ellipsis;
+    padding: 2px 4px; border-radius: 3px; white-space: nowrap; background: rgba(4,12,8,.82); color: white; font: 9px var(--font-body);
+  }
+  .match-tactics-bench { width: min(100%, 520px); margin: 14px auto 0; }
+  .mtb-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 8px; }
+  .mtb-heading span { display: block; font: 700 15px var(--font-display); }
+  .mtb-heading small { display: block; margin-top: 2px; color: var(--color-tx-3); font-size: 9px; }
+  .mtb-heading strong { color: var(--color-warn); font: 700 10px var(--font-mono); }
+  .match-tactics-bench-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .match-tactics-bench-row button {
+    flex: 0 0 82px; min-height: 104px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 5px; border: 1px solid var(--color-line); border-radius: 10px;
+    background: var(--color-surface); color: var(--color-tx); cursor: pointer;
+  }
+  .match-tactics-bench-row button.selected { border-color: var(--color-club); background: color-mix(in oklch, var(--color-club) 12%, var(--color-surface)); box-shadow: inset 0 0 0 1px var(--color-club); }
+  .mtb-avatar { width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid; border-radius: 50%; font: 700 10px var(--font-mono); }
+  .mtb-avatar.pos-GK { border-color: #7c83e8; }.mtb-avatar.pos-DEF { border-color: var(--color-live); }.mtb-avatar.pos-MID { border-color: var(--color-warn); }.mtb-avatar.pos-ATT { border-color: var(--color-bad); }
+  .mtb-pos { color: var(--color-tx-3); font: 700 8px var(--font-mono); }
+  .mtb-name { width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; white-space: nowrap; }
+  .mtb-meta { color: var(--color-tx-3); font: 9px var(--font-mono); }
+  .match-tactics-actions {
+    flex: 0 0 auto; display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 8px; align-items: center;
+    padding: 9px max(12px, env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    border-top: 1px solid var(--color-line); background: var(--color-surface);
+  }
+  .match-tactics-selection { min-width: 0; display: flex; flex-direction: column; color: var(--color-tx-2); font-size: 10px; }
+  .match-tactics-selection span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .match-tactics-selection small { color: var(--color-tx-3); font-size: 9px; }
+  .match-tactics-actions button { min-height: 40px; padding: 0 11px; border-radius: 8px; font: 700 10px var(--font-body); cursor: pointer; }
+  .formation-apply { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); }
+  .sub-confirm { border: 0; background: var(--color-club); color: var(--color-on-club, #fff); }
+  .sub-confirm:disabled { opacity: .35; cursor: not-allowed; }
+
   @media (min-width: 900px) {
-    .sheet { left: auto; width: 420px; right: 0; border-radius: 18px 0 0 0; }
+    .match-tactics { left: 50%; right: auto; width: min(720px, 100vw); transform: translateX(-50%); border-left: 1px solid var(--color-line); border-right: 1px solid var(--color-line); }
   }
 </style>
