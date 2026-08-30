@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   COMPETITION_RULES,
   buildLeaguePhaseVenuePlan,
+  compareLeaguePhaseRows,
   finishLeaguePhase,
   getLeaguePhaseQualification,
   getUefaKnockoutOpponentSeeds,
@@ -126,6 +127,33 @@ describe('P0 competition rules', () => {
     }
   });
 
+  it('applies the complete UEFA Article 18 tiebreak chain in order', () => {
+    const base = {
+      points:12, gd:3, gf:10, awayGoals:4, wins:3, awayWins:1,
+      opponentPoints:50, opponentGd:5, opponentGoals:70,
+      disciplinaryPoints:8, coefficient:40,
+    };
+    const higher = (key, amount = 1) => compareLeaguePhaseRows(
+      { ...base, teamId:'a' },
+      { ...base, teamId:'b', [key]:base[key] + amount },
+    );
+
+    expect(higher('points')).toBeGreaterThan(0);
+    expect(higher('gd')).toBeGreaterThan(0);
+    expect(higher('gf')).toBeGreaterThan(0);
+    expect(higher('awayGoals')).toBeGreaterThan(0);
+    expect(higher('wins')).toBeGreaterThan(0);
+    expect(higher('awayWins')).toBeGreaterThan(0);
+    expect(higher('opponentPoints')).toBeGreaterThan(0);
+    expect(higher('opponentGd')).toBeGreaterThan(0);
+    expect(higher('opponentGoals')).toBeGreaterThan(0);
+    expect(compareLeaguePhaseRows(
+      { ...base, teamId:'a' },
+      { ...base, teamId:'b', disciplinaryPoints:7 },
+    )).toBeGreaterThan(0);
+    expect(higher('coefficient')).toBeGreaterThan(0);
+  });
+
   it('recognises configured domestic and European two-legged rounds', () => {
     expect(isTwoLegRound('league_cup', 'SF (Leg 1)', 1)).toBe(true);
     expect(isTwoLegRound('copa_del_rey', 'SF (Leg 2)', 2)).toBe(true);
@@ -134,7 +162,7 @@ describe('P0 competition rules', () => {
   });
 
   it('produces a 36-row final league-phase table and qualification route', () => {
-    const phase = { points: 24, gf: 18, ga: 4, gd: 14 };
+    const phase = { points:24, wins:7, awayGoals:9, awayWins:3, gf:18, ga:4, gd:14 };
     const result = finishLeaguePhase('ucl', phase, 'arsenal', () => 0.5);
 
     expect(result.table).toHaveLength(36);
