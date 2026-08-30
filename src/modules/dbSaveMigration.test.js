@@ -6,6 +6,7 @@ import {
   _PITCH_MAGIC,
   _PITCH_SALT,
   _fnv1a,
+  buildCareerMetadata,
   careerSlotDbName,
   migrateSavePayload,
   parseAndMigrateEnvelope,
@@ -84,5 +85,33 @@ describe('P0 save migration contract', () => {
     expect(careerSlotDbName('career_alpha')).toBe('pitch_fc_slot_career_alpha');
     expect(careerSlotDbName('career_beta')).toBe('pitch_fc_slot_career_beta');
     expect(careerSlotDbName('career_alpha')).not.toBe(careerSlotDbName('career_beta'));
+  });
+
+  it('uses one stable metadata contract for local cards, exports and cloud rows', () => {
+    const metadata = buildCareerMetadata(
+      'career_alpha',
+      {
+        managerName:'Alex', userTeamId:'arsenal', userLeague:'Premier League',
+        season:'2026/27', currentGameweek:7, lastPlayedAt:'2026-08-30T18:00:00.000Z',
+        saveSchemaVersion:SAVE_SCHEMA_VERSION,
+      },
+      { id:'arsenal', name:'Arsenal', crest:'crest', primaryColor:'#ff0000' },
+      { teamId:'arsenal', position:3 },
+    );
+
+    expect(metadata).toEqual({
+      slotId:'career_alpha',
+      managerName:'Alex',
+      teamId:'arsenal',
+      clubName:'Arsenal',
+      clubCrest:'crest',
+      clubColor:'#ff0000',
+      season:'2026/27',
+      league:'Premier League',
+      leaguePosition:3,
+      gameweek:7,
+      lastPlayedAt:'2026-08-30T18:00:00.000Z',
+      saveSchemaVersion:SAVE_SCHEMA_VERSION,
+    });
   });
 });
