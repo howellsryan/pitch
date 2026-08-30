@@ -38,7 +38,7 @@ describe('P0 competition rules', () => {
     expect(getLeaguePhaseQualification('ucl', 36)).toMatchObject({ route: 'eliminated', status: 'eliminated' });
   });
 
-  it('turns UEFA league-phase rank into the correct second-leg venue advantage', () => {
+  it('turns UEFA league-phase rank into the correct return-leg venue advantage', () => {
     expect(getUefaKnockoutSeeding('ucl', 9, 'Knockout Play-off (Leg 1)'))
       .toEqual({ seeded:true, secondLegHome:true });
     expect(getUefaKnockoutSeeding('ucl', 16, 'Knockout Play-off (Leg 2)'))
@@ -47,15 +47,28 @@ describe('P0 competition rules', () => {
       .toEqual({ seeded:false, secondLegHome:false });
     expect(getUefaKnockoutSeeding('uecl', 24, 'Knockout Play-off (Leg 2)'))
       .toEqual({ seeded:false, secondLegHome:false });
+
     expect(getUefaKnockoutSeeding('ucl', 1, 'R16 (Leg 1)'))
       .toEqual({ seeded:true, secondLegHome:true });
     expect(getUefaKnockoutSeeding('ucl', 8, 'R16 (Leg 2)'))
       .toEqual({ seeded:true, secondLegHome:true });
     expect(getUefaKnockoutSeeding('ucl', 17, 'R16 (Leg 1)'))
       .toEqual({ seeded:false, secondLegHome:false });
-    expect(getUefaKnockoutSeeding('uel', 24, 'R16 (Leg 2)'))
-      .toEqual({ seeded:false, secondLegHome:false });
+
     expect(getUefaKnockoutSeeding('ucl', 3, 'QF (Leg 1)'))
+      .toEqual({ seeded:true, secondLegHome:true });
+    expect(getUefaKnockoutSeeding('uel', 5, 'QF (Leg 2)'))
+      .toEqual({ seeded:false, secondLegHome:false });
+    expect(getUefaKnockoutSeeding('uecl', 17, 'QF (Leg 1)'))
+      .toEqual({ seeded:null, secondLegHome:null });
+
+    expect(getUefaKnockoutSeeding('ucl', 1, 'SF (Leg 1)'))
+      .toEqual({ seeded:true, secondLegHome:true });
+    expect(getUefaKnockoutSeeding('ucl', 3, 'SF (Leg 2)'))
+      .toEqual({ seeded:false, secondLegHome:false });
+    expect(getUefaKnockoutSeeding('ucl', 17, 'SF (Leg 1)'))
+      .toEqual({ seeded:null, secondLegHome:null });
+    expect(getUefaKnockoutSeeding('ucl', 1, 'Final'))
       .toEqual({ seeded:null, secondLegHome:null });
   });
 
