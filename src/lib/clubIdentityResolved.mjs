@@ -25,7 +25,7 @@ const CUSTOM = {
   'paris fc': { shape: 'shield', motif: 'eiffel', reference: 'navy/blue shield, white-blue Eiffel tower and ball' },
 };
 
-function fold(value) {
+export function fold(value) {
   return String(value ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
