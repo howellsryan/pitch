@@ -286,6 +286,10 @@ export function getUefaKnockoutOpponentSeeds(cupId, position, roundName) {
     if (position === 3 || position === 4) return [13, 14, 19, 20];
     if (position === 5 || position === 6) return [11, 12, 21, 22];
     if (position === 7 || position === 8) return [9, 10, 23, 24];
+    if ([9, 10, 23, 24].includes(position)) return [7, 8];
+    if ([11, 12, 21, 22].includes(position)) return [5, 6];
+    if ([13, 14, 19, 20].includes(position)) return [3, 4];
+    if ([15, 16, 17, 18].includes(position)) return [1, 2];
   }
 
   return [];
