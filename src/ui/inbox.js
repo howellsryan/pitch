@@ -125,8 +125,11 @@ export async function renderInbox() {
     { id: 'academy',     label: 'Academy'  },
   ];
 
+  // These are real buttons, not clickable divs: the filter strip is part of
+  // the R7 mobile interaction surface and must be reachable by keyboard and
+  // assistive technology as well as touch.
   const tabsHtml = tabs.map(t =>
-    `<div class="inbox-tab${activeFilter===t.id?' on':''}" data-tab="${t.id}">${t.label}</div>`
+    `<button type="button" class="inbox-tab${activeFilter===t.id?' on':''}" data-tab="${t.id}" aria-pressed="${activeFilter===t.id?'true':'false'}">${t.label}</button>`
   ).join('');
 
   const itemsHtml = filtered.length === 0
