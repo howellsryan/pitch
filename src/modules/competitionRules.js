@@ -259,12 +259,10 @@ export function getUefaKnockoutSeeding(cupId, position, roundName) {
 }
 
 /**
- * Return the only league-phase seed positions that can occupy the opposite
- * side of the user's current UEFA draw path. The knockout play-off bands are
- * exact. R16 groups are the four possible seeds carried by the corresponding
- * play-off path; the preceding draw decides which actual winner reaches that
- * slot, so callers should persist the chosen opponent seed when the draw is
- * materialised rather than redraw on leg two.
+ * Return the league-phase/bracket seeds that can occupy the opposite side of
+ * the user's current UEFA draw path. After a seeded team is eliminated, the
+ * winner inherits that bracket seed, so QF/SF paths can be expressed entirely
+ * in terms of the persisted bracketSeed without needing P1's full world draw.
  */
 export function getUefaKnockoutOpponentSeeds(cupId, position, roundName) {
   if (!isUefaCompetition(cupId) || !Number.isInteger(position)) return [];
@@ -290,6 +288,20 @@ export function getUefaKnockoutOpponentSeeds(cupId, position, roundName) {
     if ([11, 12, 21, 22].includes(position)) return [5, 6];
     if ([13, 14, 19, 20].includes(position)) return [3, 4];
     if ([15, 16, 17, 18].includes(position)) return [1, 2];
+    return [];
+  }
+
+  if (roundName?.startsWith('QF')) {
+    if (position === 1 || position === 2) return [7, 8];
+    if (position === 7 || position === 8) return [1, 2];
+    if (position === 3 || position === 4) return [5, 6];
+    if (position === 5 || position === 6) return [3, 4];
+    return [];
+  }
+
+  if (roundName?.startsWith('SF')) {
+    if (position === 1 || position === 2) return [3, 4];
+    if (position === 3 || position === 4) return [1, 2];
   }
 
   return [];
