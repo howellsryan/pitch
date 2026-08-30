@@ -51,6 +51,10 @@ describe('P0 competition rules', () => {
       .toEqual({ seeded:true, secondLegHome:true });
     expect(getUefaKnockoutSeeding('ucl', 8, 'R16 (Leg 2)'))
       .toEqual({ seeded:true, secondLegHome:true });
+    expect(getUefaKnockoutSeeding('ucl', 17, 'R16 (Leg 1)'))
+      .toEqual({ seeded:false, secondLegHome:false });
+    expect(getUefaKnockoutSeeding('uel', 24, 'R16 (Leg 2)'))
+      .toEqual({ seeded:false, secondLegHome:false });
     expect(getUefaKnockoutSeeding('ucl', 3, 'QF (Leg 1)'))
       .toEqual({ seeded:null, secondLegHome:null });
   });
