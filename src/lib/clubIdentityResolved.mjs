@@ -69,7 +69,7 @@ function customSvg(team, spec, { size = 32, label = '' } = {}) {
   const primary = hex(team?.primaryColor, '#22559A');
   const title = label ? `<title>${esc(label)}</title>` : '';
   const aria = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
-  const common = `width="${Number(size) || 32}" height="${Number(size) || 32}" viewBox="0 0 100 100" ${aria}`;
+  const common = `xmlns="http://www.w3.org/2000/svg" width="${Number(size) || 32}" height="${Number(size) || 32}" viewBox="0 0 100 100" ${aria}`;
 
   if (spec.motif === 'shrimp') {
     return `<svg ${common}>${title}<path d="M12 10h76v42c0 23-14 36-38 44C26 88 12 75 12 52Z" fill="#B7192A" stroke="#8C713C" stroke-width="3"/><path d="M15 12h70v20H15Z" fill="#FFFFFF"/><text x="50" y="26" text-anchor="middle" font-family="Arial Black,Arial" font-size="12" font-weight="900" fill="#111111">MORECAMBE</text><path d="M28 55c9-16 30-22 45-8 7 7 4 20-8 25-13 6-29 0-30-10 0-7 7-10 14-8 8 2 9 10 3 13-5 2-11-1-10-6" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/><path d="M27 53 18 46M27 56 16 56M29 60 19 66M68 48l9-8M69 51l11-3" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"/></svg>`;

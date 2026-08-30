@@ -77,5 +77,5 @@ export function iconSvg(name, { size = 18, label = '', className = '' } = {}) {
   const title = label ? `<title>${esc(label)}</title>` : '';
   const aria = label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"';
   const cls = className ? ` class="${esc(className)}"` : '';
-  return `<svg${cls} viewBox="0 0 24 24" width="${Number(size) || 18}" height="${Number(size) || 18}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${aria}>${title}${iconMarkup(name).join('')}</svg>`;
+  return `<svg${cls} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${Number(size) || 18}" height="${Number(size) || 18}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${aria}>${title}${iconMarkup(name).join('')}</svg>`;
 }

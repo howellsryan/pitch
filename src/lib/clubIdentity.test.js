@@ -33,6 +33,7 @@ describe('bespoke club identity', () => {
     for (const team of CLUBS) {
       const svg = resolvedClubCrestSvg(team, { size: 32, label: `${team.name} crest` });
       expect(svg, team.name).toContain('<svg');
+      expect(svg, `${team.name} standalone SVG namespace`).toContain('xmlns="http://www.w3.org/2000/svg"');
       expect(svg, team.name).toContain('viewBox="0 0 100 100"');
       expect(svg, team.name).toContain('aria-label=');
       expect(svg, team.name).not.toContain(team.crest ?? '__never__');

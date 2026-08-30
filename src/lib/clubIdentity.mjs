@@ -480,7 +480,7 @@ export function clubCrestSvg(team = {}, { size = 32, label = '', className = '' 
   const cls = className ? ` class="${esc(className)}"` : '';
   const shapeStroke = p.shape === 'roundel' && luminance(primary) < .08 ? '#D7DCE3' : '#171B20';
 
-  return `<svg${cls} viewBox="0 0 100 100" width="${Number(size) || 32}" height="${Number(size) || 32}" ${aria}>${title}<defs><clipPath id="${clipId}">${clipShape(p.shape)}</clipPath></defs>${outerShape(p.shape, primary, shapeStroke)}<g clip-path="url(#${clipId})">${patternMarkup(p.pattern, secondary, accent)}</g><g>${motifMarkup(p.motif, motifColor, accent, initials(team))}</g></svg>`;
+  return `<svg${cls} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${Number(size) || 32}" height="${Number(size) || 32}" ${aria}>${title}<defs><clipPath id="${clipId}">${clipShape(p.shape)}</clipPath></defs>${outerShape(p.shape, primary, shapeStroke)}<g clip-path="url(#${clipId})">${patternMarkup(p.pattern, secondary, accent)}</g><g>${motifMarkup(p.motif, motifColor, accent, initials(team))}</g></svg>`;
 }
 
 export const CURATED_BADGE_PROFILE_COUNT = Object.keys(PROFILE).length;
