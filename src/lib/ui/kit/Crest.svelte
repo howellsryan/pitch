@@ -4,9 +4,13 @@
    *
    * R6.5 replaces the old one-shape coloured shield with an original SVG
    * interpretation of each club's real visual identity. Prefer passing the
-   * whole `team` object (id/name/shortName/primaryColor); `color` remains as a
-   * compatibility fallback while older callers are migrated in this branch.
+   * whole `team` object. During the migration, older callers that only pass a
+   * colour are resolved from the nearest visible club name so every existing
+   * Crest instance upgrades immediately rather than waiting for a risky
+   * all-screens rewrite.
    */
+  import { onMount } from 'svelte';
+  import { getAllTeamData } from '../../../modules/save.js';
   import { clubCrestSvg } from '../../clubIdentity.mjs';
 
   let {
@@ -17,6 +21,48 @@
     class: className = '',
   } = $props();
 
+  let root = $state(null);
+  let inferred = $state.raw(null);
+
+  // One catalogue for every Crest instance. Longest names first prevents
+  // "Paris" from winning before "Paris Saint-Germain", etc.
+  const CLUBS = getAllTeamData()
+    .slice()
+    .sort((a, b) => String(b.name).length - String(a.name).length);
+
+  function fold(value) {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }
+
+  function clubFromText(value) {
+    const haystack = fold(value);
+    if (!haystack) return null;
+    return CLUBS.find((club) => haystack.includes(fold(club.name))) ?? null;
+  }
+
+  onMount(() => {
+    if (team) return;
+
+    // Explicit labels are the strongest migration bridge.
+    inferred = clubFromText(label);
+    if (inferred) return;
+
+    // Existing screen markup already places a Crest inside the same row/card
+    // as its club name. Walk only a few ancestors so a match container holding
+    // two clubs cannot accidentally resolve the wrong side.
+    let node = root?.parentElement ?? null;
+    for (let depth = 0; node && depth < 4; depth += 1, node = node.parentElement) {
+      const matches = CLUBS.filter((club) => fold(node.textContent).includes(fold(club.name)));
+      if (matches.length === 1) {
+        inferred = matches[0];
+        return;
+      }
+    }
+  });
+
   const fallback = $derived({
     id: 'generic-club',
     name: label?.replace(/ crest$/i, '') || 'Club',
@@ -24,16 +70,17 @@
     primaryColor: /^#[0-9a-f]{6}$/i.test(color) ? color : '#59616B',
   });
 
+  const resolved = $derived(team ?? inferred ?? fallback);
   const svg = $derived(
-    clubCrestSvg(team ?? fallback, {
+    clubCrestSvg(resolved, {
       size,
-      label: label ?? (team?.name ? `${team.name} crest` : ''),
+      label: label ?? (resolved?.name && resolved.name !== 'Club' ? `${resolved.name} crest` : ''),
       className,
     }),
   );
 </script>
 
-<span class="crest" style="width:{size}px;height:{size}px">
+<span bind:this={root} class="crest" style="width:{size}px;height:{size}px">
   {@html svg}
 </span>
 
