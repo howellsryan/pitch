@@ -4,6 +4,8 @@
 
 **Baseline:** `main` after PR #14 (`767b31656d58f00acc42431cc3bca6df131b1b5b`) — R0-R7 shipped.
 
+**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World is next.**
+
 **Benchmark reviewed:** EA SPORTS FC 27 Manager Career (Career Deep Dive, July 2026), with relevant Manager Market ideas carried forward from FC 26. This is not a parity checklist. Pitch should take the parts that create meaningful management decisions and, where a browser simulator has an advantage, go deeper systemically rather than imitate AAA presentation.
 
 **Existing roadmap:** `ROADMAP.md` remains the historical/operational tracker for the gameplay-depth work already shipped (European ties, wages, contracts, board/job security, morale, academy investment, cloud save setup, etc.). This document is the strategic post-R7 continuation and folds the remaining old items into a dependency-aware programme.
@@ -125,7 +127,7 @@ Pitch's European competition model should be data-driven enough that rule change
 
 | Area | Post-R7 Pitch | Strategic gap |
 |---|---|---|
-| Competition rules | Broad competition coverage, some simplified/outdated rules | Medium/high |
+| Competition rules | P0 data-driven rule layer + current UEFA paths shipped | Foundation complete; future seasonal breadth remains |
 | World simulation | Richest around the user's current context | **Critical** |
 | Historical world data | Trophy history exists; player/club season history is shallow | **Critical** |
 | Formations | 14 presets | Low |
@@ -157,7 +159,7 @@ Pitch's European competition model should be data-driven enough that rule change
 | Events/narratives | Inbox is informative rather than decision-driven | High |
 | Press/fan pressure | Minimal | Medium/high |
 | Career challenge creation | Missing | High replayability opportunity |
-| Career save slots | Active career flow exists; multi-career model is limited | Medium/high |
+| Career save slots | P0 isolated local slots + versioned cloud slot contract shipped | Foundation complete |
 | Simulation settings | Limited configurability | Medium |
 | Content breadth | Strong 9-league base; non-English second tiers thin/missing | Medium |
 | International management | Missing | Later breadth |
@@ -165,10 +167,9 @@ Pitch's European competition model should be data-driven enough that rule change
 
 ---
 
-
 ## 5.1 Delivery contract for future agents
 
-This document is a **plan only**. P0-P12 are programme phases, not instructions to implement the entire phase in one pull request. Each phase below has a high-level delivery route and suggested commit slices so a later agent can pick it up without reopening the main product and architecture decisions.
+**P0 is implemented and verified. P1-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested commit slices so a later agent can pick it up without reopening the main product and architecture decisions.
 
 ### Phase packaging
 
@@ -208,26 +209,50 @@ The order below is dependency-driven. A later phase may be designed early, but s
 
 ## P0 — Football authenticity and career foundation
 
-**Priority:** immediate correctness/foundation pass.
+**Status: ✅ COMPLETE — 30 August 2026.**
+
+**Priority:** completed correctness/foundation pass; **P1 is now unblocked.**
 
 ### Build
 
-1. Remove obsolete away-goals tiebreak behaviour from UEFA competitions.
-2. Move UEFA competitions toward the current 36-team league-phase structures, including knockout-phase play-offs and ranking/seeding rules.
-3. Audit domestic cup entry, replay/extra-time, two-leg and qualification assumptions rather than fixing UEFA only.
-4. Introduce a clear competition-rules/data layer so tournament structure is not hard-coded across multiple unrelated modules.
-5. Add proper multiple career slots locally and design cloud saves so multiple slots can be supported without another format rewrite.
-6. Make each slot clearly show manager, club, season, current league position and last played date, with Continue / Export / Delete.
-7. Add save-version/migration discipline before the next major schema expansion; the post-R7 programme will require persistent new fields.
+- [x] Remove obsolete away-goals tiebreak behaviour from UEFA competitions.
+- [x] Move UEFA competitions to the current 36-team league-phase structures, including knockout-phase play-offs and ranking/seeding rules.
+- [x] Audit domestic cup entry, replay/extra-time, two-leg and qualification assumptions rather than fixing UEFA only.
+- [x] Introduce a clear competition-rules/data layer so tournament structure is not hard-coded across multiple unrelated modules.
+- [x] Add proper multiple career slots locally and make the cloud save contract slot-aware without another future format rewrite.
+- [x] Make each slot clearly show manager, club, season, current league position and last played date, with Continue / Export / Delete.
+- [x] Add save-version/migration discipline before the next major schema expansion.
 
 ### Acceptance
 
-- Current European two-legged ties never use away goals as a tiebreak.
-- UEFA league phases and qualification paths match the configured season's rules.
-- Starting a second career does not require destroying/exporting the first.
-- Existing `.pitch` saves remain importable through explicit migration/version handling.
+- [x] Current European two-legged ties never use away goals as a tiebreak.
+- [x] UEFA league phases and qualification paths match the configured P0 rules, including direct R16 / play-off / elimination routes and seeded home-leg ordering.
+- [x] Starting a second career does not require destroying/exporting the first, and deleting the legacy first career cannot strand surviving slots.
+- [x] Existing `.pitch` V1 saves remain importable through explicit migration/version handling.
 
-### Delivery plan (high level)
+### Shipped in P0
+
+- `src/modules/competitionRules.js` is the shared competition-format source consumed by cups/gameweek/season logic; current UEFA league-phase match counts, qualification routes, two-leg rules and seeding no longer live as scattered assumptions.
+- Aggregate UEFA ties no longer use away goals; level aggregates resolve through extra-time/penalty semantics.
+- UCL/UEL/UECL league-phase state models 36-team ranking routes (8/8/6 user fixtures respectively), including positions 1-8 direct, 9-24 play-off and 25-36 elimination.
+- End-of-season European finance derives progress from named rule stages rather than raw round indexes, avoiding prize drift when competition formats change.
+- IndexedDB careers use stable slot IDs. The pre-P0 `pitch_fc` database remains the discoverable `legacy` compatibility slot; deleting/resetting that career clears it in place, while generated career databases remain physically isolated.
+- Save envelope V2 adds schema version + slot metadata with an ordered V1 migration path. Local export/import and cloud backup share that envelope contract.
+- Cloud saves are keyed by `(user_id, slot_id)` with summary metadata, preserving existing rows as `legacy` through the D1 migration.
+- Career Menu supports multiple saved careers with manager/club/season/position/last-played metadata plus Continue, Export, Delete and isolated New Career flows.
+
+### Completion evidence
+
+P0's final delivery loop passed both functional and rendered-mobile verification before this status was changed:
+
+- legacy build + compatibility validator bridge passed, with **22 deterministic P0 replacement-contract tests** green;
+- production Vite build and ESLint passed;
+- **95/95 Vitest tests** passed;
+- **186/186 club accent checks** passed;
+- **15/15 Playwright tests** passed at the repo's 390×844 mobile target, including two-career switching/deletion and the three-career legacy-fallback regression;
+- the retained **390×844 Career Menu screenshot** was visually inspected: both career cards render opaque/readable, active state and metadata are clear, all Continue / Export / Delete controls are visible without clipping, and New Career remains reachable.
+
+### Delivery plan (historical implementation route)
 
 **Locked decisions**
 
@@ -244,14 +269,13 @@ The order below is dependency-driven. A later phase may be designed early, but s
 4. Add slot-aware local repositories and then the Continue / New Career / Export / Delete UI. Extend the Worker/D1 contract only after local migration and rollback paths are proven.
 5. Run multi-season competition tests, old-save fixtures, slot-isolation tests and mobile entry-flow E2E coverage.
 
-**Commit/push slices:** rule characterisation; competition rules layer; UEFA format; save envelope/migrators; local slots; cloud-compatible contract; slot UI/E2E/docs.
-
+**Commit/push slices delivered:** rule characterisation; competition rules layer; UEFA format; save envelope/migrators; local slots; cloud-compatible contract; slot UI/E2E; completion evidence/docs.
 
 ---
 
 ## P1 — The Living Football World
 
-**Priority:** #1 major feature.
+**Priority:** #1 major feature — **NEXT**.
 
 This is the most important foundation for everything that follows.
 
@@ -316,7 +340,6 @@ Nine leagues are an advantage only if the browser remains fast. World simulation
 
 If the user is managing Arsenal in October and inspects Barcelona, Dortmund or Ajax, that club has actually played a coherent season with inspectable form, players and statistics. A manager can make scouting and job decisions from real simulated history.
 
-
 ### Delivery plan (high level)
 
 **Locked decisions**
@@ -336,7 +359,6 @@ If the user is managing Arsenal in October and inspects Barcelona, Dortmund or A
 6. Benchmark gameweek time, career load time and IndexedDB growth on mobile-class targets before enabling full breadth by default.
 
 **Commit/push slices:** ledger contract/tests; batched world clock; current stats; historical summaries; awards/injuries/transfers integration; newgens; performance/E2E/docs.
-
 
 ---
 
@@ -409,7 +431,6 @@ Track a manager's emerging identity from actual choices/results: preferred shape
 
 Simulation changes must gain deterministic/injectable RNG support and statistical regression tests. The existing standing risk — stochastic balance without a reliable automated gate — becomes unacceptable once tactics materially alter results.
 
-
 ### Delivery plan (high level)
 
 **Locked decisions**
@@ -429,7 +450,6 @@ Simulation changes must gain deterministic/injectable RNG support and statistica
 6. Map authoritative events into Broadcast and verify watched and quick-simmed results remain identical.
 
 **Commit/push slices:** deterministic harness; tactic schema/migration; team instructions; player roles; AI profiles/insights; Manager DNA; Broadcast parity/statistical regression/docs.
-
 
 ---
 
@@ -475,7 +495,6 @@ The manager can accelerate a return at a meaningful risk rather than waiting for
 
 Rotation, development, selection, contracts, transfers and injuries all read from the same coherent player state rather than independent meters.
 
-
 ### Delivery plan (high level)
 
 **Locked decisions**
@@ -495,7 +514,6 @@ Rotation, development, selection, contracts, transfers and injuries all read fro
 6. Remove compatibility reads only after match, squad, market, academy, season rollover and import paths all consume the canonical model.
 
 **Commit/push slices:** player contract/selectors; migration/adapters; effective level; morale/roles/promises; positions/traits; growth profiles; rehabilitation/reinjury; UI/E2E/docs.
-
 
 ---
 
@@ -574,7 +592,6 @@ Inputs should include squad depth, aging, contracts, injuries, tactical identity
 
 Maintain season-long transfer history, rumours/shortlist stories and visible competing activity so the market feels like a world rather than the user's shopping catalogue.
 
-
 ### Delivery plan (high level)
 
 **Locked decisions**
@@ -594,7 +611,6 @@ Maintain season-long transfer history, rumours/shortlist stories and visible com
 6. Rebuild the existing transfer sheets as projections/commands over deal state, then add transfer history and rumour stories.
 
 **Commit/push slices:** state machine/tests; terms/migration; staged negotiation; priority clauses; interest/rival bids; AI needs/recruitment; UI/history/E2E/docs.
-
 
 ---
 
@@ -663,7 +679,6 @@ Optional: a **simulated tactical scrimmage/lab** against reserves that returns a
 
 **Commit/push slices:** squad-planner service/tests; report model; assignments/uncertainty; coaches; training/development plans; recruitment integration; UI/E2E/docs.
 
-
 ---
 
 ## P6 — Manager Career and Living Manager Market
@@ -728,7 +743,6 @@ This is where P1/P2/P4 become a single living system rather than separate featur
 6. Add manager history/profile views and multi-season labour-market tests.
 
 **Commit/push slices:** manager contract/migration; club assignments; vacancy state machine; AI movement; user movement/handover; tactics/recruitment integration; UI/E2E/docs.
-
 
 ---
 
@@ -801,7 +815,6 @@ Avoid decorative upgrade trees that only add percentages without meaningful trad
 
 **Commit/push slices:** philosophy contract; finance ledger/migration; transfer/wage integration; board objectives/reviews; manager-fit integration; facilities; balance/UI/E2E/docs.
 
-
 ---
 
 ## P8 — Story Engine, Press, Fans and Rivalries
@@ -865,7 +878,6 @@ Keep these mostly as inputs, not permanent dashboard clutter. They can influence
 
 **Commit/push slices:** event schema/evaluator; first vertical slice; effects/follow-ups; Inbox integration; press/fans/rivalries; replay/E2E/content-authoring docs.
 
-
 ---
 
 ## P9 — Academy, Loans and Development Pathways 2.0
@@ -923,7 +935,6 @@ AI clubs should request loans to solve genuine squad needs.
 
 **Commit/push slices:** player-status contract/migration; youth scouting; academy simulation/plans; loan agreements/placement; live loan stats/reports; return/recall flow; balance/UI/E2E/docs.
 
-
 ---
 
 ## P10 — Career Setup, Difficulty and Simulation Controls
@@ -955,7 +966,6 @@ Depth should be configurable rather than forcing every user into maximum simulat
 
 All presets must be documented/config-driven so balance can be changed without branching game logic everywhere.
 
-
 ### Delivery plan (high level)
 
 **Locked decisions**
@@ -975,7 +985,6 @@ All presets must be documented/config-driven so balance can be changed without b
 6. Test export/import, cloud backup, changed settings at safe boundaries and equivalence of old saves to the Authentic defaults.
 
 **Commit/push slices:** settings contract/migration; default-equivalence adapters; subsystem controls; presets/custom validation; Settings UI/help; persistence/E2E/docs.
-
 
 ---
 
@@ -1018,7 +1027,6 @@ Start with a compact versioned JSON definition. Later add Cloudflare-backed shor
 
 Real-world live start points are a later extension of the same architecture, but require a reliable, legal and maintainable current-data pipeline before becoming a product promise.
 
-
 ### Delivery plan (high level)
 
 **Locked decisions**
@@ -1039,7 +1047,6 @@ Real-world live start points are a later extension of the same architecture, but
 6. Prototype live-start snapshots only after establishing a maintainable legal data source and date/version lifecycle.
 
 **Commit/push slices:** schema/validator; career factory; objectives/completion; creator UI; local sharing/curated pack; optional cloud codes; later live-start adapter; security/E2E/docs.
-
 
 ---
 
@@ -1063,7 +1070,6 @@ The repo already has/prepares data concepts for several additional second tiers;
 
 Content breadth must not outrun simulation quality or data maintenance capacity.
 
-
 ### Delivery plan (high level)
 
 **Locked decisions**
@@ -1085,20 +1091,19 @@ Content breadth must not outrun simulation quality or data maintenance capacity.
 
 **Commit/push slices:** generic tier/rules support; one country pack per commit/PR slice; validation/performance after each; then separate design spikes and branches for internationals, Create-a-Club and women's football.
 
-
 ---
 
 # 7. Existing roadmap items: where they now live
 
 | Existing `ROADMAP.md` item | Treatment |
 |---|---|
-| Two-legged European knockouts | Keep shipped foundation, correct obsolete away-goals rule in P0 |
+| Two-legged European knockouts | P0 corrected the shipped foundation and removed away-goals semantics |
 | Wages | Keep shipped; expand economy in P7 |
 | Contracts | Keep shipped; expand negotiation/clauses in P4 |
 | Board objectives/job security | Keep shipped; expand in P7 and feed P6/P8 |
 | Team morale | Keep shipped; add individual morale in P3 |
 | Academy investment | Keep shipped; expand pathways in P9 |
-| Cloud save / Google | Keep operational work tracked in `ROADMAP.md`; design P0 save slots to be cloud-compatible |
+| Cloud save / Google | Operational setup remains in `ROADMAP.md`; P0 shipped the slot-aware save/API/D1 contract |
 | Manager career progression | Superseded/expanded by P6 |
 | Data completeness polish | Ongoing hygiene; major league breadth moves to P12 |
 | Club badges | Visual polish can ship opportunistically; not a blocker for systemic phases |
@@ -1133,9 +1138,9 @@ Broadcast may visualise outcomes; it must not become a second conflicting result
 
 Injectable/seeded RNG and statistical regression tests should be established before large P2/P3 changes. A green UI/build suite cannot prove goal rates, tactical advantages or development distributions are sane.
 
-## 9.3 Add a real persistence migration path
+## 9.3 Use the P0 persistence migration path
 
-P1 onward introduces substantial persistent state. Do not rely on ad-hoc backfills forever. Version save envelopes and migrate old saves explicitly.
+P0 established a versioned save envelope and explicit V1→V2 migration. P1 onward must extend that ordered migration discipline rather than returning to ad-hoc backfills.
 
 ## 9.4 Mobile performance is a product requirement
 
@@ -1159,8 +1164,8 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 
 | Order | Phase | Primary payoff |
 |---:|---|---|
-| 0 | P0 — authenticity + save/migration foundation | Correctness and safe foundation |
-| 1 | P1 — Living Football World | The game becomes a persistent football universe |
+| ✅ | **P0 — authenticity + save/migration foundation (COMPLETE)** | Correctness and safe foundation |
+| 1 | **P1 — Living Football World (NEXT)** | The game becomes a persistent football universe |
 | 2 | P2 — Match Engine 2.0 + Tactics/Manager DNA | Core simulator gameplay depth |
 | 3 | P3 — Player Model 2.0 | Meaningful selection, rotation and development |
 | 4 | P4 — Transfers/Contracts 2.0 | Rich recurring squad-building loop |
@@ -1175,16 +1180,15 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 
 ---
 
-
 ## 10.1 Dependency checkpoints and safe parallel work
 
-- **P0 is the hard gate:** save migration/slots and configurable competition rules must be stable before persistent world expansion.
+- **P0 hard gate is satisfied:** save migration/slots and configurable competition rules are stable foundations for persistent world expansion.
 - **P1 is the shared data spine:** P2 and P3 may be designed in parallel, but both consume P1's canonical match/history records.
 - **P2 + P3 unlock the market loop:** P4 owns the minimal shared squad-needs projection; P5 expands it rather than replacing it.
 - **P4 + P5 unlock career movement:** P6 can ship manager entities and movement with a basic fit contract; P7 later enriches club identity and finance.
 - **P3 + P6 + P7 unlock narrative consequences:** P8 should not invent placeholder morale, job or finance state.
 - **P1 + P3 + P5 unlock development pathways:** P9 reuses canonical players, reports and match histories.
-- **P10 is cross-cutting:** its settings contract may land early with P0, while individual controls land with the subsystem they configure.
+- **P10 is cross-cutting:** its settings contract may land early, while individual controls land with the subsystem they configure.
 - **P11 and P12 remain after systemic depth:** schema/design spikes may happen earlier, but production breadth must not bypass the same migration, performance and deterministic-test gates.
 - **R8 remains parallel:** accessibility, PWA, responsive and quality-floor work can proceed independently, but any overlapping file must be coordinated through separate reviewable commits.
 
