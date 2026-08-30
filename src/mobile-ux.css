@@ -15,15 +15,6 @@
     height: 44px !important;
   }
 
-  .broadcast-nav.matchday .pill {
-    height: 46px !important;
-  }
-
-  .broadcast-nav.matchday .menu {
-    width: 44px !important;
-    height: 44px !important;
-  }
-
   /* Home's waiting sheet is part of a document-flow screen rather than a
      fixed footer. Extra padding merely made the document taller, so reserve
      the nav zone by lifting the sheet itself. It is already styled as an
@@ -36,15 +27,44 @@
 
   /* Chalk is mounted inside an overflow-y screen, so flex:1 alone does not
      give its root a finite height. Give it a real mobile working viewport and
-     leave the bottom 76px to the floating nav. The pitch absorbs the shrink;
-     the bench stays fully visible and selectable. */
+     leave the bottom 76px to the floating nav. */
   #screen-squad .tactics-screen {
     height: calc(100dvh - 76px) !important;
     max-height: calc(100dvh - 76px) !important;
     overflow: hidden !important;
   }
 
+  /* The R4 pitch used to be width-driven. At 390px that produces a pitch
+     taller than the flex space left after the header, selectors and bench,
+     which lets the XI bleed into neighbouring controls even though the screen
+     itself has no document overflow. Constrain it by the available height;
+     aspect-ratio then derives the safe width. */
+  #screen-squad .tac-pitch-area {
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 12px 4px !important;
+  }
+
+  #screen-squad .pitch-wrap {
+    width: auto !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    aspect-ratio: 68 / 100 !important;
+    flex: 0 1 auto;
+  }
+
+  #screen-squad .chalk-header {
+    padding-top: 12px !important;
+  }
+
+  #screen-squad .tac-controls {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
   #screen-squad .tac-bench-strip {
+    padding-top: 6px !important;
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
