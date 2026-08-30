@@ -57,6 +57,7 @@ P0_TEST_FILES = [
     'src/modules/competitionRules.test.js',
     'src/modules/competitionIntegration.test.js',
     'src/modules/dbSaveMigration.test.js',
+    'src/modules/seasonP0.test.js',
 ]
 
 
