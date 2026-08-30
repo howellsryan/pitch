@@ -74,6 +74,38 @@ test('P0 mobile career menu creates, switches and deletes isolated save slots', 
   await expect(menu.locator('.career-card')).toContainText('Arsenal');
 });
 
+test('P0 deleting the legacy career cannot strand another surviving slot', async ({ page }) => {
+  await startArsenalCareer(page);
+
+  let menu = await openCareerMenu(page);
+  await menu.getByRole('button', { name: /New career/ }).click();
+  await startCareer(page, 'Chelsea');
+
+  menu = await openCareerMenu(page);
+  await menu.getByRole('button', { name: /New career/ }).click();
+  await startCareer(page, 'Liverpool');
+
+  menu = await openCareerMenu(page);
+  await expect(menu.locator('.career-card')).toHaveCount(3);
+  await expect(menu.locator('.career-card.active')).toContainText('Liverpool');
+
+  // Arsenal owns the original legacy database. Delete it while another slot
+  // is active, then delete that active slot. Chelsea must become the fallback
+  // instead of booting an empty re-created legacy DB.
+  await menu.locator('.career-card', { hasText: 'Arsenal' }).getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Delete this career' }).click();
+  await expect(menu.locator('.career-card')).toHaveCount(2);
+  await expect(menu).not.toContainText('Arsenal');
+
+  await menu.locator('.career-card', { hasText: 'Liverpool' }).getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Delete this career' }).click();
+
+  await expect(page.locator('#app')).toBeVisible({ timeout: 30000 });
+  menu = await openCareerMenu(page);
+  await expect(menu.locator('.career-card')).toHaveCount(1);
+  await expect(menu.locator('.career-card.active')).toContainText('Chelsea');
+});
+
 test('R7 secondary club areas are exposed through global mobile navigation', async ({ page }) => {
   await startArsenalCareer(page);
 
