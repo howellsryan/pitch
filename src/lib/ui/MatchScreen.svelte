@@ -24,6 +24,8 @@
   import { renderHome } from '../../ui/home_transfers.js';
   import { newsAIBid, newsInjury, newsMatchResult } from '../../ui/inbox.js';
   import { screenTicks } from '../state/screens.svelte.js';
+  import Crest from './kit/Crest.svelte';
+  import Icon from './kit/Icon.svelte';
 
   /**
    * MatchScreen.svelte — the live-match route (Phase 5,
@@ -123,7 +125,8 @@
   async function buildMatchCtx(event, save) {
     const allTeams  = await getAllTeams();
     const teamsById = new Map(allTeams.map(t => [t.id, t]));
-    const userTeam  = teamsById.get(save.userTeamId) ?? { name: 'Your Team', crest: '⚽' };
+    const teamByName = (name) => allTeams.find(t => t.name === name || t.shortName === name) ?? null;
+    const userTeam  = teamsById.get(save.userTeamId) ?? { id: save.userTeamId, name: 'Your Team', reputation: 70 };
 
     let oppTeam, oppForm = [], oppInForm = null;
     let matchTitle, compLabel, userIsHome;
@@ -134,13 +137,13 @@
       if (!fix) return null;
       userIsHome = fix.homeTeamId === save.userTeamId;
       const oppId = userIsHome ? fix.awayTeamId : fix.homeTeamId;
-      oppTeam = teamsById.get(oppId) ?? { id: oppId, name: oppId, crest: '⚽', reputation: 70 };
+      oppTeam = teamsById.get(oppId) ?? { id: oppId, name: oppId, reputation: 70 };
       [oppForm, oppInForm] = await Promise.all([getTeamRecentForm(oppId, 5), getInFormPlayer(oppId)]);
       matchTitle = `${userIsHome ? 'Home' : 'Away'} · GW${event.gw}`;
       compLabel  = save.userLeague ?? 'League';
       isLeague   = true;
     } else if (event.type === 'ucl_md') {
-      oppTeam    = { name: event.oppName, crest: event.oppNation ?? '🌍', reputation: event.oppStrength ?? 72 };
+      oppTeam    = teamByName(event.oppName) ?? { name: event.oppName, reputation: event.oppStrength ?? 72 };
       userIsHome = event.userIsHome ?? true;
       matchTitle = `Champions League · Matchday ${event.matchday}`;
       compLabel  = 'Champions League';
@@ -150,8 +153,7 @@
       const cupState  = save.cups?.[event.cupId];
       const lastResult = cupState?.results?.slice(-1)[0];
       const oppName  = event.opponentName ?? lastResult?.opponentName ?? 'TBD';
-      const oppCrest = event.opponentCrest ?? lastResult?.opponentCrest ?? '⚽';
-      oppTeam    = { name: oppName, crest: oppCrest, reputation: event.opponentRep ?? 70 };
+      oppTeam    = teamsById.get(event.opponentId) ?? teamByName(oppName) ?? { name: oppName, reputation: event.opponentRep ?? 70 };
       userIsHome = event.userIsHome ?? true;
       matchTitle = `${meta.name ?? event.cupId} · ${event.roundName ?? ''}`;
       compLabel  = meta.name ?? event.cupId;
@@ -187,8 +189,8 @@
 
   const blockMsg = $derived(
     matchCtx?.injuredInLineup?.length > 0
-      ? '🚑 Fix your lineup — injured players selected. Go to Squad.'
-      : '⚠️ Set a full starting XI in Squad before playing.'
+      ? 'Fix your lineup — injured players selected. Go to Squad.'
+      : 'Set a full starting XI in Squad before playing.'
   );
 
   function diffLabel(rep) {
@@ -227,6 +229,8 @@
     return selectEleven(matchCtx.userPlayers.map(p => ({ ...p, fitness: p.fitness ?? 90, inSquad: p.inSquad !== false })), matchCtx.userFormation);
   });
   const teamNewsAssignment = $derived(assignToSlots(teamNewsXI, teamNewsSlots));
+  const displayHomeTeam = $derived(live?.homeTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.userTeam : matchCtx.oppTeam) : null));
+  const displayAwayTeam = $derived(live?.awayTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.oppTeam : matchCtx.userTeam) : null));
 
   // ── Load / entry point ──────────────────────────────────────────────
   async function loadMatch() {
@@ -297,6 +301,7 @@
   async function resolveMatchTeams(ctx) {
     const allTeams2  = await getAllTeams();
     const teamsById2 = new Map(allTeams2.map(t => [t.id, t]));
+    const teamByName2 = (name) => allTeams2.find(t => t.name === name || t.shortName === name) ?? null;
     let homeTeam, awayTeam, homePlayers, awayPlayers, patchedEvent;
 
     if (ctx.event.type === 'league') {
@@ -314,12 +319,12 @@
     }
 
     const userIsHomeC = ctx.event.userIsHome ?? true;
-    const realOpp = teamsById2.get(ctx.event.opponentId) ?? ctx.oppTeam;
+    const realOpp = teamsById2.get(ctx.event.opponentId) ?? teamByName2(ctx.oppTeam.name) ?? ctx.oppTeam;
     homeTeam = userIsHomeC ? ctx.userTeam : realOpp;
     awayTeam = userIsHomeC ? realOpp : ctx.userTeam;
     homePlayers = await getPlayersByTeam(homeTeam.id);
-    awayPlayers = (ctx.event.opponentId && teamsById2.has(ctx.event.opponentId))
-      ? await getPlayersByTeam(ctx.event.opponentId).catch(() => [])
+    awayPlayers = realOpp?.id
+      ? await getPlayersByTeam(realOpp.id).catch(() => [])
       : [];
     if (!awayPlayers.length) {
       const strength = ctx.event.opponentRep ?? ctx.event.oppStrength ?? 72;
@@ -449,7 +454,7 @@
         queuedGoalNotice = { ...ev, isUser };
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
         togglePause();
-        toast(`🚑 ${ev.playerName} is injured! ${ev.injuryName || ''}`, 'error', 6000);
+        toast(`${ev.playerName} is injured! ${ev.injuryName || ''}`, 'error', 6000);
       }
     }
   }
@@ -463,7 +468,7 @@
     vibrate([60]);
     window.clearTimeout(goalNoticeTimer);
     goalNoticeTimer = window.setTimeout(() => { goalNotice = null; }, 3200);
-    if (goalNotice.isUser) toast(`⚽ GOAL! ${goalNotice.playerName}`, 'success');
+    if (goalNotice.isUser) toast(`GOAL! ${goalNotice.playerName}`, 'success');
   }
 
   function startPresentation() {
@@ -565,7 +570,7 @@
 
   function chooseTacticsBench(player) {
     if (subsLeft <= 0) { toast('No substitutions remaining', 'error'); return; }
-    if (player.injured) { toast(`🚑 ${player.name} is injured and cannot play.`, 'error', 4000); return; }
+    if (player.injured) { toast(`${player.name} is injured and cannot play.`, 'error', 4000); return; }
     if (tacticsSubOut) { applyTacticsSub(player, tacticsSubOut); return; }
     tacticsSubInId = tacticsSubInId === player.id ? null : player.id;
     if (tacticsSubInId && tacticsSubOutId && !eligibleSubOutTargets(live.liveState, live.userIsHome, player).some(p => p.id === tacticsSubOutId)) {
@@ -609,29 +614,29 @@
   function applyCommitExtras(res) {
     for (const cr of res.cupResults ?? []) {
       if (cr.isUCLMatchday) {
-        toast(`⭐ UCL MD${cr.matchday}: ${cr.result} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals}) +${cr.points}pts`,
+        toast(`UCL MD${cr.matchday}: ${cr.result} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals}) +${cr.points}pts`,
           cr.result === 'W' ? 'success' : cr.result === 'D' ? 'info' : 'error', 6000);
       } else if (!cr.eliminated && cr.opponentName) {
         const meta = CUP_META[cr.cupId];
-        const lossLabel = (cr.roundName || '').includes('1st leg') ? '❌ Lost' : '❌ Out';
-        toast(`${meta?.icon || '🏆'} ${meta?.name} ${cr.roundName}: ${cr.userWon ? '✅ Won' : lossLabel} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,
+        const lossLabel = (cr.roundName || '').includes('1st leg') ? 'Lost' : 'Out';
+        toast(`${meta?.name ?? cr.cupId} ${cr.roundName}: ${cr.userWon ? 'Won' : lossLabel} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,
           cr.userWon ? 'success' : 'error', 6000);
       }
     }
     if (res.newOffers?.length) {
       for (const o of res.newOffers) {
-        toast(`📨 ${o.clubName} bid ${fmt.money(o.fee)} for ${o.playerName}`, 'info', 5000);
+        toast(`${o.clubName} bid ${fmt.money(o.fee)} for ${o.playerName}`, 'info', 5000);
         newsAIBid({ name: o.playerName, id: o.playerId }, o.fee, o.clubName, matchCtx.save).catch(() => {});
       }
     }
     const userInjEvts = (result?.events ?? []).filter(e => e.type === 'injury' && e.teamId === matchCtx.save.userTeamId);
     for (const inj of userInjEvts) {
       const wks = inj.injuryGWsLeft ?? 1;
-      toast(`🚑 ${inj.playerName} — ${inj.injuryName} (${injuryDurationLabel(wks)})`, 'error', 8000);
+      toast(`${inj.playerName} — ${inj.injuryName} (${injuryDurationLabel(wks)})`, 'error', 8000);
       newsInjury({ name: inj.playerName, id: inj.playerId }, inj.injuryName, wks, matchCtx.save).catch(() => {});
     }
     for (const p of res.recoveredPlayers ?? []) {
-      toast(`✅ ${p.name} is fit and available again!`, 'success', 6000);
+      toast(`${p.name} is fit and available again!`, 'success', 6000);
     }
     if (result) newsMatchResult(result, matchCtx.save).catch(() => {});
   }
@@ -682,7 +687,7 @@
     const og = isHome ? r.awayGoals : r.homeGoals;
     return ug > og ? 'WIN' : ug < og ? 'LOSS' : 'DRAW';
   }
-  const MENTALITY_ICONS = { defensive: '🛡️', balanced: '⚖️', possession: '🎯', attacking: '⚡' };
+  const MENTALITY_ICONS = { defensive: 'suspension', balanced: 'tactics', possession: 'ball', attacking: 'spark' };
   function mentalityIcon(mentality) {
     return MENTALITY_ICONS[mentality] ?? MENTALITY_ICONS.balanced;
   }
@@ -698,7 +703,7 @@
       <div class="tn-comp-badge" style="color:{m.compColor}">{m.compLabel}</div>
       <div class="tn-matchup">
         <div class="tn-team" class:tn-home={m.userIsHome}>
-          <div class="tn-crest">{m.userIsHome ? m.userTeam.crest : m.oppTeam.crest}</div>
+          <div class="tn-crest"><Crest team={m.userIsHome ? m.userTeam : m.oppTeam} size={34} /></div>
           <div class="tn-tname">{m.userIsHome ? m.userTeam.name : m.oppTeam.name}</div>
           <div class="tn-venue" style="color:{m.userIsHome ? 'var(--color-club)' : 'var(--color-tx-2)'}">HOME</div>
         </div>
@@ -708,7 +713,7 @@
           <div class="tn-diff {diffLabel(m.oppTeam.reputation ?? 70).cls}">{diffLabel(m.oppTeam.reputation ?? 70).text}</div>
         </div>
         <div class="tn-team" class:tn-home={!m.userIsHome}>
-          <div class="tn-crest">{m.userIsHome ? m.oppTeam.crest : m.userTeam.crest}</div>
+          <div class="tn-crest"><Crest team={m.userIsHome ? m.oppTeam : m.userTeam} size={34} /></div>
           <div class="tn-tname">{m.userIsHome ? m.oppTeam.name : m.userTeam.name}</div>
           <div class="tn-venue" style="color:{!m.userIsHome ? 'var(--color-club)' : 'var(--color-tx-2)'}">AWAY</div>
         </div>
@@ -721,14 +726,14 @@
           {#each teamNewsSlots as slot, i (i)}
             {@const p = teamNewsAssignment[i]}
             <div class="tn-slot" style="left:{slot.x}%;top:{slot.y}%">
-              {#if p}<div class="tn-slot-name" class:tn-slot-inj={p.injured}>{p.name.split(' ').pop()}{#if p.injured} 🚑{/if}</div>{/if}
+              {#if p}<div class="tn-slot-name" class:tn-slot-inj={p.injured}>{p.name.split(' ').pop()}{#if p.injured}<span class="tn-slot-injury" aria-label="Injured">!</span>{/if}</div>{/if}
             </div>
           {/each}
         </div>
       </div>
 
       <div class="tn-section">
-        <div class="tn-section-title">{m.oppTeam.crest} {m.oppTeam.name} — Last 5</div>
+        <div class="tn-section-title"><Crest team={m.oppTeam} size={16} /><span>{m.oppTeam.name} — Last 5</span></div>
         {#if m.oppForm.length}
           <div class="tn-form-row">
             {#each m.oppForm as r, i (i)}<span class="tn-form-pill {r.result}">{r.result}</span>{/each}
@@ -741,7 +746,7 @@
       {#if m.oppInForm}
         {@const fl = formLabel(m.oppInForm)}
         <div class="tn-section">
-          <div class="tn-section-title">⚡ Their Key Player</div>
+          <div class="tn-section-title"><Icon name="spark" size={14} /><span>Their Key Player</span></div>
           <div class="tn-inform-card">
             <div class="tn-inform-flag">{playerNationality(m.oppInForm, m.oppTeam.league)}</div>
             <div>
@@ -749,9 +754,9 @@
               <div class="tn-inform-meta">
                 <span class="pos {posGroup(m.oppInForm.position)}">{m.oppInForm.position}</span>
                 <span class="fb {fl.cls}">{fl.text}</span>
-                {#if m.oppInForm.goals > 0}<span>⚽ {m.oppInForm.goals}</span>{/if}
-                {#if m.oppInForm.assists > 0}<span>🎯 {m.oppInForm.assists}</span>{/if}
-                {#if m.oppInForm.cleanSheets > 0}<span>🧤 {m.oppInForm.cleanSheets}</span>{/if}
+                {#if m.oppInForm.goals > 0}<span>G {m.oppInForm.goals}</span>{/if}
+                {#if m.oppInForm.assists > 0}<span>A {m.oppInForm.assists}</span>{/if}
+                {#if m.oppInForm.cleanSheets > 0}<span>CS {m.oppInForm.cleanSheets}</span>{/if}
               </div>
             </div>
           </div>
@@ -759,16 +764,16 @@
       {/if}
 
       <div class="tn-section">
-        <div class="tn-section-title">🗂 Your Formation — {m.userFormation}</div>
+        <div class="tn-section-title"><Icon name="tactics" size={14} /><span>Your Formation — {m.userFormation}</span></div>
         <div class="tn-mentality">
-          <span>{mentalityIcon(m.save.mentality ?? 'balanced')}</span>
+          <Icon name={mentalityIcon(m.save.mentality ?? 'balanced')} size={14} />
           <span class="tn-mentality-label">{(m.save.mentality ?? 'balanced')}</span>
         </div>
       </div>
 
       {#if m.injuredInLineup.length}
         <div class="tn-warning tn-warning-bad">
-          <div class="tn-warning-title">🚑 Injured Players in Lineup</div>
+          <div class="tn-warning-title"><Icon name="injury" size={14} /><span>Injured Players in Lineup</span></div>
           {#each m.injuredInLineup as p (p.id)}
             <div class="tn-warning-line"><strong>{p.name}</strong> — {p.injuryName || 'Injured'} ({injuryDurationLabel(p.injuryGWsLeft)} remaining)</div>
           {/each}
@@ -778,7 +783,7 @@
       {/if}
       {#if m.lineupIncomplete}
         <div class="tn-warning tn-warning-warn">
-          <div class="tn-warning-title">⚠️ Lineup Incomplete</div>
+          <div class="tn-warning-title"><Icon name="warning" size={14} /><span>Lineup Incomplete</span></div>
           <div class="tn-warning-cta">You must set a full starting XI in Squad before playing.</div>
           <button class="tn-squad-link" onclick={openSquadFromTeamNews}>Open Squad →</button>
         </div>
@@ -786,15 +791,15 @@
     </div>
 
     <div class="tn-actions">
-      <button class="btn-full btn-secondary" disabled={m.lineupBlocked || loading} onclick={simInstant}>⚡ Sim Instantly</button>
-      <button class="btn-full btn-primary" disabled={m.lineupBlocked || loading} onclick={startWatch}>👁 Kick Off →</button>
+      <button class="btn-full btn-secondary" disabled={m.lineupBlocked || loading} onclick={simInstant}><Icon name="speed" size={15} />Sim Instantly</button>
+      <button class="btn-full btn-primary" disabled={m.lineupBlocked || loading} onclick={startWatch}><Icon name="eye" size={15} />Kick Off →</button>
     </div>
 
   {:else if beat === 'kickoff' && live}
     <div class="kickoff-beat" role="button" tabindex="0" onclick={skipKickoff} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && skipKickoff()}>
-      <div class="ko-crest">{live.homeTeam.crest ?? '⚽'}</div>
+      <div class="ko-crest"><Crest team={live.homeTeam} size={56} /></div>
       <div class="ko-vs">KICK OFF</div>
-      <div class="ko-crest">{live.awayTeam.crest ?? '⚽'}</div>
+      <div class="ko-crest"><Crest team={live.awayTeam} size={56} /></div>
     </div>
 
   {:else if beat === 'live' && live}
@@ -804,7 +809,7 @@
       <div class="broadcast-label">LIVE · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
       <div class="score-bug">
         <div class="sb-team">
-          <div class="sb-crest">{live.homeTeam.crest ?? '⚽'}</div>
+          <div class="sb-crest"><Crest team={live.homeTeam} size={26} /></div>
           <div class="sb-name">{live.homeTeam.name}</div>
         </div>
         <div class="sb-centre">
@@ -815,7 +820,7 @@
           <div class="sb-status">{live.paused ? 'PAUSED' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
         </div>
         <div class="sb-team">
-          <div class="sb-crest">{live.awayTeam.crest ?? '⚽'}</div>
+          <div class="sb-crest"><Crest team={live.awayTeam} size={26} /></div>
           <div class="sb-name">{live.awayTeam.name}</div>
         </div>
       </div>
@@ -846,14 +851,14 @@
     </div>
 
     <div class="live-controls">
-      <button class="ctrl-btn" onclick={togglePause}>{live.paused ? '▶ Resume' : '⏸ Pause'}</button>
+      <button class="ctrl-btn" onclick={togglePause}><Icon name={live.paused ? 'play' : 'pause'} size={14} />{live.paused ? 'Resume' : 'Pause'}</button>
       <div class="speed-wrap">
         {#each [1, 2, 4] as s (s)}
           <button class="speed-btn" class:active={live.speedMultiplier === s} onclick={() => setSpeed(s)}>{s}×</button>
         {/each}
       </div>
-      <button class="ctrl-btn" onclick={skipMatch}>⏩ Skip</button>
-      <button class="ctrl-btn tactics-control" onclick={openTacticsSheet}>📋 Tactics <span>{subsLeft}</span></button>
+      <button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>
+      <button class="ctrl-btn tactics-control" onclick={openTacticsSheet}><Icon name="tactics" size={14} />Tactics <span>{subsLeft}</span></button>
     </div>
 
   {:else if beat === 'fulltime' && result}
@@ -862,18 +867,18 @@
       <div class="ft-verdict ft-{verdict.toLowerCase()}">{verdict}</div>
       <div class="ft-header">
         <div class="ft-side">
-          <div class="ft-crest">{result.homeTeamCrest ?? '⚽'}</div>
+          <div class="ft-crest"><Crest team={displayHomeTeam} size={40} label={`${result.homeTeamName} crest`} /></div>
           <div class="ft-tname">{result.homeTeamName}</div>
           <div class="ft-scorers">
-            {#each result.homeScorers ?? [] as e, i (i)}<div>⚽ <strong>{e.playerName}</strong> {e.minute}'</div>{/each}
+            {#each result.homeScorers ?? [] as e, i (i)}<div><Icon name="ball" size={12} /><strong>{e.playerName}</strong> {e.minute}'</div>{/each}
           </div>
         </div>
         <div class="ft-score">{result.homeGoals}<span class="ft-sep">–</span>{result.awayGoals}</div>
         <div class="ft-side">
-          <div class="ft-crest">{result.awayTeamCrest ?? '⚽'}</div>
+          <div class="ft-crest"><Crest team={displayAwayTeam} size={40} label={`${result.awayTeamName} crest`} /></div>
           <div class="ft-tname">{result.awayTeamName}</div>
           <div class="ft-scorers">
-            {#each result.awayScorers ?? [] as e, i (i)}<div>⚽ <strong>{e.playerName}</strong> {e.minute}'</div>{/each}
+            {#each result.awayScorers ?? [] as e, i (i)}<div><Icon name="ball" size={12} /><strong>{e.playerName}</strong> {e.minute}'</div>{/each}
           </div>
         </div>
       </div>
@@ -916,25 +921,25 @@
 
       {#if userSubs.length}
         <div class="after-section">
-          <div class="after-section-title">🔄 Your Substitutions</div>
+          <div class="after-section-title"><Icon name="refresh" size={14} /><span>Your Substitutions</span></div>
           {#each userSubs as sub, i (i)}<div class="after-line">↑ <strong>{sub.inName}</strong> ↓ {sub.outName} ({sub.minute}')</div>{/each}
         </div>
       {/if}
       {#if userInjuries.length}
         <div class="after-section after-section-bad">
-          <div class="after-section-title">🚑 Injuries</div>
+          <div class="after-section-title"><Icon name="injury" size={14} /><span>Injuries</span></div>
           {#each userInjuries as inj, i (i)}<div class="after-line"><strong>{inj.playerName}</strong> — {inj.injuryName} ({injuryDurationLabel(inj.injuryGWsLeft)})</div>{/each}
         </div>
       {/if}
 
       {#if matchCtx?.isLeague && tableSlice.length}
         <div class="after-section">
-          <div class="after-section-title">📊 League Position</div>
+          <div class="after-section-title"><Icon name="table" size={14} /><span>League Position</span></div>
           <div class="after-table">
             {#each tableSlice as row (row.teamId)}
               <div class="after-table-row" class:after-table-user={row.isUserTeam} animate:flip={{ duration: 400 }}>
                 <span class="after-table-pos">{row.displayPosition}</span>
-                <span class="after-table-crest">{row.crest}</span>
+                <span class="after-table-crest"><Crest size={18} label={`${row.teamName} crest`} /></span>
                 <span class="after-table-name">{row.shortName ?? row.teamName}</span>
                 <span class="after-table-pts">{row.points} pts</span>
               </div>
@@ -1019,7 +1024,7 @@
   .tn-comp-badge { font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px; text-align: center; }
   .tn-matchup { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .tn-team { flex: 1; text-align: center; }
-  .tn-crest { font-size: 34px; }
+  .tn-crest { min-height: 34px; display: flex; align-items: center; justify-content: center; }
   .tn-tname { font-family: var(--font-display); font-size: 15px; letter-spacing: 0.3px; margin-top: 2px; }
   .tn-venue { font-size: 9px; font-family: var(--font-mono); letter-spacing: 1px; margin-top: 2px; }
   .tn-vs-block { text-align: center; padding: 0 8px; }
@@ -1035,10 +1040,11 @@
   .tn-pitch-line { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.15); }
   .tn-pitch-circle { position: absolute; top: 50%; left: 50%; width: 24%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.15); border-radius: 50%; transform: translate(-50%, -50%); }
   .tn-slot { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; }
-  .tn-slot-name { font-size: 8px; font-family: var(--font-mono); background: var(--color-club); color: var(--color-on-club, #fff); padding: 2px 4px; border-radius: 3px; white-space: nowrap; max-width: 54px; overflow: hidden; text-overflow: ellipsis; }
+  .tn-slot-name { font-size: 8px; font-family: var(--font-mono); background: var(--color-club); color: var(--color-on-club, #fff); padding: 2px 4px; border-radius: 3px; white-space: nowrap; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
   .tn-slot-name.tn-slot-inj { background: var(--color-bad); }
+  .tn-slot-injury { margin-left: 2px; font-weight: 900; }
 
-  .tn-section-title { font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.5px; color: var(--color-tx-2); margin-bottom: 6px; }
+  .tn-section-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.5px; color: var(--color-tx-2); margin-bottom: 6px; }
   .tn-form-row { display: flex; gap: 4px; }
   .tn-form-pill { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
   .tn-form-pill.W { background: color-mix(in oklch, var(--color-live) 25%, transparent); color: var(--color-live); }
@@ -1047,7 +1053,7 @@
   .tn-empty-note { font-size: 11px; color: var(--color-tx-3); }
 
   .tn-inform-card { display: flex; align-items: center; gap: 10px; }
-  .tn-inform-flag { font-size: 22px; }
+  .tn-inform-flag { min-width: 34px; padding: 4px 5px; border: 1px solid var(--color-line); border-radius: 5px; color: var(--color-tx-2); font: 700 9px var(--font-mono); text-align: center; }
   .tn-inform-name { font-weight: 600; font-size: 13px; }
   .tn-inform-meta { display: flex; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--color-tx-2); margin-top: 2px; }
 
@@ -1057,17 +1063,18 @@
   .tn-warning { border-radius: 8px; padding: 10px 12px; font-size: 11px; }
   .tn-warning-bad { background: color-mix(in oklch, var(--color-bad) 10%, transparent); border: 1px solid color-mix(in oklch, var(--color-bad) 30%, transparent); }
   .tn-warning-warn { background: color-mix(in oklch, var(--color-warn) 10%, transparent); border: 1px solid color-mix(in oklch, var(--color-warn) 30%, transparent); }
-  .tn-warning-title { font-weight: 700; margin-bottom: 4px; }
+  .tn-warning-title { display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 4px; }
   .tn-warning-bad .tn-warning-title { color: var(--color-bad); }
   .tn-warning-warn .tn-warning-title { color: var(--color-warn); }
   .tn-warning-cta { color: var(--color-tx-2); margin-top: 4px; }
   .tn-squad-link { margin-top: 9px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-club); border-radius: 8px; background: transparent; color: var(--color-club); font: 700 11px var(--font-body); cursor: pointer; }
 
   .tn-actions, .ft-actions, .after-actions { display: flex; gap: 10px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); flex-shrink: 0; }
+  .tn-actions .btn-full, .live-controls .ctrl-btn, .after-section-title, .ft-scorers div { display: flex; align-items: center; justify-content: center; gap: 5px; }
 
   /* ── Kickoff ───────────────────────────────────────────────── */
   .kickoff-beat { flex: 1; display: flex; align-items: center; justify-content: center; gap: 24px; cursor: pointer; animation: ko-in 0.6s ease; }
-  .ko-crest { font-size: 56px; }
+  .ko-crest { width: 56px; height: 56px; display: grid; place-items: center; }
   .ko-vs { font-family: var(--font-display); font-size: 22px; letter-spacing: 2px; color: var(--color-club); }
   @keyframes ko-in { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
   @media (prefers-reduced-motion: reduce) { .kickoff-beat { animation: none; } }
@@ -1077,7 +1084,7 @@
   .broadcast-label { margin-bottom: 7px; font: 10px var(--font-mono); letter-spacing: 1.4px; color: var(--color-tx-3); text-align: center; }
   .score-bug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .sb-team { flex: 1; text-align: center; }
-  .sb-crest { font-size: 26px; }
+  .sb-crest { min-height: 26px; display: flex; align-items: center; justify-content: center; }
   .sb-name { font-size: 11px; color: var(--color-tx-2); margin-top: 2px; }
   .sb-centre { text-align: center; }
   .sb-score { font-family: var(--font-display); font-size: 30px; }
@@ -1153,7 +1160,7 @@
   .ft-draw { color: var(--color-warn); }
   .ft-header { display: flex; align-items: center; gap: 20px; }
   .ft-side { width: 130px; }
-  .ft-crest { font-size: 40px; }
+  .ft-crest { min-height: 40px; display: flex; align-items: center; justify-content: center; }
   .ft-tname { font-size: 13px; font-weight: 600; margin-top: 4px; }
   .ft-scorers { font-size: 11px; color: var(--color-tx-2); margin-top: 6px; }
   .ft-score { font-family: var(--font-display); font-size: 44px; }
@@ -1172,7 +1179,7 @@
   .after-stat-bar-h { background: var(--color-club); }
   .after-stat-bar-a { background: var(--color-tx-3); }
 
-  .after-section-title { font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.5px; color: var(--color-tx-2); margin-bottom: 6px; }
+  .after-section-title { justify-content: flex-start; font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.5px; color: var(--color-tx-2); margin-bottom: 6px; }
   .after-section-bad .after-section-title { color: var(--color-bad); }
   .after-line { font-size: 12px; color: var(--color-tx-2); padding: 2px 0; }
   .after-line strong { color: var(--color-tx); }
@@ -1181,7 +1188,7 @@
   .after-table-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 8px; border-radius: 6px; }
   .after-table-row.after-table-user { background: color-mix(in oklch, var(--color-club) 12%, transparent); font-weight: 600; }
   .after-table-pos { font-family: var(--font-mono); width: 18px; color: var(--color-tx-3); }
-  .after-table-crest { width: 20px; text-align: center; }
+  .after-table-crest { width: 20px; display: grid; place-items: center; }
   .after-table-name { flex: 1; }
   .after-table-pts { font-family: var(--font-mono); color: var(--color-tx-2); }
 
