@@ -4,6 +4,7 @@
   import { getLeagueTable } from '../../modules/standings.js';
   import { fmt } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
+  import Crest from './kit/Crest.svelte';
 
   let leagueName = $state('Premier League');
   let season = $state('2025/26');
@@ -95,7 +96,7 @@
               animate:flip={{ duration: 400 }}
             >
               <div class="rc">{row.position}</div>
-              <div class="tc">{row.crest || ''} {row.teamName}</div>
+              <div class="tc"><span class="league-crest"><Crest team={byId.get(row.teamId)} size={20} label={`${row.teamName} crest`} /></span><span>{row.teamName}</span></div>
               <div class="sc">{row.played}</div>
               <div class="sc">{row.won}</div>
               <div class="sc">{row.drawn}</div>
@@ -213,7 +214,9 @@
   .league-row.is-user.zone-uecl, .league-row.is-user.zone-rel { box-shadow: none; }
 
   .rc { color: var(--color-tx-3); font-family: var(--font-mono); font-size: 10px; }
-  .tc { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tc { min-width: 0; display: flex; align-items: center; gap: 7px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tc > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .league-crest { width: 20px; height: 20px; flex: 0 0 20px; display: grid; place-items: center; }
   .sc { text-align: center; color: var(--color-tx-2); font-family: var(--font-mono); font-size: 10px; }
   .sc.gd { color: var(--color-bad); }
   .sc.gd.pos { color: var(--color-live); }

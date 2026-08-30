@@ -56,9 +56,11 @@ test('R6 market stays windowed while using the dense flat treatment', async ({ p
   const marketStyle = await page.locator('.buy-row').first().evaluate((el) => ({
     radius: getComputedStyle(el).borderRadius,
     borderBottom: getComputedStyle(el).borderBottomWidth,
+    nationalityFontSize: getComputedStyle(el.querySelector('.pl-flag')).fontSize,
   }));
   expect(marketStyle.radius).toBe('0px');
   expect(marketStyle.borderBottom).toBe('1px');
+  expect(parseFloat(marketStyle.nationalityFontSize)).toBeLessThanOrEqual(9);
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });
 
@@ -70,6 +72,8 @@ test('R6 table is dense, flat and keeps the user row identifiable', async ({ pag
   await expect(page.locator('.league-row').first()).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.league-row')).toHaveCount(20);
   await expect(page.locator('.league-row.is-user')).toHaveCount(1);
+  await expect(page.locator('.league-row .league-crest img')).toHaveCount(20);
+  expect(await page.locator('.league-row .league-crest img').first().getAttribute('src')).toMatch(/^data:image\/svg\+xml/);
 
   const cardStyle = await page.locator('.league-table-card').evaluate((el) => ({
     radius: getComputedStyle(el).borderRadius,

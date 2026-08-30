@@ -1,7 +1,7 @@
 <script>
   import { flip } from 'svelte/animate';
   import {
-    getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB,
+    getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB, putSave,
   } from '../../modules/db.js';
   import { CUP_META } from '../../modules/cups.js';
   // 🚑 Injuries — legacy validation anchor; UI uses the injury icon/text section below.
@@ -16,7 +16,7 @@
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
-  import { applyFormationChange } from '../../game/formationChange.js';
+  import { applyFormationChange, applyMentalityChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
   import { advanceBroadcastSimulation, createBroadcastSimulation, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
@@ -607,6 +607,15 @@
     replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
     toast(`Formation changed to ${formation}`, 'info', 3000);
   }
+  async function applyTacticsMentality(mentality) {
+    if (!live || !matchCtx) return;
+    const newLs = applyMentalityChange(live.liveState, live.userIsHome, mentality);
+    live = { ...live, liveState: newLs };
+    matchCtx = { ...matchCtx, save: { ...matchCtx.save, mentality } };
+    const currentSave = await getSave();
+    if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, mentality });
+    toast(`Mentality changed to ${mentality}`, 'info', 3000);
+  }
   function closeTacticsSheet() {
     tacticsSheetOpen = false;
     tacticsSubInId = null;
@@ -691,6 +700,10 @@
     const og = isHome ? r.awayGoals : r.homeGoals;
     return ug > og ? 'WIN' : ug < og ? 'LOSS' : 'DRAW';
   }
+  const MENTALITIES = [
+    { id: 'defensive', label: 'Defensive' }, { id: 'balanced', label: 'Balanced' },
+    { id: 'possession', label: 'Possession' }, { id: 'attacking', label: 'Attacking' },
+  ];
   const MENTALITY_ICONS = { defensive: 'suspension', balanced: 'tactics', possession: 'ball', attacking: 'spark' };
   function mentalityIcon(mentality) {
     return MENTALITY_ICONS[mentality] ?? MENTALITY_ICONS.balanced;
@@ -970,6 +983,16 @@
         {/each}
       </div>
 
+      <div class="match-tactics-mentalities" aria-label="Mentality">
+        {#each MENTALITIES as mentality (mentality.id)}
+          <button
+            class:active={mentality.id === (live.userIsHome ? live.liveState.homeMentality : live.liveState.awayMentality)}
+            onclick={() => applyTacticsMentality(mentality.id)}
+            aria-label={`${mentality.label} mentality`}
+          >{mentality.label}</button>
+        {/each}
+      </div>
+
       <div class="match-tactics-scroll">
         <div class="match-tactics-pitch-wrap">
           <div class="match-tactics-pitch">
@@ -1225,6 +1248,10 @@
     border-radius: 8px; background: var(--color-raised); color: var(--color-tx-2); font: 600 11px var(--font-mono); cursor: pointer;
   }
   .match-tactics-formations button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
+  .match-tactics-mentalities { flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px; border-bottom: 1px solid var(--color-line); scrollbar-width: none; }
+  .match-tactics-mentalities::-webkit-scrollbar { display: none; }
+  .match-tactics-mentalities button { flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
+  .match-tactics-mentalities button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
   .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; }
   .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
   .match-tactics-pitch {

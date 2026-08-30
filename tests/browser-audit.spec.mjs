@@ -170,6 +170,8 @@ test('watched match runs from Team News through post-match and unlocks navigatio
 
   await page.getByRole('button', { name: /Tactics/ }).click();
   await expect(page.getByRole('region', { name: 'Live match tactics' })).toBeVisible();
+  await page.getByRole('button', { name: 'Attacking mentality' }).click();
+  await expect(page.getByRole('button', { name: 'Attacking mentality' })).toHaveClass(/active/);
   await page.getByRole('button', { name: /Back to match/ }).click();
   await expect(page.locator('.broadcast-pitch')).toBeVisible();
 

@@ -267,7 +267,12 @@
 
 #screen-transfers .pl-flag {
   width: 22px;
-  font-size: 17px;
+  height: 20px;
+  color: var(--color-tx-3);
+  background: var(--color-raised);
+  border-radius: 2px;
+  font-size: 8px;
+  letter-spacing: .04em;
 }
 
 #screen-transfers .pl-info {

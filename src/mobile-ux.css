@@ -30,8 +30,8 @@
      overlapping bottom sheet, so this preserves the intended metaphor. */
   #screen-home .waiting-sheet {
     position: relative !important;
-    bottom: 40px !important;
-    margin-bottom: -40px !important;
+    bottom: 76px !important;
+    margin-bottom: -76px !important;
   }
 
   /* Chalk is mounted inside an overflow-y screen, so flex:1 alone does not
