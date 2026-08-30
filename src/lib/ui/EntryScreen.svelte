@@ -210,8 +210,12 @@
       // focus restore would otherwise land on the now-hidden club card.
       await enterGame();
     } catch (err) {
-      busy = false;
       toast(err.message, 'error');
+    } finally {
+      // EntryScreen stays mounted behind #app and is reused by P0's New Career
+      // flow. Leaving this true after a successful first career makes Back a
+      // no-op and every later Start button permanently disabled.
+      busy = false;
     }
   }
 
