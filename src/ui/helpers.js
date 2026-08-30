@@ -23,90 +23,92 @@ export function posGroup(pos) {
 export function formLabel(p) {
   const score = 50 + (p.goals ?? 0) * 8 + (p.assists ?? 0) * 5 + (p.cleanSheets ?? 0) * 6;
   const capped = Math.min(99, score);
-  if (capped >= 75) return { text: '🔥 Hot',   cls: 'hot' };
-  if (capped >= 62) return { text: '✅ Good',  cls: 'good' };
-  return               { text: '📉 Avg',   cls: 'avg' };
+  if (capped >= 75) return { text: 'Hot',     cls: 'hot' };
+  if (capped >= 62) return { text: 'Good',    cls: 'good' };
+  return               { text: 'Average', cls: 'avg' };
 }
 
 // ─── Player nationality by ID + league fallback ──────────────
-// Covers all real players in the game data. Youth/generated players fall back to league.
+// Text codes are deliberate: they are stable cross-platform and avoid OS emoji flags.
+// Youth/generated players fall back to the league's home nation.
 export const _NAT = {
   // ── PREMIER LEAGUE ────────────────────────────────────────────
-  ars_raya:'🇪🇸',ars_turner:'🇺🇸',ars_white:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',ars_timber:'🇳🇱',ars_saliba:'🇫🇷',ars_gabriel:'🇧🇷',
-  ars_calafiori:'🇮🇹',ars_zinchenko:'🇺🇦',ars_rice:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',ars_partey:'🇬🇭',ars_merino:'🇪🇸',
-  ars_odegaard:'🇳🇴',ars_saka:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',ars_martinelli:'🇧🇷',ars_trossard:'🇧🇪',ars_havertz:'🇩🇪',ars_nketiah:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  avl_martinez:'🇦🇷',avl_olsen:'🇸🇪',avl_cash:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',avl_konsa:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',avl_carlos:'🇧🇷',avl_digne:'🇫🇷',
-  avl_tielemans:'🇧🇪',avl_mcginn:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',avl_rogers:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',avl_bailey:'🇯🇲',avl_diaby:'🇫🇷',
-  avl_duran:'🇨🇴',avl_kamara:'🇸🇱',
-  che_sanchez:'🇩🇴',che_disasi:'🇫🇷',che_fofana:'🇫🇷',che_colwill:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',che_cucurella:'🇪🇸',
-  che_caicedo:'🇪🇨',che_enzo:'🇦🇷',che_palmer:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',che_neto:'🇧🇷',che_jackson:'🇸🇳',che_madueke:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  che_mudryk:'🇺🇦',che_gusto:'🇫🇷',che_sterling:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  lfc_alisson:'🇧🇷',lfc_kelleher:'🇮🇪',lfc_alexander_arnold:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',lfc_konate:'🇫🇷',lfc_van_dijk:'🇳🇱',
-  lfc_robertson:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',lfc_gravenberch:'🇳🇱',lfc_mac_allister:'🇦🇷',lfc_szoboszlai:'🇭🇺',
-  lfc_salah:'🇪🇬',lfc_gakpo:'🇳🇱',lfc_nunez:'🇺🇾',lfc_jota:'🇵🇹',lfc_diaz:'🇨🇴',lfc_jones:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  liv_wirtz:'🇩🇪',
-  mci_ederson:'🇧🇷',mci_ortega:'🇩🇪',mci_walker:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',mci_akanji:'🇨🇭',mci_dias:'🇵🇹',mci_gvardiol:'🇭🇷',
-  mci_stones:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',mci_kovacic:'🇭🇷',mci_rodri:'🇪🇸',mci_de_bruyne:'🇧🇪',mci_bernardo:'🇵🇹',
-  mci_doku:'🇧🇪',mci_foden:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',mci_haaland:'🇳🇴',mci_bob:'🇸🇱',
-  mun_onana:'🇨🇲',mun_de_gea:'🇪🇸',mun_dalot:'🇵🇹',mun_varane:'🇫🇷',mun_lisandro:'🇦🇷',mun_shaw:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  mun_casemiro:'🇧🇷',mun_fernandes:'🇵🇹',mun_mount:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',mun_rashford:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',mun_antony:'🇧🇷',
-  mun_martial:'🇫🇷',mun_hojlund:'🇩🇰',mun_mainoo:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',mun_garnacho:'🇦🇷',
-  tot_vicario:'🇮🇹',tot_romero:'🇦🇷',tot_van_de_ven:'🇳🇱',tot_porro:'🇪🇸',tot_udogie:'🇮🇹',
-  tot_bissouma:'🇲🇱',tot_bentancur:'🇺🇾',tot_maddison:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',tot_kulusevski:'🇸🇪',tot_son:'🇰🇷',
-  tot_richarlison:'🇧🇷',tot_johnson:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  new_pope:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',new_trippier:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',new_botman:'🇳🇱',new_schar:'🇨🇭',new_burn:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  new_tonali:'🇮🇹',new_guimaraes:'🇧🇷',new_joelinton:'🇧🇷',new_almiron:'🇵🇾',new_isak:'🇸🇪',new_gordon:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  ars_raya:'ESP',ars_turner:'USA',ars_white:'ENG',ars_timber:'NED',ars_saliba:'FRA',ars_gabriel:'BRA',
+  ars_calafiori:'ITA',ars_zinchenko:'UKR',ars_rice:'ENG',ars_partey:'GHA',ars_merino:'ESP',
+  ars_odegaard:'NOR',ars_saka:'ENG',ars_martinelli:'BRA',ars_trossard:'BEL',ars_havertz:'GER',ars_nketiah:'ENG',
+  avl_martinez:'ARG',avl_olsen:'SWE',avl_cash:'ENG',avl_konsa:'ENG',avl_carlos:'BRA',avl_digne:'FRA',
+  avl_tielemans:'BEL',avl_mcginn:'SCO',avl_rogers:'ENG',avl_bailey:'JAM',avl_diaby:'FRA',
+  avl_duran:'COL',avl_kamara:'SLE',
+  che_sanchez:'DOM',che_disasi:'FRA',che_fofana:'FRA',che_colwill:'ENG',che_cucurella:'ESP',
+  che_caicedo:'ECU',che_enzo:'ARG',che_palmer:'ENG',che_neto:'BRA',che_jackson:'SEN',che_madueke:'ENG',
+  che_mudryk:'UKR',che_gusto:'FRA',che_sterling:'ENG',
+  lfc_alisson:'BRA',lfc_kelleher:'IRL',lfc_alexander_arnold:'ENG',lfc_konate:'FRA',lfc_van_dijk:'NED',
+  lfc_robertson:'SCO',lfc_gravenberch:'NED',lfc_mac_allister:'ARG',lfc_szoboszlai:'HUN',
+  lfc_salah:'EGY',lfc_gakpo:'NED',lfc_nunez:'URU',lfc_jota:'POR',lfc_diaz:'COL',lfc_jones:'ENG',
+  liv_wirtz:'GER',
+  mci_ederson:'BRA',mci_ortega:'GER',mci_walker:'ENG',mci_akanji:'SUI',mci_dias:'POR',mci_gvardiol:'CRO',
+  mci_stones:'ENG',mci_kovacic:'CRO',mci_rodri:'ESP',mci_de_bruyne:'BEL',mci_bernardo:'POR',
+  mci_doku:'BEL',mci_foden:'ENG',mci_haaland:'NOR',mci_bob:'SLE',
+  mun_onana:'CMR',mun_de_gea:'ESP',mun_dalot:'POR',mun_varane:'FRA',mun_lisandro:'ARG',mun_shaw:'ENG',
+  mun_casemiro:'BRA',mun_fernandes:'POR',mun_mount:'ENG',mun_rashford:'ENG',mun_antony:'BRA',
+  mun_martial:'FRA',mun_hojlund:'DEN',mun_mainoo:'ENG',mun_garnacho:'ARG',
+  tot_vicario:'ITA',tot_romero:'ARG',tot_van_de_ven:'NED',tot_porro:'ESP',tot_udogie:'ITA',
+  tot_bissouma:'MLI',tot_bentancur:'URU',tot_maddison:'ENG',tot_kulusevski:'SWE',tot_son:'KOR',
+  tot_richarlison:'BRA',tot_johnson:'ENG',
+  new_pope:'ENG',new_trippier:'ENG',new_botman:'NED',new_schar:'SUI',new_burn:'SCO',
+  new_tonali:'ITA',new_guimaraes:'BRA',new_joelinton:'BRA',new_almiron:'PAR',new_isak:'SWE',new_gordon:'ENG',
   // ── BUNDESLIGA ────────────────────────────────────────────────
-  bay_neuer:'🇩🇪',bay_ulreich:'🇩🇪',bay_kimmich:'🇩🇪',bay_guerreiro:'🇵🇹',bay_upamecano:'🇫🇷',
-  bay_dier:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',bay_kim:'🇰🇷',bay_davies:'🇨🇦',bay_goretzka:'🇩🇪',bay_kimmich_m:'🇵🇹',
-  bay_musiala:'🇩🇪',bay_muller:'🇩🇪',bay_olise:'🇫🇷',bay_gnabry:'🇩🇪',bay_coman:'🇫🇷',
-  bay_sane:'🇩🇪',bay_kane:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',bay_tel:'🇫🇷',
-  bvb_kobel:'🇨🇭',bvb_meyer:'🇩🇪',bvb_ryerson:'🇺🇸',bvb_yan_couto:'🇧🇷',bvb_schlotterbeck:'🇩🇪',
-  bvb_anton:'🇩🇪',bvb_sule:'🇩🇪',bvb_bensebaini:'🇩🇿',bvb_gross:'🇩🇪',bvb_nmecha:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  bvb_sabitzer:'🇦🇹',bvb_can:'🇩🇪',bvb_malen:'🇳🇱',bvb_adeyemi:'🇩🇪',bvb_gittens:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  bvb_brandt:'🇩🇪',bvb_guirassy:'🇬🇳',bvb_beier:'🇩🇪',
-  lev_hradecky:'🇫🇮',lev_kovar:'🇨🇿',lev_frimpong:'🇳🇱',lev_hincapie:'🇪🇨',lev_tapsoba:'🇧🇫',
-  lev_xhaka:'🇨🇭',lev_palacios:'🇦🇷',lev_grimaldo:'🇪🇸',lev_boniface:'🇳🇬',lev_terrier:'🇫🇷',
-  rbl_gulacsi:'🇭🇺',rbl_simakan:'🇫🇷',rbl_orban:'🇭🇺',rbl_raum:'🇩🇪',rbl_henrichs:'🇩🇪',
-  rbl_kampl:'🇸🇮',rbl_laimer:'🇦🇹',rbl_szoboszlai_rbl:'🇭🇺',rbl_nkunku:'🇫🇷',rbl_openda:'🇧🇪',rbl_sesko:'🇸🇮',
+  bay_neuer:'GER',bay_ulreich:'GER',bay_kimmich:'GER',bay_guerreiro:'POR',bay_upamecano:'FRA',
+  bay_dier:'ENG',bay_kim:'KOR',bay_davies:'CAN',bay_goretzka:'GER',bay_kimmich_m:'POR',
+  bay_musiala:'GER',bay_muller:'GER',bay_olise:'FRA',bay_gnabry:'GER',bay_coman:'FRA',
+  bay_sane:'GER',bay_kane:'ENG',bay_tel:'FRA',
+  bvb_kobel:'SUI',bvb_meyer:'GER',bvb_ryerson:'USA',bvb_yan_couto:'BRA',bvb_schlotterbeck:'GER',
+  bvb_anton:'GER',bvb_sule:'GER',bvb_bensebaini:'ALG',bvb_gross:'GER',bvb_nmecha:'ENG',
+  bvb_sabitzer:'AUT',bvb_can:'GER',bvb_malen:'NED',bvb_adeyemi:'GER',bvb_gittens:'ENG',
+  bvb_brandt:'GER',bvb_guirassy:'GUI',bvb_beier:'GER',
+  lev_hradecky:'FIN',lev_kovar:'CZE',lev_frimpong:'NED',lev_hincapie:'ECU',lev_tapsoba:'BFA',
+  lev_xhaka:'SUI',lev_palacios:'ARG',lev_grimaldo:'ESP',lev_boniface:'NGA',lev_terrier:'FRA',
+  rbl_gulacsi:'HUN',rbl_simakan:'FRA',rbl_orban:'HUN',rbl_raum:'GER',rbl_henrichs:'GER',
+  rbl_kampl:'SVN',rbl_laimer:'AUT',rbl_szoboszlai_rbl:'HUN',rbl_nkunku:'FRA',rbl_openda:'BEL',rbl_sesko:'SVN',
   // ── LA LIGA ───────────────────────────────────────────────────
-  rma_courtois:'🇧🇪',rma_lunin:'🇺🇦',rma_carvajal:'🇪🇸',rma_militao:'🇧🇷',rma_alaba:'🇦🇹',rma_mendy:'🇫🇷',
-  rma_tchouameni:'🇫🇷',rma_valverde:'🇺🇾',rma_kroos:'🇩🇪',rma_modric:'🇭🇷',rma_camavinga:'🇫🇷',
-  rma_bellingham:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',rma_vinicius:'🇧🇷',rma_mbappe:'🇫🇷',rma_rodrygo:'🇧🇷',rma_brahim:'🇲🇦',
-  fcb_ter_stegen:'🇩🇪',fcb_araujo:'🇺🇾',fcb_christensen:'🇩🇰',fcb_kounde:'🇫🇷',fcb_balde:'🇪🇸',
-  fcb_de_jong:'🇳🇱',fcb_pedri:'🇪🇸',fcb_gavi:'🇪🇸',fcb_yamal:'🇪🇸',fcb_raphinha:'🇧🇷',fcb_lewandowski:'🇵🇱',
-  fcb_ferran:'🇪🇸',fcb_martinez:'🇪🇸',
-  atm_oblak:'🇸🇮',atm_savic:'🇲🇪',atm_gimenez:'🇺🇾',atm_hermoso:'🇪🇸',atm_llorente:'🇪🇸',
-  atm_koke:'🇪🇸',atm_witsel:'🇧🇪',atm_griezmann:'🇫🇷',atm_correa:'🇦🇷',atm_morata:'🇪🇸',
+  rma_courtois:'BEL',rma_lunin:'UKR',rma_carvajal:'ESP',rma_militao:'BRA',rma_alaba:'AUT',rma_mendy:'FRA',
+  rma_tchouameni:'FRA',rma_valverde:'URU',rma_kroos:'GER',rma_modric:'CRO',rma_camavinga:'FRA',
+  rma_bellingham:'ENG',rma_vinicius:'BRA',rma_mbappe:'FRA',rma_rodrygo:'BRA',rma_brahim:'MAR',
+  fcb_ter_stegen:'GER',fcb_araujo:'URU',fcb_christensen:'DEN',fcb_kounde:'FRA',fcb_balde:'ESP',
+  fcb_de_jong:'NED',fcb_pedri:'ESP',fcb_gavi:'ESP',fcb_yamal:'ESP',fcb_raphinha:'BRA',fcb_lewandowski:'POL',
+  fcb_ferran:'ESP',fcb_martinez:'ESP',
+  atm_oblak:'SVN',atm_savic:'MNE',atm_gimenez:'URU',atm_hermoso:'ESP',atm_llorente:'ESP',
+  atm_koke:'ESP',atm_witsel:'BEL',atm_griezmann:'FRA',atm_correa:'ARG',atm_morata:'ESP',
   // ── SERIE A ───────────────────────────────────────────────────
-  int_sommer:'🇨🇭',int_de_vrij:'🇳🇱',int_bastoni:'🇮🇹',int_pavard:'🇫🇷',int_darmian:'🇮🇹',int_dumfries:'🇳🇱',
-  int_calhanoglu:'🇹🇷',int_barella:'🇮🇹',int_mkhitaryan:'🇦🇲',int_dimarco:'🇮🇹',int_lautaro:'🇦🇷',int_thuram:'🇫🇷',
-  juv_szczesny:'🇵🇱',juv_bremer:'🇧🇷',juv_danilo:'🇧🇷',juv_gatti:'🇮🇹',juv_rabiot:'🇫🇷',
-  juv_locatelli:'🇮🇹',juv_kostic:'🇷🇸',juv_chiesa:'🇮🇹',juv_vlahovic:'🇷🇸',juv_yildiz:'🇩🇪',
-  mil_maignan:'🇫🇷',mil_kalulu:'🇫🇷',mil_tomori:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',mil_theo:'🇫🇷',mil_bennacer:'🇩🇿',
-  mil_tonali_m:'🇮🇹',mil_reijnders:'🇳🇱',mil_pulisic:'🇺🇸',mil_leao:'🇵🇹',mil_giroud:'🇫🇷',mil_jovic:'🇷🇸',
-  nap_meret:'🇮🇹',nap_di_lorenzo:'🇮🇹',nap_kim_min:'🇰🇷',nap_rrahmani:'🇽🇰',nap_lobotka:'🇸🇰',
-  nap_anguissa:'🇨🇲',nap_zielinski:'🇵🇱',nap_kvaratskhelia:'🇬🇪',nap_osimhen:'🇳🇬',nap_politano:'🇮🇹',
+  int_sommer:'SUI',int_de_vrij:'NED',int_bastoni:'ITA',int_pavard:'FRA',int_darmian:'ITA',int_dumfries:'NED',
+  int_calhanoglu:'TUR',int_barella:'ITA',int_mkhitaryan:'ARM',int_dimarco:'ITA',int_lautaro:'ARG',int_thuram:'FRA',
+  juv_szczesny:'POL',juv_bremer:'BRA',juv_danilo:'BRA',juv_gatti:'ITA',juv_rabiot:'FRA',
+  juv_locatelli:'ITA',juv_kostic:'SRB',juv_chiesa:'ITA',juv_vlahovic:'SRB',juv_yildiz:'GER',
+  mil_maignan:'FRA',mil_kalulu:'FRA',mil_tomori:'ENG',mil_theo:'FRA',mil_bennacer:'ALG',
+  mil_tonali_m:'ITA',mil_reijnders:'NED',mil_pulisic:'USA',mil_leao:'POR',mil_giroud:'FRA',mil_jovic:'SRB',
+  nap_meret:'ITA',nap_di_lorenzo:'ITA',nap_kim_min:'KOR',nap_rrahmani:'KOS',nap_lobotka:'SVK',
+  nap_anguissa:'CMR',nap_zielinski:'POL',nap_kvaratskhelia:'GEO',nap_osimhen:'NGA',nap_politano:'ITA',
   // ── LIGUE 1 ───────────────────────────────────────────────────
-  psg_donnarumma:'🇮🇹',psg_hakimi:'🇲🇦',psg_marques:'🇫🇷',psg_hernandez_l:'🇫🇷',psg_nuno_mendes:'🇵🇹',
-  psg_fabian:'🇪🇸',psg_verratti:'🇮🇹',psg_vitinha:'🇵🇹',psg_dembele:'🇫🇷',psg_kolo_muani:'🇫🇷',psg_barcola:'🇫🇷',
+  psg_donnarumma:'ITA',psg_hakimi:'MAR',psg_marques:'FRA',psg_hernandez_l:'FRA',psg_nuno_mendes:'POR',
+  psg_fabian:'ESP',psg_verratti:'ITA',psg_vitinha:'POR',psg_dembele:'FRA',psg_kolo_muani:'FRA',psg_barcola:'FRA',
   // ── EREDIVISIE ────────────────────────────────────────────────
-  ajx_pasveer:'🇳🇱',ajx_rensch:'🇳🇱',ajx_sutalo:'🇭🇷',ajx_hato:'🇳🇱',ajx_henderson:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  ajx_klaassen:'🇳🇱',ajx_brobbey:'🇳🇱',ajx_godts:'🇧🇪',ajx_taylor:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',ajx_weghorst:'🇳🇱',
-  psv_benitez:'🇺🇾',psv_teze:'🇫🇷',psv_ramalho:'🇧🇷',psv_boscagli:'🇫🇷',psv_dest:'🇺🇸',
-  psv_veerman:'🇳🇱',psv_van_ginkel:'🇳🇱',psv_lang:'🇧🇪',psv_til:'🇳🇱',psv_bakayoko:'🇧🇪',psv_de_jong_l:'🇳🇱',
-  fey_bijlow:'🇳🇱',fey_geertruida:'🇳🇱',fey_trauner:'🇦🇹',fey_hartman:'🇳🇱',fey_cook:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  fey_wieffer:'🇳🇱',fey_stengs:'🇳🇱',fey_paixao:'🇵🇹',fey_gimenez:'🇲🇽',fey_ueda:'🇯🇵',
+  ajx_pasveer:'NED',ajx_rensch:'NED',ajx_sutalo:'CRO',ajx_hato:'NED',ajx_henderson:'ENG',
+  ajx_klaassen:'NED',ajx_brobbey:'NED',ajx_godts:'BEL',ajx_taylor:'ENG',ajx_weghorst:'NED',
+  psv_benitez:'URU',psv_teze:'FRA',psv_ramalho:'BRA',psv_boscagli:'FRA',psv_dest:'USA',
+  psv_veerman:'NED',psv_van_ginkel:'NED',psv_lang:'BEL',psv_til:'NED',psv_bakayoko:'BEL',psv_de_jong_l:'NED',
+  fey_bijlow:'NED',fey_geertruida:'NED',fey_trauner:'AUT',fey_hartman:'NED',fey_cook:'SCO',
+  fey_wieffer:'NED',fey_stengs:'NED',fey_paixao:'POR',fey_gimenez:'MEX',fey_ueda:'JPN',
 };
 
-// League-based fallback flag
+// League-based fallback nationality code. Kept under the legacy export name
+// because multiple migrated screens still import it indirectly.
 export const _LEAGUE_FLAG = {
-  'Premier League':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Championship':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League One':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','League Two':'🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-  'La Liga':'🇪🇸','Bundesliga':'🇩🇪','Serie A':'🇮🇹','Ligue 1':'🇫🇷','Eredivisie':'🇳🇱',
+  'Premier League':'ENG','Championship':'ENG','League One':'ENG','League Two':'ENG',
+  'La Liga':'ESP','Bundesliga':'GER','Serie A':'ITA','Ligue 1':'FRA','Eredivisie':'NED',
 };
 
 export function playerNationality(player, teamLeague) {
-  return _NAT[player.id] || _LEAGUE_FLAG[teamLeague] || '🌍';
+  return _NAT[player.id] || _LEAGUE_FLAG[teamLeague] || 'INT';
 }
 
 // ─── Toast ───────────────────────────────────────────────────
@@ -115,8 +117,8 @@ export function toast(msg, type = 'info', duration = 3500) {
   if (!container) return;
   const el   = document.createElement('div');
   el.className = `toast toast-${type}`;
-  const icons  = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
-  el.innerHTML = `<span class="toast-icon">${icons[type] ?? 'ℹ'}</span><span>${msg}</span>`;
+  const icons  = { success: 'OK', error: 'X', info: 'i', warning: '!' };
+  el.innerHTML = `<span class="toast-icon">${icons[type] ?? 'i'}</span><span>${msg}</span>`;
   container.appendChild(el);
   requestAnimationFrame(() => el.classList.add('vis'));
   setTimeout(() => { el.classList.remove('vis'); el.addEventListener('transitionend', () => el.remove(), { once: true }); }, duration);
@@ -144,7 +146,7 @@ export function showModal(title, bodyHTML, actions = [], opts = {}) {
     <div class="modal${opts.wide ? ' modal-xl' : ''}">
       <div class="modal-hdr">
         <span class="modal-title">${title}</span>
-        <button class="modal-x" id="modal-x">✕</button>
+        <button class="modal-x" id="modal-x">×</button>
       </div>
       <div class="modal-body">${bodyHTML}</div>
       ${actions.length ? `<div class="modal-foot">${actHTML}</div>` : ''}
