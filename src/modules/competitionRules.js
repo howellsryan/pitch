@@ -128,6 +128,8 @@ export const COMPETITION_RULES = Object.freeze({
     leaguePhase: {
       teams: 36,
       matches: 8,
+      homeMatches: 4,
+      awayMatches: 4,
       gws: [5, 7, 9, 11, 13, 15, 17, 19],
       direct: [1, 8],
       playoff: [9, 24],
@@ -143,6 +145,8 @@ export const COMPETITION_RULES = Object.freeze({
     leaguePhase: {
       teams: 36,
       matches: 8,
+      homeMatches: 4,
+      awayMatches: 4,
       gws: [5, 7, 9, 11, 13, 15, 17, 19],
       direct: [1, 8],
       playoff: [9, 24],
@@ -158,6 +162,8 @@ export const COMPETITION_RULES = Object.freeze({
     leaguePhase: {
       teams: 36,
       matches: 6,
+      homeMatches: 3,
+      awayMatches: 3,
       gws: [5, 7, 9, 11, 13, 15],
       direct: [1, 8],
       playoff: [9, 24],
@@ -252,7 +258,58 @@ export function getUefaKnockoutSeeding(cupId, position, roundName) {
   return { seeded:null, secondLegHome:null };
 }
 
-export function buildLeaguePhaseState(cupId, opponents = []) {
+/**
+ * Return the only league-phase seed positions that can occupy the opposite
+ * side of the user's current UEFA draw path. The knockout play-off bands are
+ * exact. R16 groups are the four possible seeds carried by the corresponding
+ * play-off path; the preceding draw decides which actual winner reaches that
+ * slot, so callers should persist the chosen opponent seed when the draw is
+ * materialised rather than redraw on leg two.
+ */
+export function getUefaKnockoutOpponentSeeds(cupId, position, roundName) {
+  if (!isUefaCompetition(cupId) || !Number.isInteger(position)) return [];
+
+  if (roundName?.startsWith('Knockout Play-off')) {
+    if (position === 9 || position === 10) return [23, 24];
+    if (position === 11 || position === 12) return [21, 22];
+    if (position === 13 || position === 14) return [19, 20];
+    if (position === 15 || position === 16) return [17, 18];
+    if (position === 17 || position === 18) return [15, 16];
+    if (position === 19 || position === 20) return [13, 14];
+    if (position === 21 || position === 22) return [11, 12];
+    if (position === 23 || position === 24) return [9, 10];
+    return [];
+  }
+
+  if (roundName?.startsWith('R16')) {
+    if (position === 1 || position === 2) return [15, 16, 17, 18];
+    if (position === 3 || position === 4) return [13, 14, 19, 20];
+    if (position === 5 || position === 6) return [11, 12, 21, 22];
+    if (position === 7 || position === 8) return [9, 10, 23, 24];
+  }
+
+  return [];
+}
+
+export function buildLeaguePhaseVenuePlan(cupId, rng = Math.random) {
+  const phase = getCompetitionRules(cupId)?.leaguePhase;
+  if (!phase) return [];
+
+  const venues = [
+    ...Array(phase.homeMatches ?? Math.floor(phase.matches / 2)).fill(true),
+    ...Array(phase.awayMatches ?? Math.ceil(phase.matches / 2)).fill(false),
+  ];
+
+  // Fisher-Yates with injectable RNG keeps tests deterministic while avoiding
+  // a fixed home/away cadence in every career.
+  for (let i = venues.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [venues[i], venues[j]] = [venues[j], venues[i]];
+  }
+  return venues.slice(0, phase.matches);
+}
+
+export function buildLeaguePhaseState(cupId, opponents = [], rng = Math.random) {
   const phase = getCompetitionRules(cupId)?.leaguePhase;
   if (!phase) return null;
   return {
@@ -262,6 +319,7 @@ export function buildLeaguePhaseState(cupId, opponents = []) {
     ga: 0,
     gd: 0,
     opponents: opponents.slice(0, phase.matches),
+    venues: buildLeaguePhaseVenuePlan(cupId, rng),
     position: null,
     qualificationRoute: null,
     table: null,
