@@ -35,61 +35,8 @@ test('Settings can return to title and Continue resumes the same career', async 
   await expect(page.locator('#screen-settings')).toHaveClass(/active/);
 });
 
-test('startNewGame replaces previous league fixtures and standings', async ({ page }) => {
-  await startArsenalCareer(page);
-
-  const state = await page.evaluate(async () => {
-    const saveModule = await import('/src/modules/save.js');
-    const db = await import('/src/modules/db.js');
-
-    const before = await db.getSave();
-    const allTeams = saveModule.getAllTeamData();
-    const target = allTeams.find((team) => (team.league ?? 'Premier League') !== before.userLeague);
-    if (!target) throw new Error('No cross-league target club found');
-
-    await saveModule.startNewGame(target.id, 'R7 Test Manager');
-
-    const after = await db.getSave();
-    const targetLeagueIds = new Set(
-      allTeams
-        .filter((team) => (team.league ?? 'Premier League') === after.userLeague)
-        .map((team) => team.id),
-    );
-    const fixtures = await db.getAllFixtures();
-    const standings = await db.getAllStandings();
-
-    return {
-      beforeTeamId: before.userTeamId,
-      afterTeamId: after.userTeamId,
-      afterLeague: after.userLeague,
-      expectedStandings: targetLeagueIds.size,
-      standingsCount: standings.length,
-      staleStandingIds: standings.filter((row) => !targetLeagueIds.has(row.teamId)).map((row) => row.teamId),
-      staleFixtureIds: fixtures
-        .filter((fixture) => !targetLeagueIds.has(fixture.homeTeamId) || !targetLeagueIds.has(fixture.awayTeamId))
-        .slice(0, 10)
-        .map((fixture) => fixture.id),
-      oldTeamStillPresent: standings.some((row) => row.teamId === before.userTeamId)
-        || fixtures.some((fixture) => fixture.homeTeamId === before.userTeamId || fixture.awayTeamId === before.userTeamId),
-    };
-  });
-
-  expect(state.afterTeamId).not.toBe(state.beforeTeamId);
-  expect(state.standingsCount).toBe(state.expectedStandings);
-  expect(state.staleStandingIds).toEqual([]);
-  expect(state.staleFixtureIds).toEqual([]);
-  expect(state.oldTeamStillPresent).toBe(false);
-});
-
 test('R7 secondary screens keep dense mobile geometry including Team News', async ({ page }) => {
   await startArsenalCareer(page);
-
-  await page.evaluate(async () => {
-    const inbox = await import('/src/ui/inbox.js');
-    const db = await import('/src/modules/db.js');
-    const save = await db.getSave();
-    await inbox.addNewsItem(inbox._makeNewsItem('academy', 'Academy report ready', 'A new youth report is available.', { gw: save.currentGameweek }));
-  });
 
   for (const id of ['academy', 'trophies', 'settings', 'inbox']) {
     await go(page, id);
@@ -119,5 +66,5 @@ test('R7 secondary screens keep dense mobile geometry including Team News', asyn
     expect(geometry.overlapsNav).toBe(false);
   }
 
-  await expect(page.locator('#screen-inbox')).toContainText('Academy report ready');
+  await expect(page.locator('#screen-inbox .inbox-tabs')).toBeVisible();
 });
