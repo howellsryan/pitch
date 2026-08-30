@@ -14,10 +14,12 @@
 import './app.css';
 import './r6.css';
 import './mobile-ux.css';
+import './r7.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
 import EntryScreen from './lib/ui/EntryScreen.svelte';
+import CareerMenu from './lib/ui/CareerMenu.svelte';
 import TabBar from './lib/ui/TabBar.svelte';
 import LeagueScreen from './lib/ui/LeagueScreen.svelte';
 import HomeScreen from './lib/ui/HomeScreen.svelte';
@@ -53,6 +55,12 @@ window.navigateTo = navigateTo;
 // pre-game stage, and is the first thing a stranger sees.
 const entryMount = document.getElementById('entry-mount');
 if (entryMount) mount(EntryScreen, { target: entryMount });
+
+// R7's saved-career title menu is a second, conditionally-rendered island in
+// the same #ng stage. It stays absent on a cold start and overlays EntryScreen
+// only after Settings explicitly routes a running career back to the title.
+const entryStage = document.getElementById('ng');
+if (entryStage) mount(CareerMenu, { target: entryStage });
 
 const tabbarMount = document.getElementById('tabbar-mount');
 if (tabbarMount) mount(TabBar, { target: tabbarMount });
