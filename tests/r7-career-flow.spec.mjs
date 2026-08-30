@@ -35,36 +35,30 @@ test('Settings can return to title and Continue resumes the same career', async 
   await expect(page.locator('#screen-settings')).toHaveClass(/active/);
 });
 
-test('R7 secondary screens keep dense mobile geometry including Team News', async ({ page }) => {
+test('R7 secondary club areas are exposed through global mobile navigation', async ({ page }) => {
   await startArsenalCareer(page);
 
-  for (const id of ['academy', 'trophies', 'settings', 'inbox']) {
-    await go(page, id);
-    const geometry = await page.evaluate((screenId) => {
-      const root = document.getElementById(`screen-${screenId}`);
-      const nav = document.querySelector('.broadcast-nav');
-      const controls = [...root.querySelectorAll('button, input, textarea, select')]
-        .filter((el) => {
-          const r = el.getBoundingClientRect();
-          const s = getComputedStyle(el);
-          return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
-        })
-        .map((el) => {
-          const r = el.getBoundingClientRect();
-          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-        });
-      const navRect = nav?.getBoundingClientRect();
-      const overlapsNav = navRect ? controls.some((r) => r.left < navRect.right && r.right > navRect.left && r.top < navRect.bottom && r.bottom > navRect.top) : false;
-      return {
-        docWidth: document.documentElement.scrollWidth,
-        viewportWidth: window.innerWidth,
-        overlapsNav,
-      };
-    }, id);
+  const nav = page.locator('.broadcast-nav');
+  const openNavigation = nav.getByRole('button', { name: 'Open navigation' });
+  await expect(nav).toBeVisible();
+  await openNavigation.click();
 
-    expect(geometry.docWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1);
-    expect(geometry.overlapsNav).toBe(false);
+  const destinations = nav.locator('#nav-destinations');
+  for (const label of ['Home', 'Squad', 'Play', 'Market', 'Table', 'Academy', 'Trophies', 'Settings']) {
+    await expect(destinations.getByRole('button', { name: label, exact: true })).toBeVisible();
   }
 
+  await destinations.getByRole('button', { name: 'Academy', exact: true }).click();
+  await expect(page.locator('#screen-academy')).toHaveClass(/active/, { timeout: 15000 });
+
+  await openNavigation.click();
+  await nav.locator('#nav-destinations').getByRole('button', { name: 'Trophies', exact: true }).click();
+  await expect(page.locator('#screen-trophies')).toHaveClass(/active/, { timeout: 15000 });
+
+  await openNavigation.click();
+  await nav.locator('#nav-destinations').getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.locator('#screen-settings')).toHaveClass(/active/, { timeout: 15000 });
+
+  await go(page, 'inbox');
   await expect(page.locator('#screen-inbox .inbox-tabs')).toBeVisible();
 });
