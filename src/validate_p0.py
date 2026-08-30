@@ -51,6 +51,11 @@ SUPERSEDED_LEGACY_CHECKS = {
     'REG: import validates snapshot has teams',
     'REG: import validates snapshot has players',
     'REG: import deletes old DB before restore',
+    # The legacy check only scans the first 5,000 source characters of
+    # advanceOneFixtureWithResult. P0 draw-state handling legitimately made
+    # the function longer; seasonP0.test.js now extracts the complete function
+    # boundary and preserves the actual generateAIOffers/AI closeout contract.
+    'advanceOneFixtureWithResult calls generateAIOffers',
 }
 
 P0_TEST_FILES = [
