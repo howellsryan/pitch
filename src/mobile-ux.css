@@ -25,6 +25,13 @@
     margin-bottom: -76px !important;
   }
 
+  /* Team News now deliberately uses the same bottom-right navigation as every
+     other pre-match screen. Keep the match actions above that shared control;
+     navigation is hidden as soon as kickoff begins. */
+  #screen-match .tn-actions {
+    margin-bottom: 76px !important;
+  }
+
   /* Chalk is mounted inside an overflow-y screen, so flex:1 alone does not
      give its root a finite height. Give it a real mobile working viewport and
      leave the bottom 76px to the floating nav. */
