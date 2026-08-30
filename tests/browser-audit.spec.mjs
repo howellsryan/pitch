@@ -38,7 +38,7 @@ async function auditActiveScreen(page, id) {
     const unnamed = controls.filter((el) => {
       if (el.tagName === 'INPUT') {
         const id = el.id;
-        if (id && document.querySelector(`label[for="${CSS.escape(id)}"]`)) return false;
+        if (id && [...document.querySelectorAll('label')].some((label) => label.htmlFor === id)) return false;
         if (el.getAttribute('placeholder') || el.getAttribute('aria-label')) return false;
       }
       return !nameFor(el);
