@@ -11,7 +11,7 @@
    */
   import { onMount } from 'svelte';
   import { getAllTeamData } from '../../../modules/save.js';
-  import { clubCrestSvg } from '../../clubIdentity.mjs';
+  import { resolvedClubCrestSvg } from '../../clubIdentityResolved.mjs';
 
   let {
     team = null,
@@ -76,7 +76,7 @@
   );
   const source = $derived(
     `data:image/svg+xml,${encodeURIComponent(
-      clubCrestSvg(resolved, { size, label: accessibleLabel }),
+      resolvedClubCrestSvg(resolved, { size, label: accessibleLabel }),
     )}`,
   );
 </script>
