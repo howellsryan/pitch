@@ -57,6 +57,11 @@ test('P0 mobile career menu creates, switches and deletes isolated save slots', 
   await expect(menu).toContainText('2 careers');
   await expect(menu.locator('.career-card.active')).toContainText('Chelsea');
 
+  // Completion evidence for the verification-before-completion screenshot
+  // rule. Playwright runs this project at 390x844, so the artifact records the
+  // actual mobile two-career state rather than inferring layout from CSS.
+  await page.screenshot({ path:'test-results/p0-career-menu-390x844.png', fullPage:false });
+
   // Switching slots reloads the selected career and leaves the other intact.
   arsenalCard = menu.locator('.career-card', { hasText: 'Arsenal' });
   await arsenalCard.getByRole('button', { name: 'Continue' }).click();
