@@ -598,7 +598,7 @@ Maintain season-long transfer history, rumours/shortlist stories and visible com
 2. Migrate current instant offers and contracts into the new state machine without breaking existing pending offers.
 3. Add staged club/player negotiation and only the highest-value deal structures first; gate later clauses behind the same contract.
 4. Add player-interest explanations, rival bids and deadline progression.
-5. Build AI need generation and candidate selection on P1/P2/P3 data, with budget and squad-legality guards.
+5. Add a minimal shared squad-depth/need projection on P1/P2/P3 data, then use it for AI candidate selection with budget and squad-legality guards. P5 expands this same service into the full squad planner.
 6. Rebuild the existing transfer sheets as projections/commands over deal state, then add transfer history and rumour stories.
 
 **Commit/push slices:** state machine/tests; terms/migration; staged negotiation; priority clauses; interest/rival bids; AI needs/recruitment; UI/history/E2E/docs.
@@ -662,7 +662,7 @@ Optional: a **simulated tactical scrimmage/lab** against reserves that returns a
 
 **Route**
 
-1. Build the shared depth/role/succession projection on P2/P3 data and expose gaps in the current squad before using it for recruitment.
+1. Expand P4's shared depth/need projection into role, succession and 1-3 season planning for both user-facing views and AI recruitment.
 2. Add scouting assignments, observations, report stages and uncertainty narrowing.
 3. Add coaching departments and hiring/replacement rules using the existing club budget until P7 expands finance.
 4. Add development, conversion, sharpness and recovery plans as commands over the P3 player model.
@@ -732,7 +732,7 @@ This is where P1/P2/P4 become a single living system rather than separate featur
 2. Add club-manager assignments, job security and vacancy records for all simulated clubs.
 3. Add AI dismissal, caretaker/appointment, poaching, retirement and movement on bounded evaluation dates.
 4. Add user resignation, approaches, applications and appointment handover without resetting fixtures or records.
-5. Connect Manager DNA, club philosophy and squad needs so appointments materially alter tactics and future recruitment.
+5. Expose a manager-fit contract using Manager DNA, reputation and current club attributes so appointments alter tactics and recruitment. P7 enriches this contract with persistent club philosophy.
 6. Add manager history/profile views and multi-season labour-market tests.
 
 **Commit/push slices:** manager contract/migration; club assignments; vacancy state machine; AI movement; user movement/handover; tactics/recruitment integration; UI/E2E/docs.
@@ -965,7 +965,31 @@ All presets must be documented/config-driven so balance can be changed without b
 
 ---
 
-## P11 — Creator Challenges and Live Careers
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Persist a versioned `careerSettings` object in the P0 save envelope. A preset resolves to explicit values at career creation so later preset tuning does not silently rewrite existing careers.
+- Difficulty changes decision pressure, uncertainty and AI behaviour—not hidden penalties to the user's players or scripted results.
+- All supported leagues still produce coherent fixtures/results. “Simulation breadth” may reduce stored detail and processing frequency, but never creates a fake or frozen football world.
+- Accessibility, tutorials and presentation settings may change anytime; balance-affecting career rules change only at safe gameweek boundaries and are recorded in career metadata.
+
+**Route**
+
+1. Define config keys, ranges, defaults, preset expansion and migration for existing careers.
+2. Route existing balance constants through a central settings selector without changing default behaviour.
+3. Add controls one subsystem at a time, alongside that subsystem's deterministic regression tests.
+4. Add Casual / Authentic / Hardcore summaries that explain consequences in plain language, plus Custom validation/reset.
+5. Add optional history-detail/performance controls only after P1 benchmarks establish meaningful budgets.
+6. Test export/import, cloud backup, changed settings at safe boundaries and equivalence of old saves to the Authentic defaults.
+
+**Commit/push slices:** settings contract/migration; default-equivalence adapters; subsystem controls; presets/custom validation; Settings UI/help; persistence/E2E/docs.
+
+
+---
+
+## P11 — Creator Challenges and Live Starts
 
 **Priority:** #11; major replayability/community opportunity.
 
@@ -1006,6 +1030,31 @@ Real-world live start points are a later extension of the same architecture, but
 
 ---
 
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- “Live Starts” means starting a simulated management career from a dated real-world snapshot; it never means manual or live on-pitch football.
+- Challenges use a versioned, schema-validated definition that references approved domain commands and identifiers. Do not import arbitrary raw save/IndexedDB objects.
+- Challenge setup and completion evaluation are pure and deterministic, with the source definition and career-setting overrides retained in career metadata.
+- Ship local file/text sharing first. Cloudflare short codes, discovery and moderation are a later service slice only after the local format proves stable.
+- Live-start ingestion is a separate, replaceable data-adapter pipeline with provenance/licensing checks; it is not required to ship creator challenges.
+
+**Route**
+
+1. Define the challenge schema, constraints, migration policy and validation/error model.
+2. Build a deterministic career factory that applies approved scenario mutations to a normal new career.
+3. Add objective/completion evaluators and progress projection, with impossible-condition validation.
+4. Add creator/import/export flows and a small curated challenge pack.
+5. Add optional short-code storage and abuse/moderation controls without making accounts mandatory.
+6. Prototype live-start snapshots only after establishing a maintainable legal data source and date/version lifecycle.
+
+**Commit/push slices:** schema/validator; career factory; objectives/completion; creator UI; local sharing/curated pack; optional cloud codes; later live-start adapter; security/E2E/docs.
+
+
+---
+
 ## P12 — Long-term content expansion
 
 **Priority:** after systemic depth.
@@ -1025,6 +1074,29 @@ The repo already has/prepares data concepts for several additional second tiers;
 - deeper continental qualification/coefficient systems.
 
 Content breadth must not outrun simulation quality or data maintenance capacity.
+
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Expand systemic depth before raw league count. Spain, Germany, Italy and France second tiers are the first content pack because they strengthen promotion, transfers and the manager market.
+- New divisions use the same competition-rules, data-reconciliation and validation pipelines as existing leagues; do not add country-specific conditionals across season code.
+- Add content in independently enableable/versioned packs so save migration, download/build size and long-career performance remain measurable.
+- International management, Create-a-Club and women's club football are separate product work packages, not one combined “content” implementation.
+- Create-a-Club uses bespoke/unlicensed identity assets. Every external dataset or asset requires provenance and maintenance ownership.
+
+**Route**
+
+1. Generalise tier links, promotion/relegation, cup entry and club movement around P0 rules configuration.
+2. Add and validate one second-tier country end to end before repeating the pipeline for the remaining three.
+3. Re-run P1 world-performance/population tests and P6/P4 movement/recruitment tests after each content pack.
+4. Plan international calendars, selection and dual club/national manager state as a separate extension of P0/P1/P6.
+5. Plan Create-a-Club as configuration plus bespoke identity generation on top of normal club rules, never as a privileged special club.
+6. Treat women's club football as a deliberate competition/data expansion with its own researched structures and quality bar.
+
+**Commit/push slices:** generic tier/rules support; one country pack per commit/PR slice; validation/performance after each; then separate design spikes and branches for internationals, Create-a-Club and women's football.
+
 
 ---
 
@@ -1115,6 +1187,19 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 
 ---
 
+
+## 10.1 Dependency checkpoints and safe parallel work
+
+- **P0 is the hard gate:** save migration/slots and configurable competition rules must be stable before persistent world expansion.
+- **P1 is the shared data spine:** P2 and P3 may be designed in parallel, but both consume P1's canonical match/history records.
+- **P2 + P3 unlock the market loop:** P4 owns the minimal shared squad-needs projection; P5 expands it rather than replacing it.
+- **P4 + P5 unlock career movement:** P6 can ship manager entities and movement with a basic fit contract; P7 later enriches club identity and finance.
+- **P3 + P6 + P7 unlock narrative consequences:** P8 should not invent placeholder morale, job or finance state.
+- **P1 + P3 + P5 unlock development pathways:** P9 reuses canonical players, reports and match histories.
+- **P10 is cross-cutting:** its settings contract may land early with P0, while individual controls land with the subsystem they configure.
+- **P11 and P12 remain after systemic depth:** schema/design spikes may happen earlier, but production breadth must not bypass the same migration, performance and deterministic-test gates.
+- **R8 remains parallel:** accessibility, PWA, responsive and quality-floor work can proceed independently, but any overlapping file must be coordinated through separate reviewable commits.
+
 # 11. North-star career test
 
 A mature version of this roadmap should make the following career possible without special scripting:
@@ -1129,7 +1214,7 @@ If Pitch can routinely produce stories like that from interacting systems, it wi
 
 These references are for product benchmarking and football-rule verification, not implementation copying:
 
-- EA SPORTS FC 27 Career Deep Dive: <https://forums.ea.com/blog/ea-sports-fc-game-info-hub-en/ea-sports-fc%E2%84%A2-27--career-deep-dive/13603463>
+- EA SPORTS FC 27 Career Deep Dive: <https://www.ea.com/games/ea-sports-fc/fc-27/news/pitch-notes-fc27-career-mode-deep-dive>
 - UEFA away-goals abolition: <https://www.uefa.com/news-media/news/026a-1298aeb73a7a-5b64cb68d920-1000--abolition-of-the-away-goals-rule-in-all-uefa-club-competi/>
 - UEFA current club competition league-phase overview: <https://www.uefa.com/uefachampionsleague/accesslist/>
 
