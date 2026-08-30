@@ -122,6 +122,23 @@ async function auditActiveScreen(page, id) {
   return result;
 }
 
+async function auditSquadLayout(page) {
+  return page.evaluate(() => {
+    const rectFor = (selector) => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return { left:rect.left, top:rect.top, right:rect.right, bottom:rect.bottom, width:rect.width, height:rect.height };
+    };
+    return {
+      screen: rectFor('#screen-squad .tactics-screen'),
+      pitchArea: rectFor('#screen-squad .tac-pitch-area'),
+      pitch: rectFor('#screen-squad .pitch-wrap'),
+      bench: rectFor('#screen-squad .tac-bench-strip'),
+    };
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   errors.length = 0;
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -133,11 +150,13 @@ test.beforeEach(async ({ page }) => {
 test('mobile browser UX audit across the playable app', async ({ page }) => {
   await startArsenalCareer(page);
 
-  const screens = ['home', 'squad', 'transfers', 'competitions', 'academy', 'trophies', 'settings'];
+  const screens = ['home', 'squad', 'transfers', 'competitions', 'academy', 'trophies', 'settings', 'inbox'];
   const audits = [];
+  let squadLayout = null;
   for (const id of screens) {
     await go(page, id);
     audits.push(await auditActiveScreen(page, id));
+    if (id === 'squad') squadLayout = await auditSquadLayout(page);
   }
 
   await go(page, 'match');
@@ -152,8 +171,20 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
     if (audit.navMenuRect) {
       expect(audit.navMenuRect.width, `${audit.screenId}: nav trigger is narrower than 44px`).toBeGreaterThanOrEqual(44);
       expect(audit.navMenuRect.height, `${audit.screenId}: nav trigger is shorter than 44px`).toBeGreaterThanOrEqual(44);
+      expect(audit.navMenuRect.top, `${audit.screenId}: navigation must use the shared bottom-right position`).toBeGreaterThan(audit.viewport.height / 2);
+      expect(audit.navMenuRect.bottom, `${audit.screenId}: navigation is not anchored near the bottom edge`).toBeGreaterThan(audit.viewport.height - 80);
     }
   }
+
+  expect(squadLayout?.screen, 'squad: tactics screen exists').not.toBeNull();
+  expect(squadLayout?.pitchArea, 'squad: pitch area exists').not.toBeNull();
+  expect(squadLayout?.pitch, 'squad: pitch exists').not.toBeNull();
+  expect(squadLayout?.bench, 'squad: bench exists').not.toBeNull();
+  expect(squadLayout.pitch.top, 'squad: pitch starts above its working area').toBeGreaterThanOrEqual(squadLayout.pitchArea.top - 1);
+  expect(squadLayout.pitch.bottom, 'squad: pitch overflows into the bench').toBeLessThanOrEqual(squadLayout.pitchArea.bottom + 1);
+  expect(squadLayout.pitch.width, 'squad: pitch is wider than its working area').toBeLessThanOrEqual(squadLayout.pitchArea.width + 1);
+  expect(squadLayout.pitch.height, 'squad: pitch has collapsed too small to use').toBeGreaterThan(250);
+  expect(squadLayout.bench.bottom, 'squad: bench falls outside the reserved mobile viewport').toBeLessThanOrEqual(squadLayout.screen.bottom + 1);
 
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });
