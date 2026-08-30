@@ -12,6 +12,7 @@
     "validate": "node src/validate.js",
     "test": "vitest run",
     "check:accents": "node tools/check-club-accents.mjs",
+    "check:ui-emoji": "node tools/check-ui-emoji.mjs",
     "audit:rosters": "node tools/audit-rosters.mjs",
     "reconcile": "node tools/reconcile.mjs",
     "generate:leagues": "node tools/csv-to-league.mjs",
