@@ -22,33 +22,70 @@ async function auditActiveScreen(page, id) {
   const result = await page.evaluate((screenId) => {
     const root = document.querySelector(`#screen-${screenId}`);
     const viewport = { width: window.innerWidth, height: window.innerHeight };
-    const isVisible = (el) => {
-      const style = getComputedStyle(el);
-      const rect = el.getBoundingClientRect();
-      return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0 && rect.width > 0 && rect.height > 0;
-    };
-    const nameFor = (el) => (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 70);
     const rectFor = (el) => {
       const r = el.getBoundingClientRect();
       return { left:r.left, top:r.top, right:r.right, bottom:r.bottom, width:r.width, height:r.height };
     };
+    const isVisible = (el) => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0 || rect.width <= 0 || rect.height <= 0) return false;
+
+      let left = Math.max(0, rect.left);
+      let right = Math.min(viewport.width, rect.right);
+      let top = Math.max(0, rect.top);
+      let bottom = Math.min(viewport.height, rect.bottom);
+      let parent = el.parentElement;
+      while (parent && parent !== document.documentElement) {
+        const parentStyle = getComputedStyle(parent);
+        const parentRect = parent.getBoundingClientRect();
+        if (/hidden|auto|scroll|clip/.test(parentStyle.overflowX)) {
+          left = Math.max(left, parentRect.left);
+          right = Math.min(right, parentRect.right);
+        }
+        if (/hidden|auto|scroll|clip/.test(parentStyle.overflowY)) {
+          top = Math.max(top, parentRect.top);
+          bottom = Math.min(bottom, parentRect.bottom);
+        }
+        if (right <= left || bottom <= top) return false;
+        parent = parent.parentElement;
+      }
+      return right > left && bottom > top;
+    };
+    const labelFor = (el) => {
+      if (!el.id) return null;
+      return [...document.querySelectorAll('label')].find((label) => label.htmlFor === el.id) || null;
+    };
+    const explicitNameFor = (el) => {
+      const aria = (el.getAttribute('aria-label') || '').trim();
+      if (aria) return aria;
+      const labelledBy = (el.getAttribute('aria-labelledby') || '').trim();
+      if (labelledBy) return labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ').trim();
+      const label = labelFor(el);
+      if (label) return (label.textContent || '').trim();
+      const title = (el.getAttribute('title') || '').trim();
+      if (title) return title;
+      return '';
+    };
+    const nameFor = (el) => {
+      const explicit = explicitNameFor(el);
+      if (explicit) return explicit.replace(/\s+/g, ' ').slice(0, 70);
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return (el.getAttribute('placeholder') || '').trim().slice(0, 70);
+      if (el.tagName === 'SELECT') return '';
+      return (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 70);
+    };
     const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 
     const controls = [...root.querySelectorAll('button, a[href], input, select, textarea, [role="button"]')].filter(isVisible);
-    const unnamed = controls.filter((el) => {
-      if (el.tagName === 'INPUT') {
-        const id = el.id;
-        if (id && [...document.querySelectorAll('label')].some((label) => label.htmlFor === id)) return false;
-        if (el.getAttribute('placeholder') || el.getAttribute('aria-label')) return false;
-      }
-      return !nameFor(el);
-    }).map((el) => ({ tag:el.tagName, cls:el.className, rect:rectFor(el) }));
+    const unnamed = controls.filter((el) => !nameFor(el)).map((el) => ({ tag:el.tagName, cls:el.className, rect:rectFor(el) }));
 
     const tiny = controls.map((el) => ({ name:nameFor(el), tag:el.tagName, cls:String(el.className || ''), rect:rectFor(el) }))
       .filter((item) => item.rect.width < 32 || item.rect.height < 32);
 
     const nav = document.querySelector('.broadcast-nav');
     const navRect = nav && isVisible(nav) ? rectFor(nav) : null;
+    const navMenu = nav?.querySelector('.menu');
+    const navMenuRect = navMenu && isVisible(navMenu) ? rectFor(navMenu) : null;
     const navOverlaps = navRect ? controls
       .filter((el) => !nav.contains(el))
       .map((el) => ({ name:nameFor(el), cls:String(el.className || ''), rect:rectFor(el) }))
@@ -76,6 +113,7 @@ async function auditActiveScreen(page, id) {
       docScrollWidth: document.documentElement.scrollWidth,
       unnamed,
       tiny,
+      navMenuRect,
       navOverlaps,
       clippedRight,
     };
@@ -111,6 +149,10 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
     expect(audit.unnamed, `${audit.screenId}: visible controls without an accessible name`).toEqual([]);
     expect(audit.clippedRight, `${audit.screenId}: content clipped off the right edge outside an intentional scroller`).toEqual([]);
     expect(audit.navOverlaps, `${audit.screenId}: floating navigation overlaps another interactive control`).toEqual([]);
+    if (audit.navMenuRect) {
+      expect(audit.navMenuRect.width, `${audit.screenId}: nav trigger is narrower than 44px`).toBeGreaterThanOrEqual(44);
+      expect(audit.navMenuRect.height, `${audit.screenId}: nav trigger is shorter than 44px`).toBeGreaterThanOrEqual(44);
+    }
   }
 
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
