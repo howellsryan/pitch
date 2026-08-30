@@ -263,7 +263,10 @@ export async function deleteCareerSlot(slotId) {
     _dbSlotId = null;
   }
   await _deleteNamedDB(careerSlotDbName(slotId));
-  if (slotId !== LEGACY_SLOT_ID) _unregisterSlot(slotId);
+  // Legacy is a real slot once it has been opened. Removing it from the
+  // registry is essential: otherwise a later active-slot deletion can select
+  // this now-empty DB ahead of another surviving career.
+  _unregisterSlot(slotId);
 
   if (getActiveSlotId() === slotId) {
     const next = _readRegistry().find(id => id !== slotId) ?? LEGACY_SLOT_ID;
