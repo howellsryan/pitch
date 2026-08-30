@@ -555,6 +555,27 @@ This should feed the recruitment model for both user and AI clubs.
 
 Optional: a **simulated tactical scrimmage/lab** against reserves that returns a report on shape, chance profile, possession, fatigue and vulnerabilities. Never make it manually playable.
 
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Scouting stores time-stamped observations and produces uncertain reports; it does not mutate or duplicate the player's authoritative attributes.
+- One squad-planning service produces depth, succession and recruitment needs for both user-facing views and AI recruitment.
+- Coaches remain four lightweight departments with quality and specialism. They change assessment confidence, plan effectiveness and recovery within caps—not raw permanent bonuses.
+- Training is a gameweek allocation with safe automatic defaults. Users may intervene, but the system must not require repetitive weekly administration.
+
+**Route**
+
+1. Build the shared depth/role/succession projection on P2/P3 data and expose gaps in the current squad before using it for recruitment.
+2. Add scouting assignments, observations, report stages and uncertainty narrowing.
+3. Add coaching departments and hiring/replacement rules using the existing club budget until P7 expands finance.
+4. Add development, conversion, sharpness and recovery plans as commands over the P3 player model.
+5. Feed squad needs and scouted confidence into P4 user/AI recruitment without restoring omniscient candidate ranking.
+6. Add the optional tactical lab only as a fast-engine report using P2; it remains non-playable.
+
+**Commit/push slices:** squad-planner service/tests; report model; assignments/uncertainty; coaches; training/development plans; recruitment integration; UI/E2E/docs.
+
+
 ---
 
 ## P6 — Manager Career and Living Manager Market
@@ -599,6 +620,27 @@ A manager change should alter meaningful club behaviour:
 `manager -> tactics -> squad-role fit -> recruitment needs -> transfers -> results`
 
 This is where P1/P2/P4 become a single living system rather than separate features.
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Managers are first-class persisted entities, including the user's manager. Clubs reference a `managerId`; career identity is no longer embedded only in the current club/save.
+- Job changes preserve the same world, date, history and manager record. Moving clubs changes control, not ownership of the football universe.
+- Vacancies and applications use one state machine. AI and user appointments obey the same reputation, fit, affordability and timing rules.
+- Manager changes take effect at safe event-queue boundaries; never switch club ownership midway through an unresolved fixture.
+
+**Route**
+
+1. Add the manager entity/profile and migrate the current user manager into it.
+2. Add club-manager assignments, job security and vacancy records for all simulated clubs.
+3. Add AI dismissal, caretaker/appointment, poaching, retirement and movement on bounded evaluation dates.
+4. Add user resignation, approaches, applications and appointment handover without resetting fixtures or records.
+5. Connect Manager DNA, club philosophy and squad needs so appointments materially alter tactics and future recruitment.
+6. Add manager history/profile views and multi-season labour-market tests.
+
+**Commit/push slices:** manager contract/migration; club assignments; vacancy state machine; AI movement; user movement/handover; tactics/recruitment integration; UI/E2E/docs.
+
 
 ---
 
@@ -651,6 +693,27 @@ Optional persistent upgrades with clear mechanics:
 
 Avoid decorative upgrade trees that only add percentages without meaningful trade-offs.
 
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Use one club-season finance ledger for cash movements and future obligations. Budgets and wage room are projections from that ledger, not independently edited counters.
+- Club philosophy is stable, data-driven identity with a small number of weighted traits. It guides decisions but does not hard-lock every club into one behaviour forever.
+- Board objectives are weighted, measurable contracts with warning/review states; dismissal remains part of P6's shared job-security flow.
+- Facilities are a small set of persistent levels with costs, lead times and explicit consumers. No decorative upgrade currency or sprawling skill tree.
+
+**Route**
+
+1. Define club philosophy and migrate existing reputation/objective assumptions to shared selectors.
+2. Add the finance ledger and scheduled obligations, then connect P4 installments, wages, prize money and operating-income abstractions.
+3. Replace the single board target with weighted sporting, financial and youth objectives plus review cadence.
+4. Add manager/club fit and evolving expectations based on reputation, finances and recent history.
+5. Add academy, training, medical and scouting facility upgrades only after P5/P9 consumers exist.
+6. Run multi-season solvency, obligation and AI spending simulations to prevent runaway wealth/debt.
+
+**Commit/push slices:** philosophy contract; finance ledger/migration; transfer/wage integration; board objectives/reviews; manager-fit integration; facilities; balance/UI/E2E/docs.
+
+
 ---
 
 ## P8 — Story Engine, Press, Fans and Rivalries
@@ -694,6 +757,27 @@ Use press moments sparingly at genuinely important points: derby, final, title/r
 
 Keep these mostly as inputs, not permanent dashboard clutter. They can influence board confidence, event probability and narrative tone.
 
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Stories come from a deterministic, rule-based event engine over real game state; do not require an LLM or server call for core career progression.
+- Event templates declare trigger, cooldown, priority, participants, choices, effects and follow-up states. Effects execute through domain commands rather than editing save objects from the Inbox.
+- A career stores event instances and decisions, not duplicated prose-heavy histories. Templates can evolve independently through versioned identifiers.
+- Press, fan sentiment and rivalries are contextual inputs/outputs of the same engine, not additional always-visible management meters.
+
+**Route**
+
+1. Define the event/template schema, eligibility evaluator, cooldown/deduplication and deterministic priority rules.
+2. Add a small vertical slice of events across P3 player state, P6 job security and P7 board/finance using real triggers.
+3. Add trade-off choices and chained follow-ups with idempotent effect handling.
+4. Turn Inbox into the projection/action surface for pending, resolved and expired events.
+5. Add sparse press moments, rivalry state and fan-pressure inputs only where they alter decisions or event likelihood.
+6. Add replay/golden tests proving the same seeded career produces the same event sequence and that expired actions cannot apply twice.
+
+**Commit/push slices:** event schema/evaluator; first vertical slice; effects/follow-ups; Inbox integration; press/fans/rivalries; replay/E2E/content-authoring docs.
+
+
 ---
 
 ## P9 — Academy, Loans and Development Pathways 2.0
@@ -730,6 +814,27 @@ A loaned player should actually live inside the world simulation:
 Provide periodic loan reports and recall rules where agreements allow.
 
 AI clubs should request loans to solve genuine squad needs.
+
+### Delivery plan (high level)
+
+**Locked decisions**
+
+- Academy players and loaned players remain normal canonical player entities. Their location/status changes; their development and history do not move into a second player model.
+- Youth scouting produces prospects through the calibrated P1 newgen pipeline with regional/brief weighting and uncertainty, preserving world talent budgets.
+- Academy/youth matches may be aggregate simulations, but their evidence feeds the same P3 development, form and readiness rules.
+- Loan development is earned from actual P1 appearances, ratings, tactical fit and coaching context. No opaque “loan boost.”
+
+**Route**
+
+1. Extend squad status/location and eligibility rules for academy, first team and loans while preserving identity/history.
+2. Add regional youth assignments and briefs on top of the shared scouting/report model.
+3. Add lightweight youth fixtures/reports and P3 development-plan integration.
+4. Add loan agreement rules, placement scoring from real AI squad needs and world-fixture participation.
+5. Add periodic loan reports, recall/option handling and season-return transitions through P4 contracts.
+6. Add population, minutes and development-distribution tests across several simulated seasons.
+
+**Commit/push slices:** player-status contract/migration; youth scouting; academy simulation/plans; loan agreements/placement; live loan stats/reports; return/recall flow; balance/UI/E2E/docs.
+
 
 ---
 
