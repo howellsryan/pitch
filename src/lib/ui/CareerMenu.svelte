@@ -19,8 +19,12 @@
   let exportMessage = $state('');
   let loading = $state(false);
 
+  // Visibility owns refreshes. `loading` is display state only: reading it in
+  // this effect makes the effect depend on a value it also writes, which can
+  // self-invalidate and miss the false -> true saved-career transition after
+  // backing out of New Career.
   $effect(() => {
-    if (!entryState.showing || !entryState.hasSave || loading) return;
+    if (!entryState.showing || !entryState.hasSave) return;
     loading = true;
     void refreshCareers().finally(() => { loading = false; });
   });
