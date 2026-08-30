@@ -17,6 +17,8 @@ describe('P0 competition integration contract', () => {
     const cups = buildInitialCupState(['ucl'], 'arsenal', 'Premier League');
     expect(cups.ucl.leaguePhaseComplete).toBe(false);
     expect(cups.ucl.leaguePhase.opponents).toHaveLength(8);
+    expect(cups.ucl.leaguePhase.venues).toHaveLength(8);
+    expect(cups.ucl.leaguePhase.venues.filter(Boolean)).toHaveLength(4);
     expect(cups.ucl.leaguePhase.matchday).toBe(0);
   });
 
@@ -45,6 +47,47 @@ describe('P0 competition integration contract', () => {
     expect(result).toHaveProperty('fitnessUpdates');
   });
 
+  it('uses the persisted league-phase venue plan when queueing a matchday', () => {
+    const teams = [{ id:'arsenal', name:'Arsenal', league:'Premier League' }];
+    const [event] = buildPendingEvents(5, 'arsenal', [], {
+      ucl: {
+        status:'active',
+        leaguePhaseComplete:false,
+        leaguePhase:{
+          matchday:0,
+          venues:[false, true, true, false, true, false, true, false],
+          opponents:[{ id:'madrid', name:'Madrid', nation:'ES', strength:90 }],
+        },
+        results:[],
+      },
+    }, teams);
+
+    expect(event).toMatchObject({ cupId:'ucl', matchday:1, userIsHome:false, opponentId:'madrid' });
+  });
+
+  it('balances pre-P0 league-phase saves across their remaining fixtures', () => {
+    const teams = [{ id:'arsenal', name:'Arsenal', league:'Premier League' }];
+    const previous = Array.from({ length:7 }, (_, index) => ({
+      isLeaguePhaseMatchday:true,
+      userIsHome:index < 4,
+    }));
+    const opponents = Array.from({ length:8 }, (_, index) => ({
+      id:`opp_${index}`,
+      name:`Opponent ${index}`,
+      strength:70,
+    }));
+    const [event] = buildPendingEvents(19, 'arsenal', [], {
+      ucl: {
+        status:'active',
+        leaguePhaseComplete:false,
+        leaguePhase:{ matchday:7, opponents },
+        results:previous,
+      },
+    }, teams);
+
+    expect(event).toMatchObject({ cupId:'ucl', matchday:8, userIsHome:false });
+  });
+
   it('uses league-phase seeding when knockout events choose first-leg venues', () => {
     const teams = [{ id:'arsenal', name:'Arsenal', league:'Premier League' }];
     const eventFor = (position, roundIndex, gw) => buildPendingEvents(gw, 'arsenal', [], {
@@ -61,9 +104,30 @@ describe('P0 competition integration contract', () => {
     expect(eventFor(17, 0, 23)).toMatchObject({ roundName:'Knockout Play-off (Leg 1)', userIsHome:true });
     expect(eventFor(1, 2, 26)).toMatchObject({ roundName:'R16 (Leg 1)', userIsHome:false });
     expect(eventFor(17, 2, 26)).toMatchObject({ roundName:'R16 (Leg 1)', userIsHome:true });
+    expect(eventFor(3, 4, 30)).toMatchObject({ roundName:'QF (Leg 1)', userIsHome:false });
+    expect(eventFor(5, 4, 30)).toMatchObject({ roundName:'QF (Leg 1)', userIsHome:true });
+    expect(eventFor(1, 6, 34)).toMatchObject({ roundName:'SF (Leg 1)', userIsHome:false });
+    expect(eventFor(3, 6, 34)).toMatchObject({ roundName:'SF (Leg 1)', userIsHome:true });
   });
 
-  it('keeps the same UEFA opponent and reverses venue for leg two', () => {
+  it('constrains knockout play-off opponents to the official pairing band', () => {
+    const teams = [{ id:'arsenal', name:'Arsenal', league:'Premier League' }];
+    const [event] = buildPendingEvents(23, 'arsenal', [], {
+      ucl: {
+        status:'active',
+        leaguePhaseComplete:true,
+        roundIndex:0,
+        leaguePhase:{ position:9 },
+        bracketSeed:9,
+        results:[],
+      },
+    }, teams);
+
+    expect([23, 24]).toContain(event.opponentSeed);
+    expect(event.userIsHome).toBe(false);
+  });
+
+  it('keeps the same UEFA opponent, seed and reversed venue for leg two', () => {
     const teams = [{ id:'arsenal', name:'Arsenal', league:'Premier League' }];
     const [event] = buildPendingEvents(24, 'arsenal', [], {
       ucl: {
@@ -71,9 +135,11 @@ describe('P0 competition integration contract', () => {
         leaguePhaseComplete:true,
         roundIndex:1,
         leaguePhase:{ position:9 },
+        bracketSeed:9,
         results:[{
           opponentId:'ucl_field_test',
           opponentName:'Seed Test FC',
+          opponentSeed:23,
           userIsHome:false,
         }],
       },
@@ -84,6 +150,7 @@ describe('P0 competition integration contract', () => {
       roundName:'Knockout Play-off (Leg 2)',
       opponentId:'ucl_field_test',
       opponentName:'Seed Test FC',
+      opponentSeed:23,
       userIsHome:true,
     });
   });
