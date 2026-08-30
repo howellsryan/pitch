@@ -32,7 +32,7 @@ test('P0 mobile career menu creates, switches and deletes isolated save slots', 
   let arsenalCard = menu.locator('.career-card', { hasText: 'Arsenal' });
   await expect(arsenalCard).toContainText('The Manager');
   await expect(arsenalCard).toContainText('2025/26');
-  await expect(arsenalCard).toContainText(/Position/);
+  await expect(arsenalCard).toContainText('1st');
   await expect(arsenalCard).toContainText(/Last played/);
   await expect(arsenalCard.getByRole('button', { name: 'Continue' })).toBeVisible();
   await expect(arsenalCard.getByRole('button', { name: 'Export' })).toBeVisible();
