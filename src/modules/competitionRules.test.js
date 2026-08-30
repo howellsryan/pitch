@@ -86,11 +86,15 @@ describe('P0 competition rules', () => {
     expect(getUefaKnockoutOpponentSeeds('ucl', 24, 'Knockout Play-off (Leg 1)')).toEqual([9, 10]);
   });
 
-  it('encodes the round-of-16 bracket paths from league-phase ranking', () => {
+  it('encodes both sides of the round-of-16 bracket paths', () => {
     expect(getUefaKnockoutOpponentSeeds('ucl', 1, 'R16 (Leg 1)')).toEqual([15, 16, 17, 18]);
     expect(getUefaKnockoutOpponentSeeds('ucl', 3, 'R16 (Leg 1)')).toEqual([13, 14, 19, 20]);
     expect(getUefaKnockoutOpponentSeeds('ucl', 5, 'R16 (Leg 1)')).toEqual([11, 12, 21, 22]);
     expect(getUefaKnockoutOpponentSeeds('ucl', 7, 'R16 (Leg 1)')).toEqual([9, 10, 23, 24]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 9, 'R16 (Leg 1)')).toEqual([7, 8]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 11, 'R16 (Leg 1)')).toEqual([5, 6]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 13, 'R16 (Leg 1)')).toEqual([3, 4]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 15, 'R16 (Leg 1)')).toEqual([1, 2]);
     expect(getUefaKnockoutOpponentSeeds('ucl', 25, 'R16 (Leg 1)')).toEqual([]);
   });
 
