@@ -6,7 +6,7 @@
   import { assignPotentials } from '../../modules/potential.js';
   import { getHonorsForTeam } from '../../modules/season.js';
   import { fmt, toast } from '../../ui/helpers.js';
-  import { _removeFullOverlay, _showFullOverlay } from '../../ui/renderers.js';
+  import { _removeFullOverlay, _showFullOverlay, showEntryMenu } from '../../ui/renderers.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import { api, clearAuth, isSignedIn, startGoogleLogin } from '../../cloud/api.js';
   import { pushSaveToCloud } from '../../cloud/sync.js';
@@ -165,11 +165,12 @@
     }
   }
 
+  function returnToMenu() { showEntryMenu(); }
   function openReset() { sheet = 'reset'; }
 
   async function confirmReset() {
     busy = true;
-    _showFullOverlay('Resetting…');
+    _showFullOverlay('Starting new career…');
     try { await deleteDB(); } catch (e) { console.error(e); }
     window.location.reload();
   }
@@ -203,9 +204,13 @@
   {:else}
     <div class="set-scroll">
       <div class="set-card">
-        <div class="set-card-title">Save Data</div>
-        <div class="set-card-sub">Manage Career</div>
+        <div class="set-card-title">Career</div>
+        <div class="set-card-sub">Save &amp; session</div>
 
+        <div class="set-row">
+          <div><div class="set-nm">Main Menu</div><div class="set-desc">Return to the title screen without deleting this career</div></div>
+          <button class="btn-set btn-secondary" onclick={returnToMenu}>Menu</button>
+        </div>
         <div class="set-row">
           <div><div class="set-nm">Export Save</div><div class="set-desc">Download your career to a .pitch file</div></div>
           <button class="btn-set btn-primary" onclick={openExport}>Export</button>
@@ -215,8 +220,8 @@
           <button class="btn-set btn-secondary" onclick={openImport}>Import</button>
         </div>
         <div class="set-row">
-          <div><div class="set-nm">New Game</div><div class="set-desc">Reset all progress and choose a new team</div></div>
-          <button class="btn-set btn-danger" onclick={openReset}>Reset</button>
+          <div><div class="set-nm">Start New Career</div><div class="set-desc">Delete this career and choose a different club</div></div>
+          <button class="btn-set btn-danger" onclick={openReset}>Start</button>
         </div>
         <div class="set-row">
           <div><div class="set-nm">Recalculate Potentials</div><div class="set-desc">Refresh all player potential ratings using the latest formula</div></div>
@@ -331,11 +336,11 @@
         <button class="btn-full btn-secondary" disabled={busy} onclick={closeSheet}>Cancel</button>
       </div>
     {:else if sheet === 'reset'}
-      <div class="sheet-title">Reset Game?</div>
-      <div class="sheet-text">Delete all progress and return to team selection. Cannot be undone.</div>
+      <div class="sheet-title">Start a new career?</div>
+      <div class="sheet-text">This permanently deletes the current career and returns to club selection. Export a <strong>.pitch</strong> backup first if you may want to come back to it.</div>
       <div class="sheet-actions">
-        <button class="btn-full btn-danger" disabled={busy} onclick={confirmReset}>{busy ? 'Resetting…' : 'Reset'}</button>
-        <button class="btn-full btn-secondary" disabled={busy} onclick={closeSheet}>Cancel</button>
+        <button class="btn-full btn-danger" disabled={busy} onclick={confirmReset}>{busy ? 'Deleting…' : 'Delete Career & Start Again'}</button>
+        <button class="btn-full btn-secondary" disabled={busy} onclick={closeSheet}>Keep Career</button>
       </div>
     {/if}
   </div>
@@ -391,7 +396,7 @@
   .set-season-name { font-size: 12px; font-weight: 600; }
   .set-season-detail { font-size: 11px; color: var(--color-tx-2); margin-top: 2px; }
 
-  .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
+  .btn-primary { border: none; background: var(--color-accent); color: var(--color-on-accent); }
   .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }
   .btn-danger { border: none; background: var(--color-bad); color: #fff; }
 
