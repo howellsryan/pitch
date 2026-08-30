@@ -274,6 +274,14 @@ function _deleteNamedDB(name) {
   });
 }
 
+async function _resetNamedSlot(slotId) {
+  if (slotId === LEGACY_SLOT_ID) {
+    await _clearNamedDB(DB_NAME);
+  } else {
+    await _deleteNamedDB(careerSlotDbName(slotId));
+  }
+}
+
 export async function deleteCareerSlot(slotId) {
   if (!SAFE_SLOT_ID.test(slotId)) throw new Error('Invalid career slot ID.');
   if (_db && _dbSlotId === slotId) {
@@ -281,15 +289,10 @@ export async function deleteCareerSlot(slotId) {
     _db = null;
     _dbSlotId = null;
   }
-  if (slotId === LEGACY_SLOT_ID) {
-    // The legacy DB name is deliberately probed forever so pre-P0 browsers can
-    // be discovered without a registry entry. Deleting that physical DB and
-    // immediately probing it again creates a race; clearing every store erases
-    // the career while preserving the compatibility anchor as an empty DB.
-    await _clearNamedDB(DB_NAME);
-  } else {
-    await _deleteNamedDB(careerSlotDbName(slotId));
-  }
+  // The legacy DB name is deliberately probed forever so pre-P0 browsers can
+  // be discovered without a registry entry. Reset it in place; generated slot
+  // DBs have no compatibility role and are physically deleted.
+  await _resetNamedSlot(slotId);
   _unregisterSlot(slotId);
 
   if (getActiveSlotId() === slotId) {
@@ -622,7 +625,7 @@ export async function _restoreFromEnvelope(envelopeStr, targetSlotId = getActive
     _db = null;
     _dbSlotId = null;
   }
-  await _deleteNamedDB(careerSlotDbName(targetSlotId));
+  await _resetNamedSlot(targetSlotId);
   _registerSlot(targetSlotId);
   await activateCareerSlot(targetSlotId);
   const db = await openDB();
