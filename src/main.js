@@ -13,6 +13,7 @@
 
 import './app.css';
 import './r6.css';
+import './mobile-ux.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
@@ -36,6 +37,7 @@ import './ui/home_transfers.js';
 import './ui/renderers.js';
 import './ui/squad_tactics_offers.js';
 import './ui/inbox.js';
+import './ui/accessibilityEnhancements.js';
 
 // src/shell.html has two inline onclick="navigateTo(...)" handlers, which
 // resolve against the global scope rather than this module's. Everything else
