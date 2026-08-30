@@ -11,5 +11,15 @@
  * R7 also makes the title route reachable from Settings without deleting the
  * active career. `hasSave` lets the title/menu layer offer Continue while the
  * normal club picker remains the cold-start route only.
+ *
+ * P0 adds `newCareerRequested`: choosing New Career from the saved-career menu
+ * reveals the existing picker without activating an empty IndexedDB slot.
+ * EntryScreen creates the isolated slot only when the player actually starts
+ * or imports a career, so abandoning/reloading the picker cannot hide an
+ * existing career behind a blank active slot.
  */
-export const entryState = $state({ showing: false, hasSave: false });
+export const entryState = $state({
+  showing: false,
+  hasSave: false,
+  newCareerRequested: false,
+});
