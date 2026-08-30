@@ -2,7 +2,7 @@ import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, p
 import { pickAIFormation, simulateMatch } from './matchEngine.js';
 import { applyResult, recomputePositions, updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress } from './cups.js';
-import { finishLeaguePhase, getCompetitionRules, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
+import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
 import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
@@ -47,9 +47,14 @@ function drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, a
   if (isUefaCompetition(cupId)) {
     const pool = UCL_CLUBS.filter(c => c.id !== userTeamId);
     const pick = pool[Math.floor(Math.random() * pool.length)];
+    const position = state.leaguePhase?.position ?? state.seed ?? null;
+    const seeding = getUefaKnockoutSeeding(cupId, position, roundName);
+    // Seeded sides host leg two, so their first leg is away. Unseeded sides
+    // host leg one. Once seeding no longer applies, venue remains a fair draw.
+    const seededVenue = seeding.secondLegHome == null ? null : !seeding.secondLegHome;
     return {
       opponent: pick ? { id:pick.id, name:pick.name, crest:pick.nation, rep:pick.strength } : null,
-      userIsHome: Math.random() < 0.5,
+      userIsHome: seededVenue ?? Math.random() < 0.5,
     };
   }
 
