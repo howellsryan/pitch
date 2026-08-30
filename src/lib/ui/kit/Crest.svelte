@@ -71,17 +71,24 @@
   });
 
   const resolved = $derived(team ?? inferred ?? fallback);
-  const svg = $derived(
-    clubCrestSvg(resolved, {
-      size,
-      label: label ?? (resolved?.name && resolved.name !== 'Club' ? `${resolved.name} crest` : ''),
-      className,
-    }),
+  const accessibleLabel = $derived(
+    label ?? (resolved?.name && resolved.name !== 'Club' ? `${resolved.name} crest` : ''),
+  );
+  const source = $derived(
+    `data:image/svg+xml,${encodeURIComponent(
+      clubCrestSvg(resolved, { size, label: accessibleLabel }),
+    )}`,
   );
 </script>
 
-<span bind:this={root} class="crest" style="width:{size}px;height:{size}px">
-  {@html svg}
+<span bind:this={root} class="crest {className}" style="width:{size}px;height:{size}px">
+  <img
+    src={source}
+    alt={accessibleLabel}
+    width={size}
+    height={size}
+    aria-hidden={accessibleLabel ? null : 'true'}
+  />
 </span>
 
 <style>
@@ -91,5 +98,5 @@
     flex: 0 0 auto;
     line-height: 0;
   }
-  .crest :global(svg) { display: block; width: 100%; height: 100%; }
+  img { display: block; width: 100%; height: 100%; object-fit: contain; }
 </style>
