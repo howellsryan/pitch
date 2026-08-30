@@ -265,14 +265,17 @@ and a bottom control dock. `src/game/broadcastSimulation.js` is the single
 spatial presentation engine: a continuous possession state machine with a real
 ball owner/flight, role-based support and defensive shapes, local pressure,
 turnovers, legal kickoff geometry, a real half-time end swap and second kickoff,
-enforced onside runs and bounded goalkeeper movement. Deterministic throw-ins,
-free kicks, corners and goal kicks are caused by spatial incidents rather than
-inserted between engine phases; they remain visual scenes, not result events.
+enforced onside runs and goalkeepers anchored to their goal line except for
+close-range emergencies. Throw-ins require a pressured defensive deflection,
+corners wait for most attackers and defenders to occupy the box, and goal kicks
+follow a visible missed shot; restarts remain visual scenes, not result events.
 Formation coordinates are role anchors, never fresh rendered positions. Goals
 receive a final-third constructed chance, shot, score-synchronised full-pitch
 takeover, hold and opponent kickoff. Player identity stays out of the Broadcast
 pitch and appears in the full-height, match-pausing Squad-style Tactics room,
-where formation and substitution controls share one screen. Penalty
+where formation and substitution choices apply immediately and a persistent
+Match control returns to play. Global navigation is unavailable for the full
+match route so an in-progress fixture cannot be abandoned accidentally. Penalty
 choreography is reserved until the result engine emits a real penalty event.
 
 ### R6 — Market and Table

@@ -1048,6 +1048,10 @@ chk('Substitution sheet uses src/game/substitutions.js', matchScreenSrc.includes
 chk('Tactics sheet uses src/game/formationChange.js', matchScreenSrc.includes("from '../../game/formationChange.js'")&&matchScreenSrc.includes('applyFormationChange'));
 chk('Tactics room pauses while open', matchScreenSrc.includes('tacticsSheetWasPaused'));
 chk('Tactics sheet pauses while open', matchScreenSrc.includes('tacticsSheetWasPaused'));
+chk('In-match tactics formation changes auto-apply', matchScreenSrc.includes('onclick={() => applyTactics(f)}'));
+chk('In-match tactics substitutions auto-apply', matchScreenSrc.includes('applyTacticsSub(tacticsSubIn, player)'));
+chk('In-match tactics has an explicit return to match', matchScreenSrc.includes('aria-label="Back to match"'));
+chk('In-match navigation is locked and released', matchScreenSrc.includes('setMatchNavigationLocked(true)')&&matchScreenSrc.includes('setMatchNavigationLocked(false)'));
 chk('Injury auto-pauses the match', matchScreenSrc.includes("ev.type === 'injury'")&&matchScreenSrc.includes('togglePause()'));
 chk('Full Time beat shows scorers + verdict', matchScreenSrc.includes('ft-verdict')&&matchScreenSrc.includes('homeScorers'));
 chk('After beat commits via advanceOneFixtureWithResult', matchScreenSrc.includes('advanceOneFixtureWithResult'));

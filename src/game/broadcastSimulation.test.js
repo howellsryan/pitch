@@ -43,7 +43,16 @@ describe('broadcast simulation', () => {
     const attacker = sim.players.find(player => player.id === 'a-9'); attacker.x = 55; attacker.y = 88;
     for (let i = 0; i < 240; i++) advanceBroadcastSimulation(sim, 33);
     const homeKeeper = sim.players.find(player => player.id === 'h-0');
-    expect(homeKeeper.y).toBeGreaterThanOrEqual(76); expect(homeKeeper.y).toBeLessThanOrEqual(93);
+    expect(homeKeeper.y).toBeGreaterThanOrEqual(88); expect(homeKeeper.y).toBeLessThanOrEqual(95);
+  });
+
+  it('keeps both goalkeepers anchored close to their goal line during normal play', () => {
+    const sim = create(); sim.mode = 'live'; sim.ball.ownerId = 'h-5'; sim.ball.x = 28; sim.ball.y = 51;
+    for (let i = 0; i < 240; i++) advanceBroadcastSimulation(sim, 33);
+    const homeKeeper = sim.players.find(player => player.id === 'h-0');
+    const awayKeeper = sim.players.find(player => player.id === 'a-0');
+    expect(homeKeeper.y).toBeGreaterThanOrEqual(90);
+    expect(awayKeeper.y).toBeLessThanOrEqual(10);
   });
 
   it('brings a scorer onside before creating the chance', () => {
@@ -108,19 +117,75 @@ describe('broadcast simulation', () => {
   });
 
   it('derives goal kicks and corners from the preceding shot outcome', () => {
-    const sim = create();
-    const actions = [];
-    let cornerSpot = null;
-    for (let i = 0; i < 900; i++) {
+    const wide = create(); const wideCarrier = wide.players.find(player => player.id === 'h-8');
+    Object.assign(wideCarrier, { x:16, y:27 }); Object.assign(wide.ball, { ownerId:wideCarrier.id, x:16, y:27 });
+    Object.assign(wide, { mode:'live', nextActionAt:0, sequenceSinceRestart:4, outcomeIndex:2 });
+    advanceBroadcastSimulation(wide, 33);
+    expect(wide.action).toBe('SHOT · WIDE');
+    while (wide.ball.flight) advanceBroadcastSimulation(wide, 33);
+    expect(wide.restart).toMatchObject({ type:'goal-kick', cause:'SHOT WIDE' });
+
+    const corner = create(); const cornerCarrier = corner.players.find(player => player.id === 'h-9');
+    Object.assign(cornerCarrier, { x:50, y:20 }); Object.assign(corner.ball, { ownerId:cornerCarrier.id, x:50, y:20 });
+    Object.assign(corner, { mode:'live', nextActionAt:0, sequenceSinceRestart:4, outcomeIndex:1 });
+    advanceBroadcastSimulation(corner, 33);
+    expect(corner.action).toBe('SHOT BLOCKED · DEFLECTION');
+    while (corner.ball.flight) advanceBroadcastSimulation(corner, 33);
+    expect(corner.restart).toMatchObject({ type:'corner', cause:'DEFLECTED BEHIND' });
+    expect([3, 97]).toContain(corner.restart.spot.x);
+    expect([3, 97]).toContain(corner.restart.spot.y);
+  });
+
+  it('waits for most players to fill the penalty area before taking a corner', () => {
+    const sim = create(); const carrier = sim.players.find(player => player.id === 'h-9');
+    Object.assign(carrier, { x:50, y:20 });
+    Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:20 });
+    Object.assign(sim, { mode:'live', nextActionAt:0, sequenceSinceRestart:4, outcomeIndex:1 });
+    advanceBroadcastSimulation(sim, 33);
+    while (sim.ball.flight) advanceBroadcastSimulation(sim, 33);
+    expect(sim.restart?.type).toBe('corner');
+    const startedAt = sim.restart.startedAt; const takerId = sim.restart.takerId; const attackDirection = -1;
+    let sawSetup = false; let attackersReady = 0;
+    for (let i = 0; i < 400; i++) {
       advanceBroadcastSimulation(sim, 33);
-      if (actions.at(-1) !== sim.action) actions.push(sim.action);
-      if (sim.restart?.type === 'corner') cornerSpot = sim.restart.spot;
+      sawSetup ||= sim.action === 'CORNER · PLAYERS MOVING INTO THE BOX';
+      if (sim.action === 'CORNER · CROSS INTO THE BOX') {
+        attackersReady = sim.players.filter(player => player.teamId === 'home' && player.position !== 'GK' && player.id !== takerId)
+          .filter(player => player.x >= 22 && player.x <= 78 && (attackDirection < 0 ? player.y <= 24 : player.y >= 76)).length;
+        break;
+      }
     }
-    expect(actions.indexOf('SHOT · WIDE')).toBeLessThan(actions.indexOf('GOAL-KICK · SHOT WIDE'));
-    expect(actions.indexOf('SHOT BLOCKED · DEFLECTION')).toBeLessThan(actions.indexOf('CORNER · DEFLECTED BEHIND'));
-    expect(actions).toContain('CORNER · CROSS INTO THE BOX');
-    expect([3, 97]).toContain(cornerSpot.x);
-    expect([3, 97]).toContain(cornerSpot.y);
+    expect(sawSetup).toBe(true);
+    expect(sim.clock - startedAt).toBeGreaterThanOrEqual(1200);
+    expect(attackersReady).toBeGreaterThanOrEqual(6);
+  });
+
+  it('only creates a throw-in from a pressured defensive deflection', () => {
+    const pressured = create(); const carrier = pressured.players.find(player => player.id === 'h-8');
+    Object.assign(carrier, { x:4, y:45 }); Object.assign(pressured.ball, { ownerId:carrier.id, x:4, y:45 });
+    pressured.mode = 'live'; pressured.nextActionAt = 0;
+    pressured.players.filter(player => player.teamId === 'away').forEach(player => Object.assign(player, { x:50, y:50 }));
+    Object.assign(pressured.players.find(player => player.id === 'a-1'), { x:5, y:45 });
+    advanceBroadcastSimulation(pressured, 33);
+    expect(pressured.action).toBe('TACKLE · DEFLECTED OUT');
+    while (pressured.ball.flight) advanceBroadcastSimulation(pressured, 33);
+    expect(pressured.restart).toMatchObject({ type:'throw-in', teamId:'home' });
+
+    const unpressured = create(); const wideCarrier = unpressured.players.find(player => player.id === 'h-8');
+    Object.assign(wideCarrier, { x:4, y:45 }); Object.assign(unpressured.ball, { ownerId:wideCarrier.id, x:4, y:45 });
+    unpressured.mode = 'live'; unpressured.nextActionAt = 0;
+    unpressured.players.filter(player => player.teamId === 'away').forEach(player => Object.assign(player, { x:70, y:70 }));
+    advanceBroadcastSimulation(unpressured, 33);
+    expect(unpressured.action).not.toContain('DEFLECTED OUT');
+  });
+
+  it('shoots when through in the box and never turns back to a defender', () => {
+    const sim = create(); const striker = sim.players.find(player => player.id === 'h-9');
+    Object.assign(striker, { x:50, y:12 }); Object.assign(sim.ball, { ownerId:striker.id, x:50, y:12 });
+    Object.assign(sim, { mode:'live', nextActionAt:0, sequenceSinceRestart:2, outcomeIndex:2 });
+    advanceBroadcastSimulation(sim, 33);
+    expect(sim.ball.flight?.kind).toBe('save');
+    expect(sim.action).toBe('SHOT · SAVED');
   });
 
   it('keeps current positions when a substitution changes the active lineup', () => {

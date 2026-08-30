@@ -19,7 +19,7 @@
   import { generateStubPlayers } from '../../game/opponents.js';
   import { advanceBroadcastSimulation, createBroadcastSimulation, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
-  import { fmt, formLabel, navigateTo, playerNationality, posGroup, toast } from '../../ui/helpers.js';
+  import { fmt, formLabel, navigateTo, playerNationality, posGroup, setMatchNavigationLocked, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
   import { newsAIBid, newsInjury, newsMatchResult } from '../../ui/inbox.js';
@@ -341,6 +341,7 @@
       matchEvent: resolved.patchedEvent,
       currentPhase: 0, paused: false, speedMultiplier: 1,
     };
+    setMatchNavigationLocked(true);
     displayHomeGoals = 0;
     displayAwayGoals = 0;
     presentationPossession = resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id;
@@ -518,11 +519,29 @@
   const tacticsSubIn = $derived(tacticsSubInId ? benchList.find(player => player.id === tacticsSubInId) ?? null : null);
   const tacticsSubOut = $derived(tacticsSubOutId ? tacticsActivePlayers.find(player => player.id === tacticsSubOutId) ?? null : null);
   const subOutOptions = $derived(tacticsSubIn && live?.liveState ? eligibleSubOutTargets(live.liveState, live.userIsHome, tacticsSubIn) : []);
-  const canConfirmSub = $derived(!!tacticsSubIn && !!tacticsSubOut && subOutOptions.some(player => player.id === tacticsSubOut.id));
+
+  function applyTacticsSub(inPlayer, outPlayer) {
+    if (!inPlayer || !outPlayer || !live?.liveState) return;
+    const eligible = eligibleSubOutTargets(live.liveState, live.userIsHome, inPlayer);
+    if (!eligible.some(player => player.id === outPlayer.id)) {
+      toast(inPlayer.position === 'GK' ? 'A goalkeeper can only replace the goalkeeper' : 'Outfield players cannot replace the goalkeeper', 'error', 3000);
+      return;
+    }
+    const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90);
+    const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, inPlayer.id, outPlayer.id, minute, live.userTeam.id);
+    if (ok) {
+      live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
+      replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
+      toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
+    }
+    tacticsSubInId = null;
+    tacticsSubOutId = null;
+  }
 
   function chooseTacticsBench(player) {
     if (subsLeft <= 0) { toast('No substitutions remaining', 'error'); return; }
     if (player.injured) { toast(`🚑 ${player.name} is injured and cannot play.`, 'error', 4000); return; }
+    if (tacticsSubOut) { applyTacticsSub(player, tacticsSubOut); return; }
     tacticsSubInId = tacticsSubInId === player.id ? null : player.id;
     if (tacticsSubInId && tacticsSubOutId && !eligibleSubOutTargets(live.liveState, live.userIsHome, player).some(p => p.id === tacticsSubOutId)) {
       tacticsSubOutId = null;
@@ -535,20 +554,7 @@
       toast(tacticsSubIn.position === 'GK' ? 'A goalkeeper can only replace the goalkeeper' : 'Outfield players cannot replace the goalkeeper', 'error', 3000);
       return;
     }
-    tacticsSubOutId = tacticsSubOutId === player.id ? null : player.id;
-  }
-
-  function confirmTacticsSub() {
-    if (!canConfirmSub) return;
-    const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90);
-    const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, tacticsSubIn.id, tacticsSubOut.id, minute, live.userTeam.id);
-    if (ok) {
-      live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
-      replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
-      toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
-    }
-    tacticsSubInId = null;
-    tacticsSubOutId = null;
+    applyTacticsSub(tacticsSubIn, player);
   }
 
   // ── Formation change (src/game/formationChange.js) ───────────────────
@@ -560,11 +566,12 @@
     tacticsSubOutId = null;
     tacticsSheetOpen = true;
   }
-  function applyTactics() {
-    const newLs = applyFormationChange(live.liveState, live.userIsHome, tacticsPickerFormation);
+  function applyTactics(formation) {
+    tacticsPickerFormation = formation;
+    const newLs = applyFormationChange(live.liveState, live.userIsHome, formation);
     live = { ...live, liveState: newLs };
     replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
-    toast(`Formation changed to ${tacticsPickerFormation}`, 'info', 3000);
+    toast(`Formation changed to ${formation}`, 'info', 3000);
   }
   function closeTacticsSheet() {
     tacticsSheetOpen = false;
@@ -635,6 +642,7 @@
     window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
     active = false;
+    setMatchNavigationLocked(false);
     live = null; result = null; matchCtx = null; broadcastSimulation = null;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
     beforeTable = []; afterTable = [];
@@ -917,12 +925,12 @@
     <section class="match-tactics" aria-label="Live match tactics">
       <header class="match-tactics-header">
         <div><span>LIVE · PAUSED</span><strong>{live.userTeam.name} Tactics</strong></div>
-        <button class="match-tactics-close" onclick={closeTacticsSheet} aria-label="Close tactics">✕</button>
+        <button class="match-tactics-close" onclick={closeTacticsSheet} aria-label="Back to match">← Match</button>
       </header>
 
       <div class="match-tactics-formations" aria-label="Formation">
         {#each Object.keys(SLOT_LAYOUT) as f (f)}
-          <button class:active={f === tacticsPickerFormation} onclick={() => (tacticsPickerFormation = f)}>{f}</button>
+          <button class:active={f === tacticsPickerFormation} onclick={() => applyTactics(f)}>{f}</button>
         {/each}
       </div>
 
@@ -954,7 +962,7 @@
 
         <div class="match-tactics-bench">
           <div class="mtb-heading">
-            <div><span>Bench</span><small>Select a substitute, then the player coming off</small></div>
+            <div><span>Bench</span><small>Tap two players — the change applies immediately</small></div>
             <strong>{subsLeft} left</strong>
           </div>
           <div class="match-tactics-bench-row">
@@ -971,21 +979,6 @@
         </div>
       </div>
 
-      <footer class="match-tactics-actions">
-        <div class="match-tactics-selection">
-          {#if tacticsSubIn && tacticsSubOut}
-            <span>↑ {tacticsSubIn.name}</span><span>↓ {tacticsSubOut.name}</span>
-          {:else if tacticsSubIn}
-            <span>↑ {tacticsSubIn.name}</span><small>Now choose who comes off</small>
-          {:else if tacticsSubOut}
-            <span>↓ {tacticsSubOut.name}</span><small>Now choose a bench player</small>
-          {:else}
-            <small>The match stays paused while this screen is open</small>
-          {/if}
-        </div>
-        <button class="formation-apply" onclick={applyTactics}>Apply {tacticsPickerFormation}</button>
-        <button class="sub-confirm" disabled={!canConfirmSub} onclick={confirmTacticsSub}>Make sub</button>
-      </footer>
     </section>
   {/if}
 </div>
@@ -1177,7 +1170,7 @@
   }
   .match-tactics-header span { display: block; margin-bottom: 4px; color: var(--color-live); font: 700 9px var(--font-mono); letter-spacing: 1.6px; }
   .match-tactics-header strong { display: block; font: 700 21px var(--font-display); letter-spacing: .4px; }
-  .match-tactics-close { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
+  .match-tactics-close { min-width: 88px; height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); font: 700 11px var(--font-body); cursor: pointer; }
   .match-tactics-formations {
     flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px;
     border-bottom: 1px solid var(--color-line); scrollbar-width: none;
@@ -1236,18 +1229,6 @@
   .mtb-pos { color: var(--color-tx-3); font: 700 8px var(--font-mono); }
   .mtb-name { width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; white-space: nowrap; }
   .mtb-meta { color: var(--color-tx-3); font: 9px var(--font-mono); }
-  .match-tactics-actions {
-    flex: 0 0 auto; display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 8px; align-items: center;
-    padding: 9px max(12px, env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-    border-top: 1px solid var(--color-line); background: var(--color-surface);
-  }
-  .match-tactics-selection { min-width: 0; display: flex; flex-direction: column; color: var(--color-tx-2); font-size: 10px; }
-  .match-tactics-selection span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .match-tactics-selection small { color: var(--color-tx-3); font-size: 9px; }
-  .match-tactics-actions button { min-height: 40px; padding: 0 11px; border-radius: 8px; font: 700 10px var(--font-body); cursor: pointer; }
-  .formation-apply { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); }
-  .sub-confirm { border: 0; background: var(--color-club); color: var(--color-on-club, #fff); }
-  .sub-confirm:disabled { opacity: .35; cursor: not-allowed; }
 
   @media (min-width: 900px) {
     .match-tactics { left: 50%; right: auto; width: min(720px, 100vw); transform: translateX(-50%); border-left: 1px solid var(--color-line); border-right: 1px solid var(--color-line); }

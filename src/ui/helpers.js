@@ -167,6 +167,7 @@ export function showModal(title, bodyHTML, actions = [], opts = {}) {
 // ─── Screen navigation ────────────────────────────────────────
 export const _screens = new Map();
 export let _active = null;
+let _matchNavigationLocked = false;
 
 const ROUTE_PARAM = 'screen';
 const ROUTE_ALIASES = { tactics: 'squad' };
@@ -190,14 +191,24 @@ export function registerScreen(id, onEnter) {
   if (el) _screens.set(id, { el, onEnter });
 }
 
+export function setMatchNavigationLocked(locked) {
+  _matchNavigationLocked = !!locked;
+  document.documentElement.classList.toggle('match-navigation-locked', _matchNavigationLocked);
+}
+
 export async function navigateTo(id, { history: historyMode = 'push' } = {}) {
   id = canonicalScreen(id);
+  if (_matchNavigationLocked && _active === 'match' && id !== 'match') {
+    writeRoute('match', 'replace');
+    return false;
+  }
   if (!_screens.has(id) || _active === id) return;
   if (_active) {
     _screens.get(_active).el.classList.remove('active');
     document.querySelectorAll(`[data-nav="${_active}"]`).forEach(n => n.classList.remove('active'));
   }
   _active = id;
+  document.documentElement.classList.toggle('match-route-active', id === 'match');
   const s = _screens.get(id);
   s.el.classList.add('active');
   s.el.scrollTop = 0;

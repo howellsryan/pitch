@@ -18,6 +18,10 @@ function attackingGoalY(sim, teamId) { return direction(sim, teamId) < 0 ? 2.5 :
 function inFinalThird(sim, player, teamId = player.teamId) {
   return direction(sim, teamId) < 0 ? player.y <= 33 : player.y >= 67;
 }
+function inPenaltyArea(sim, player, teamId = player.teamId) {
+  const nearGoal = direction(sim, teamId) < 0 ? player.y <= 18 : player.y >= 82;
+  return nearGoal && player.x >= 22 && player.x <= 78;
+}
 
 function assign(players, formation, home, teamId) {
   const slots = SLOT_LAYOUT[formation] ?? SLOT_LAYOUT['4-3-3'];
@@ -162,12 +166,13 @@ function roleTarget(sim, player) {
 function setGoalkeeperTarget(sim, player) {
   const dir = direction(sim, player.teamId);
   const ownPossession = player.teamId === sim.possessionTeamId;
-  const danger = dir < 0 ? sim.ball.y > 72 : sim.ball.y < 28;
-  player.targetX = clamp(50 + (sim.ball.x - 50) * (danger ? .28 : .08), 38, 62);
-  player.targetY = dir < 0
-    ? clamp(ownPossession ? 86 : (danger ? 82 - (sim.ball.y - 72) * .28 : 90), 76, 93)
-    : clamp(ownPossession ? 14 : (danger ? 18 + (28 - sim.ball.y) * .28 : 10), 7, 24);
-  player.rushing = danger && !ownPossession;
+  const goalY = dir < 0 ? 94 : 6;
+  const goalDistance = Math.abs(sim.ball.y - attackingGoalY(sim, otherTeamId(sim, player.teamId)));
+  const centralDanger = !ownPossession && goalDistance < 15 && sim.ball.x > 29 && sim.ball.x < 71;
+  const emergencyRush = centralDanger && goalDistance < 9;
+  player.targetX = clamp(50 + (sim.ball.x - 50) * (centralDanger ? .18 : .06), 41, 59);
+  player.targetY = goalY + (dir < 0 ? -1 : 1) * (emergencyRush ? 5 : centralDanger ? 2.5 : ownPossession ? 1.5 : 0);
+  player.rushing = emergencyRush;
 }
 
 function updateLiveTargets(sim) {
@@ -224,7 +229,7 @@ function beginRestart(sim, type, teamId, spot, cause) {
   const taker = type === 'goal-kick'
     ? side.find(player => player.position === 'GK')
     : closest(side, restartSpot, player => player.position !== 'GK');
-  sim.restart = { type, teamId, takerId: taker.id, spot: restartSpot, cause };
+  sim.restart = { type, teamId, takerId: taker.id, spot: restartSpot, cause, startedAt:sim.clock };
   sim.mode = 'restart'; sim.possessionTeamId = teamId; sim.desiredPossessionTeamId = teamId;
   Object.assign(sim.ball, { ownerId:null, flight:null, x:restartSpot.x, y:restartSpot.y, shooting:false });
   sim.action = `${type.toUpperCase()} · ${cause}`;
@@ -280,8 +285,12 @@ function candidateScore(sim, carrier, candidate) {
 
 function selectPass(sim, carrier, predicate = () => true) {
   const all = teamPlayers(sim, carrier.teamId).filter(player => player.id !== carrier.id && player.position !== 'GK' && isOnside(sim, player) && predicate(player));
-  const candidates = all.filter(player => distance(carrier, player) <= (sim.sequence % 7 === 6 ? 58 : 34));
-  if (!candidates.length && all.length) return [...all].sort((a, b) => distance(a, carrier) - distance(b, carrier))[0];
+  const dir = direction(sim, carrier.teamId);
+  const finalThird = inFinalThird(sim, carrier);
+  const progressive = finalThird ? all.filter(player => (player.y - carrier.y) * dir >= -2 && !DEFENDERS.has(player.position)) : all;
+  const pool = progressive.length ? progressive : all;
+  const candidates = pool.filter(player => distance(carrier, player) <= (sim.sequence % 7 === 6 ? 58 : 34));
+  if (!candidates.length && pool.length) return [...pool].sort((a, b) => distance(a, carrier) - distance(b, carrier))[0];
   if (!candidates.length) return closest(teamPlayers(sim, carrier.teamId), carrier, player => player.id !== carrier.id);
   const ranked = candidates.map(player => ({ player, score: candidateScore(sim, carrier, player) })).sort((a, b) => b.score - a.score);
   return ranked[Math.min(ranked.length - 1, sim.sequence % 4 === 3 ? 1 : 0)].player;
@@ -313,14 +322,11 @@ function startGoalShot(sim, scorer) {
 
 function startOpenPlayOutcome(sim, carrier) {
   const attackingTeamId = carrier.teamId; const defendingTeamId = otherTeamId(sim, attackingTeamId);
-  const dir = direction(sim, attackingTeamId); const goalY = attackingGoalY(sim, attackingTeamId);
-  const outcome = ['save', 'wide', 'corner', 'foul', 'throw-in'][sim.outcomeIndex++ % 5];
+  const goalY = attackingGoalY(sim, attackingTeamId);
+  const closeRange = inPenaltyArea(sim, carrier);
+  const outcome = (closeRange ? ['save', 'corner', 'save', 'foul'] : ['save', 'corner', 'wide', 'foul'])[sim.outcomeIndex++ % 4];
   if (outcome === 'foul') {
     beginRestart(sim, 'free-kick', attackingTeamId, { x:sim.ball.x, y:sim.ball.y }, 'FOUL WON'); return;
-  }
-  if (outcome === 'throw-in') {
-    const sideX = carrier.x < 50 ? 3 : 97;
-    startFlight(sim, 'throw-out', carrier, { end:{ x:sideX, y:clamp(carrier.y + dir * 8, 10, 90) }, duration:360, action:'BALL OUT · LAST TOUCH', meta:{ restartTeamId:defendingTeamId } }); return;
   }
   if (outcome === 'save') {
     const keeper = teamPlayers(sim, defendingTeamId).find(player => player.position === 'GK');
@@ -335,6 +341,19 @@ function startOpenPlayOutcome(sim, carrier) {
   const sideX = carrier.x < 50 ? 3 : 97;
   startFlight(sim, 'blocked-corner', carrier, { end:{ x:sideX, y:goalY }, duration:420, curve:(sideX < 50 ? -1 : 1) * 2.5, action:'SHOT BLOCKED · DEFLECTION', meta:{ restartTeamId:attackingTeamId } });
   sim.ball.shooting = true;
+}
+
+function tryPressuredThrowIn(sim, carrier) {
+  if (carrier.x > 10 && carrier.x < 90) return false;
+  const defender = closest(opponentPlayers(sim, carrier.teamId), carrier, player => player.position !== 'GK');
+  if (!defender || distance(defender, carrier) > 6) return false;
+  const sideX = carrier.x < 50 ? 3 : 97;
+  const dir = direction(sim, carrier.teamId);
+  startFlight(sim, 'throw-out', defender, {
+    end:{ x:sideX, y:clamp(carrier.y + dir * 5, 10, 90) }, duration:340,
+    action:'TACKLE · DEFLECTED OUT', meta:{ restartTeamId:carrier.teamId },
+  });
+  return true;
 }
 
 function beginTurnover(sim) {
@@ -353,6 +372,16 @@ function restartReceiver(sim, restart, taker) {
   return closest(side, restart.spot, player => player.position !== 'GK');
 }
 
+function cornerReady(sim, restart) {
+  const dir = direction(sim, restart.teamId);
+  const inBox = player => player.x >= 22 && player.x <= 78 && (dir < 0 ? player.y <= 24 : player.y >= 76);
+  const attackers = teamPlayers(sim, restart.teamId).filter(player => player.id !== restart.takerId && player.position !== 'GK');
+  const defenders = opponentPlayers(sim, restart.teamId).filter(player => player.position !== 'GK');
+  const attackingReady = attackers.filter(inBox).length >= Math.ceil(attackers.length * .6);
+  const defendingReady = defenders.filter(inBox).length >= Math.ceil(defenders.length * .5);
+  return sim.clock - restart.startedAt >= 1200 && attackingReady && defendingReady;
+}
+
 function decide(sim) {
   if (sim.mode === 'goal' || sim.mode === 'half-time') return;
   if (sim.mode === 'kickoff') {
@@ -365,6 +394,9 @@ function decide(sim) {
     const taker = sim.players.find(player => player.id === sim.restart.takerId);
     if (distance(taker, sim.restart.spot) > 2.2) {
       sim.action = `${sim.restart.type.toUpperCase()} · WAITING FOR THE WHISTLE`; sim.nextActionAt = sim.clock + 180; return;
+    }
+    if (sim.restart.type === 'corner' && !cornerReady(sim, sim.restart)) {
+      sim.action = 'CORNER · PLAYERS MOVING INTO THE BOX'; sim.nextActionAt = sim.clock + 180; return;
     }
     Object.assign(sim.ball, { ownerId:taker.id, x:sim.restart.spot.x, y:sim.restart.spot.y });
     const receiver = restartReceiver(sim, sim.restart, taker);
@@ -386,6 +418,8 @@ function decide(sim) {
     startPass(sim, carrier, selectPass(sim, carrier, player => player.id !== scorer.id), 'BUILDING THE ATTACK'); return;
   }
   if (sim.desiredPossessionTeamId !== sim.possessionTeamId) { beginTurnover(sim); return; }
+  if (tryPressuredThrowIn(sim, carrier)) return;
+  if (inPenaltyArea(sim, carrier)) { startOpenPlayOutcome(sim, carrier); return; }
   if (inFinalThird(sim, carrier) && sim.sequenceSinceRestart >= 4) { startOpenPlayOutcome(sim, carrier); return; }
   const receiver = selectPass(sim, carrier);
   startPass(sim, carrier, receiver, distance(carrier, receiver) > 42 ? 'SWITCHING PLAY' : FORWARDS.has(receiver.position) ? 'PROGRESSIVE PASS' : 'PASSING TRIANGLE');
