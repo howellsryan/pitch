@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   COMPETITION_RULES,
+  buildLeaguePhaseVenuePlan,
   finishLeaguePhase,
   getLeaguePhaseQualification,
+  getUefaKnockoutOpponentSeeds,
   getUefaKnockoutSeeding,
   isTwoLegRound,
   resolveTwoLegTie,
@@ -23,19 +25,19 @@ describe('P0 competition rules', () => {
     expect(outcome.userWon).toBe(true);
   });
 
-  it('models all three UEFA competitions as 36-team league phases', () => {
-    expect(COMPETITION_RULES.ucl.leaguePhase).toMatchObject({ teams: 36, matches: 8 });
-    expect(COMPETITION_RULES.uel.leaguePhase).toMatchObject({ teams: 36, matches: 8 });
-    expect(COMPETITION_RULES.uecl.leaguePhase).toMatchObject({ teams: 36, matches: 6 });
+  it('models all three UEFA competitions as 36-team balanced league phases', () => {
+    expect(COMPETITION_RULES.ucl.leaguePhase).toMatchObject({ teams:36, matches:8, homeMatches:4, awayMatches:4 });
+    expect(COMPETITION_RULES.uel.leaguePhase).toMatchObject({ teams:36, matches:8, homeMatches:4, awayMatches:4 });
+    expect(COMPETITION_RULES.uecl.leaguePhase).toMatchObject({ teams:36, matches:6, homeMatches:3, awayMatches:3 });
   });
 
   it('routes positions 1-8 direct, 9-24 to play-offs, and 25-36 out', () => {
-    expect(getLeaguePhaseQualification('ucl', 1)).toMatchObject({ route: 'direct', roundIndex: 2, status: 'active' });
-    expect(getLeaguePhaseQualification('ucl', 8)).toMatchObject({ route: 'direct', roundIndex: 2, status: 'active' });
-    expect(getLeaguePhaseQualification('ucl', 9)).toMatchObject({ route: 'playoff', roundIndex: 0, status: 'active' });
-    expect(getLeaguePhaseQualification('ucl', 24)).toMatchObject({ route: 'playoff', roundIndex: 0, status: 'active' });
-    expect(getLeaguePhaseQualification('ucl', 25)).toMatchObject({ route: 'eliminated', status: 'eliminated' });
-    expect(getLeaguePhaseQualification('ucl', 36)).toMatchObject({ route: 'eliminated', status: 'eliminated' });
+    expect(getLeaguePhaseQualification('ucl', 1)).toMatchObject({ route:'direct', roundIndex:2, status:'active' });
+    expect(getLeaguePhaseQualification('ucl', 8)).toMatchObject({ route:'direct', roundIndex:2, status:'active' });
+    expect(getLeaguePhaseQualification('ucl', 9)).toMatchObject({ route:'playoff', roundIndex:0, status:'active' });
+    expect(getLeaguePhaseQualification('ucl', 24)).toMatchObject({ route:'playoff', roundIndex:0, status:'active' });
+    expect(getLeaguePhaseQualification('ucl', 25)).toMatchObject({ route:'eliminated', status:'eliminated' });
+    expect(getLeaguePhaseQualification('ucl', 36)).toMatchObject({ route:'eliminated', status:'eliminated' });
   });
 
   it('turns UEFA league-phase rank into the correct return-leg venue advantage', () => {
@@ -70,6 +72,38 @@ describe('P0 competition rules', () => {
       .toEqual({ seeded:null, secondLegHome:null });
     expect(getUefaKnockoutSeeding('ucl', 1, 'Final'))
       .toEqual({ seeded:null, secondLegHome:null });
+  });
+
+  it('encodes the official knockout play-off pairing bands', () => {
+    expect(getUefaKnockoutOpponentSeeds('ucl', 9, 'Knockout Play-off (Leg 1)')).toEqual([23, 24]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 10, 'Knockout Play-off (Leg 2)')).toEqual([23, 24]);
+    expect(getUefaKnockoutOpponentSeeds('uel', 12, 'Knockout Play-off (Leg 1)')).toEqual([21, 22]);
+    expect(getUefaKnockoutOpponentSeeds('uecl', 14, 'Knockout Play-off (Leg 1)')).toEqual([19, 20]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 16, 'Knockout Play-off (Leg 1)')).toEqual([17, 18]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 18, 'Knockout Play-off (Leg 1)')).toEqual([15, 16]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 20, 'Knockout Play-off (Leg 1)')).toEqual([13, 14]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 22, 'Knockout Play-off (Leg 1)')).toEqual([11, 12]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 24, 'Knockout Play-off (Leg 1)')).toEqual([9, 10]);
+  });
+
+  it('encodes the round-of-16 bracket paths from league-phase ranking', () => {
+    expect(getUefaKnockoutOpponentSeeds('ucl', 1, 'R16 (Leg 1)')).toEqual([15, 16, 17, 18]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 3, 'R16 (Leg 1)')).toEqual([13, 14, 19, 20]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 5, 'R16 (Leg 1)')).toEqual([11, 12, 21, 22]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 7, 'R16 (Leg 1)')).toEqual([9, 10, 23, 24]);
+    expect(getUefaKnockoutOpponentSeeds('ucl', 25, 'R16 (Leg 1)')).toEqual([]);
+  });
+
+  it('builds exact home/away league-phase counts without a fixed cadence', () => {
+    const ucl = buildLeaguePhaseVenuePlan('ucl', () => 0.25);
+    const uecl = buildLeaguePhaseVenuePlan('uecl', () => 0.75);
+
+    expect(ucl).toHaveLength(8);
+    expect(ucl.filter(Boolean)).toHaveLength(4);
+    expect(ucl.filter(value => !value)).toHaveLength(4);
+    expect(uecl).toHaveLength(6);
+    expect(uecl.filter(Boolean)).toHaveLength(3);
+    expect(uecl.filter(value => !value)).toHaveLength(3);
   });
 
   it('recognises configured domestic and European two-legged rounds', () => {
