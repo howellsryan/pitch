@@ -5,6 +5,7 @@ import {
   simulateEuropeanLeaguePhaseMatchday,
   simulateUCLMatchday,
 } from './cups.js';
+import { buildPendingEvents } from './gameweek.js';
 
 describe('P0 competition integration contract', () => {
   it('enters Championship clubs into the FA Cup third round', () => {
@@ -42,5 +43,48 @@ describe('P0 competition integration contract', () => {
     expect(result).toHaveProperty('stats');
     expect(result).toHaveProperty('events');
     expect(result).toHaveProperty('fitnessUpdates');
+  });
+
+  it('uses league-phase seeding when knockout events choose first-leg venues', () => {
+    const teams = [{ id:'arsenal', name:'Arsenal', league:'Premier League' }];
+    const eventFor = (position, roundIndex, gw) => buildPendingEvents(gw, 'arsenal', [], {
+      ucl: {
+        status:'active',
+        leaguePhaseComplete:true,
+        roundIndex,
+        leaguePhase:{ position },
+        results:[],
+      },
+    }, teams).find(event => event.cupId === 'ucl');
+
+    expect(eventFor(9, 0, 23)).toMatchObject({ roundName:'Knockout Play-off (Leg 1)', userIsHome:false });
+    expect(eventFor(17, 0, 23)).toMatchObject({ roundName:'Knockout Play-off (Leg 1)', userIsHome:true });
+    expect(eventFor(1, 2, 26)).toMatchObject({ roundName:'R16 (Leg 1)', userIsHome:false });
+    expect(eventFor(17, 2, 26)).toMatchObject({ roundName:'R16 (Leg 1)', userIsHome:true });
+  });
+
+  it('keeps the same UEFA opponent and reverses venue for leg two', () => {
+    const teams = [{ id:'arsenal', name:'Arsenal', league:'Premier League' }];
+    const [event] = buildPendingEvents(24, 'arsenal', [], {
+      ucl: {
+        status:'active',
+        leaguePhaseComplete:true,
+        roundIndex:1,
+        leaguePhase:{ position:9 },
+        results:[{
+          opponentId:'ucl_field_test',
+          opponentName:'Seed Test FC',
+          userIsHome:false,
+        }],
+      },
+    }, teams);
+
+    expect(event).toMatchObject({
+      cupId:'ucl',
+      roundName:'Knockout Play-off (Leg 2)',
+      opponentId:'ucl_field_test',
+      opponentName:'Seed Test FC',
+      userIsHome:true,
+    });
   });
 });
