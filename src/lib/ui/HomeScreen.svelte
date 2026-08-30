@@ -14,6 +14,7 @@
   import Button from './kit/Button.svelte';
   import Crest from './kit/Crest.svelte';
   import FormGuide from './kit/FormGuide.svelte';
+  import Icon from './kit/Icon.svelte';
   import Money from './kit/Money.svelte';
 
   let loaded = $state(false);
@@ -118,7 +119,7 @@
       if (deals.length) {
         const dealList = deals.slice(0, 5).map((deal) => `${deal.playerName}: ${deal.fromTeamName} → ${deal.toTeamName}`).join('\n');
         const extra = deals.length > 5 ? `\n…and ${deals.length - 5} more` : '';
-        await addNewsItem(_makeNewsItem('transfer_in', `Deadline Day — Hour ${newUsed}`, `${deals.length} deal${deals.length > 1 ? 's' : ''} completed:\n${dealList}${extra}`, { gw: s.currentGameweek, date: s.currentDate, icon: '↔' }));
+        await addNewsItem(_makeNewsItem('transfer_in', `Deadline Day — Hour ${newUsed}`, `${deals.length} deal${deals.length > 1 ? 's' : ''} completed:\n${dealList}${extra}`, { gw: s.currentGameweek, date: s.currentDate, icon: 'transfer' }));
       }
       if (newUsed >= 10) await closeWindow(ddInfo);
       else screenTicks.home++;
@@ -174,7 +175,7 @@
       if (!s[notifyKey]) {
         await patchSave({ [notifyKey]: true, deadlineHoursUsed: s.deadlineHoursUsed || 0 });
         toast(`Transfer Deadline Day! The ${windowLabel} window closes after 10 hours.`, 'info', 7000);
-        await addNewsItem(_makeNewsItem('transfer_in', `${windowLabel} Transfer Deadline Day`, `The ${windowLabel} transfer window is about to close. Simulate up to 10 last-minute hours before it shuts.`, { gw: s.currentGameweek, date: s.currentDate, icon: '↔' }));
+        await addNewsItem(_makeNewsItem('transfer_in', `${windowLabel} Transfer Deadline Day`, `The ${windowLabel} transfer window is about to close. Simulate up to 10 last-minute hours before it shuts.`, { gw: s.currentGameweek, date: s.currentDate, icon: 'transfer' }));
       }
     }
   }
@@ -255,7 +256,7 @@
       {#if waitingItems.length}
         <div class="waiting-list">
           {#each waitingItems as item (item.id)}
-            <button onclick={() => openWaiting(item)}><span class="waiting-icon {item.tone}">{#if item.tone === 'good'}↔{:else if item.tone === 'warn'}!{:else}●{/if}</span><strong>{item.label}</strong><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></button>
+            <button onclick={() => openWaiting(item)}><span class="waiting-icon {item.tone}"><Icon name={item.tone === 'good' ? 'transfer' : item.tone === 'warn' ? 'warning' : 'info'} size={16} /></span><strong>{item.label}</strong><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></button>
           {/each}
         </div>
       {:else}<p class="all-clear">Nothing needs a decision. Your next match is ready.</p>{/if}
