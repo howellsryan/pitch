@@ -29,104 +29,54 @@
 @import "tailwindcss";
 
 @theme static {
-  /* ── Ground ──────────────────────────────────────────────────────────
-     Green-black, not neutral-black: this is a pitch at night. */
   --color-ground:  #070D0A;
   --color-surface: #0E1712;
   --color-raised:  #16211B;
   --color-raised-2:#1E2B24;
   --color-line:    rgba(236, 240, 234, 0.09);
-
-  /* ── Type ────────────────────────────────────────────────────────────
-     Chalk-white, warm rather than blue, so it sits on the green ground. */
   --color-tx:      #ECF0EA;
   --color-tx-2:    #93A398;
   --color-tx-3:    #64756A;
-
-  /* ── Identity ────────────────────────────────────────────────────────
-     Club colour carries identity — crest, your-row markers, team accents —
-     and nothing else. Set at runtime from the club's primaryColor via
-     src/lib/theme.mjs, which walks it in oklch until text on it clears AA.
-     The value here is only the fallback before a save loads. */
   --color-club:    #EF0107;
   --color-on-club: #FFFFFF;
-
-  /* ── Action ──────────────────────────────────────────────────────────
-     One accent carries primary actions app-wide. Broadcast yellow: it reads
-     as floodlight and TV graphics, it is unmistakably not a club colour, and
-     near-black on it clears AA comfortably. Never use the club colour to
-     mean "press this", and never use this to mean "good". */
   --color-accent:    #FFE14D;
   --color-on-accent: #070D0A;
-
-  /* ── Semantic ────────────────────────────────────────────────────────
-     Four distinct hues, one meaning each. Green means live, positive, fit —
-     and nothing else; that reservation is the reason the pre-redesign
-     palette had nothing left to mean "good". Warn is orange, deliberately
-     far enough from --color-accent's yellow to survive a glance. */
   --color-live:    #34E27A;
   --color-warn:    #FF8A3D;
   --color-bad:     #FF5A6E;
-
-  /* ── Pitch surfaces ──────────────────────────────────────────────────
-     Shared by Chalk's XI pitch and Broadcast's perspective pitch so the two
-     cannot drift apart, the same way SLOT_LAYOUT is shared. */
   --color-turf:    #10361F;
   --color-turf-2:  #0D2C1A;
   --color-chalk:   rgba(236, 240, 234, 0.26);
-
-  /* ── Type stacks ─────────────────────────────────────────────────────
-     Three families, the stated maximum. Display is condensed and sporty for
-     scores, big numerals and screen titles; body is a crisp grotesk that
-     holds up at 11–13px; mono is for anything tabular, where column
-     alignment matters more than character. Fallbacks are metric-close
-     because PNG/PDF export and first paint both show them. */
   --font-display:  "Big Shoulders Display", "Arial Narrow", sans-serif;
   --font-body:     "Familjen Grotesk", system-ui, sans-serif;
   --font-mono:     "IBM Plex Mono", ui-monospace, monospace;
-
-  /* ── Motion ──────────────────────────────────────────────────────────
-     Every animation in the app opts into one of these, so reduced-motion is
-     one guard rather than a per-component decision. See the block below. */
   --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
   --dur-fast:   140ms;
   --dur-base:   240ms;
   --dur-slow:   420ms;
   --dur-beat:   620ms;
-
-  /* ── Radius ──────────────────────────────────────────────────────────
-     Broadcast graphics are near-square; sheets and cards are softer. */
   --radius-bug:   4px;
   --radius-card:  12px;
   --radius-sheet: 20px;
 }
 
 /**
- * P3 player detail is intentionally an internal scroller. A content-sized
- * fixed sheet can grow above the viewport on shorter desktop windows even
- * when max-height is present, because the generic sheet is bottom-anchored.
- * Anchor this one to an explicit 88dvh viewport band at every breakpoint so
- * its decision controls remain reachable without document overflow.
+ * P3 player detail is intentionally an internal scroller. Give it an explicit
+ * border-box viewport height instead of relying on intrinsic content sizing;
+ * this keeps the entire fixed sheet inside both mobile and 1280x800 viewports.
  */
 #screen-squad .player-sheet {
-  top: 12dvh;
+  top: auto;
   bottom: 0;
-  max-height: none;
+  height: 88dvh;
+  max-height: 88dvh;
   min-height: 0;
+  box-sizing: border-box;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-/**
- * Reduced motion, once, for everything.
- *
- * The rule that matters: reduced motion renders the FINAL state, never
- * nothing. A pass animation that never draws leaves an empty pitch and the
- * player loses the information, which is worse than the motion. So durations
- * collapse to instant rather than animations being removed — anything that
- * genuinely cannot be shown statically has to say so in its own component.
- */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-fast: 1ms;
@@ -134,12 +84,6 @@
     --dur-slow: 1ms;
     --dur-beat: 1ms;
   }
-  /* `[data-motion="essential"]` opts an element out. It exists for exactly one
-     class of animation: a looping indicator whose motion IS the information —
-     the loading spinner. Collapsing that to a single 1ms iteration freezes it
-     mid-rotation for the length of a whole simulation, and the app reads as
-     hung rather than as respectful. Everything else collapses to its final
-     state, which is the rule this block is here to enforce. */
   *:not([data-motion="essential"]),
   *:not([data-motion="essential"])::before,
   *:not([data-motion="essential"])::after {
