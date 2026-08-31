@@ -14,6 +14,7 @@ import {
   resetSeasonPlayerStats,
   worldPopulationReport,
 } from './world.js';
+import { buildWorldCompetitionState } from './worldCompetitions.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -352,6 +353,7 @@ export async function processEndOfSeason() {
     season:nextSeason,
     userLeague:userNewLeague,
     cups:newCups,
+    worldCompetitions:buildWorldCompetitionState(allTeamsRefreshed, nextSeason, save.userTeamId, 1),
     lineup:save.lineup ?? null,
     formation:save.formation ?? '4-3-3',
     youthCohort:newYouthCohort,
