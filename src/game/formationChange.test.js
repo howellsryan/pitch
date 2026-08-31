@@ -18,7 +18,12 @@ function squad(tid) {
 function makeLiveState() {
   const home = { id: 'h', name: 'Home', crest: 'H', reputation: 80 };
   const away = { id: 'a', name: 'Away', crest: 'A', reputation: 75 };
-  return buildLiveMatchState(home, away, squad('h'), squad('a'), '4-3-3', '4-3-3');
+  // Explicit balanced overrides isolate the command contract from P2's AI
+  // pre-match identity selection. Separate P2 tests cover AI starting styles.
+  return buildLiveMatchState(
+    home, away, squad('h'), squad('a'),
+    '4-3-3', '4-3-3', null, null, 'balanced', 'balanced',
+  );
 }
 
 describe('applyFormationChange', () => {
