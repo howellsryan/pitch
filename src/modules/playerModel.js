@@ -1,3 +1,13 @@
+import {
+  assignDefaultTraits,
+  normalizeConfiguredTraits,
+  settlePositionConversion,
+  slotSuitability,
+  traitAttributeModifier,
+} from './playerPathways.js';
+import { assignGrowthProfile, settlePlayerDevelopment } from './playerDevelopment.js';
+import { settleRehabilitation } from './playerRehabilitation.js';
+
 /*
  * modules/playerModel.js — canonical P3 player-model contract and selectors.
  *
@@ -7,10 +17,10 @@
  * competing overall rating.
  */
 
-export const PLAYER_MODEL_VERSION = 3;
+export const PLAYER_MODEL_VERSION = 4;
 export const DEFAULT_INDIVIDUAL_MORALE = 50;
 export const DEFAULT_SHARPNESS = 50;
-export const MAX_PLAYER_TRAITS = 8;
+export const MAX_PLAYER_TRAITS = 3;
 export const PLAYING_TIME_WINDOW_WEEKS = 5;
 
 export const EFFECTIVE_LEVEL_LIMITS = Object.freeze({
@@ -20,6 +30,7 @@ export const EFFECTIVE_LEVEL_LIMITS = Object.freeze({
   sharpnessSwing:3,
   fitnessPenalty:6,
   rehabilitationPenalty:5,
+  traitSwing:2.5,
   maxUplift:6,
   maxDrop:15,
 });
@@ -143,19 +154,10 @@ export function normalizePositionSuitability(positionSuitability, primaryPositio
   return normalized;
 }
 
-export function normalizePlayerTraits(traits) {
-  if (!Array.isArray(traits)) return [];
-  const normalized = [];
-  const seen = new Set();
-  for (const value of traits) {
-    if (typeof value !== 'string') continue;
-    const trait = value.trim();
-    if (!trait || seen.has(trait)) continue;
-    normalized.push(trait);
-    seen.add(trait);
-    if (normalized.length >= MAX_PLAYER_TRAITS) break;
-  }
-  return normalized;
+export function normalizePlayerTraits(traits, player = null) {
+  const normalized = normalizeConfiguredTraits(traits);
+  if (normalized.length || !player) return normalized.slice(0, MAX_PLAYER_TRAITS);
+  return assignDefaultTraits(player).slice(0, MAX_PLAYER_TRAITS);
 }
 
 export function normalizeSquadRole(role) {
@@ -201,7 +203,7 @@ export function normalizePlayingTimeAgreement(agreement, role, teamId) {
     : 'settling';
   return {
     version:1,
-    scope:agreement.scope === 'managed' ? 'managed' : 'managed',
+    scope:'managed',
     teamId,
     role:normalizedRole,
     status,
@@ -220,9 +222,9 @@ function inferredProspectRole(player) {
 
 /**
  * Additive P3 row normaliser. It owns only P3's player-state fields and spreads
- * every legacy/career field through unchanged. The settlement snapshots are
- * initialised from the current cumulative stats, so upgrading an old career
- * never mistakes the whole season for one week's participation.
+ * every legacy/career field through unchanged. Settlement snapshots initialise
+ * from cumulative stats so upgrading an old career never treats the season so
+ * far as one week's activity.
  */
 export function normalizePlayerModel(player) {
   if (!player) return player;
@@ -235,18 +237,27 @@ export function normalizePlayerModel(player) {
     squadRole,
     squadRoleTeamId,
   );
+  const developmentAppearances = nonNegativeNumber(player.developmentAppearances, nonNegativeNumber(player.appearances));
+  const developmentMinutes = nonNegativeNumber(player.developmentMinutes, nonNegativeNumber(player.minutes));
   return {
     ...player,
     positionSuitability:normalizePositionSuitability(player.positionSuitability, player.position),
-    traits:normalizePlayerTraits(player.traits),
+    positionConversion:player.positionConversion ?? null,
+    traits:normalizePlayerTraits(player.traits, player),
     individualMorale:clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE),
     sharpness:clampState(player.sharpness, DEFAULT_SHARPNESS),
     squadRole,
     squadRoleSource:squadRole ? (player.squadRoleSource === 'manager' ? 'manager' : 'auto') : null,
     squadRoleTeamId,
     playingTimeAgreement,
-    growthProfile:player.growthProfile ?? null,
+    growthProfile:assignGrowthProfile(player),
+    potentialKnowledge:round2(clamp(Number(player.potentialKnowledge ?? .35), 0, 1)),
+    developmentProgress:nonNegativeNumber(player.developmentProgress, nonNegativeNumber(player.growthPoints)),
+    developmentAppearances,
+    developmentMinutes,
+    developmentSettledKey:settledWeekKey(player.developmentSettledKey),
     rehabilitation:player.rehabilitation ?? null,
+    rehabilitationMinutes:nonNegativeNumber(player.rehabilitationMinutes, nonNegativeNumber(player.minutes)),
     personalStateAppearances:nonNegativeNumber(player.personalStateAppearances, nonNegativeNumber(player.appearances)),
     personalStateMinutes:nonNegativeNumber(player.personalStateMinutes, nonNegativeNumber(player.minutes)),
     personalStateSettledKey:settledWeekKey(player.personalStateSettledKey),
@@ -258,6 +269,7 @@ export function playerModelNeedsNormalization(player) {
   if (!player) return false;
   const normalized = normalizePlayerModel(player);
   return !sameObject(player.positionSuitability, normalized.positionSuitability)
+    || !sameJson(player.positionConversion, normalized.positionConversion)
     || !sameArray(player.traits, normalized.traits)
     || player.individualMorale !== normalized.individualMorale
     || player.sharpness !== normalized.sharpness
@@ -265,24 +277,22 @@ export function playerModelNeedsNormalization(player) {
     || player.squadRoleSource !== normalized.squadRoleSource
     || player.squadRoleTeamId !== normalized.squadRoleTeamId
     || !sameJson(player.playingTimeAgreement, normalized.playingTimeAgreement)
-    || player.growthProfile !== normalized.growthProfile
-    || player.rehabilitation !== normalized.rehabilitation
+    || !sameJson(player.growthProfile, normalized.growthProfile)
+    || player.potentialKnowledge !== normalized.potentialKnowledge
+    || player.developmentProgress !== normalized.developmentProgress
+    || player.developmentAppearances !== normalized.developmentAppearances
+    || player.developmentMinutes !== normalized.developmentMinutes
+    || player.developmentSettledKey !== normalized.developmentSettledKey
+    || !sameJson(player.rehabilitation, normalized.rehabilitation)
+    || player.rehabilitationMinutes !== normalized.rehabilitationMinutes
     || player.personalStateAppearances !== normalized.personalStateAppearances
     || player.personalStateMinutes !== normalized.personalStateMinutes
     || player.personalStateSettledKey !== normalized.personalStateSettledKey;
 }
 
-/**
- * Missing secondary-position suitability stays compatibility-neutral until WP4
- * explicitly teaches the player a secondary position. Once an entry exists,
- * its cost is deterministic and bounded.
- */
 export function positionSuitabilityFor(player, position = player?.position) {
-  if (!player || !position || position === player.position) return 1;
-  const raw = player.positionSuitability?.[position];
-  if (raw == null) return 1;
-  const suitability = Number(raw);
-  return Number.isFinite(suitability) ? clamp(suitability, 0, 1) : 1;
+  if (!player || !position) return 0;
+  return slotSuitability(player, position);
 }
 
 export function rehabilitationReadiness(player) {
@@ -312,6 +322,7 @@ export function effectiveLevelBreakdown(player, { position = player?.position } 
     sharpness:centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS),
     fitness:penaltyFromReadiness(player.fitness, EFFECTIVE_LEVEL_LIMITS.fitnessPenalty),
     rehabilitation:penaltyFromReadiness(rehabilitationReadiness(player), EFFECTIVE_LEVEL_LIMITS.rehabilitationPenalty),
+    traits:round2(clamp(traitAttributeModifier(player, baselineAttribute(position)), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing)),
   };
   const rawModifier = Object.values(contributions).reduce((sum, value) => sum + value, 0);
   const totalModifier = round2(clamp(
@@ -335,7 +346,7 @@ export function currentEffectiveLevel(player, options = {}) {
   return effectiveLevelBreakdown(player, options)?.effectiveLevel;
 }
 
-function effectiveNonPositionModifier(player) {
+function effectiveStateModifier(player) {
   const rawModifier = centeredContribution(player.form, EFFECTIVE_LEVEL_LIMITS.formSwing)
     + centeredContribution(player.individualMorale, EFFECTIVE_LEVEL_LIMITS.moraleSwing, DEFAULT_INDIVIDUAL_MORALE)
     + centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS)
@@ -344,17 +355,13 @@ function effectiveNonPositionModifier(player) {
   return round2(clamp(rawModifier, -EFFECTIVE_LEVEL_LIMITS.maxDrop, EFFECTIVE_LEVEL_LIMITS.maxUplift));
 }
 
-/**
- * Apply the same personal-state delta to a concrete simulation attribute.
- * This hot path avoids allocating a full explainability breakdown for every
- * ATT/MID/DEF lookup while remaining mathematically identical for the player's
- * primary-position state modifier.
- */
+/** Hot simulation path: no explainability object allocation. */
 export function effectiveAttribute(player, attribute) {
   if (!player) return undefined;
   const raw = Number(player[attribute]);
   if (!Number.isFinite(raw)) return undefined;
-  return round1(clamp(raw + effectiveNonPositionModifier(player), 1, 99));
+  const trait = clamp(traitAttributeModifier(player, attribute), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing);
+  return round1(clamp(raw + effectiveStateModifier(player) + trait, 1, 99));
 }
 
 export function personalStateWeekKey(season, gameweek) {
@@ -386,18 +393,10 @@ function weeklyParticipation(player) {
   };
 }
 
-/**
- * Settle morale/sharpness once at a completed world-gameweek boundary. The
- * cumulative appearance/minute snapshots provide canonical participation
- * evidence across league and cup projections without storing another result
- * ledger. Rows already settled for this season-scoped week key are returned by
- * identity, so a gameweek number repeating next season cannot suppress work.
- */
 export function settlePlayerPersonalState(player, gameweek, season = null) {
   if (!player) return player;
   const weekKey = personalStateWeekKey(season, gameweek);
-  if (!weekKey) return player;
-  if (player.personalStateSettledKey === weekKey) return player;
+  if (!weekKey || player.personalStateSettledKey === weekKey) return player;
 
   const participation = weeklyParticipation(player);
   const participated = participation.appearanceDelta > 0 || participation.minuteDelta > 0;
@@ -409,7 +408,6 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
   if (participated) {
     const exposureGain = clamp(Math.round(2 + Math.min(6, participation.minuteDelta / 30)), 2, 8);
     nextSharpness = clamp(currentSharpness + exposureGain, 0, 100);
-
     const rating = Number(player.lastMatchRating);
     let moraleDelta = Number.isFinite(rating)
       ? rating >= 8 ? 4
@@ -451,10 +449,6 @@ function defaultSquadRole(player, rank, squadSize, currentYear) {
   else if (rank < 8) role = 'important';
   else if (rank < 15) role = 'rotation';
   else role = 'squad';
-
-  // Contract/loan context only nudges initial expectations; it never changes
-  // ability. A fresh loan should expect meaningful minutes, while a player
-  // effectively at contract end does not receive a new Crucial promise by default.
   if ((player?.onLoan || player?.loanedFrom) && ['squad', 'prospect'].includes(role)) role = 'rotation';
   if (Number.isFinite(currentYear) && Number(player?.contractExpiry) <= currentYear && role === 'crucial') role = 'important';
   return role;
@@ -482,11 +476,6 @@ function inferManagedTeamId(players) {
   return [...counts.entries()].sort((a,b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0]?.[0] ?? null;
 }
 
-/**
- * Initialise/remap team-relative roles. Existing roles are preserved while the
- * player remains at the same club; transfers invalidate the old ownership key.
- * Rolling promise agreements are only created for the managed club.
- */
 export function assignDefaultSquadRoles(players, { currentYear = null, managedTeamId = null } = {}) {
   const result = [...(players ?? [])];
   const byTeam = new Map();
@@ -505,9 +494,7 @@ export function assignDefaultSquadRoles(players, { currentYear = null, managedTe
     ranked.forEach((entry, rank) => {
       const original = entry.player;
       const sameClubRole = normalizeSquadRole(original.squadRole) && original.squadRoleTeamId === teamId;
-      const role = sameClubRole
-        ? original.squadRole
-        : defaultSquadRole(original, rank, ranked.length, currentYear);
+      const role = sameClubRole ? original.squadRole : defaultSquadRole(original, rank, ranked.length, currentYear);
       const source = sameClubRole ? (original.squadRoleSource === 'manager' ? 'manager' : 'auto') : 'auto';
       const shouldHaveAgreement = teamId === managedTeamId;
       const currentAgreement = sameClubRole
@@ -577,9 +564,7 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
   );
   const weekKey = personalStateWeekKey(season, gameweek);
   if (!agreement || !weekKey || agreement.lastEvaluatedKey === weekKey) return player;
-  if (agreement.teamId !== player.teamId) {
-    return { ...player, playingTimeAgreement:null };
-  }
+  if (agreement.teamId !== player.teamId) return { ...player, playingTimeAgreement:null };
 
   const participation = weeklyParticipation(player);
   const history = [
@@ -609,9 +594,9 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
 }
 
 /**
- * Build the bounded changed-row set for one world week. Managed-club promise
- * evidence shares the same participation snapshots as morale/sharpness; AI
- * players do not accumulate weekly promise history.
+ * Build the bounded changed-row set for one world week. This is the canonical
+ * P3 weekly lifecycle: promises/personal state, development/conversion, then
+ * rehabilitation. Every sub-system owns a season-scoped settled key.
  */
 export function buildPersonalStatePatches(players, gameweek, season = null) {
   const managedTeamId = inferManagedTeamId(players);
@@ -627,6 +612,9 @@ export function buildPersonalStatePatches(players, gameweek, season = null) {
       settled = settlePlayingTimeAgreement(settled, gameweek, season);
     }
     settled = settlePlayerPersonalState(settled, gameweek, season);
+    settled = settlePlayerDevelopment(settled, gameweek, season);
+    settled = settlePositionConversion(settled, gameweek, season);
+    settled = settleRehabilitation(settled, gameweek, season);
     if (settled !== original) patches.push(settled);
   }
   return patches;
