@@ -244,8 +244,8 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
   const away = userIsHome ? opponent : userTeam;
   const hPl = userIsHome ? userPlayers : oppPlayers;
   const aPl = userIsHome ? oppPlayers : userPlayers;
-  const hMentality = userIsHome ? (event?.userMentality ?? 'balanced') : 'balanced';
-  const aMentality = userIsHome ? 'balanced' : (event?.userMentality ?? 'balanced');
+  const hMentality = userIsHome ? (event?.userMentality ?? 'balanced') : undefined;
+  const aMentality = userIsHome ? undefined : (event?.userMentality ?? 'balanced');
   const result = simulateMatch(home, away, hPl, aPl, undefined, undefined, undefined, undefined, hMentality, aMentality);
   let userGoals = userIsHome ? result.homeGoals : result.awayGoals;
   let oppGoals = userIsHome ? result.awayGoals : result.homeGoals;
@@ -288,8 +288,8 @@ export function simulateEuropeanLeaguePhaseMatchday(cupId, userTeam, userPlayers
   const away = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation ?? '⚽' } : userTeam;
   const hPl = userIsHome ? userPlayers : oppPlayers;
   const aPl = userIsHome ? oppPlayers : userPlayers;
-  const hMentality = userIsHome ? (userMentality ?? 'balanced') : 'balanced';
-  const aMentality = userIsHome ? 'balanced' : (userMentality ?? 'balanced');
+  const hMentality = userIsHome ? (userMentality ?? 'balanced') : undefined;
+  const aMentality = userIsHome ? undefined : (userMentality ?? 'balanced');
   const r = simulateMatch(home, away, hPl, aPl, undefined, undefined, undefined, undefined, hMentality, aMentality);
   const userG = userIsHome ? r.homeGoals : r.awayGoals;
   const oppG = userIsHome ? r.awayGoals : r.homeGoals;
@@ -305,14 +305,14 @@ export function simulateEuropeanLeaguePhaseMatchday(cupId, userTeam, userPlayers
     oppGoals: oppG,
     userIsHome,
     points,
-    gd: userG - oppG,
-    result: userG > oppG ? 'W' : userG === oppG ? 'D' : 'L',
-    homeScorers: r.homeScorers,
-    awayScorers: r.awayScorers,
-    scorers: userIsHome ? r.homeScorers : r.awayScorers,
-    stats: r.stats,
-    events: r.events ?? [],
-    fitnessUpdates: r.fitnessUpdates ?? [],
+    gd:userG - oppG,
+    result:userG > oppG ? 'W' : userG === oppG ? 'D' : 'L',
+    homeScorers:r.homeScorers,
+    awayScorers:r.awayScorers,
+    scorers:userIsHome ? r.homeScorers : r.awayScorers,
+    stats:r.stats,
+    events:r.events ?? [],
+    fitnessUpdates:r.fitnessUpdates ?? [],
   };
 }
 
