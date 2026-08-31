@@ -1,6 +1,6 @@
-import { getAllStandings, getStanding, getTeam, putStanding, putStandingsBulk, putTeam } from './db.js';
+import { getAllStandings, getSave, getStanding, getTeam, putStanding, putStandingsBulk, putTeam } from './db.js';
 
-/** modules/standings.js — sortTable, applyResult, recomputePositions, blankStandingRow, team morale */
+/** modules/standings.js — league-aware tables, result projection and team morale */
 
 // ─── Sort helpers ────────────────────────────────────────────
 export function sortTable(rows) {
@@ -18,7 +18,7 @@ export async function applyResult(result) {
     getStanding(result.homeTeamId),
     getStanding(result.awayTeamId),
   ]);
-  if (!hRow || !aRow) return; // fixture not in this table (cup)
+  if (!hRow || !aRow) return; // fixture not in a persisted league table (cup)
 
   mutateRow(hRow, result.homeGoals, result.awayGoals);
   mutateRow(aRow, result.awayGoals, result.homeGoals);
@@ -35,24 +35,48 @@ export function mutateRow(row, gf, ga) {
   else               { row.lost++;                   row.form = [...(row.form ?? []).slice(-4), 'L']; }
 }
 
-// ─── Recompute positions ─────────────────────────────────────
+function groupByLeague(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const league = row.league ?? 'Premier League';
+    if (!groups.has(league)) groups.set(league, []);
+    groups.get(league).push(row);
+  }
+  return groups;
+}
+
+// ─── Recompute positions independently for every world league ─────
 export async function recomputePositions() {
-  const rows   = await getAllStandings();
-  const sorted = sortTable(rows);
-  sorted.forEach((row, i) => { row.position = i + 1; });
-  await putStandingsBulk(sorted);
-  return sorted;
+  const rows = await getAllStandings();
+  const output = [];
+  for (const leagueRows of groupByLeague(rows).values()) {
+    const sorted = sortTable(leagueRows);
+    sorted.forEach((row, index) => { row.position = index + 1; });
+    output.push(...sorted);
+  }
+  await putStandingsBulk(output);
+  return output;
 }
 
 // ─── Public getters ──────────────────────────────────────────
-export async function getLeagueTable() {
+export async function getLeagueTable(leagueName = null) {
   const rows = await getAllStandings();
-  return sortTable(rows);
+  let league = leagueName;
+  if (!league) {
+    const save = await getSave();
+    league = save?.userLeague ?? null;
+  }
+  const filtered = league ? rows.filter(row => (row.league ?? league) === league) : rows;
+  return sortTable(filtered);
 }
 
 export async function getTableSliceAroundTeam(teamId, radius = 2) {
-  const table = await getLeagueTable();
-  const idx   = table.findIndex(r => r.teamId === teamId);
+  const rows = await getAllStandings();
+  const target = rows.find(row => row.teamId === teamId);
+  if (!target) return [];
+  const league = target.league ?? (await getSave())?.userLeague ?? 'Premier League';
+  const table = sortTable(rows.filter(row => (row.league ?? league) === league));
+  const idx = table.findIndex(row => row.teamId === teamId);
   if (idx === -1) return table;
   const from = Math.max(0, idx - radius);
   const to   = Math.min(table.length - 1, idx + radius);
@@ -64,16 +88,11 @@ export async function getTableSliceAroundTeam(teamId, radius = 2) {
 }
 
 // ─── Team morale ──────────────────────────────────────────────
-// Stored per team (not per player) — eased toward a target set by recent
-// form each gameweek, plus small one-off bumps from squad news (contract
-// renewals, players leaving). Read by potential.js's growth-point calc as
-// a small development-speed multiplier — a real, if modest, effect rather
-// than the purely cosmetic label this used to be on Home.
 export function moraleTargetFromForm(form) {
   const recent = (form ?? []).slice(-4);
   if (!recent.length) return 50;
   const pts = recent.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
-  return Math.round(20 + (pts / (recent.length * 3)) * 70); // 20 (all losses) - 90 (all wins)
+  return Math.round(20 + (pts / (recent.length * 3)) * 70);
 }
 
 export function easeMorale(current, target, rate = 0.3) {
@@ -87,7 +106,7 @@ export function bumpMorale(current, delta) {
 
 export function moraleDevMultiplier(morale) {
   const m = Math.max(0, Math.min(100, morale ?? 50));
-  return 0.85 + (m / 100) * 0.3; // 0.85x at 0 morale, 1.0x at 50, 1.15x at 100
+  return 0.85 + (m / 100) * 0.3;
 }
 
 export async function updateTeamMorale(teamId) {
@@ -105,9 +124,9 @@ export function blankStandingRow(team) {
     teamName:       team.name,
     shortName:      team.shortName,
     crest:          team.crest,
+    league:         team.league ?? 'Premier League',
     played:         0, won: 0, drawn: 0, lost: 0,
     goalsFor:       0, goalsAgainst: 0, goalDifference: 0,
     points:         0, position: 0, form: [],
   };
 }
-
