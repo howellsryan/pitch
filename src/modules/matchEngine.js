@@ -62,11 +62,11 @@ export const FORMATIONS = {
   '5-2-3':   { GK:1, CB:3, RB:1, LB:1, CM:2, RW:1, LW:1, ST:1 },
 };
 
-function randomValue(rng) { return typeof rng === 'function' ? rng() : Math.random(); }
+function _matchRandomValue(rng) { return typeof rng === 'function' ? rng() : Math.random(); }
 
 export function pickAIFormation(rng = Math.random) {
   const keys = Object.keys(FORMATIONS);
-  return keys[Math.floor(randomValue(rng) * keys.length)];
+  return keys[Math.floor(_matchRandomValue(rng) * keys.length)];
 }
 
 export function selectEleven(players, formation = '4-3-3', lineup = null) {
@@ -189,7 +189,7 @@ export function pickScorer(eleven, rng = Math.random) {
   });
   const total = weights.reduce((a,b) => a + b, 0);
   if (!total) return eleven.find(p => p.position !== 'GK') ?? eleven[0];
-  let roll = randomValue(rng) * total;
+  let roll = _matchRandomValue(rng) * total;
   for (let i = 0; i < eleven.length; i++) {
     roll -= weights[i];
     if (roll <= 0) return eleven[i];
@@ -208,7 +208,7 @@ export function pickAssister(eleven, scorerId, rng = Math.random) {
   });
   const total = weights.reduce((a,b) => a + b, 0);
   if (!total) return cands[0];
-  let roll = randomValue(rng) * total;
+  let roll = _matchRandomValue(rng) * total;
   for (let i = 0; i < cands.length; i++) {
     roll -= weights[i];
     if (roll <= 0) return cands[i];
@@ -444,11 +444,11 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     const defMods = isHome ? aMods : hMods;
 
     for (const p of attActive) {
-      const next = (attFitMap.get(p.id) ?? 90) - .18 * ageDrain(p.age ?? 24) * attMods.fitnessDrainMult;
+      const next = (attFitMap.get(p.id) ?? 90) - 0.18 * ageDrain(p.age ?? 24) * attMods.fitnessDrainMult;
       attFitMap.set(p.id, Math.max(0, next));
     }
     for (const p of defActive) {
-      const next = (defFitMap.get(p.id) ?? 90) - .12 * ageDrain(p.age ?? 24) * defMods.fitnessDrainMult;
+      const next = (defFitMap.get(p.id) ?? 90) - 0.12 * ageDrain(p.age ?? 24) * defMods.fitnessDrainMult;
       defFitMap.set(p.id, Math.max(0, next));
     }
 
@@ -555,7 +555,12 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
   const controlled = initial.homePlanSource === 'user' && initial.awayPlanSource !== 'user' ? homeTeam.id
     : initial.awayPlanSource === 'user' && initial.homePlanSource !== 'user' ? awayTeam.id : null;
   const { segEvents, updatedState } = simulateMatchSegment(homeTeam, awayTeam, initial, 1, MATCH_PHASES, controlled);
-  return finaliseLiveMatch(homeTeam, awayTeam, updatedState, segEvents);
+  const result = finaliseLiveMatch(homeTeam, awayTeam, updatedState, segEvents);
+  return {
+    ...result,
+    homeMentality:initial.homeMentality,
+    awayMentality:initial.awayMentality,
+  };
 }
 
 export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
@@ -596,10 +601,10 @@ export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMu
   const aAttack = aStr?.attack ?? 65;
   const hSM = hShotsMult ?? 1;
   const aSM = aShotsMult ?? 1;
-  const hShotsTotal = Math.max(result.homeGoals, Math.round((hPhases || 60) / 12 * (hAttack / 75) * hSM + randomValue(rng) * 2));
-  const aShotsTotal = Math.max(result.awayGoals, Math.round((aPhases || 60) / 12 * (aAttack / 75) * aSM + randomValue(rng) * 2));
-  const hOnTarget = Math.max(result.homeGoals, Math.min(hShotsTotal, Math.round(hShotsTotal * (.33 + randomValue(rng) * .15))));
-  const aOnTarget = Math.max(result.awayGoals, Math.min(aShotsTotal, Math.round(aShotsTotal * (.33 + randomValue(rng) * .15))));
+  const hShotsTotal = Math.max(result.homeGoals, Math.round((hPhases || 60) / 12 * (hAttack / 75) * hSM + _matchRandomValue(rng) * 2));
+  const aShotsTotal = Math.max(result.awayGoals, Math.round((aPhases || 60) / 12 * (aAttack / 75) * aSM + _matchRandomValue(rng) * 2));
+  const hOnTarget = Math.max(result.homeGoals, Math.min(hShotsTotal, Math.round(hShotsTotal * (.33 + _matchRandomValue(rng) * .15))));
+  const aOnTarget = Math.max(result.awayGoals, Math.min(aShotsTotal, Math.round(aShotsTotal * (.33 + _matchRandomValue(rng) * .15))));
   const hGK = aStr?.goalkeeping ?? 75;
   const aGK = hStr?.goalkeeping ?? 75;
   const hXG = parseFloat((hOnTarget * (.28 + (hAttack / 99) * .10 - (hGK / 99) * .08)).toFixed(2));
@@ -618,9 +623,9 @@ export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMu
       away:result.events.filter(e => e.type === 'sub' && e.teamId === result.awayTeamId).length,
     },
     corners:{
-      home:Math.round(2 + randomValue(rng) * 6 + (homePoss > 55 ? 1 : 0)),
-      away:Math.round(2 + randomValue(rng) * 6 + (homePoss < 45 ? 1 : 0)),
+      home:Math.round(2 + _matchRandomValue(rng) * 6 + (homePoss > 55 ? 1 : 0)),
+      away:Math.round(2 + _matchRandomValue(rng) * 6 + (homePoss < 45 ? 1 : 0)),
     },
-    fouls:{ home:Math.round(8 + randomValue(rng) * 7), away:Math.round(8 + randomValue(rng) * 7) },
+    fouls:{ home:Math.round(8 + _matchRandomValue(rng) * 7), away:Math.round(8 + _matchRandomValue(rng) * 7) },
   };
 }
