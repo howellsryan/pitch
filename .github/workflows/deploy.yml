@@ -48,14 +48,22 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
 
-      # The P0 career menu is a new mobile surface. Retain the exact 390x844
-      # Playwright state used for completion review so layout is verified from
-      # rendered evidence, not inferred from component CSS.
+      # P0/P1 changed mobile surfaces. Retain the exact 390x844 Playwright
+      # states used for completion review so layout is verified from rendered
+      # evidence, not inferred from component CSS.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: p0-career-menu-mobile
           path: test-results/p0-career-menu-390x844.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p1-competitions-mobile
+          path: test-results/p1-competitions-390x844.png
           if-no-files-found: ignore
           retention-days: 7
 
