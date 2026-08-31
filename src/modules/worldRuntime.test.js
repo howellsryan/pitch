@@ -130,7 +130,7 @@ describe('P1 world projection runtime', () => {
     expect(byId.get('rested').form).toBe(62);
   });
 
-  it('does not globally recover or decay players outside a cup batch', () => {
+  it('projects and returns only clubs participating in a cup batch', () => {
     const cupPlayer = player('cup', 'a', 'CM', { fitness:68, form:55 });
     const idleElsewhere = player('idle', 'other', 'CM', { fitness:61, form:67 });
     const opponent = player('opp', 'b', 'CM', { fitness:80, form:50 });
@@ -147,7 +147,8 @@ describe('P1 world projection runtime', () => {
     const byId = new Map(projected.map(p => [p.id, p]));
 
     expect(byId.get('cup')).toMatchObject({ appearances:1, goals:1, fitness:80 });
-    expect(byId.get('idle')).toMatchObject({ appearances:0, fitness:61, form:67 });
+    expect(byId.get('opp')).toMatchObject({ appearances:1, fitness:90 });
+    expect(byId.has('idle')).toBe(false);
   });
 
   it('ticks a prior suspension before applying a new card threshold', () => {
