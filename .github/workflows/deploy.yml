@@ -48,8 +48,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
 
-      # P0/P1 and shell-polish work changed mobile surfaces. Retain the exact
-      # 390x844 Playwright states used for completion review so layout is
+      # P0/P1/P2 and shell-polish work changed mobile surfaces. Retain the
+      # exact 390x844 Playwright states used for completion review so layout is
       # verified from rendered evidence, not inferred from component CSS.
       - uses: actions/upload-artifact@v4
         if: always()
@@ -72,6 +72,22 @@ jobs:
         with:
           name: mobile-top-navigation-squad
           path: test-results/mobile-top-nav-squad-390x844.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2-squad-tactics-mobile
+          path: test-results/p2-squad-tactics-390x844.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2-team-news-mobile
+          path: test-results/p2-team-news-390x844.png
           if-no-files-found: ignore
           retention-days: 7
 
