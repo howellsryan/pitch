@@ -50,7 +50,7 @@ describe('P3 effective-level hot selector cache', () => {
     expect(currentEffectiveLevel(subject, { position:'ST' })).toBe(expected('ST'));
   });
 
-  it('shares canonical results across shallow copies with the same stable player id', () => {
+  it('keeps same-id shallow copies correct as their projected states diverge', () => {
     const original = player();
     const first = currentEffectiveLevel(original, { position:'ST' });
     const copy = { ...original };

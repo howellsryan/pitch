@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { personalStateSettlementRequiresFullWorld } from './gameweek.js';
 import { buildPersonalStatePatches, normalizePlayerModel } from './playerModel.js';
 import { coalescePersonalStateProjection, projectNonLeaguePlayers, projectWorldBatch } from './worldRuntime.js';
 
@@ -60,6 +61,17 @@ function result(homeTeamId, awayTeamId, fitnessUpdates = []) {
 }
 
 describe('P3 completed world-week settlement', () => {
+  it('keeps the full-world final pass only for genuine league-less weeks', () => {
+    expect(personalStateSettlementRequiresFullWorld([])).toBe(true);
+    expect(personalStateSettlementRequiresFullWorld([
+      { id:'cup-only', competition:'cup', gameweek:5, played:true },
+    ])).toBe(true);
+    expect(personalStateSettlementRequiresFullWorld([
+      { id:'league', competition:'league', gameweek:5, played:true },
+      { id:'cup', competition:'cup', gameweek:5, played:true },
+    ])).toBe(false);
+  });
+
   it('settles a league-only player exactly once', () => {
     const league = projectWorldBatch(
       [player('starter', 'a'), player('opponent', 'b')],

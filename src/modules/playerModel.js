@@ -62,13 +62,12 @@ const BASELINE_ATTRIBUTE_BY_POSITION = Object.freeze({
   CB:'defence', RB:'defence', LB:'defence', GK:'goalkeeping',
 });
 
-// Living-world consumers create shallow copies of player rows. Key the hot
-// effective-level memo by stable player id + position so those copies share the
-// same canonical calculation. Every mutable input is still compared before a
-// cache hit, so this remains an execution-only optimisation rather than stored
-// derived state. The cap bounds memory across very long careers/newgen churn.
-const EFFECTIVE_LEVEL_CACHE = new Map();
-const EFFECTIVE_LEVEL_CACHE_MAX_PLAYERS = 12000;
+// Effective level is queried frequently by match and market consumers. Keep a
+// per-object/per-position memo guarded by every mutable input. Object ownership
+// matters: world projection creates same-id copies at different lifecycle
+// states, and sharing one cache entry between those copies causes invalidation
+// thrash rather than a useful hit.
+const EFFECTIVE_LEVEL_CACHE = new WeakMap();
 const EMPTY_TRAITS = Object.freeze([]);
 
 function playerModelClamp(value, min, max) {
@@ -369,23 +368,14 @@ function effectiveCacheMatches(entry, player, position, baseline) {
     || !Object.is(entry.rehabReadiness, rehabilitation.readiness)
   )) return false;
   const traits = Array.isArray(player.traits) ? player.traits : EMPTY_TRAITS;
-  return entry.traitsLength === traits.length
-    && entry.trait0 === traits[0]
-    && entry.trait1 === traits[1]
-    && entry.trait2 === traits[2];
-}
-
-function effectiveCacheOwner(player) {
-  return player.id ?? player;
+  return sameArray(entry.traits, traits);
 }
 
 function cacheEffectiveLevel(player, position, baseline, value) {
-  const owner = effectiveCacheOwner(player);
-  let byPosition = EFFECTIVE_LEVEL_CACHE.get(owner);
+  let byPosition = EFFECTIVE_LEVEL_CACHE.get(player);
   if (!byPosition) {
-    if (EFFECTIVE_LEVEL_CACHE.size >= EFFECTIVE_LEVEL_CACHE_MAX_PLAYERS) EFFECTIVE_LEVEL_CACHE.clear();
     byPosition = new Map();
-    EFFECTIVE_LEVEL_CACHE.set(owner, byPosition);
+    EFFECTIVE_LEVEL_CACHE.set(player, byPosition);
   }
   const rehabilitation = player.rehabilitation;
   const hasRehabilitation = Boolean(rehabilitation && typeof rehabilitation === 'object' && !Array.isArray(rehabilitation));
@@ -402,10 +392,7 @@ function cacheEffectiveLevel(player, position, baseline, value) {
     hasRehabilitation,
     rehabMatchReadiness:hasRehabilitation ? rehabilitation.matchReadiness : undefined,
     rehabReadiness:hasRehabilitation ? rehabilitation.readiness : undefined,
-    traitsLength:traits.length,
-    trait0:traits[0],
-    trait1:traits[1],
-    trait2:traits[2],
+    traits:[...traits],
     value,
   });
   return value;
@@ -417,7 +404,7 @@ export function currentEffectiveLevel(player, { position = player?.position } = 
   const attribute = baselineAttribute(position);
   const baseline = Number(player[attribute]);
   if (!Number.isFinite(baseline)) return undefined;
-  const cached = EFFECTIVE_LEVEL_CACHE.get(effectiveCacheOwner(player))?.get(position);
+  const cached = EFFECTIVE_LEVEL_CACHE.get(player)?.get(position);
   if (effectiveCacheMatches(cached, player, position, baseline)) return cached.value;
 
   const suitability = positionSuitabilityFor(player, position);

@@ -95,6 +95,23 @@ export function _fav_primaryRating(p) {
   return Number.isFinite(baseline) ? baseline : 50;
 }
 
+function createTransferSnapshotLookups() {
+  const ratings = new Map();
+  const values = new Map();
+  const keyFor = player => player?.id ?? player;
+  const ratingFor = player => {
+    const key = keyFor(player);
+    if (!ratings.has(key)) ratings.set(key, _fav_primaryRating(player));
+    return ratings.get(key);
+  };
+  const valueFor = player => {
+    const key = keyFor(player);
+    if (!values.has(key)) values.set(key, formAdjustedValue(player));
+    return values.get(key);
+  };
+  return { ratingFor, valueFor };
+}
+
 // ─── Contracts ──────────────────────────────────────────────
 // contractExpiry is the last season-start-year the deal covers; a player
 // with no contractExpiry yet (should only happen on a save from before
@@ -165,8 +182,7 @@ export function minimumOffer(player) {
 //  65+  decent             → need rep ≥ 48
 //  60+  league-standard    → need rep ≥ 40
 //  <60  anyone can sign
-export function playerMinRepToSign(player) {
-  const rating = _fav_primaryRating(player);
+function playerMinRepToSignForRating(rating) {
   if (rating >= 90) return 88;
   if (rating >= 85) return 80;
   if (rating >= 80) return 72;
@@ -175,6 +191,10 @@ export function playerMinRepToSign(player) {
   if (rating >= 65) return 48;
   if (rating >= 60) return 40;
   return 0;
+}
+
+export function playerMinRepToSign(player) {
+  return playerMinRepToSignForRating(_fav_primaryRating(player));
 }
 
 // Returns true if a club is allowed to sign this player.
@@ -187,13 +207,17 @@ export function playerMinRepToSign(player) {
 //
 // Hard block: a player who has already moved clubs this season cannot be
 // signed again until the next season (signedThisSeason flag).
-export function canClubSignPlayer(team, player) {
+function canClubSignPlayerAtRating(team, player, rating) {
   if (player.signedThisSeason) return false; // already transferred this season
-  const minRep = playerMinRepToSign(player);
+  const minRep = playerMinRepToSignForRating(rating);
   if (minRep === 0) return true; // sub-60 rated — anyone can sign
   const clubRep = team.reputation ?? 60;
   const adjustedMin = player.transferListed ? Math.max(0, minRep - 4) : minRep;
   return clubRep >= adjustedMin;
+}
+
+export function canClubSignPlayer(team, player) {
+  return canClubSignPlayerAtRating(team, player, _fav_primaryRating(player));
 }
 
 // Human-readable reason why a signing is blocked (shown in UI).
@@ -530,6 +554,7 @@ export async function simulateAITransfers(save) {
   const allTeams   = await getAllTeams();
   const allPlayers = await getAllPlayers();
   const userTeamId = save.userTeamId;
+  const { ratingFor, valueFor } = createTransferSnapshotLookups();
 
   // Build mutable squad maps keyed by teamId
   const squadMap = new Map();
@@ -537,6 +562,15 @@ export async function simulateAITransfers(save) {
     if (!squadMap.has(p.teamId)) squadMap.set(p.teamId, []);
     squadMap.get(p.teamId).push({ ...p });
   }
+  const protectedStarsByTeam = new Map();
+  const protectedStarIdsFor = teamId => {
+    if (protectedStarsByTeam.has(teamId)) return protectedStarsByTeam.get(teamId);
+    const ranked = [...(squadMap.get(teamId) ?? [])]
+      .sort((a, b) => ratingFor(b) - ratingFor(a));
+    const ids = new Set(ranked.slice(0, 2).map(player => player.id));
+    protectedStarsByTeam.set(teamId, ids);
+    return ids;
+  };
 
   const aiTeams = allTeams.filter(t => t.id !== userTeamId);
   // Shuffle so no club always goes first
@@ -557,7 +591,7 @@ export async function simulateAITransfers(save) {
     // Determine a target rating range the club should be looking at
     // Clubs aim to improve positions. Target rating: slightly above squad average
     const avgRating = buyerSquad.length
-      ? buyerSquad.reduce((s, p) => s + _fav_primaryRating(p), 0) / buyerSquad.length
+      ? buyerSquad.reduce((s, p) => s + ratingFor(p), 0) / buyerSquad.length
       : 60;
     const targetMin = Math.max(50, avgRating - 5);
     const targetMax = Math.min(99, avgRating + 18); // reach up modestly
@@ -566,10 +600,10 @@ export async function simulateAITransfers(save) {
     const candidates = allPlayers.filter(p => {
       if (p.teamId === userTeamId) return false;
       if (p.teamId === buyer.id)   return false;
-      const r = _fav_primaryRating(p);
+      const r = ratingFor(p);
       if (r < targetMin || r > targetMax) return false;
-      if (!canClubSignPlayer(buyer, p))   return false;
-      const pValue = formAdjustedValue(p);
+      if (!canClubSignPlayerAtRating(buyer, p, r)) return false;
+      const pValue = valueFor(p);
       if (buyerBudget < pValue * 0.75)    return false; // can't afford
 
       // Seller squad safety: won't drop below 16
@@ -578,9 +612,7 @@ export async function simulateAITransfers(save) {
 
       // Seller star protection: top 2 rated players in squad not for sale
       // unless buyer offers a premium (simulate transfer listed vs not)
-      const sorted = [...sellerSquad].sort((a, b) => _fav_primaryRating(b) - _fav_primaryRating(a));
-      const isTopStar = sorted[0]?.id === p.id || sorted[1]?.id === p.id;
-      if (isTopStar) return false; // AI protects key players
+      if (protectedStarIdsFor(p.teamId).has(p.id)) return false;
 
       return true;
     });
@@ -593,15 +625,15 @@ export async function simulateAITransfers(save) {
     if (Math.random() > activityChance) continue;
 
     // Pick best value candidate (highest rating within affordable range)
-    const affordable = candidates.filter(p => budgetMap.get(buyer.id) >= formAdjustedValue(p) * 0.75);
+    const affordable = candidates.filter(p => budgetMap.get(buyer.id) >= valueFor(p) * 0.75);
     if (!affordable.length) continue;
 
     // Weighted pick — prefer higher rated within budget
-    affordable.sort((a, b) => _fav_primaryRating(b) - _fav_primaryRating(a));
+    affordable.sort((a, b) => ratingFor(b) - ratingFor(a));
     // Small randomness: pick from top 5
     const pool    = affordable.slice(0, 5);
     const target  = pool[Math.floor(Math.random() * pool.length)];
-    const fav     = formAdjustedValue(target);
+    const fav     = valueFor(target);
     // AI pays between 90% and 110% of form value (realistic negotiation)
     const fee     = Math.round(fav * (0.90 + Math.random() * 0.20));
     const curBudget = budgetMap.get(buyer.id);
@@ -619,6 +651,8 @@ export async function simulateAITransfers(save) {
     const buyerSquadNow = squadMap.get(buyer.id) ?? [];
     const newContractExpiry = _freshContractExpiry(save);
     squadMap.set(buyer.id, [...buyerSquadNow, { ...target, teamId: buyer.id, signedThisSeason: true, contractExpiry: newContractExpiry }]);
+    protectedStarsByTeam.delete(sellerTeamId);
+    protectedStarsByTeam.delete(buyer.id);
 
     // Update allPlayers array for subsequent iterations
     const pIdx = allPlayers.findIndex(p => p.id === target.id);
@@ -860,6 +894,7 @@ export async function simulateAILoans(save) {
   const allTeams   = await getAllTeams();
   const allPlayers = await getAllPlayers();
   const userTeamId = save.userTeamId;
+  const { ratingFor } = createTransferSnapshotLookups();
 
   // Build mutable squad maps keyed by teamId
   const squadMap = new Map();
@@ -889,7 +924,7 @@ export async function simulateAILoans(save) {
     const lenderSquad = squadMap.get(lender.id) ?? [];
 
     // Top 11 are protected — only consider players outside the first team
-    const sorted = [...lenderSquad].sort((a, b) => _fav_primaryRating(b) - _fav_primaryRating(a));
+    const sorted = [...lenderSquad].sort((a, b) => ratingFor(b) - ratingFor(a));
     const fringePool = sorted.slice(11).filter(p =>
       (p.age ?? 25) <= 22 &&
       !p.onLoan &&

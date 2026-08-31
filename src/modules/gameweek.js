@@ -1,4 +1,4 @@
-import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
+import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
 import { simulateMatch } from './matchEngine.js';
 import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
 import { buildPersonalStatePatches } from './playerModel.js';
@@ -278,21 +278,37 @@ async function settleWorldCompetitionGameweek(gw, save, allTeams) {
   return applied.save ?? persisted;
 }
 
-async function settleWorldPersonalState(gameweek, season) {
-  const allPlayers = await getAllPlayers();
-  const patches = buildPersonalStatePatches(allPlayers, gameweek, season);
+export function personalStateSettlementRequiresFullWorld(fixtures) {
+  return !(fixtures ?? []).some(fixture => fixture?.competition === 'league');
+}
+
+async function settleWorldPersonalState(gameweek, season, userTeamId, fixtures) {
+  // League projection has already settled every completed background club,
+  // while background competition projection settles the clubs it deferred.
+  // The final boundary therefore only needs the managed squad on an ordinary
+  // league week. A genuinely league-less/cup-only week has no global league
+  // projection, so it deliberately retains the full-world recovery path.
+  const candidates = personalStateSettlementRequiresFullWorld(fixtures) || !userTeamId
+    ? await getAllPlayers()
+    : await getPlayersByTeam(userTeamId);
+  const patches = buildPersonalStatePatches(candidates, gameweek, season);
   if (patches.length) await putPlayersBulk(patches);
   return patches;
 }
 
-async function runEndOfWorldGameweek(save) {
+async function runEndOfWorldGameweek(save, fixtures) {
   // P3 personal state observes the fully projected world week before injury
   // recovery advances the medical clock. The per-player settled-week key makes
   // this safe to retry if closeout is interrupted before the world clock itself
   // advances, including after gameweek numbers repeat in a later season.
   // This write is fail-closed: if the P3 lifecycle cannot persist, the caller
   // must not advance the shared world clock and silently skip a player week.
-  const personalStatePatches = await settleWorldPersonalState(save.currentGameweek, save.season);
+  const personalStatePatches = await settleWorldPersonalState(
+    save.currentGameweek,
+    save.season,
+    save.userTeamId,
+    fixtures,
+  );
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   const newOffers = await generateAIOffers().catch(() => []) ?? [];
   await simulateAITransfers(save).catch(() => {});
@@ -338,7 +354,7 @@ export async function advanceOneFixture(overrideFormation) {
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
     const latestAfterLeague = await getSave();
     const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
-    const { recoveredPlayers, newOffers } = await runEndOfWorldGameweek(competitionSave);
+    const { recoveredPlayers, newOffers } = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     const freshSave = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
@@ -467,7 +483,7 @@ export async function advanceOneFixture(overrideFormation) {
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
     const latestAfterLeague = await getSave();
     const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
-    const end = await runEndOfWorldGameweek(competitionSave);
+    const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     recoveredPlayers = end.recoveredPlayers;
     newOffers = end.newOffers;
     newDate.setDate(newDate.getDate() + 7);
@@ -647,7 +663,7 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
     const latestAfterLeague = await getSave();
     const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
-    const end = await runEndOfWorldGameweek(competitionSave);
+    const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     recoveredPlayers = end.recoveredPlayers;
     newOffers = end.newOffers;
     newDate.setDate(newDate.getDate() + 7);
