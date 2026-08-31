@@ -16,8 +16,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build:app
+      # Diagnostic only: keep function names readable for the CPU profiler.
+      # The normal Build and validate workflow still uses the production build.
+      - run: node tools/make-entry.mjs && npx vite build --minify=false
       - run: npx playwright install --with-deps chromium
-      # Opt-in runs are deliberately narrow while P3 is closing out. The
-      # normal Build and validate workflow never installs/runs Playwright.
       - run: npx playwright test tests/p1-living-world-performance.spec.mjs --config=playwright.config.mjs
