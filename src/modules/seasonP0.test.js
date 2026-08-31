@@ -41,14 +41,26 @@ describe('P0 UEFA season finance integration', () => {
     }, 'Bundesliga')).toBe(71_000_000);
   });
 
-  it('keeps AI offer generation in the watched-match gameweek closeout path', () => {
+  it('keeps AI market closeout shared by watched matches and Quick Sim', () => {
     const source = readFileSync(new URL('./gameweek.js', import.meta.url), 'utf8');
-    const start = source.indexOf('export async function advanceOneFixtureWithResult');
-    const end = source.indexOf('export function buildCupMatchResult', start);
-    const functionSource = start >= 0 && end > start ? source.slice(start, end) : '';
+    const closeoutStart = source.indexOf('async function runEndOfWorldGameweek');
+    const closeoutEnd = source.indexOf('export async function advanceOneFixture', closeoutStart);
+    const closeoutSource = closeoutStart >= 0 && closeoutEnd > closeoutStart
+      ? source.slice(closeoutStart, closeoutEnd)
+      : '';
 
-    expect(functionSource).toContain('generateAIOffers');
-    expect(functionSource).toContain('simulateAITransfers');
-    expect(functionSource).toContain('simulateAILoans');
+    expect(closeoutSource).toContain('generateAIOffers');
+    expect(closeoutSource).toContain('simulateAITransfers');
+    expect(closeoutSource).toContain('simulateAILoans');
+    expect(closeoutSource).toContain('payWeeklyWages');
+
+    const quickStart = source.indexOf('export async function advanceOneFixture(');
+    const watchedStart = source.indexOf('export async function advanceOneFixtureWithResult');
+    const buildResultStart = source.indexOf('export function buildCupMatchResult', watchedStart);
+    const quickSource = source.slice(quickStart, watchedStart);
+    const watchedSource = source.slice(watchedStart, buildResultStart);
+
+    expect(quickSource).toContain('runEndOfWorldGameweek');
+    expect(watchedSource).toContain('runEndOfWorldGameweek');
   });
 });
