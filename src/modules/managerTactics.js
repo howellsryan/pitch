@@ -43,7 +43,7 @@ function userPossession(result, userTeamId, userIsHome) {
 function managerFingerprint(save, event) {
   const eventKey = event?.fixtureId
     ?? [event?.cupId, event?.roundName ?? event?.matchday ?? '', event?.opponentId ?? event?.opponentName ?? event?.oppName ?? ''].join(':');
-  return [save?.season ?? '', save?.currentGameweek ?? event?.gw ?? '', event?.type ?? 'match', eventKey].join('|');
+  return [save?.season ?? '', event?.gw ?? save?.currentGameweek ?? '', event?.type ?? 'match', eventKey].join('|');
 }
 
 export function buildManagerDNASample(save, result, event, userIsHome, userPlayers = []) {
