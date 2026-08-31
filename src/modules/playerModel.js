@@ -12,6 +12,17 @@ export const DEFAULT_INDIVIDUAL_MORALE = 50;
 export const DEFAULT_SHARPNESS = 50;
 export const MAX_PLAYER_TRAITS = 8;
 
+export const EFFECTIVE_LEVEL_LIMITS = Object.freeze({
+  positionFitPenalty:8,
+  formSwing:3,
+  moraleSwing:2,
+  sharpnessSwing:3,
+  fitnessPenalty:6,
+  rehabilitationPenalty:5,
+  maxUplift:6,
+  maxDrop:15,
+});
+
 export const ATTACK_POSITIONS = Object.freeze(['ST', 'CF', 'RW', 'LW', 'CAM']);
 export const MIDFIELD_POSITIONS = Object.freeze(['CM', 'CDM', 'CAM', 'RM', 'LM']);
 export const DEFENCE_POSITIONS = Object.freeze(['CB', 'RB', 'LB']);
@@ -20,11 +31,33 @@ const ATTACK_SET = new Set(ATTACK_POSITIONS);
 const MIDFIELD_SET = new Set(MIDFIELD_POSITIONS);
 const DEFENCE_SET = new Set(DEFENCE_POSITIONS);
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function clampState(value, fallback) {
   if (value == null) return fallback;
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
-  return Math.max(0, Math.min(100, number));
+  return clamp(number, 0, 100);
+}
+
+function round1(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function centeredContribution(value, swing, fallback = 50) {
+  const normalized = clampState(value, fallback);
+  return round2(((normalized - 50) / 50) * swing);
+}
+
+function penaltyFromReadiness(readiness, maxPenalty, fallback = 100) {
+  const normalized = clampState(readiness, fallback);
+  return round2(-((100 - normalized) / 100) * maxPenalty);
 }
 
 function sameArray(left, right) {
@@ -74,7 +107,7 @@ export function normalizePositionSuitability(positionSuitability, primaryPositio
       if (!position) continue;
       const suitability = Number(rawSuitability);
       if (!Number.isFinite(suitability)) continue;
-      normalized[position] = Math.max(0, Math.min(1, suitability));
+      normalized[position] = clamp(suitability, 0, 1);
     }
   }
   if (primaryPosition) normalized[primaryPosition] = 1;
@@ -132,10 +165,75 @@ export function playerModelNeedsNormalization(player) {
 }
 
 /**
- * P3 compatibility seam. At kickoff effective level intentionally equals the
- * durable baseline. Later P3 slices add bounded position-fit/form/morale/
- * sharpness/recovery modifiers behind this selector without changing callers.
+ * Missing secondary-position suitability stays compatibility-neutral until WP4
+ * explicitly teaches the player a secondary position. Once an entry exists,
+ * its cost is deterministic and bounded.
  */
-export function currentEffectiveLevel(player, { position = player?.position } = {}) {
-  return baselineLevel(player, position);
+export function positionSuitabilityFor(player, position = player?.position) {
+  if (!player || !position || position === player.position) return 1;
+  const raw = player.positionSuitability?.[position];
+  if (raw == null) return 1;
+  const suitability = Number(raw);
+  return Number.isFinite(suitability) ? clamp(suitability, 0, 1) : 1;
+}
+
+export function rehabilitationReadiness(player) {
+  if (!player) return 100;
+  if (player.injured && !player.rehabilitation) return 0;
+  const rehabilitation = player.rehabilitation;
+  if (!rehabilitation || typeof rehabilitation !== 'object' || Array.isArray(rehabilitation)) return 100;
+  const readiness = rehabilitation.matchReadiness ?? rehabilitation.readiness;
+  return clampState(readiness, 100);
+}
+
+/**
+ * Explainable effective-level projection. Every short-term input owns one
+ * bounded contribution; the combined result is capped again so transient state
+ * can never become a hidden competing overall rating.
+ */
+export function effectiveLevelBreakdown(player, { position = player?.position } = {}) {
+  if (!player) return undefined;
+  const baseline = Number(baselineLevel(player, position));
+  if (!Number.isFinite(baseline)) return undefined;
+
+  const suitability = positionSuitabilityFor(player, position);
+  const contributions = {
+    positionFit:round2((suitability - 1) * EFFECTIVE_LEVEL_LIMITS.positionFitPenalty),
+    form:centeredContribution(player.form, EFFECTIVE_LEVEL_LIMITS.formSwing),
+    morale:centeredContribution(player.individualMorale, EFFECTIVE_LEVEL_LIMITS.moraleSwing, DEFAULT_INDIVIDUAL_MORALE),
+    sharpness:centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS),
+    fitness:penaltyFromReadiness(player.fitness, EFFECTIVE_LEVEL_LIMITS.fitnessPenalty),
+    rehabilitation:penaltyFromReadiness(rehabilitationReadiness(player), EFFECTIVE_LEVEL_LIMITS.rehabilitationPenalty),
+  };
+  const rawModifier = Object.values(contributions).reduce((sum, value) => sum + value, 0);
+  const totalModifier = round2(clamp(
+    rawModifier,
+    -EFFECTIVE_LEVEL_LIMITS.maxDrop,
+    EFFECTIVE_LEVEL_LIMITS.maxUplift,
+  ));
+  const effectiveLevel = round1(clamp(baseline + totalModifier, 1, 99));
+
+  return {
+    position,
+    baseline,
+    suitability,
+    contributions,
+    totalModifier,
+    effectiveLevel,
+  };
+}
+
+export function currentEffectiveLevel(player, options = {}) {
+  return effectiveLevelBreakdown(player, options)?.effectiveLevel;
+}
+
+/** Apply the same personal-state delta to a concrete attribute for simulation. */
+export function effectiveAttribute(player, attribute) {
+  if (!player) return undefined;
+  const raw = Number(player[attribute]);
+  if (!Number.isFinite(raw)) return undefined;
+  const breakdown = effectiveLevelBreakdown(player);
+  if (!breakdown) return raw;
+  const nonPositionModifier = breakdown.totalModifier - breakdown.contributions.positionFit;
+  return round1(clamp(raw + nonPositionModifier, 1, 99));
 }
