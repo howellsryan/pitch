@@ -52,7 +52,7 @@ describe('P3 player contract v1 to v2 backfill', () => {
     expect(after).toMatchObject(before);
     expect(after.personalStateAppearances).toBe(21);
     expect(after.personalStateMinutes).toBe(1674);
-    expect(after.personalStateSettledGameweek).toBeNull();
+    expect(after.personalStateSettledKey).toBeNull();
     expect(baselineLevel(after)).toBe(baselineLevel(before));
   });
 
@@ -61,7 +61,7 @@ describe('P3 player contract v1 to v2 backfill', () => {
       ...v1Player('current'),
       personalStateAppearances:21,
       personalStateMinutes:1674,
-      personalStateSettledGameweek:null,
+      personalStateSettledKey:null,
     };
     const save = { playerModelVersion:PLAYER_MODEL_VERSION, lineup:['current'] };
     const migration = buildP3PlayerModelBackfill(save, [current], []);
