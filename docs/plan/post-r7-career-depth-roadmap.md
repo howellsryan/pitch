@@ -4,7 +4,7 @@
 
 **Baseline:** `main` after PR #14 (`767b31656d58f00acc42431cc3bca6df131b1b5b`) — R0-R7 shipped.
 
-**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is next.**
+**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA complete (31 August 2026). P3 — Player Model 2.0 is next and active.**
 
 **Benchmark reviewed:** EA SPORTS FC 27 Manager Career (Career Deep Dive, July 2026), with relevant Manager Market ideas carried forward from FC 26. This is not a parity checklist. Pitch should take the parts that create meaningful management decisions and, where a browser simulator has an advantage, go deeper systemically rather than imitate AAA presentation.
 
@@ -131,8 +131,8 @@ Pitch's European competition model should be data-driven enough that rule change
 | World simulation | P1 authoritative 9-league living world shipped | Foundation complete; later systems consume it |
 | Historical world data | P1 current ledgers + compact player/club/competition season summaries shipped | Foundation complete; later systems enrich it |
 | Formations | 14 presets | Low |
-| Tactical instructions/roles | Mostly broad formation + mentality effects | **Critical** |
-| Match-engine tactical causality | Functional result engine, limited tactical matchup depth | **Critical** |
+| Tactical instructions/roles | P2 shared team-instruction and player-role schema shipped | Foundation complete; future role/content tuning remains |
+| Match-engine tactical causality | P2 bounded tactical trade-offs with seeded regression coverage shipped | Foundation complete; ongoing balance tuning remains |
 | Player development | Potential + growth points + aging foundation | Medium |
 | Dynamic current ability | No coherent FC27-like effective/current level | **Critical** |
 | Individual morale | Team-level morale only | High |
@@ -169,13 +169,13 @@ Pitch's European competition model should be data-driven enough that rule change
 
 ## 5.1 Delivery contract for future agents
 
-**P0-P1 are implemented and verified. P2-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested commit slices so a later agent can pick it up without reopening the main product and architecture decisions.
+**P0-P2 are implemented and verified. P3-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested delivery slices so a later agent can pick it up without reopening the main product and architecture decisions.
 
 **Detailed execution guides:** [P3–P12 implementation guide index](post-r7-implementation-guides/README.md). Use the roadmap for priority and scope, then the phase guide for contracts, migration, work packages, verification and commit boundaries.
 
 ### Phase packaging
 
-- Start each phase from the latest green `main` on a dedicated branch and open a draft pull request after the first coherent slice.
+- Start each phase from the latest agreed green baseline. Prefer a dedicated branch/PR, but an existing programme PR may continue when that is the explicit delivery path.
 - Treat each numbered work package as independently reviewable. Do not mix a later roadmap phase into the current phase merely because adjacent code is visible.
 - Before changing IndexedDB, the event queue, simulation maths, module ordering or the data pipeline, run the repository's `plan-gate` process and record the affected invariants in the pull request.
 - Reconcile `AGENTS.md` with the live plan at phase kickoff if its status is stale; do not create a second competing architecture guide.
@@ -183,15 +183,16 @@ Pitch's European competition model should be data-driven enough that rule change
 
 ### Commit and push cadence
 
-For **every** roadmap phase:
+Commit by **coherent delivery value**, not by file or by an arbitrary checklist checkpoint.
 
-1. commit and push the contract/test scaffold;
-2. commit and push each domain or data-model slice;
-3. commit and push persistence/migration work separately;
-4. commit and push user-facing integration separately;
-5. commit and push regression coverage, documentation and cleanup as the final slice.
+- A commit should represent a meaningful, reviewable behaviour/contract slice that is ready to keep.
+- Do not intentionally commit or push a known-broken build, failing test scaffold or half-wired migration merely to create a checkpoint.
+- It is fine to write failing tests while developing locally; make the commit only after the implementation slice is runnable and its relevant verification is green.
+- Keep related code, tests and small supporting documentation together when separating them would create artificial or broken commits.
+- Split persistence, simulation, UI or migration work when they are independently valuable and independently green—not simply because they touch different files.
+- Push after a meaningful green slice so CI and the preview can provide another verification layer.
 
-Aim for small, named commits around coherent behaviour rather than one phase-sized commit. Push after every slice so CI and the preview can expose regressions early. Do not claim a phase complete until the final pushed SHA is green and its affected mobile flows have been exercised.
+Do not claim a phase complete until the final pushed SHA is green and its affected mobile flows have been exercised.
 
 ### Programme-wide definition of done
 
@@ -279,7 +280,7 @@ P0's final delivery loop passed both functional and rendered-mobile verification
 
 **Status: ✅ COMPLETE — 31 August 2026.**
 
-**Priority:** completed living-world foundation; **P2 is now unblocked and next.**
+**Priority:** completed living-world foundation; **P2 consumed it and P3 now builds on it.**
 
 This is the most important foundation for everything that follows.
 
@@ -394,9 +395,9 @@ P1's final delivery loop passed code review, deterministic verification, perform
 
 ## P2 — Match Engine 2.0, Tactics and Manager DNA
 
-**Status: NEXT.**
+**Status: ✅ COMPLETE — 31 August 2026.**
 
-**Priority:** #2 overall; **next active roadmap phase.**
+**Priority:** completed simulator-depth foundation; **P3 — Player Model 2.0 is now unblocked and next.**
 
 Because Pitch is simulator-only, tactical decision quality is core gameplay.
 
@@ -463,7 +464,31 @@ Track a manager's emerging identity from actual choices/results: preferred shape
 
 Simulation changes must gain deterministic/injectable RNG support and statistical regression tests. The existing standing risk — stochastic balance without a reliable automated gate — becomes unacceptable once tactics materially alter results.
 
-### Delivery plan (high level)
+### Shipped in P2
+
+- `matchEngine.js` owns seeded, serialisable RNG so whole-match Quick Sim and segmented Broadcast runs can reproduce one authoritative result stream.
+- `tactics.js` owns the shared instruction and player-role schema, validation/defaults, tactical modifiers, AI tactical identities and role suitability.
+- `managerTactics.js` is the shared managed-match adapter for persisted user tactics/roles, AI tactical identity, opposition insight and idempotent Manager DNA sampling.
+- Tactical choices create bounded trade-offs rather than universal rating boosts, including pressing, line height, width, build-up/transition/chance creation and role effects.
+- Team News exposes the same AI tactical profile that the match engine consumes.
+- Existing careers receive additive P2 defaults while preserving formation, mentality and lineup exactly.
+- Quick Sim, league/cup paths and watched Broadcast use the same authoritative tactical inputs/outcome boundary.
+
+### Completion evidence
+
+P2's closeout passed the delivery gate on exact head `de7de8a8fbfaddf00979a64306450be99023740b` before P3 began:
+
+- legacy compatibility bridge passed with deterministic P0/P1/P2 replacement contracts;
+- production Vite build and ESLint passed;
+- **150/150 Vitest tests** passed, including seeded match-engine regression, tactical schema/manager adapter, save backfill and venue/parity contracts;
+- **186/186 club accent checks** passed;
+- **19/19 Playwright tests** passed, including the 390×844 P2 tactics/opposition-insight/watched-result journey and a wider 1280×800 P2 acceptance journey;
+- retained P2 mobile/wide screenshots were generated and inspected for the affected tactics and Team News surfaces;
+- P1 performance regression remained inside its guardrails at **12.57s fresh career load, 18.93s authoritative world week and 2.61 MiB storage** on the closeout run;
+- GitHub Actions **Build and validate** passed on the exact head SHA;
+- Cloudflare Workers reported **Deployment successful** for the same `de7de8a8` commit and branch preview.
+
+### Delivery plan (historical implementation route)
 
 **Locked decisions**
 
@@ -481,13 +506,15 @@ Simulation changes must gain deterministic/injectable RNG support and statistica
 5. Persist Manager DNA as an aggregate of actual selections and outcomes, not a user-selected badge.
 6. Map authoritative events into Broadcast and verify watched and quick-simmed results remain identical.
 
-**Commit/push slices:** deterministic harness; tactic schema/migration; team instructions; player roles; AI profiles/insights; Manager DNA; Broadcast parity/statistical regression/docs.
+**Delivery slices completed:** deterministic harness; tactic schema/migration; team instructions; player roles; AI profiles/insights; Manager DNA; Broadcast parity/statistical regression; responsive acceptance and closeout evidence.
 
 ---
 
 ## P3 — Player Model 2.0
 
-**Priority:** #3.
+**Status: NEXT / ACTIVE.**
+
+**Priority:** #3 overall and current roadmap phase.
 
 Make squad selection and rotation produce consequences beyond energy and static potential.
 
@@ -545,7 +572,7 @@ Rotation, development, selection, contracts, transfers and injuries all read fro
 5. Add rehabilitation, medical availability and reinjury risk as an explicit state machine.
 6. Remove compatibility reads only after match, squad, market, academy, season rollover and import paths all consume the canonical model.
 
-**Commit/push slices:** player contract/selectors; migration/adapters; effective level; morale/roles/promises; positions/traits; growth profiles; rehabilitation/reinjury; UI/E2E/docs.
+**Suggested delivery slices:** player contract/selectors; migration/adapters; effective level; morale/roles/promises; positions/traits; growth profiles; rehabilitation/reinjury; UI/E2E/docs. These are review boundaries, not instructions to commit known-broken intermediate states.
 
 ---
 
@@ -1168,7 +1195,7 @@ Broadcast may visualise outcomes; it must not become a second conflicting result
 
 ## 9.2 Deterministic balance testing before deeper simulation maths
 
-Injectable/seeded RNG and statistical regression tests should be established before large P2/P3 changes. A green UI/build suite cannot prove goal rates, tactical advantages or development distributions are sane.
+Injectable/seeded RNG and statistical regression tests are established by P2 and must be extended before large P3+ simulation/development changes. A green UI/build suite cannot prove goal rates, tactical advantages or development distributions are sane.
 
 ## 9.3 Use the P0 persistence migration path
 
@@ -1198,17 +1225,17 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 |---:|---|---|
 | ✅ | **P0 — authenticity + save/migration foundation (COMPLETE)** | Correctness and safe foundation |
 | ✅ | **P1 — Living Football World (COMPLETE)** | Persistent football universe and historical data spine |
-| 1 | **P2 — Match Engine 2.0 + Tactics/Manager DNA (NEXT)** | Core simulator gameplay depth |
-| 2 | P3 — Player Model 2.0 | Meaningful selection, rotation and development |
-| 3 | P4 — Transfers/Contracts 2.0 | Rich recurring squad-building loop |
-| 4 | P5 — Scouting/Coaching/Training | Less omniscience; strategic planning |
-| 5 | P6 — Manager Career + AI Manager Market | A career across clubs, not one club forever |
-| 6 | P7 — Club/Finance/Board ecosystem | Clubs gain persistent identities and pressures |
-| 7 | P8 — Story/Press/Fans/Rivalries | Systems turn into memorable narratives |
-| 8 | P9 — Academy/Loans 2.0 | Deep long-term player pathways |
-| 9 | P10 — Career settings | Depth remains approachable/configurable |
-| 10 | P11 — Creator Challenges/Live starts | Replayability and community sharing |
-| 11 | P12 — Second tiers/internationals/Create-a-Club/content | Breadth after depth |
+| ✅ | **P2 — Match Engine 2.0 + Tactics/Manager DNA (COMPLETE)** | Core simulator gameplay depth |
+| 1 | **P3 — Player Model 2.0 (NEXT / ACTIVE)** | Meaningful selection, rotation and development |
+| 2 | P4 — Transfers/Contracts 2.0 | Rich recurring squad-building loop |
+| 3 | P5 — Scouting/Coaching/Training | Less omniscience; strategic planning |
+| 4 | P6 — Manager Career + AI Manager Market | A career across clubs, not one club forever |
+| 5 | P7 — Club/Finance/Board ecosystem | Clubs gain persistent identities and pressures |
+| 6 | P8 — Story/Press/Fans/Rivalries | Systems turn into memorable narratives |
+| 7 | P9 — Academy/Loans 2.0 | Deep long-term player pathways |
+| 8 | P10 — Career settings | Depth remains approachable/configurable |
+| 9 | P11 — Creator Challenges/Live starts | Replayability and community sharing |
+| 10 | P12 — Second tiers/internationals/Create-a-Club/content | Breadth after depth |
 
 ---
 
@@ -1216,6 +1243,7 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 
 - **P0 hard gate is satisfied:** save migration/slots and configurable competition rules are stable foundations for persistent world expansion.
 - **P1 shared data spine is satisfied:** P2 and P3 consume its canonical match/history records rather than recreating world state.
+- **P2 tactics/simulation gate is satisfied:** seeded RNG, one authoritative managed-input contract, tactical causality, Manager DNA and Quick Sim/Broadcast parity form the stable baseline for P3.
 - **P2 + P3 unlock the market loop:** P4 owns the minimal shared squad-needs projection; P5 expands it rather than replacing it.
 - **P4 + P5 unlock career movement:** P6 can ship manager entities and movement with a basic fit contract; P7 later enriches club identity and finance.
 - **P3 + P6 + P7 unlock narrative consequences:** P8 should not invent placeholder morale, job or finance state.
