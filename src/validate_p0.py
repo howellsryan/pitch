@@ -20,6 +20,7 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent
 REPO = BASE.parent
 LEGACY_VALIDATOR = BASE / 'validate.js'
+HOME_SCREEN = BASE / 'lib' / 'ui' / 'HomeScreen.svelte'
 
 SUPERSEDED_LEGACY_CHECKS = {
     # P0 removes away goals. The old assertion became stochastic once level
@@ -83,6 +84,12 @@ SUPERSEDED_LEGACY_CHECKS = {
     'payWeeklyWages sums player wages per team',
     'payWeeklyWages skips players on loan (already prepaid)',
     'payWeeklyWages deducts bill from team budget',
+    # P2 removes the three secondary-screen shortcuts from Home. Those areas
+    # remain in the shared desktop/mobile navigation; Home is deliberately kept
+    # focused on the season spine and next decision. The replacement contract
+    # below asserts the shortcuts stay absent instead of silently ignoring drift.
+    'Academy reachable from Home screen',
+    'Trophies reachable from Home screen',
 }
 
 P0_TEST_FILES = [
@@ -136,6 +143,23 @@ def run_legacy_validator(env: dict[str, str]) -> bool:
     return True
 
 
+def run_home_shortcut_contract() -> bool:
+    """Protect P2's intentionally simplified Home information architecture."""
+    src = HOME_SCREEN.read_text()
+    retired = {
+        'Academy': "navigateTo('academy')",
+        'Trophies': "navigateTo('trophies')",
+        'Settings': "navigateTo('settings')",
+    }
+    present = [label for label, needle in retired.items() if needle in src]
+    if present:
+        print('\n❌ Home shortcut replacement contract failed:')
+        print(f"  Retired Home shortcuts still present: {', '.join(present)}")
+        return False
+    print('  ✅ P2 Home keeps Academy / Trophies / Settings shortcuts out of the season spine')
+    return True
+
+
 def run_p0_contracts() -> bool:
     print('\n── Running deterministic replacement contracts ──────────────')
     proc = subprocess.run(
@@ -154,6 +178,8 @@ def main() -> int:
     }
 
     if not run_legacy_validator(env):
+        return 1
+    if not run_home_shortcut_contract():
         return 1
     if not run_p0_contracts():
         print('\n❌ Replacement contracts failed.')
