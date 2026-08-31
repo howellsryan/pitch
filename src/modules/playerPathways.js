@@ -34,10 +34,10 @@ export const PLAYER_TRAIT_DEFS = Object.freeze({
 
 const TRAIT_IDS = new Set(Object.keys(PLAYER_TRAIT_DEFS));
 
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function round2(value) { return Math.round(value * 100) / 100; }
+function pathClamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function pathRound2(value) { return Math.round(value * 100) / 100; }
 
-function stableHash(value) {
+function pathStableHash(value) {
   let h = 2166136261;
   for (const ch of String(value ?? '')) {
     h ^= ch.charCodeAt(0);
@@ -46,8 +46,8 @@ function stableHash(value) {
   return h >>> 0;
 }
 
-function deterministicUnit(seed) {
-  let t = stableHash(seed) + 0x6D2B79F5;
+function pathDeterministicUnit(seed) {
+  let t = pathStableHash(seed) + 0x6D2B79F5;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -80,7 +80,7 @@ export function slotSuitability(player, targetPosition) {
   if (!player || !targetPosition) return 0;
   if (player.position === targetPosition) return 1;
   const stored = Number(player.positionSuitability?.[targetPosition]);
-  if (Number.isFinite(stored)) return clamp(stored, 0, 1);
+  if (Number.isFinite(stored)) return pathClamp(stored, 0, 1);
   return defaultPositionSuitability(player.position, targetPosition);
 }
 
@@ -110,9 +110,9 @@ export function assignDefaultTraits(player) {
         : 'attack';
   const rating = Number(player[primaryAttr] ?? 0);
   if (rating < 68) return [];
-  const first = candidates[stableHash(player.id ?? player.name) % candidates.length];
+  const first = candidates[pathStableHash(player.id ?? player.name) % candidates.length];
   if (rating < 82 || candidates.length < 2) return [first.id];
-  const second = candidates[(stableHash(`${player.id}:secondary`) % (candidates.length - 1) + 1) % candidates.length];
+  const second = candidates[(pathStableHash(`${player.id}:secondary`) % (candidates.length - 1) + 1) % candidates.length];
   return first.id === second.id ? [first.id] : [first.id, second.id];
 }
 
@@ -122,7 +122,7 @@ export function traitAttributeModifier(player, attribute) {
     const def = PLAYER_TRAIT_DEFS[trait];
     if (def?.attribute === attribute) modifier += def.modifier;
   }
-  return round2(clamp(modifier, 0, 2.5));
+  return pathRound2(pathClamp(modifier, 0, 2.5));
 }
 
 export function traitRecruitmentLabels(player) {
@@ -139,7 +139,7 @@ export function startPositionConversion(player, targetPosition, season = null, g
     ...player,
     positionConversion:{
       targetPosition,
-      progress:round2(currentSuitability),
+      progress:pathRound2(currentSuitability),
       startedKey:key,
       lastSettledKey:null,
       status:'active',
@@ -162,11 +162,11 @@ export function settlePositionConversion(player, gameweek, season = null) {
 
   const age = Number(player.age ?? 25);
   const ageFactor = age <= 21 ? 1.18 : age <= 25 ? 1.08 : age <= 29 ? 1 : .88;
-  const sharpnessFactor = .85 + clamp(Number(player.sharpness ?? 50), 0, 100) / 500;
-  const deterministicVariance = .92 + deterministicUnit(`${player.id}:${target}:${key}`) * .16;
+  const sharpnessFactor = .85 + pathClamp(Number(player.sharpness ?? 50), 0, 100) / 500;
+  const deterministicVariance = .92 + pathDeterministicUnit(`${player.id}:${target}:${key}`) * .16;
   const gain = .035 * ageFactor * sharpnessFactor * deterministicVariance;
   const before = slotSuitability(player, target);
-  const next = round2(clamp(before + gain, 0, 1));
+  const next = pathRound2(pathClamp(before + gain, 0, 1));
   const complete = next >= .92;
   return {
     ...player,
@@ -180,7 +180,7 @@ export function settlePositionConversion(player, gameweek, season = null) {
 }
 
 export function positionFitLabel(suitability) {
-  const value = clamp(Number(suitability) || 0, 0, 1);
+  const value = pathClamp(Number(suitability) || 0, 0, 1);
   if (value >= .95) return 'Natural';
   if (value >= .75) return 'Comfortable';
   if (value >= .55) return 'Familiar';
