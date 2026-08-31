@@ -107,10 +107,13 @@ export async function ensureLivingWorld(save) {
   if (playerPatches.length) await putPlayersBulk(playerPatches);
 
   const worldTotalGameweeks = calculateWorldTotalGameweeks(teams);
-  const worldCompetitions = save.worldCompetitions?.competitions
+  const hasCurrentCompetitionWorld = Boolean(
+    save.worldCompetitions?.competitions && save.worldCompetitions?.season === save.season,
+  );
+  const worldCompetitions = hasCurrentCompetitionWorld
     ? save.worldCompetitions
     : buildWorldCompetitionState(teams, save.season, save.userTeamId, save.currentGameweek ?? 1);
-  if (save.worldTotalGameweeks !== worldTotalGameweeks || save.worldCompetitions !== worldCompetitions) {
+  if (save.worldTotalGameweeks !== worldTotalGameweeks || !hasCurrentCompetitionWorld) {
     const migrated = { ...save, worldTotalGameweeks, worldCompetitions };
     await putSave(migrated);
     return migrated;
