@@ -1,3 +1,5 @@
+import { effectiveAttribute } from './playerModel.js';
+
 /**
  * modules/tactics.js — P2 tactical domain contracts.
  *
@@ -115,7 +117,7 @@ export function roleSuitability(player, roleId = player?.tacticalRole) {
   let weighted = 0;
   let total = 0;
   for (const [attr, weight] of Object.entries(role.attrs)) {
-    weighted += Number(player?.[attr] ?? 50) * weight;
+    weighted += Number(effectiveAttribute(player, attr) ?? player?.[attr] ?? 50) * weight;
     total += weight;
   }
   const rating = total > 0 ? weighted / total : 50;
