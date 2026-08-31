@@ -90,6 +90,13 @@ SUPERSEDED_LEGACY_CHECKS = {
     # below asserts the shortcuts stay absent instead of silently ignoring drift.
     'Academy reachable from Home screen',
     'Trophies reachable from Home screen',
+    # P2 decorates the watched user side through buildManagedMatchInputs so
+    # persisted player roles reach the authoritative engine. The retired checks
+    # search for the pre-P2 inline resolved.homePlayers/awayPlayers expression;
+    # managerTactics.test.js executes the real home/away mapping contract and
+    # proves the AI side is not decorated as the user's squad.
+    'REG: startWatch resolves userPlayers from resolved.userIsHome',
+    'REG: startWatch resolves oppPlayers from resolved.userIsHome',
 }
 
 P0_TEST_FILES = [
@@ -103,6 +110,9 @@ P0_TEST_FILES = [
     'src/modules/worldCompetitions.test.js',
     'src/modules/worldRuntime.test.js',
     'src/game/injuryCadence.test.js',
+    # P2 replacements for watched mapping and deterministic cup parity.
+    'src/game/managerTactics.test.js',
+    'src/game/cupP2Parity.test.js',
 ]
 
 
