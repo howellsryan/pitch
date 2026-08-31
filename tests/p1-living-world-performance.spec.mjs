@@ -28,7 +28,7 @@ test('P1 living world stays inside a throttled mobile browser budget', async ({ 
   const gameweekMs = Date.now() - gameweekStartedAt;
 
   const storageUsage = await page.evaluate(async () => {
-    const estimate = await navigator.storage?.estimate?.();
+    const estimate = await globalThis.navigator.storage?.estimate?.();
     return Number(estimate?.usage ?? 0);
   });
 
