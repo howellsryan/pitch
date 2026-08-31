@@ -17,10 +17,10 @@ export const GROWTH_PROFILE_DEFS = Object.freeze({
 const PROFILE_IDS = Object.keys(GROWTH_PROFILE_DEFS);
 const PROFILE_SET = new Set(PROFILE_IDS);
 
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function round2(value) { return Math.round(value * 100) / 100; }
+function devClamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function devRound2(value) { return Math.round(value * 100) / 100; }
 
-function stableHash(value) {
+function devStableHash(value) {
   let h = 2166136261;
   for (const ch of String(value ?? '')) {
     h ^= ch.charCodeAt(0);
@@ -29,8 +29,8 @@ function stableHash(value) {
   return h >>> 0;
 }
 
-function deterministicUnit(seed) {
-  let t = (stableHash(seed) + 0x6D2B79F5) >>> 0;
+function devDeterministicUnit(seed) {
+  let t = (devStableHash(seed) + 0x6D2B79F5) >>> 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -62,7 +62,7 @@ export function normalizeGrowthProfile(profile, player = null) {
   const def = GROWTH_PROFILE_DEFS[id];
   return {
     id,
-    peakAge:clamp(Math.round(Number(profile.peakAge) || (defaultPeakAge(player) + def.peakOffset)), 22, 36),
+    peakAge:devClamp(Math.round(Number(profile.peakAge) || (defaultPeakAge(player) + def.peakOffset)), 22, 36),
   };
 }
 
@@ -70,27 +70,27 @@ export function assignGrowthProfile(player) {
   if (!player) return null;
   const existing = normalizeGrowthProfile(player.growthProfile, player);
   if (existing) return existing;
-  const roll = deterministicUnit(`${player.id ?? player.name}:growth-profile`);
+  const roll = devDeterministicUnit(`${player.id ?? player.name}:growth-profile`);
   let id = 'normal';
   if (roll < .15) id = 'early_peak';
   else if (roll < .34) id = 'late_developer';
   else if (roll < .47) id = 'extended_peak';
   else if (roll < .57) id = 'rapid_decline';
   const def = GROWTH_PROFILE_DEFS[id];
-  return { id, peakAge:clamp(defaultPeakAge(player) + def.peakOffset, 22, 36) };
+  return { id, peakAge:devClamp(defaultPeakAge(player) + def.peakOffset, 22, 36) };
 }
 
 export function potentialEstimate(player, knowledge = player?.potentialKnowledge ?? .35) {
   const current = durableLevel(player);
-  const hidden = clamp(Number(player?.potentialRating ?? current), current, 99);
-  const k = clamp(Number(knowledge) || 0, 0, 1);
+  const hidden = devClamp(Number(player?.potentialRating ?? current), current, 99);
+  const k = devClamp(Number(knowledge) || 0, 0, 1);
   const uncertainty = Math.max(1, Math.round(10 - k * 8));
-  const biasSeed = deterministicUnit(`${player?.id ?? player?.name}:potential-view`) - .5;
-  const centre = clamp(Math.round(hidden + biasSeed * uncertainty * .8), current, 99);
-  const min = clamp(centre - uncertainty, current, 99);
-  const max = clamp(centre + uncertainty, min, 99);
+  const biasSeed = devDeterministicUnit(`${player?.id ?? player?.name}:potential-view`) - .5;
+  const centre = devClamp(Math.round(hidden + biasSeed * uncertainty * .8), current, 99);
+  const min = devClamp(centre - uncertainty, current, 99);
+  const max = devClamp(centre + uncertainty, min, 99);
   const confidence = k >= .8 ? 'High' : k >= .5 ? 'Medium' : 'Low';
-  return { min, max, confidence, knowledge:round2(k) };
+  return { min, max, confidence, knowledge:devRound2(k) };
 }
 
 function developmentSnapshot(player) {
@@ -128,7 +128,7 @@ function developmentThreshold(player, profile) {
 function boostAttribute(player, seed) {
   const next = { ...player };
   const primary = primaryAttribute(player.position);
-  const roll = deterministicUnit(seed);
+  const roll = devDeterministicUnit(seed);
   const secondary = primary === 'attack' ? 'midfield'
     : primary === 'midfield' ? (roll < .5 ? 'attack' : 'defence')
       : primary === 'defence' ? 'midfield'
@@ -141,11 +141,11 @@ function boostAttribute(player, seed) {
 function declineAttribute(player, seed) {
   const next = { ...player };
   const primary = primaryAttribute(player.position);
-  const roll = deterministicUnit(seed);
+  const roll = devDeterministicUnit(seed);
   const alternatives = ['attack','midfield','defence'].filter(attr => attr !== primary);
   const attribute = roll < .7 || player.position === 'GK'
     ? primary
-    : alternatives[Math.floor(deterministicUnit(`${seed}:secondary`) * alternatives.length)] ?? primary;
+    : alternatives[Math.floor(devDeterministicUnit(`${seed}:secondary`) * alternatives.length)] ?? primary;
   next[attribute] = Math.max(1, Number(next[attribute] ?? 50) - 1);
   return next;
 }
@@ -170,12 +170,12 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
 
   if (exposure.appeared && currentLevel < potential && age <= profileState.peakAge + 1) {
     const rating = Number(player.lastMatchRating);
-    const ratingBonus = Number.isFinite(rating) ? clamp((rating - 6) * 1.2, -1, 3) : 0;
-    const minutesScore = clamp(exposure.minutes / 45, .35, 2);
-    const morale = clamp(Number(player.individualMorale ?? 50), 0, 100);
-    const sharpness = clamp(Number(player.sharpness ?? 50), 0, 100);
+    const ratingBonus = Number.isFinite(rating) ? devClamp((rating - 6) * 1.2, -1, 3) : 0;
+    const minutesScore = devClamp(exposure.minutes / 45, .35, 2);
+    const morale = devClamp(Number(player.individualMorale ?? 50), 0, 100);
+    const sharpness = devClamp(Number(player.sharpness ?? 50), 0, 100);
     const readinessMult = .82 + morale / 500 + sharpness / 625;
-    const variance = .9 + deterministicUnit(`${player.id}:${key}:growth`) * .2;
+    const variance = .9 + devDeterministicUnit(`${player.id}:${key}:growth`) * .2;
     progress += Math.max(0, (minutesScore + ratingBonus) * profile.growthRate * readinessMult * variance);
     const threshold = developmentThreshold(player, profile);
     if (progress >= threshold) {
@@ -186,20 +186,20 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
 
   if (age > profileState.peakAge + 1) {
     const yearsPast = age - profileState.peakAge - 1;
-    const declineChance = clamp((.045 + yearsPast * .035) * profile.declineRate, 0, .55);
-    if (deterministicUnit(`${player.id}:${key}:decline`) < declineChance) {
+    const declineChance = devClamp((.045 + yearsPast * .035) * profile.declineRate, 0, .55);
+    if (devDeterministicUnit(`${player.id}:${key}:decline`) < declineChance) {
       next = declineAttribute(next, `${player.id}:${key}:decline-attr`);
     }
   }
 
   const changedFootball = ['attack','midfield','defence','goalkeeping'].some(attr => next[attr] !== player[attr]);
-  const progressChanged = round2(progress) !== round2(Number(player.developmentProgress ?? player.growthPoints ?? 0));
+  const progressChanged = devRound2(progress) !== devRound2(Number(player.developmentProgress ?? player.growthPoints ?? 0));
   if (!changedFootball && !progressChanged && !exposure.snapshotsChanged && player.growthProfile?.id === profileState.id) return player;
 
   return {
     ...next,
-    developmentProgress:round2(progress),
-    growthPoints:round2(progress),
+    developmentProgress:devRound2(progress),
+    growthPoints:devRound2(progress),
     developmentAppearances:exposure.current.appearances,
     developmentMinutes:exposure.current.minutes,
     developmentSettledKey:key,
