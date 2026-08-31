@@ -1,7 +1,9 @@
 <script>
   import { flip } from 'svelte/animate';
   import { getAllFixtures, getAllPlayers, getAllTeams, getSave, openDB } from '../../modules/db.js';
+  import { CUP_META } from '../../modules/cups.js';
   import { getLeagueTable } from '../../modules/standings.js';
+  import { worldCompetitionRunsForTeam } from '../../modules/worldCompetitions.js';
   import { fmt } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import Crest from './kit/Crest.svelte';
@@ -9,6 +11,8 @@
   let leagueName = $state('Premier League');
   let season = $state('2025/26');
   let userTeamId = $state(null);
+  let userCups = $state({});
+  let worldCompetitions = $state(null);
   let rows = $state([]);
   let results = $state([]);
   let byId = $state(new Map());
@@ -43,6 +47,14 @@
       ?? null;
   }
 
+  function cupRunLabel(run) {
+    if (run.status === 'winner' || run.winner) return 'Winners';
+    const round = run.roundName || CUP_META[run.competitionId]?.rounds?.[run.roundIndex] || 'In progress';
+    if (run.status === 'eliminated') return `Out · ${round}`;
+    if (run.status === 'waiting') return `Qualified · ${round}`;
+    return round;
+  }
+
   async function loadLeague(nextLeague, preferredTeamId = null) {
     leagueName = nextLeague;
     const table = await getLeagueTable(nextLeague);
@@ -70,6 +82,8 @@
     if (!save || save._deleted) return;
     userTeamId = save.userTeamId;
     season = save.season || '2025/26';
+    userCups = save.cups || {};
+    worldCompetitions = save.worldCompetitions || null;
 
     const [teams, players, fixtures] = await Promise.all([
       getAllTeams(), getAllPlayers(), getAllFixtures(),
@@ -106,8 +120,25 @@
       || a.name.localeCompare(b.name)
     ));
   const topPlayers = $derived(selectedPlayers.slice(0, 8));
-  const clubResults = $derived(allFixtures
-    .filter(fixture => fixture.played && (fixture.homeTeamId === selectedTeamId || fixture.awayTeamId === selectedTeamId))
+  const selectedCupRuns = $derived.by(() => {
+    if (!selectedTeamId) return [];
+    if (selectedTeamId === userTeamId) {
+      return Object.entries(userCups).map(([competitionId, state]) => ({
+        competitionId,
+        status:state.status,
+        roundIndex:state.roundIndex,
+        roundName:CUP_META[competitionId]?.rounds?.[state.roundIndex] ?? null,
+        winner:state.status === 'winner',
+      }));
+    }
+    return Object.values(worldCompetitionRunsForTeam(worldCompetitions, selectedTeamId));
+  });
+  const worldCupResults = $derived.by(() => Object.values(worldCompetitions?.competitions ?? {})
+    .flatMap(competition => competition.results ?? [])
+    .filter(fixture => fixture.homeTeamId === selectedTeamId || fixture.awayTeamId === selectedTeamId));
+  const clubResults = $derived([...allFixtures
+    .filter(fixture => fixture.played && (fixture.homeTeamId === selectedTeamId || fixture.awayTeamId === selectedTeamId)),
+    ...worldCupResults]
     .sort((a, b) => b.gameweek - a.gameweek)
     .slice(0, 5));
 </script>
@@ -187,6 +218,20 @@
               </div>
             </div>
 
+            <div class="club-section-title">Cup progress</div>
+            <div class="cup-runs">
+              {#if !selectedCupRuns.length}
+                <span>No cup entries this season.</span>
+              {:else}
+                {#each selectedCupRuns as run (run.competitionId)}
+                  <div class:winner={run.status === 'winner' || run.winner}>
+                    <strong>{CUP_META[run.competitionId]?.shortName || CUP_META[run.competitionId]?.name || run.competitionId}</strong>
+                    <span>{cupRunLabel(run)}</span>
+                  </div>
+                {/each}
+              {/if}
+            </div>
+
             <div class="club-section-title">Season leaders</div>
             <div class="player-leaders">
               {#if !topPlayers.length}
@@ -209,7 +254,7 @@
               {#if !clubResults.length}<span>No matches played yet.</span>{/if}
               {#each clubResults as fixture (fixture.id)}
                 <div>
-                  <span>GW{fixture.gameweek}</span>
+                  <span>{fixture.competition === 'cup' ? (CUP_META[fixture.competitionId]?.shortName || 'Cup') : `GW${fixture.gameweek}`}</span>
                   <strong>{byId.get(fixture.homeTeamId)?.shortName || byId.get(fixture.homeTeamId)?.name || fixture.homeTeamId} {fixture.homeGoals}–{fixture.awayGoals} {byId.get(fixture.awayTeamId)?.shortName || byId.get(fixture.awayTeamId)?.name || fixture.awayTeamId}</strong>
                 </div>
               {/each}
@@ -299,6 +344,13 @@
   .club-metrics strong { display:block; margin-top:3px; overflow:hidden; text-overflow:ellipsis; font:12px var(--font-mono); }
   .club-form { display:flex; justify-content:space-between; align-items:center; gap:10px; padding-bottom:12px; border-bottom:1px solid var(--color-line); color:var(--color-tx-2); font-size:11px; }
   .club-section-title { margin:13px 0 7px; color:var(--color-tx-3); text-transform:uppercase; letter-spacing:1px; font:9px var(--font-mono); }
+  .cup-runs { display:flex; flex-wrap:wrap; gap:5px; }
+  .cup-runs > span { color:var(--color-tx-3); font-size:10px; }
+  .cup-runs div { min-width:0; display:flex; align-items:center; gap:5px; border:1px solid var(--color-line); border-radius:999px; background:var(--color-surface-2); padding:5px 7px; }
+  .cup-runs div.winner { border-color:color-mix(in oklch,var(--color-live) 45%,var(--color-line)); }
+  .cup-runs strong { color:var(--color-tx); font:600 9px var(--font-mono); }
+  .cup-runs span { color:var(--color-tx-3); font:8px var(--font-mono); white-space:nowrap; }
+  .cup-runs div.winner span { color:var(--color-live); }
   .player-leaders { display:flex; flex-direction:column; gap:2px; }
   .player-leader { display:flex; align-items:center; justify-content:space-between; gap:8px; border-radius:7px; padding:7px 8px; background:var(--color-surface-2); }
   .player-main { min-width:0; }
