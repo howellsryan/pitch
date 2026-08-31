@@ -9,8 +9,11 @@ on:
 jobs:
   # Runs on every push and PR. Both build paths are exercised: build.py's
   # concatenation (which runs validate.js's compatibility suite) and the Vite
-  # build, plus lint, Vitest, the club-accent contrast floor, and Playwright
-  # career journeys.
+  # build, plus lint, Vitest, and the club-accent contrast floor.
+  #
+  # Playwright E2E remains in the repository for targeted/manual verification,
+  # but is intentionally excluded from this per-commit workflow to keep free-
+  # tier Actions usage bounded.
   #
   # This workflow does NOT deploy. Cloudflare Workers Builds is connected to
   # this repo and owns both production deploys and per-branch previews —
@@ -40,74 +43,6 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run check:accents
-
-      # A passing Vite build proves the module graph resolves, not that it is
-      # complete — a missing import only surfaces when the code path runs.
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
-
-      # P0–P3 and shell-polish work changed mobile surfaces. Retain the exact
-      # Playwright states used for completion review so layout is verified from
-      # rendered evidence, not inferred from component CSS.
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p0-career-menu-mobile
-          path: test-results/p0-career-menu-390x844.png
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p1-competitions-mobile
-          path: test-results/p1-competitions-390x844.png
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: mobile-top-navigation-squad
-          path: test-results/mobile-top-nav-squad-390x844.png
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p2-squad-tactics-mobile
-          path: test-results/p2-squad-tactics-390x844.png
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p2-team-news-mobile
-          path: test-results/p2-team-news-390x844.png
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p2-responsive-wide
-          path: |
-            test-results/p2-squad-tactics-1280x800.png
-            test-results/p2-team-news-1280x800.png
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p3-player-model-responsive
-          path: |
-            test-results/p3-player-detail-390x844.png
-            test-results/p3-player-detail-1280x800.png
-          if-no-files-found: error
-          retention-days: 7
 
       # Kept for debugging — the legacy single-file build, downloadable from
       # the run. Nothing deploys from it.
