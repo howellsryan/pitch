@@ -7,10 +7,11 @@
  * competing overall rating.
  */
 
-export const PLAYER_MODEL_VERSION = 2;
+export const PLAYER_MODEL_VERSION = 3;
 export const DEFAULT_INDIVIDUAL_MORALE = 50;
 export const DEFAULT_SHARPNESS = 50;
 export const MAX_PLAYER_TRAITS = 8;
+export const PLAYING_TIME_WINDOW_WEEKS = 5;
 
 export const EFFECTIVE_LEVEL_LIMITS = Object.freeze({
   positionFitPenalty:8,
@@ -23,6 +24,14 @@ export const EFFECTIVE_LEVEL_LIMITS = Object.freeze({
   maxDrop:15,
 });
 
+export const SQUAD_ROLE_DEFS = Object.freeze({
+  crucial:{ id:'crucial', label:'Crucial', appearanceShare:.80, minuteShare:.68 },
+  important:{ id:'important', label:'Important', appearanceShare:.65, minuteShare:.54 },
+  rotation:{ id:'rotation', label:'Rotation', appearanceShare:.45, minuteShare:.34 },
+  squad:{ id:'squad', label:'Squad', appearanceShare:.25, minuteShare:.18 },
+  prospect:{ id:'prospect', label:'Prospect', appearanceShare:.15, minuteShare:.10 },
+});
+
 export const ATTACK_POSITIONS = Object.freeze(['ST', 'CF', 'RW', 'LW', 'CAM']);
 export const MIDFIELD_POSITIONS = Object.freeze(['CM', 'CDM', 'CAM', 'RM', 'LM']);
 export const DEFENCE_POSITIONS = Object.freeze(['CB', 'RB', 'LB']);
@@ -30,6 +39,7 @@ export const DEFENCE_POSITIONS = Object.freeze(['CB', 'RB', 'LB']);
 const ATTACK_SET = new Set(ATTACK_POSITIONS);
 const MIDFIELD_SET = new Set(MIDFIELD_POSITIONS);
 const DEFENCE_SET = new Set(DEFENCE_POSITIONS);
+const SQUAD_ROLE_IDS = new Set(Object.keys(SQUAD_ROLE_DEFS));
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -88,6 +98,10 @@ function sameObject(left, right) {
   return rightEntries.every(([key, value]) => left[key] === value);
 }
 
+function sameJson(left, right) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
 /**
  * Preserve the established match-engine grouping exactly. CAM intentionally
  * resolves as ATT because the historical engine checked the attacking set
@@ -144,6 +158,66 @@ export function normalizePlayerTraits(traits) {
   return normalized;
 }
 
+export function normalizeSquadRole(role) {
+  return SQUAD_ROLE_IDS.has(role) ? role : null;
+}
+
+function normalizePromiseHistory(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter(sample => sample && typeof sample === 'object' && typeof sample.key === 'string')
+    .map(sample => ({
+      key:sample.key,
+      appeared:Boolean(sample.appeared),
+      minutes:clamp(Math.round(nonNegativeNumber(sample.minutes)), 0, 90),
+    }))
+    .slice(-PLAYING_TIME_WINDOW_WEEKS);
+}
+
+export function createPlayingTimeAgreement(role, teamId) {
+  const normalizedRole = normalizeSquadRole(role);
+  if (!normalizedRole || !teamId || teamId === 'free_agents') return null;
+  return {
+    version:1,
+    scope:'managed',
+    teamId,
+    role:normalizedRole,
+    status:'settling',
+    history:[],
+    appearanceShare:0,
+    minuteShare:0,
+    deliveryScore:1,
+    lastEvaluatedKey:null,
+  };
+}
+
+export function normalizePlayingTimeAgreement(agreement, role, teamId) {
+  const normalizedRole = normalizeSquadRole(role);
+  if (!agreement || typeof agreement !== 'object' || Array.isArray(agreement)) return null;
+  if (!normalizedRole || !teamId || teamId === 'free_agents') return null;
+  const history = normalizePromiseHistory(agreement.history);
+  const status = ['settling', 'fulfilled', 'at_risk', 'broken'].includes(agreement.status)
+    ? agreement.status
+    : 'settling';
+  return {
+    version:1,
+    scope:agreement.scope === 'managed' ? 'managed' : 'managed',
+    teamId,
+    role:normalizedRole,
+    status,
+    history,
+    appearanceShare:round2(clamp(Number(agreement.appearanceShare) || 0, 0, 1)),
+    minuteShare:round2(clamp(Number(agreement.minuteShare) || 0, 0, 1)),
+    deliveryScore:round2(Math.max(0, Number(agreement.deliveryScore) || 0)),
+    lastEvaluatedKey:settledWeekKey(agreement.lastEvaluatedKey),
+  };
+}
+
+function inferredProspectRole(player) {
+  const age = Number(player?.age ?? 99);
+  return (player?.isYouth || player?.generated) && age <= 21 ? 'prospect' : null;
+}
+
 /**
  * Additive P3 row normaliser. It owns only P3's player-state fields and spreads
  * every legacy/career field through unchanged. The settlement snapshots are
@@ -152,14 +226,25 @@ export function normalizePlayerTraits(traits) {
  */
 export function normalizePlayerModel(player) {
   if (!player) return player;
+  const squadRole = normalizeSquadRole(player.squadRole) ?? inferredProspectRole(player);
+  const squadRoleTeamId = squadRole
+    ? (player.squadRoleTeamId ?? player.teamId ?? player.youthTeamId ?? null)
+    : null;
+  const playingTimeAgreement = normalizePlayingTimeAgreement(
+    player.playingTimeAgreement,
+    squadRole,
+    squadRoleTeamId,
+  );
   return {
     ...player,
     positionSuitability:normalizePositionSuitability(player.positionSuitability, player.position),
     traits:normalizePlayerTraits(player.traits),
     individualMorale:clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE),
     sharpness:clampState(player.sharpness, DEFAULT_SHARPNESS),
-    squadRole:player.squadRole ?? null,
-    playingTimeAgreement:player.playingTimeAgreement ?? null,
+    squadRole,
+    squadRoleSource:squadRole ? (player.squadRoleSource === 'manager' ? 'manager' : 'auto') : null,
+    squadRoleTeamId,
+    playingTimeAgreement,
     growthProfile:player.growthProfile ?? null,
     rehabilitation:player.rehabilitation ?? null,
     personalStateAppearances:nonNegativeNumber(player.personalStateAppearances, nonNegativeNumber(player.appearances)),
@@ -177,7 +262,9 @@ export function playerModelNeedsNormalization(player) {
     || player.individualMorale !== normalized.individualMorale
     || player.sharpness !== normalized.sharpness
     || player.squadRole !== normalized.squadRole
-    || player.playingTimeAgreement !== normalized.playingTimeAgreement
+    || player.squadRoleSource !== normalized.squadRoleSource
+    || player.squadRoleTeamId !== normalized.squadRoleTeamId
+    || !sameJson(player.playingTimeAgreement, normalized.playingTimeAgreement)
     || player.growthProfile !== normalized.growthProfile
     || player.rehabilitation !== normalized.rehabilitation
     || player.personalStateAppearances !== normalized.personalStateAppearances
@@ -265,6 +352,29 @@ export function personalStateWeekKey(season, gameweek) {
   return `${String(season ?? 'unknown')}:${gw}`;
 }
 
+function seasonStartYear(season) {
+  const parsed = parseInt(String(season ?? '').split('/')[0], 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function weeklyParticipation(player) {
+  const currentAppearances = nonNegativeNumber(player.appearances);
+  const currentMinutes = nonNegativeNumber(player.minutes);
+  const storedAppearances = nonNegativeNumber(player.personalStateAppearances, currentAppearances);
+  const storedMinutes = nonNegativeNumber(player.personalStateMinutes, currentMinutes);
+  const seasonStatsReset = currentAppearances < storedAppearances || currentMinutes < storedMinutes;
+  const previousAppearances = seasonStatsReset ? 0 : storedAppearances;
+  const previousMinutes = seasonStatsReset ? 0 : storedMinutes;
+  return {
+    currentAppearances,
+    currentMinutes,
+    storedAppearances,
+    storedMinutes,
+    appearanceDelta:Math.max(0, currentAppearances - previousAppearances),
+    minuteDelta:Math.max(0, currentMinutes - previousMinutes),
+  };
+}
+
 /**
  * Settle morale/sharpness once at a completed world-gameweek boundary. The
  * cumulative appearance/minute snapshots provide canonical participation
@@ -278,24 +388,15 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
   if (!weekKey) return player;
   if (player.personalStateSettledKey === weekKey) return player;
 
-  const currentAppearances = nonNegativeNumber(player.appearances);
-  const currentMinutes = nonNegativeNumber(player.minutes);
-  const storedAppearances = nonNegativeNumber(player.personalStateAppearances, currentAppearances);
-  const storedMinutes = nonNegativeNumber(player.personalStateMinutes, currentMinutes);
-  const seasonStatsReset = currentAppearances < storedAppearances || currentMinutes < storedMinutes;
-  const previousAppearances = seasonStatsReset ? 0 : storedAppearances;
-  const previousMinutes = seasonStatsReset ? 0 : storedMinutes;
-  const appearanceDelta = Math.max(0, currentAppearances - previousAppearances);
-  const minuteDelta = Math.max(0, currentMinutes - previousMinutes);
-  const participated = appearanceDelta > 0 || minuteDelta > 0;
-
+  const participation = weeklyParticipation(player);
+  const participated = participation.appearanceDelta > 0 || participation.minuteDelta > 0;
   const currentMorale = clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE);
   const currentSharpness = clampState(player.sharpness, DEFAULT_SHARPNESS);
   let nextMorale = currentMorale;
   let nextSharpness = currentSharpness;
 
   if (participated) {
-    const exposureGain = clamp(Math.round(2 + Math.min(6, minuteDelta / 30)), 2, 8);
+    const exposureGain = clamp(Math.round(2 + Math.min(6, participation.minuteDelta / 30)), 2, 8);
     nextSharpness = clamp(currentSharpness + exposureGain, 0, 100);
 
     const rating = Number(player.lastMatchRating);
@@ -312,13 +413,12 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
     else if (form <= 35) moraleDelta -= 1;
     nextMorale = clamp(currentMorale + moraleDelta, 0, 100);
   } else {
-    // Match sharpness and confidence settle back toward neutral when unused;
-    // neutral players therefore require no weekly write at all.
     nextSharpness = moveToward(currentSharpness, DEFAULT_SHARPNESS, 4);
     nextMorale = moveToward(currentMorale, DEFAULT_INDIVIDUAL_MORALE, 2);
   }
 
-  const snapshotsChanged = currentAppearances !== storedAppearances || currentMinutes !== storedMinutes;
+  const snapshotsChanged = participation.currentAppearances !== participation.storedAppearances
+    || participation.currentMinutes !== participation.storedMinutes;
   const stateChanged = nextMorale !== currentMorale || nextSharpness !== currentSharpness;
   if (!snapshotsChanged && !stateChanged) return player;
 
@@ -326,18 +426,197 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
     ...player,
     individualMorale:nextMorale,
     sharpness:nextSharpness,
-    personalStateAppearances:currentAppearances,
-    personalStateMinutes:currentMinutes,
+    personalStateAppearances:participation.currentAppearances,
+    personalStateMinutes:participation.currentMinutes,
     personalStateSettledKey:weekKey,
   };
 }
 
-/** Build the bounded write-set for one settled world gameweek. */
-export function buildPersonalStatePatches(players, gameweek, season = null) {
-  const patches = [];
+function defaultSquadRole(player, rank, squadSize, currentYear) {
+  const age = Number(player?.age ?? 25);
+  let role;
+  if (age <= 21 && rank >= Math.min(8, Math.max(3, Math.floor(squadSize * .35)))) role = 'prospect';
+  else if (rank < 3) role = 'crucial';
+  else if (rank < 8) role = 'important';
+  else if (rank < 15) role = 'rotation';
+  else role = 'squad';
+
+  // Contract/loan context only nudges initial expectations; it never changes
+  // ability. A fresh loan should expect meaningful minutes, while a player
+  // effectively at contract end does not receive a new Crucial promise by default.
+  if ((player?.onLoan || player?.loanedFrom) && ['squad', 'prospect'].includes(role)) role = 'rotation';
+  if (Number.isFinite(currentYear) && Number(player?.contractExpiry) <= currentYear && role === 'crucial') role = 'important';
+  return role;
+}
+
+export function setPlayerSquadRole(player, role, { source = 'manager', teamId = player?.teamId } = {}) {
+  const normalizedRole = normalizeSquadRole(role);
+  if (!player || !normalizedRole || !teamId || teamId === 'free_agents') return player;
+  return {
+    ...player,
+    squadRole:normalizedRole,
+    squadRoleSource:source === 'manager' ? 'manager' : 'auto',
+    squadRoleTeamId:teamId,
+    playingTimeAgreement:createPlayingTimeAgreement(normalizedRole, teamId),
+  };
+}
+
+function inferManagedTeamId(players) {
+  const counts = new Map();
   for (const player of players ?? []) {
-    const settled = settlePlayerPersonalState(player, gameweek, season);
-    if (settled !== player) patches.push(settled);
+    const agreement = player?.playingTimeAgreement;
+    if (agreement?.scope !== 'managed' || !agreement.teamId) continue;
+    counts.set(agreement.teamId, (counts.get(agreement.teamId) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a,b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0]?.[0] ?? null;
+}
+
+/**
+ * Initialise/remap team-relative roles. Existing roles are preserved while the
+ * player remains at the same club; transfers invalidate the old ownership key.
+ * Rolling promise agreements are only created for the managed club.
+ */
+export function assignDefaultSquadRoles(players, { currentYear = null, managedTeamId = null } = {}) {
+  const result = [...(players ?? [])];
+  const byTeam = new Map();
+  for (let index = 0; index < result.length; index++) {
+    const player = result[index];
+    if (!player?.teamId || player.teamId === 'free_agents') continue;
+    if (!byTeam.has(player.teamId)) byTeam.set(player.teamId, []);
+    byTeam.get(player.teamId).push({ player, index });
+  }
+
+  for (const [teamId, entries] of byTeam) {
+    const ranked = [...entries].sort((a,b) =>
+      Number(baselineLevel(b.player) ?? 0) - Number(baselineLevel(a.player) ?? 0)
+      || String(a.player.id).localeCompare(String(b.player.id))
+    );
+    ranked.forEach((entry, rank) => {
+      const original = entry.player;
+      const sameClubRole = normalizeSquadRole(original.squadRole) && original.squadRoleTeamId === teamId;
+      const role = sameClubRole
+        ? original.squadRole
+        : defaultSquadRole(original, rank, ranked.length, currentYear);
+      const source = sameClubRole ? (original.squadRoleSource === 'manager' ? 'manager' : 'auto') : 'auto';
+      const shouldHaveAgreement = teamId === managedTeamId;
+      const currentAgreement = sameClubRole
+        ? normalizePlayingTimeAgreement(original.playingTimeAgreement, role, teamId)
+        : null;
+      const agreement = shouldHaveAgreement
+        ? (currentAgreement ?? createPlayingTimeAgreement(role, teamId))
+        : null;
+      if (original.squadRole === role
+        && original.squadRoleSource === source
+        && original.squadRoleTeamId === teamId
+        && sameJson(original.playingTimeAgreement, agreement)) return;
+      result[entry.index] = {
+        ...original,
+        squadRole:role,
+        squadRoleSource:source,
+        squadRoleTeamId:teamId,
+        playingTimeAgreement:agreement,
+      };
+    });
+  }
+
+  for (let index = 0; index < result.length; index++) {
+    const player = result[index];
+    if (player?.teamId !== 'free_agents') continue;
+    if (player.squadRole == null && player.squadRoleTeamId == null && player.playingTimeAgreement == null) continue;
+    result[index] = {
+      ...player,
+      squadRole:null,
+      squadRoleSource:null,
+      squadRoleTeamId:null,
+      playingTimeAgreement:null,
+    };
+  }
+  return result;
+}
+
+function promiseStatus(history, role) {
+  const target = SQUAD_ROLE_DEFS[role] ?? SQUAD_ROLE_DEFS.squad;
+  const weeks = history.length;
+  const appearanceShare = weeks ? history.filter(sample => sample.appeared).length / weeks : 0;
+  const minuteShare = weeks ? history.reduce((sum, sample) => sum + sample.minutes, 0) / (weeks * 90) : 0;
+  const deliveryScore = Math.max(
+    target.appearanceShare > 0 ? appearanceShare / target.appearanceShare : 1,
+    target.minuteShare > 0 ? minuteShare / target.minuteShare : 1,
+  );
+  let status = 'settling';
+  if (weeks >= 3) {
+    if (deliveryScore >= .90) status = 'fulfilled';
+    else if (weeks >= PLAYING_TIME_WINDOW_WEEKS && deliveryScore < .60) status = 'broken';
+    else status = 'at_risk';
+  }
+  return {
+    status,
+    appearanceShare:round2(clamp(appearanceShare, 0, 1)),
+    minuteShare:round2(clamp(minuteShare, 0, 1)),
+    deliveryScore:round2(deliveryScore),
+  };
+}
+
+export function settlePlayingTimeAgreement(player, gameweek, season = null) {
+  if (!player?.playingTimeAgreement) return player;
+  const agreement = normalizePlayingTimeAgreement(
+    player.playingTimeAgreement,
+    player.squadRole,
+    player.squadRoleTeamId,
+  );
+  const weekKey = personalStateWeekKey(season, gameweek);
+  if (!agreement || !weekKey || agreement.lastEvaluatedKey === weekKey) return player;
+  if (agreement.teamId !== player.teamId) {
+    return { ...player, playingTimeAgreement:null };
+  }
+
+  const participation = weeklyParticipation(player);
+  const history = [
+    ...agreement.history.filter(sample => sample.key !== weekKey),
+    {
+      key:weekKey,
+      appeared:participation.appearanceDelta > 0,
+      minutes:clamp(Math.round(participation.minuteDelta), 0, 90),
+    },
+  ].slice(-PLAYING_TIME_WINDOW_WEEKS);
+  const evaluation = promiseStatus(history, player.squadRole);
+  let morale = clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE);
+  if (evaluation.status === 'broken') morale = clamp(morale - 2, 0, 100);
+  else if (evaluation.status === 'at_risk') morale = clamp(morale - 1, 0, 100);
+  else if (evaluation.status === 'fulfilled' && ['at_risk', 'broken'].includes(agreement.status)) morale = clamp(morale + 1, 0, 100);
+
+  return {
+    ...player,
+    individualMorale:morale,
+    playingTimeAgreement:{
+      ...agreement,
+      ...evaluation,
+      history,
+      lastEvaluatedKey:weekKey,
+    },
+  };
+}
+
+/**
+ * Build the bounded changed-row set for one world week. Managed-club promise
+ * evidence shares the same participation snapshots as morale/sharpness; AI
+ * players do not accumulate weekly promise history.
+ */
+export function buildPersonalStatePatches(players, gameweek, season = null) {
+  const managedTeamId = inferManagedTeamId(players);
+  const roleReady = assignDefaultSquadRoles(players, {
+    currentYear:seasonStartYear(season),
+    managedTeamId,
+  });
+  const patches = [];
+  for (let index = 0; index < roleReady.length; index++) {
+    const original = players[index];
+    let settled = roleReady[index];
+    if (managedTeamId && settled?.teamId === managedTeamId) {
+      settled = settlePlayingTimeAgreement(settled, gameweek, season);
+    }
+    settled = settlePlayerPersonalState(settled, gameweek, season);
+    if (settled !== original) patches.push(settled);
   }
   return patches;
 }
