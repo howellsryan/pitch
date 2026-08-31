@@ -10,9 +10,9 @@ import { baselineLevel } from './playerModel.js';
  * per-match random development system.
  */
 
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function potentialClamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
-function stableHash(value) {
+function potentialStableHash(value) {
   let h = 2166136261;
   for (const ch of String(value ?? '')) {
     h ^= ch.charCodeAt(0);
@@ -21,8 +21,8 @@ function stableHash(value) {
   return h >>> 0;
 }
 
-function deterministicUnit(seed) {
-  let t = (stableHash(seed) + 0x6D2B79F5) >>> 0;
+function potentialDeterministicUnit(seed) {
+  let t = (potentialStableHash(seed) + 0x6D2B79F5) >>> 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -48,7 +48,7 @@ export function assignPotentials(players) {
       growthPoints:Number(p.growthPoints ?? 0),
       peakAge:growthProfile?.peakAge ?? calcPeakAge(seeded),
       growthProfile,
-      potentialKnowledge:clamp(Number(p.potentialKnowledge ?? .35), 0, 1),
+      potentialKnowledge:potentialClamp(Number(p.potentialKnowledge ?? .35), 0, 1),
     };
   });
 }
@@ -64,7 +64,7 @@ export function calcPotential(p) {
     age <= 23 ? [2, 9] :
     age <= 26 ? [0, 4] :
     age <= 29 ? [0, 2] : [0, 0];
-  const roll = deterministicUnit(`${p.id ?? p.name}:${age}:potential`);
+  const roll = potentialDeterministicUnit(`${p.id ?? p.name}:${age}:potential`);
   const headroom = range[0] + Math.floor(roll * (range[1] - range[0] + 1));
   return Math.min(99, Math.max(current, current + headroom));
 }
@@ -91,7 +91,7 @@ export function growthThreshold(age, currentRating, potential) {
 export function applyStatBoost(player) {
   const p = { ...player };
   const pos = p.position;
-  const roll = deterministicUnit(`${p.id ?? p.name}:${p.growthPoints ?? 0}:legacy-boost`);
+  const roll = potentialDeterministicUnit(`${p.id ?? p.name}:${p.growthPoints ?? 0}:legacy-boost`);
   if (['ST','CF'].includes(pos)) {
     if (roll < .65) p.attack = Math.min(99, Number(p.attack ?? 50) + 1);
     else if (roll < .85) p.midfield = Math.min(99, Number(p.midfield ?? 50) + 1);
@@ -147,10 +147,10 @@ export function getPotentialStars(player) {
   return 1;
 }
 
+/** Shared P3 potential language used by Transfers and Academy. */
 export function getPotentialLabel(player) {
-  const stars = getPotentialStars(player);
-  const labels = ['','Average','Good','Great','World Class','Legendary'];
-  return labels[stars] ?? 'Unknown';
+  const estimate = getPotentialEstimate(player);
+  return `${estimate.min}–${estimate.max} · ${estimate.confidence} confidence`;
 }
 
 export function agingValueAdjust(player) {
