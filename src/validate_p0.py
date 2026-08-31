@@ -69,6 +69,11 @@ SUPERSEDED_LEGACY_CHECKS = {
     # checks search the retired helper's source for implementation details.
     'INJ: updateCache reads fresh from DB (not stale allPlayers)',
     'REG: rested players restore to 100',
+    # P1 batches injury probability every six phases in both fast and watched
+    # simulation. The old assertions require the retired per-phase source shape;
+    # injuryCadence.test.js proves the cumulative 120-phase probability is equal.
+    'INJ: injury events fired in simulateMatch',
+    'INJ: injury events fired in simulateMatchSegment',
     # Adding the P1 world/history implementation made validate.js's fixed source
     # windows too short to see these unchanged rollover/wage details. They are
     # covered across seasonP0.test.js and seasonP1.test.js against the real files.
@@ -90,6 +95,7 @@ P0_TEST_FILES = [
     'src/modules/world.test.js',
     'src/modules/worldCompetitions.test.js',
     'src/modules/worldRuntime.test.js',
+    'src/game/injuryCadence.test.js',
 ]
 
 
