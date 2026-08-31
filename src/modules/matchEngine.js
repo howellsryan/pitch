@@ -1,5 +1,5 @@
 import { rollInjuryCheck } from './injuries.js';
-import { baselineLevel, playerPositionGroup } from './playerModel.js';
+import { currentEffectiveLevel, effectiveAttribute, playerPositionGroup } from './playerModel.js';
 import {
   DEFAULT_TEAM_INSTRUCTIONS,
   chooseAIRole,
@@ -36,7 +36,8 @@ export function positionGroup(pos) {
 }
 
 export function primaryRating(player) {
-  return baselineLevel(player);
+  const level = currentEffectiveLevel(player);
+  return level == null ? level : Math.round(level);
 }
 
 export const FORMATIONS = {
@@ -79,7 +80,8 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
   }
 
   if (!chosen.some(p => p.position === 'GK')) {
-    const gks = avail.filter(p => p.position === 'GK' && !used.has(p.id)).sort((a,b) => (b.goalkeeping ?? 0) - (a.goalkeeping ?? 0));
+    const gks = avail.filter(p => p.position === 'GK' && !used.has(p.id))
+      .sort((a,b) => (primaryRating(b) ?? 0) - (primaryRating(a) ?? 0));
     if (gks[0]) { chosen.push(gks[0]); used.add(gks[0].id); }
   }
 
@@ -124,7 +126,7 @@ export function teamStrength(eleven) {
     let sum = 0, wt = 0;
     for (const p of eleven) {
       const w = weights[p.position] ?? .1;
-      sum += Number(p?.[attr] ?? 50) * w;
+      sum += Number(effectiveAttribute(p, attr) ?? p?.[attr] ?? 50) * w;
       wt += w;
     }
     return wt > 0 ? sum / wt : 50;
@@ -134,7 +136,7 @@ export function teamStrength(eleven) {
     attack:weightedAvg('attack', ATTACK_W),
     midfield:weightedAvg('midfield', MIDFIELD_W),
     defence:weightedAvg('defence', DEFENCE_W),
-    goalkeeping:gk ? Number(gk.goalkeeping ?? 50) : 50,
+    goalkeeping:gk ? Number(effectiveAttribute(gk, 'goalkeeping') ?? gk.goalkeeping ?? 50) : 50,
     eleven,
   };
 }
@@ -178,7 +180,7 @@ export function pickScorer(eleven, rng = Math.random) {
   const weights = eleven.map(p => {
     const base = POS_WEIGHTS[p.position] ?? 1;
     if (!base) return 0;
-    const norm = Number(p.attack ?? 50) / 99;
+    const norm = Number(effectiveAttribute(p, 'attack') ?? p.attack ?? 50) / 99;
     return base * (norm * norm * 1.5 + .5);
   });
   const total = weights.reduce((a,b) => a + b, 0);
@@ -198,7 +200,7 @@ export function pickAssister(eleven, scorerId, rng = Math.random) {
   const weights = cands.map(p => {
     const base = POS_WEIGHTS[p.position] ?? 5;
     if (!base) return 0;
-    return base * ((Number(p.midfield ?? 50) / 99) * .6 + .4);
+    return base * ((Number(effectiveAttribute(p, 'midfield') ?? p.midfield ?? 50) / 99) * .6 + .4);
   });
   const total = weights.reduce((a,b) => a + b, 0);
   if (!total) return cands[0];
