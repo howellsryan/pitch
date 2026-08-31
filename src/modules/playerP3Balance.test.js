@@ -108,4 +108,17 @@ describe('P3 seeded population balance', () => {
     expect(durableLevel(result)).toBeLessThanOrEqual(82);
     expect(durableLevel(result) - durableLevel(subject)).toBeLessThanOrEqual(14);
   });
+
+  it('keeps the 15-season P3 player payload compact', () => {
+    const sample = Array.from({ length:120 }, (_, index) => runSeasons(populationPlayer(index), 15));
+    const serializedBytes = Buffer.byteLength(JSON.stringify(sample), 'utf8');
+    const bytesPerPlayer = serializedBytes / sample.length;
+
+    expect(bytesPerPlayer).toBeLessThan(2_500);
+    for (const player of sample) {
+      expect(player.growthProfile).toBeTruthy();
+      expect(String(player.developmentSettledKey ?? '')).toMatch(/^2039\/40:/);
+      expect(durableLevel(player)).toBeLessThanOrEqual(99);
+    }
+  });
 });
