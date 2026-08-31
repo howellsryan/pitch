@@ -37,7 +37,7 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function unique(values) {
+function uniqueCompetitionTeams(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
@@ -63,11 +63,12 @@ function alignKnockoutState(state, currentGameweek) {
   const rules = getCompetitionRules(state.id);
   if (!rules?.roundGWs?.length) return state;
   const firstUpcoming = rules.roundGWs.findIndex(gw => gw >= currentGameweek);
-  if (firstUpcoming <= 0) return state;
   if (firstUpcoming < 0) {
     state.roundIndex = rules.roundGWs.length;
+    state.activeTeamIds = [];
     return state;
   }
+  if (firstUpcoming === 0) return state;
 
   state.roundIndex = firstUpcoming;
   const eligible = Object.entries(state.progressByTeam)
@@ -361,9 +362,9 @@ async function advanceKnockout(comp, gw, teamsById, playersByTeam) {
     comp.pendingTies = [];
     comp.pendingByes = [];
     comp.roundIndex = roundIndex + 1;
-    comp.activeTeamIds = unique(winners);
+    comp.activeTeamIds = uniqueCompetitionTeams(winners);
     if (comp.format === 'uefa_league_phase' && comp.roundIndex === 2) {
-      comp.activeTeamIds = unique([...comp.activeTeamIds, ...(comp.directTeamIds ?? [])]);
+      comp.activeTeamIds = uniqueCompetitionTeams([...comp.activeTeamIds, ...(comp.directTeamIds ?? [])]);
       comp.directTeamIds = [];
     }
     markActive(comp, comp.activeTeamIds, comp.roundIndex, rules.rounds?.[comp.roundIndex] ?? roundName);
@@ -371,7 +372,7 @@ async function advanceKnockout(comp, gw, teamsById, playersByTeam) {
   }
 
   const entrants = comp.entrantsByRound?.[roundIndex] ?? [];
-  const participants = unique([...(comp.activeTeamIds ?? []), ...entrants]);
+  const participants = uniqueCompetitionTeams([...(comp.activeTeamIds ?? []), ...entrants]);
   markActive(comp, participants, roundIndex, roundName);
   const { pairs, byes } = knockoutPairs(participants, roundIndex);
 
@@ -408,7 +409,7 @@ async function advanceKnockout(comp, gw, teamsById, playersByTeam) {
   }
 
   comp.roundIndex = roundIndex + 1;
-  comp.activeTeamIds = unique(winners);
+  comp.activeTeamIds = uniqueCompetitionTeams(winners);
   const finished = /Final$/i.test(roundName) || comp.roundIndex >= (rules.rounds?.length ?? 0);
   if (finished && comp.activeTeamIds.length === 1) {
     completeCompetition(comp, comp.activeTeamIds[0], finalRunnerUp, roundIndex, roundName);
