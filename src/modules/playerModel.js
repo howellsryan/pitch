@@ -322,3 +322,13 @@ export function settlePlayerPersonalState(player, gameweek) {
     personalStateSettledGameweek:gw,
   };
 }
+
+/** Build the bounded write-set for one settled world gameweek. */
+export function buildPersonalStatePatches(players, gameweek) {
+  const patches = [];
+  for (const player of players ?? []) {
+    const settled = settlePlayerPersonalState(player, gameweek);
+    if (settled !== player) patches.push(settled);
+  }
+  return patches;
+}
