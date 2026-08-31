@@ -33,31 +33,52 @@ describe('P3 bounded personal-state write set', () => {
     const unusedNonNeutral = player('rested', { individualMorale:60, sharpness:70 });
     const unusedNeutral = player('neutral');
 
-    const patches = buildPersonalStatePatches([participant, unusedNonNeutral, unusedNeutral], 12);
+    const patches = buildPersonalStatePatches([participant, unusedNonNeutral, unusedNeutral], 12, '2025/26');
 
     expect(patches.map(patch => patch.id)).toEqual(['played', 'rested']);
     expect(patches.find(patch => patch.id === 'played')).toMatchObject({
       personalStateAppearances:11,
       personalStateMinutes:890,
-      personalStateSettledGameweek:12,
+      personalStateSettledKey:'2025/26:12',
     });
     expect(patches.find(patch => patch.id === 'rested')).toMatchObject({
       individualMorale:58,
       sharpness:66,
-      personalStateSettledGameweek:12,
+      personalStateSettledKey:'2025/26:12',
     });
   });
 
-  it('is empty when a settled write set is rebuilt for the same world gameweek', () => {
+  it('is empty when a settled write set is rebuilt for the same world week', () => {
     const participant = {
       ...player('played'),
       appearances:11,
       minutes:890,
       lastMatchRating:8,
     };
-    const first = buildPersonalStatePatches([participant], 8);
+    const first = buildPersonalStatePatches([participant], 8, '2025/26');
     expect(first).toHaveLength(1);
-    expect(buildPersonalStatePatches(first, 8)).toEqual([]);
+    expect(buildPersonalStatePatches(first, 8, '2025/26')).toEqual([]);
+  });
+
+  it('does not confuse the same gameweek number in a later season', () => {
+    const firstSeason = {
+      ...player('rollover'),
+      appearances:11,
+      minutes:890,
+      lastMatchRating:7.5,
+    };
+    const [settled] = buildPersonalStatePatches([firstSeason], 17, '2025/26');
+    const nextSeasonParticipation = {
+      ...settled,
+      appearances:12,
+      minutes:980,
+      lastMatchRating:7.2,
+    };
+
+    const next = buildPersonalStatePatches([nextSeasonParticipation], 17, '2026/27');
+    expect(next).toHaveLength(1);
+    expect(next[0].personalStateSettledKey).toBe('2026/27:17');
+    expect(next[0].personalStateAppearances).toBe(12);
   });
 
   it('shares the same per-player settlement contract used by the batch planner', () => {
@@ -67,8 +88,8 @@ describe('P3 bounded personal-state write set', () => {
       minutes:845,
       lastMatchRating:6.8,
     };
-    expect(buildPersonalStatePatches([participant], 4)[0]).toEqual(
-      settlePlayerPersonalState(participant, 4),
+    expect(buildPersonalStatePatches([participant], 4, '2025/26')[0]).toEqual(
+      settlePlayerPersonalState(participant, 4, '2025/26'),
     );
   });
 });
