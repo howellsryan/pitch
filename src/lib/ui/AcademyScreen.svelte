@@ -37,7 +37,11 @@
 
   const cohort = $derived(save?.youthCohort ?? []);
   const sortedCohort = $derived(
-    [...cohort].sort((a, b) => (b.isWonderkid !== a.isWonderkid ? (b.isWonderkid ? 1 : -1) : b.potentialRating - a.potentialRating))
+    [...cohort].sort((a, b) => (
+      b.isWonderkid !== a.isWonderkid
+        ? (b.isWonderkid ? 1 : -1)
+        : getPotentialStars(b) - getPotentialStars(a) || primaryRating(b) - primaryRating(a)
+    ))
   );
   const agingOutCount = $derived(cohort.filter(p => p.age >= 19).length);
 
@@ -136,7 +140,7 @@
           <div class="ac-invest-maxed">Fully invested — nothing more to gain here.</div>
         {:else}
           <div class="ac-invest-row">
-            <input type="range" min="0" max={Math.max(0, maxInvestSpend)} step={ACADEMY_INVESTMENT_COST_PER_POINT} bind:value={investAmount} disabled={maxInvestSpend <= 0} />
+            <input type="range" min="0" max={Math.max(0, maxInvestSpend)} step={ACAMY_INVESTMENT_COST_PER_POINT} bind:value={investAmount} disabled={maxInvestSpend <= 0} />
             <div class="ac-invest-amount">{fmt.money(investAmount)}</div>
           </div>
           <div class="ac-invest-preview">+{investPreviewPoints} point{investPreviewPoints === 1 ? '' : 's'} for {fmt.money(investPreviewPoints * ACADEMY_INVESTMENT_COST_PER_POINT)}</div>
