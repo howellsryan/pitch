@@ -30,10 +30,10 @@ export const INJURY_TYPES = [
 
 export const _INJ_TOTAL_WEIGHT = INJURY_TYPES.reduce((s,t) => s + t.weight, 0);
 
-function randomValue(rng) { return typeof rng === 'function' ? rng() : Math.random(); }
+function _injuryRandomValue(rng) { return typeof rng === 'function' ? rng() : Math.random(); }
 
 export function _pickInjuryType(rng = Math.random) {
-  let roll = randomValue(rng) * _INJ_TOTAL_WEIGHT;
+  let roll = _injuryRandomValue(rng) * _INJ_TOTAL_WEIGHT;
   for (const type of INJURY_TYPES) {
     roll -= type.weight;
     if (roll <= 0) return type;
@@ -51,7 +51,7 @@ export function rollInjuryCheck(player, isHighIntensity, forceRoll, rng = Math.r
 
   if (!forceRoll) {
     const isGK = player.position === 'GK';
-    let baseChance = isGK ? .015 : .045;
+    let baseChance = isGK ? 0.015 : 0.045;
     const fit = player.fitness ?? 90;
     if (fit < 50) baseChance *= 1.80;
     else if (fit < 70) baseChance *= 1.40;
@@ -61,13 +61,13 @@ export function rollInjuryCheck(player, isHighIntensity, forceRoll, rng = Math.r
     else if (age >= 34) baseChance *= 1.25;
     else if (age >= 32) baseChance *= 1.10;
     if (isHighIntensity) baseChance *= 1.15;
-    if (randomValue(rng) > baseChance) return null;
+    if (_injuryRandomValue(rng) > baseChance) return null;
   }
 
   const injType = _pickInjuryType(rng);
   const range = injType.maxGW - injType.minGW + 1;
-  const roll1 = Math.floor(randomValue(rng) * range);
-  const roll2 = Math.floor(randomValue(rng) * range);
+  const roll1 = Math.floor(_injuryRandomValue(rng) * range);
+  const roll2 = Math.floor(_injuryRandomValue(rng) * range);
   const gwSpan = injType.minGW + Math.min(roll1, roll2);
   return {
     injuryName:injType.name,
