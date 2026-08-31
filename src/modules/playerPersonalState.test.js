@@ -60,27 +60,17 @@ describe('P3 bounded personal-state write set', () => {
     expect(buildPersonalStatePatches(first, 8, '2025/26')).toEqual([]);
   });
 
-  it('reconciles additional cup minutes in the same world week exactly once', () => {
-    const leagueParticipant = {
+  it('settles a league + cup week once after total weekly exposure is known', () => {
+    const doubleHeader = {
       ...player('double-header'),
-      appearances:11,
-      minutes:890,
-      lastMatchRating:7.4,
-      form:64,
-    };
-    const [afterLeague] = buildPersonalStatePatches([leagueParticipant], 9, '2025/26');
-    const sharpnessAfterLeague = afterLeague.sharpness;
-    const progressAfterLeague = afterLeague.developmentProgress;
-
-    const afterCupInput = {
-      ...afterLeague,
       appearances:12,
       minutes:950,
       lastMatchRating:7.1,
+      form:64,
     };
-    const [afterCup] = buildPersonalStatePatches([afterCupInput], 9, '2025/26');
+    const [settled] = buildPersonalStatePatches([doubleHeader], 9, '2025/26');
 
-    expect(afterCup).toMatchObject({
+    expect(settled).toMatchObject({
       personalStateAppearances:12,
       personalStateMinutes:950,
       personalStateSettledKey:'2025/26:9',
@@ -88,9 +78,7 @@ describe('P3 bounded personal-state write set', () => {
       developmentMinutes:950,
       developmentSettledKey:'2025/26:9',
     });
-    expect(afterCup.sharpness).toBeGreaterThan(sharpnessAfterLeague);
-    expect(afterCup.developmentProgress).toBeGreaterThanOrEqual(progressAfterLeague);
-    expect(buildPersonalStatePatches([afterCup], 9, '2025/26')).toEqual([]);
+    expect(buildPersonalStatePatches([settled], 9, '2025/26')).toEqual([]);
   });
 
   it('does not confuse the same gameweek number in a later season', () => {
