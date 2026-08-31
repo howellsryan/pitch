@@ -28,6 +28,10 @@ async function openFirstPlayerDetail(page) {
   await roster.locator('.swap-row').first().click();
   const detail = page.locator('.player-sheet');
   await expect(detail).toBeVisible();
+  // Geometry/screenshots should represent the settled bottom-sheet state, not
+  // the first animation frame or an inherited scroll position from the roster.
+  await page.waitForTimeout(300);
+  await detail.evaluate((element) => { element.scrollTop = 0; });
   return detail;
 }
 
@@ -59,6 +63,7 @@ async function assertP3Detail(page, detail) {
       squadWidth:squad?.scrollWidth ?? 0,
       detailClientWidth:detail?.clientWidth ?? 0,
       detailScrollWidth:detail?.scrollWidth ?? 0,
+      detailTop:detail?.getBoundingClientRect().top ?? 0,
       detailBottom:detail?.getBoundingClientRect().bottom ?? 0,
       viewportHeight:window.innerHeight,
     };
@@ -66,6 +71,7 @@ async function assertP3Detail(page, detail) {
   expect(geometry.documentWidth, 'P3 player detail causes document overflow').toBeLessThanOrEqual(geometry.viewport + 1);
   expect(geometry.squadWidth, 'P3 Squad causes horizontal overflow').toBeLessThanOrEqual(geometry.viewport + 1);
   expect(geometry.detailScrollWidth, 'P3 player detail has horizontal overflow').toBeLessThanOrEqual(geometry.detailClientWidth + 1);
+  expect(geometry.detailTop, 'P3 player detail starts above viewport').toBeGreaterThanOrEqual(-1);
   expect(geometry.detailBottom, 'P3 player detail extends below browser chrome').toBeLessThanOrEqual(geometry.viewportHeight + 1);
 }
 
