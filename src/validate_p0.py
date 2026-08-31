@@ -88,6 +88,7 @@ P0_TEST_FILES = [
     'src/modules/seasonP1.test.js',
     # P1 replacements for the living-world source-shape assertions above.
     'src/modules/world.test.js',
+    'src/modules/worldCompetitions.test.js',
     'src/modules/worldRuntime.test.js',
 ]
 
