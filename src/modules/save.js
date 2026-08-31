@@ -26,6 +26,7 @@ import {
 import { selectEleven } from './matchEngine.js';
 import { assignCups, buildInitialCupState } from './cups.js';
 import { assignPotentials } from './potential.js';
+import { PLAYER_MODEL_VERSION, normalizePlayerModel, playerModelNeedsNormalization } from './playerModel.js';
 import { generateCohort } from './youthAcademy.js';
 import { generateBoardObjective } from './season.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
@@ -157,6 +158,52 @@ export async function ensureP2Tactics(save) {
   return save;
 }
 
+/**
+ * Pure P3 migration plan. The save-level marker is the single contract version
+ * for this domain. Player/team rows intentionally carry no second version tag.
+ */
+export function buildP3PlayerModelBackfill(save, players = [], teams = []) {
+  if (!save || Number(save.playerModelVersion ?? 0) >= PLAYER_MODEL_VERSION) {
+    return { save, playerPatches:[], teamPatches:[] };
+  }
+
+  const playerPatches = players
+    .filter(playerModelNeedsNormalization)
+    .map(normalizePlayerModel);
+
+  const teamPatches = teams.flatMap(team => {
+    if (!Array.isArray(team.youthPlayers)) return [];
+    const needsPatch = team.youthPlayers.some(playerModelNeedsNormalization);
+    if (!needsPatch) return [];
+    return [{ ...team, youthPlayers:team.youthPlayers.map(normalizePlayerModel) }];
+  });
+
+  const migratedSave = {
+    ...save,
+    ...(Array.isArray(save.youthCohort)
+      ? { youthCohort:save.youthCohort.map(normalizePlayerModel) }
+      : {}),
+    playerModelVersion:PLAYER_MODEL_VERSION,
+  };
+
+  return { save:migratedSave, playerPatches, teamPatches };
+}
+
+/**
+ * One-time additive P2 -> P3 migration. The marker is persisted last: if any
+ * preceding write is interrupted, the next load safely rebuilds the plan and
+ * rewrites only rows that still need normalisation.
+ */
+export async function ensureP3PlayerModel(save) {
+  if (!save || Number(save.playerModelVersion ?? 0) >= PLAYER_MODEL_VERSION) return save;
+  const [players, teams] = await Promise.all([getAllPlayers(), getAllTeams()]);
+  const migration = buildP3PlayerModelBackfill(save, players, teams);
+  if (migration.playerPatches.length) await putPlayersBulk(migration.playerPatches);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -164,6 +211,7 @@ export async function initApp() {
   if (save) {
     save = await ensureLivingWorld(save);
     save = await ensureP2Tactics(save);
+    save = await ensureP3PlayerModel(save);
   }
   return save ?? null;
 }
@@ -194,7 +242,8 @@ export async function startNewGame(userTeamId, managerName) {
 
   const seasonYear = 2025;
   const season = `${seasonYear}/${String(seasonYear + 1).slice(2)}`;
-  const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague);
+  const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague)
+    .map(normalizePlayerModel);
 
   const teams = allTeamData.map(({ players: _, ...rest }) => ({
     ...rest,
@@ -219,6 +268,7 @@ export async function startNewGame(userTeamId, managerName) {
     tactics:         createUserTacticalPlan(),
     playerRoles:     {},
     managerDNA:      createManagerDNA(),
+    playerModelVersion: PLAYER_MODEL_VERSION,
     inboundOffers:   [],
     collapsedDeals:  [],
     inbox:           [],
@@ -241,7 +291,7 @@ export async function startNewGame(userTeamId, managerName) {
   const world = buildWorldLeagueSeason(teams, seasonYear);
 
   await putTeamsBulk(teams);
-  const assignedPlayers = assignPotentials(players);
+  const assignedPlayers = assignPotentials(players).map(normalizePlayerModel);
   await putPlayersBulk(assignedPlayers);
   await replaceAllStandings(world.standings);
   await replaceAllFixtures(world.fixtures);
