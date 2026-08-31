@@ -26,8 +26,9 @@ for df in _data_files:
     MODULES.append((f'data/{df.name}', label))
 
 # Core modules (dependencies first). P0's competitionRules.js is deliberately
-# immediately before cups.js: it is pure format data/helpers consumed by cups,
-# while gameweek continues to consume cups after that adapter layer.
+# immediately before cups.js. P1's world.js sits after youthAcademy because it
+# consumes fixtures, match/standing helpers and youth/newgen generation, while
+# save/season/gameweek consume the living-world contracts after it.
 MODULES += [
     ('modules/db.js',               'DATABASE'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
@@ -40,6 +41,7 @@ MODULES += [
     ('modules/injuries.js',         'INJURIES'),
     ('modules/promotion.js',        'PROMOTION'),
     ('modules/youthAcademy.js',     'YOUTH ACADEMY'),
+    ('modules/world.js',            'LIVING WORLD'),
     ('modules/save.js',             'SAVE'),
     ('modules/season.js',           'SEASON'),
     ('modules/gameweek.js',         'GAMEWEEK'),
