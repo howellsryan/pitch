@@ -774,13 +774,23 @@ export async function updateCache(allPlayersIgnored, results) {
   await applyNonLeaguePlayerResults(results);
 }
 
+/**
+ * Only players whose medical clock can advance belong in the weekly recovery
+ * write set. Keeping this pure makes the no-full-world-rewrite contract easy to
+ * verify independently of IndexedDB.
+ */
+export function injuryRecoveryWriteSet(allPlayers) {
+  return (allPlayers ?? []).filter(player => player?.injured);
+}
+
 export async function processInjuryRecovery() {
   if (typeof tickInjuryRecovery !== 'function') return [];
   const allPlayers = await getAllPlayers();
   const save = await getSave();
-  const hadInjured = allPlayers.some(p => p.injured);
-  const recovered = tickInjuryRecovery(allPlayers);
-  if (hadInjured || recovered.length) await putPlayersBulk(allPlayers);
+  const recoveryRows = injuryRecoveryWriteSet(allPlayers);
+  if (!recoveryRows.length) return [];
+  const recovered = tickInjuryRecovery(recoveryRows);
+  await putPlayersBulk(recoveryRows);
   return recovered.filter(p => p.teamId === save.userTeamId);
 }
 
