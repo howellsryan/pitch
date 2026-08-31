@@ -26,7 +26,12 @@ import {
 import { selectEleven } from './matchEngine.js';
 import { assignCups, buildInitialCupState } from './cups.js';
 import { assignPotentials } from './potential.js';
-import { PLAYER_MODEL_VERSION, normalizePlayerModel, playerModelNeedsNormalization } from './playerModel.js';
+import {
+  PLAYER_MODEL_VERSION,
+  assignDefaultSquadRoles,
+  normalizePlayerModel,
+  playerModelNeedsNormalization,
+} from './playerModel.js';
 import { generateCohort } from './youthAcademy.js';
 import { generateBoardObjective } from './season.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
@@ -158,6 +163,13 @@ export async function ensureP2Tactics(save) {
   return save;
 }
 
+function roleContractChanged(before, after) {
+  return before?.squadRole !== after?.squadRole
+    || before?.squadRoleSource !== after?.squadRoleSource
+    || before?.squadRoleTeamId !== after?.squadRoleTeamId
+    || JSON.stringify(before?.playingTimeAgreement ?? null) !== JSON.stringify(after?.playingTimeAgreement ?? null);
+}
+
 /**
  * Pure P3 migration plan. The save-level marker is the single contract version
  * for this domain. Player/team rows intentionally carry no second version tag.
@@ -167,9 +179,14 @@ export function buildP3PlayerModelBackfill(save, players = [], teams = []) {
     return { save, playerPatches:[], teamPatches:[] };
   }
 
-  const playerPatches = players
-    .filter(playerModelNeedsNormalization)
-    .map(normalizePlayerModel);
+  const normalizedPlayers = players.map(normalizePlayerModel);
+  const preparedPlayers = assignDefaultSquadRoles(normalizedPlayers, {
+    currentYear:seasonStartYear(save),
+    managedTeamId:save.userTeamId,
+  });
+  const playerPatches = preparedPlayers.filter((player, index) =>
+    playerModelNeedsNormalization(players[index]) || roleContractChanged(players[index], player)
+  );
 
   const teamPatches = teams.flatMap(team => {
     if (!Array.isArray(team.youthPlayers)) return [];
@@ -291,7 +308,10 @@ export async function startNewGame(userTeamId, managerName) {
   const world = buildWorldLeagueSeason(teams, seasonYear);
 
   await putTeamsBulk(teams);
-  const assignedPlayers = assignPotentials(players).map(normalizePlayerModel);
+  const assignedPlayers = assignDefaultSquadRoles(
+    assignPotentials(players).map(normalizePlayerModel),
+    { currentYear:seasonYear, managedTeamId:userTeamId },
+  );
   await putPlayersBulk(assignedPlayers);
   await replaceAllStandings(world.standings);
   await replaceAllFixtures(world.fixtures);
