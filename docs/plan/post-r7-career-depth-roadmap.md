@@ -4,7 +4,7 @@
 
 **Baseline:** `main` after PR #14 (`767b31656d58f00acc42431cc3bca6df131b1b5b`) — R0-R7 shipped.
 
-**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World is next.**
+**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is next.**
 
 **Benchmark reviewed:** EA SPORTS FC 27 Manager Career (Career Deep Dive, July 2026), with relevant Manager Market ideas carried forward from FC 26. This is not a parity checklist. Pitch should take the parts that create meaningful management decisions and, where a browser simulator has an advantage, go deeper systemically rather than imitate AAA presentation.
 
@@ -128,8 +128,8 @@ Pitch's European competition model should be data-driven enough that rule change
 | Area | Post-R7 Pitch | Strategic gap |
 |---|---|---|
 | Competition rules | P0 data-driven rule layer + current UEFA paths shipped | Foundation complete; future seasonal breadth remains |
-| World simulation | Richest around the user's current context | **Critical** |
-| Historical world data | Trophy history exists; player/club season history is shallow | **Critical** |
+| World simulation | P1 authoritative 9-league living world shipped | Foundation complete; later systems consume it |
+| Historical world data | P1 current ledgers + compact player/club/competition season summaries shipped | Foundation complete; later systems enrich it |
 | Formations | 14 presets | Low |
 | Tactical instructions/roles | Mostly broad formation + mentality effects | **Critical** |
 | Match-engine tactical causality | Functional result engine, limited tactical matchup depth | **Critical** |
@@ -169,7 +169,7 @@ Pitch's European competition model should be data-driven enough that rule change
 
 ## 5.1 Delivery contract for future agents
 
-**P0 is implemented and verified. P1-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested commit slices so a later agent can pick it up without reopening the main product and architecture decisions.
+**P0-P1 are implemented and verified. P2-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested commit slices so a later agent can pick it up without reopening the main product and architecture decisions.
 
 ### Phase packaging
 
@@ -275,7 +275,9 @@ P0's final delivery loop passed both functional and rendered-mobile verification
 
 ## P1 — The Living Football World
 
-**Priority:** #1 major feature — **NEXT**.
+**Status: ✅ COMPLETE — 31 August 2026.**
+
+**Priority:** completed living-world foundation; **P2 is now unblocked and next.**
 
 This is the most important foundation for everything that follows.
 
@@ -340,7 +342,33 @@ Nine leagues are an advantage only if the browser remains fast. World simulation
 
 If the user is managing Arsenal in October and inspects Barcelona, Dortmund or Ajax, that club has actually played a coherent season with inspectable form, players and statistics. A manager can make scouting and job decisions from real simulated history.
 
-### Delivery plan (high level)
+### Shipped in P1
+
+- All 9 supported leagues / 186 clubs advance through one shared world clock using the authoritative fast match engine; background football never runs Broadcast simulation.
+- `src/modules/world.js` defines canonical match/stat records, and `src/modules/worldRuntime.js` applies them once so fixtures, standings and player state cannot independently invent or double-count outcomes.
+- Background domestic and European competition state is persisted through `src/modules/worldCompetitions.js`, including a compactable result ledger and participant-only cup player projection.
+- Current-season projections maintain league/cup progress, appearances, starts/minutes, goals, assists, clean sheets, cards/suspensions, injuries, form/ratings, club form, transfers/loans and awards from the same simulated world.
+- Season rollover writes compact player, club and competition history summaries, retains transfer/award context, compacts the outgoing detailed competition ledger and creates a fresh next-season world state.
+- Retirement replacement uses calibrated newgen cohorts rather than cloning retired players or adding unconstrained talent.
+- P0/legacy careers gain living-world state through the existing migration/backfill path rather than requiring a destructive restart.
+- `LeagueScreen.svelte` exposes inspectable living-world club profiles and real current-season form/statistics across leagues.
+- P1 closeout removed two major scale regressions: cup projection no longer rewrites every world player, and league projection persists only changed player rows while keeping fixture apply-once flags, standings and those changes atomic.
+
+### Completion evidence
+
+P1's final delivery loop passed code review, deterministic verification, performance verification and rendered responsive checks before this status was changed:
+
+- legacy build + compatibility bridge passed, with **55 deterministic P0/P1 replacement-contract tests** green inside that bridge;
+- production Vite build, ESLint and the UI emoji audit passed;
+- **128/128 Vitest tests** passed across 20 test files;
+- **186/186 club accent checks** passed;
+- **17/17 Playwright tests** passed;
+- the full playable app was audited at **390×844** across Home, Squad, Transfers, Competitions, Academy, Trophies, Settings, Inbox and Match, with no document horizontal overflow, unnamed visible controls, unintended right-edge clipping or floating-nav interaction overlap on the affected P1 surface;
+- a dedicated **1280×800** P1 acceptance journey completed an authoritative world week and successfully inspected Barcelona, Borussia Dortmund and Ajax, confirming each exposed real form, player appearances and a recent canonical result without horizontal overflow;
+- the retained **390×844 Competitions screenshot** was visually inspected: hierarchy/table readability, club identity, active row, selector scrolling and floating-nav clearance are all intact;
+- the final throttled shared-runner benchmark measured **12.33s fresh 186-club career load, 18.50s authoritative full-world week and 2.76 MiB browser storage at 4× CPU throttle**. CI retains conservative regression ceilings of `<20s` load, `<25s` world week and `<50 MiB` storage; these are regression guards, not UX targets.
+
+### Delivery plan (historical implementation route)
 
 **Locked decisions**
 
@@ -358,13 +386,15 @@ If the user is managing Arsenal in October and inspects Barcelona, Dortmund or A
 5. Add cohort-based newgens and long-horizon population/quality checks.
 6. Benchmark gameweek time, career load time and IndexedDB growth on mobile-class targets before enabling full breadth by default.
 
-**Commit/push slices:** ledger contract/tests; batched world clock; current stats; historical summaries; awards/injuries/transfers integration; newgens; performance/E2E/docs.
+**Commit/push slices delivered:** ledger contract/tests; batched world clock; current stats; historical summaries; awards/injuries/transfers integration; newgens; performance/E2E/docs.
 
 ---
 
 ## P2 — Match Engine 2.0, Tactics and Manager DNA
 
-**Priority:** #2.
+**Status: NEXT.**
+
+**Priority:** #2 overall; **next active roadmap phase.**
 
 Because Pitch is simulator-only, tactical decision quality is core gameplay.
 
@@ -1140,7 +1170,7 @@ Injectable/seeded RNG and statistical regression tests should be established bef
 
 ## 9.3 Use the P0 persistence migration path
 
-P0 established a versioned save envelope and explicit V1→V2 migration. P1 onward must extend that ordered migration discipline rather than returning to ad-hoc backfills.
+P0 established a versioned save envelope and explicit V1→V2 migration. P2 onward must extend that ordered migration discipline rather than returning to ad-hoc backfills.
 
 ## 9.4 Mobile performance is a product requirement
 
@@ -1165,25 +1195,25 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 | Order | Phase | Primary payoff |
 |---:|---|---|
 | ✅ | **P0 — authenticity + save/migration foundation (COMPLETE)** | Correctness and safe foundation |
-| 1 | **P1 — Living Football World (NEXT)** | The game becomes a persistent football universe |
-| 2 | P2 — Match Engine 2.0 + Tactics/Manager DNA | Core simulator gameplay depth |
-| 3 | P3 — Player Model 2.0 | Meaningful selection, rotation and development |
-| 4 | P4 — Transfers/Contracts 2.0 | Rich recurring squad-building loop |
-| 5 | P5 — Scouting/Coaching/Training | Less omniscience; strategic planning |
-| 6 | P6 — Manager Career + AI Manager Market | A career across clubs, not one club forever |
-| 7 | P7 — Club/Finance/Board ecosystem | Clubs gain persistent identities and pressures |
-| 8 | P8 — Story/Press/Fans/Rivalries | Systems turn into memorable narratives |
-| 9 | P9 — Academy/Loans 2.0 | Deep long-term player pathways |
-| 10 | P10 — Career settings | Depth remains approachable/configurable |
-| 11 | P11 — Creator Challenges/Live starts | Replayability and community sharing |
-| 12 | P12 — Second tiers/internationals/Create-a-Club/content | Breadth after depth |
+| ✅ | **P1 — Living Football World (COMPLETE)** | Persistent football universe and historical data spine |
+| 1 | **P2 — Match Engine 2.0 + Tactics/Manager DNA (NEXT)** | Core simulator gameplay depth |
+| 2 | P3 — Player Model 2.0 | Meaningful selection, rotation and development |
+| 3 | P4 — Transfers/Contracts 2.0 | Rich recurring squad-building loop |
+| 4 | P5 — Scouting/Coaching/Training | Less omniscience; strategic planning |
+| 5 | P6 — Manager Career + AI Manager Market | A career across clubs, not one club forever |
+| 6 | P7 — Club/Finance/Board ecosystem | Clubs gain persistent identities and pressures |
+| 7 | P8 — Story/Press/Fans/Rivalries | Systems turn into memorable narratives |
+| 8 | P9 — Academy/Loans 2.0 | Deep long-term player pathways |
+| 9 | P10 — Career settings | Depth remains approachable/configurable |
+| 10 | P11 — Creator Challenges/Live starts | Replayability and community sharing |
+| 11 | P12 — Second tiers/internationals/Create-a-Club/content | Breadth after depth |
 
 ---
 
 ## 10.1 Dependency checkpoints and safe parallel work
 
 - **P0 hard gate is satisfied:** save migration/slots and configurable competition rules are stable foundations for persistent world expansion.
-- **P1 is the shared data spine:** P2 and P3 may be designed in parallel, but both consume P1's canonical match/history records.
+- **P1 shared data spine is satisfied:** P2 and P3 consume its canonical match/history records rather than recreating world state.
 - **P2 + P3 unlock the market loop:** P4 owns the minimal shared squad-needs projection; P5 expands it rather than replacing it.
 - **P4 + P5 unlock career movement:** P6 can ship manager entities and movement with a basic fit contract; P7 later enriches club identity and finance.
 - **P3 + P6 + P7 unlock narrative consequences:** P8 should not invent placeholder morale, job or finance state.
