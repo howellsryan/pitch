@@ -304,7 +304,14 @@ export function resolveTeamTacticalIdentity(team, opponent, players, requestedFo
   const profile = getAITacticalProfile(team, opponent, isHome);
   const roles = {};
   for (const player of players ?? []) roles[player.id] = chooseAIRole(player, profile);
-  return { ...profile, profileId:profile.id, profileLabel:profile.label, roles };
+  return {
+    ...profile,
+    formation:FORMATIONS[requestedFormation] ? requestedFormation : profile.formation,
+    mentality:requestedMentality ?? profile.mentality,
+    profileId:profile.id,
+    profileLabel:profile.label,
+    roles,
+  };
 }
 
 function effectiveTeamStrength(active, roles, instructions) {
@@ -410,6 +417,8 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
 
 export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase, controlledTeamId = null) {
   let state = refreshLiveMatchState(liveState);
+  const attackingFitnessDrain = 0.18;
+  const defendingFitnessDrain = 0.12;
   const cursor = cursorFrom(state.rngState ?? state.seed);
   let curHActive = [...state.hActive], curAActive = [...state.aActive];
   let curHBench = [...state.hBenchLeft], curABench = [...state.aBenchLeft];
@@ -444,11 +453,11 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     const defMods = isHome ? aMods : hMods;
 
     for (const p of attActive) {
-      const next = (attFitMap.get(p.id) ?? 90) - 0.18 * ageDrain(p.age ?? 24) * attMods.fitnessDrainMult;
+      const next = (attFitMap.get(p.id) ?? 90) - attackingFitnessDrain * ageDrain(p.age ?? 24) * attMods.fitnessDrainMult;
       attFitMap.set(p.id, Math.max(0, next));
     }
     for (const p of defActive) {
-      const next = (defFitMap.get(p.id) ?? 90) - 0.12 * ageDrain(p.age ?? 24) * defMods.fitnessDrainMult;
+      const next = (defFitMap.get(p.id) ?? 90) - defendingFitnessDrain * ageDrain(p.age ?? 24) * defMods.fitnessDrainMult;
       defFitMap.set(p.id, Math.max(0, next));
     }
 
