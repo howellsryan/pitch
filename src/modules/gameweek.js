@@ -2,7 +2,7 @@ import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, p
 import { simulateMatch } from './matchEngine.js';
 import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
 import { updateTeamMorale } from './standings.js';
-import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress } from './cups.js';
+import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
 import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
 import { applyDevelopment } from './potential.js';
@@ -376,7 +376,17 @@ export async function advanceOneFixture(overrideFormation) {
     const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
     const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
     const cupState = save.cups?.[cupId];
-    const mdResult = simulateEuropeanLeaguePhaseMatchday(cupId, userTeam, userPlayers, cupState, save.mentality ?? 'balanced', event.userIsHome, playersByTeam);
+    const mdResult = simulateEuropeanLeaguePhaseMatchday(
+      cupId,
+      userTeam,
+      userPlayers,
+      cupState,
+      save.mentality ?? 'balanced',
+      event.userIsHome,
+      playersByTeam,
+      overrideFormation ?? save.formation ?? '4-3-3',
+      save.lineup ?? null,
+    );
     if (mdResult) {
       updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, mdResult, save.userTeamId);
       const reportResult = {
@@ -395,8 +405,23 @@ export async function advanceOneFixture(overrideFormation) {
     const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
     const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
     const cupState = save.cups?.[event.cupId];
-    const result = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, { ...event, userMentality:save.mentality ?? 'balanced' });
-    const progress = resolveCupProgress(event.cupId, event.roundName, event.roundIdx ?? 0, cupState, result.userGoals, result.oppGoals, result.userWon, result.userIsHome);
+    const result = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, {
+      ...event,
+      userMentality:save.mentality ?? 'balanced',
+      userFormation:overrideFormation ?? save.formation ?? '4-3-3',
+      userLineup:save.lineup ?? null,
+    });
+    const progress = resolveCupProgress(
+      event.cupId,
+      event.roundName,
+      event.roundIdx ?? 0,
+      cupState,
+      result.userGoals,
+      result.oppGoals,
+      result.userWon,
+      result.userIsHome,
+      result.seed,
+    );
     const resultOut = {
       ...result,
       opponentSeed:event.opponentSeed ?? null,
@@ -521,14 +546,33 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
         stats:matchResult.stats,
         events:matchResult.events,
         fitnessUpdates:matchResult.fitnessUpdates,
+        homeFormation:matchResult.homeFormation,
+        awayFormation:matchResult.awayFormation,
+        homeMentality:matchResult.homeMentality,
+        awayMentality:matchResult.awayMentality,
+        homeTactics:matchResult.homeTactics,
+        awayTactics:matchResult.awayTactics,
+        seed:matchResult.seed,
       };
       updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, mdResult, save.userTeamId);
       singleResult = buildCupMatchResult(mdResult, save.userTeamId, event0, allTeams);
     } else {
       const cupState = save.cups?.[event0.cupId];
       const twoLeg = isTwoLegRound(event0.cupId, event0.roundName, 1) || isTwoLegRound(event0.cupId, event0.roundName, 2);
-      const userWon = twoLeg ? userGoals > oppGoals : (userGoals > oppGoals || (userGoals === oppGoals && Math.random() < 0.5));
-      const progress = resolveCupProgress(event0.cupId, event0.roundName, event0.roundIdx ?? 0, cupState, userGoals, oppGoals, userWon, userIsHome);
+      const knockout = twoLeg
+        ? { userWon:userGoals > oppGoals, penalties:false, extraTime:false }
+        : resolveSingleLegKnockout(userGoals, oppGoals, matchResult.seed);
+      const progress = resolveCupProgress(
+        event0.cupId,
+        event0.roundName,
+        event0.roundIdx ?? 0,
+        cupState,
+        userGoals,
+        oppGoals,
+        knockout.userWon,
+        userIsHome,
+        matchResult.seed,
+      );
       aggregate = progress.aggregate;
       updatedCups[event0.cupId] = {
         ...cupState,
@@ -538,9 +582,18 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
         results:[
           ...(cupState?.results ?? []),
           {
-            userGoals, oppGoals, userWon:aggregate ? aggregate.userWon : userWon,
+            userGoals, oppGoals, userWon:aggregate ? aggregate.userWon : knockout.userWon,
             userIsHome, opponentId:event0.opponentId, opponentName:event0.opponentName,
             opponentSeed:event0.opponentSeed ?? null,
+            penalties:aggregate?.penalties ?? knockout.penalties,
+            extraTime:aggregate?.extraTime ?? knockout.extraTime,
+            homeFormation:matchResult.homeFormation,
+            awayFormation:matchResult.awayFormation,
+            homeMentality:matchResult.homeMentality,
+            awayMentality:matchResult.awayMentality,
+            homeTactics:matchResult.homeTactics,
+            awayTactics:matchResult.awayTactics,
+            seed:matchResult.seed,
             ...(aggregate ? { aggregate } : {}),
           },
         ],
@@ -554,6 +607,15 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
           opponentSeed:event0.opponentSeed ?? null,
           stats:matchResult.stats, events:matchResult.events,
           fitnessUpdates:matchResult.fitnessUpdates, aggregate,
+          penalties:aggregate?.penalties ?? knockout.penalties,
+          extraTime:aggregate?.extraTime ?? knockout.extraTime,
+          homeFormation:matchResult.homeFormation,
+          awayFormation:matchResult.awayFormation,
+          homeMentality:matchResult.homeMentality,
+          awayMentality:matchResult.awayMentality,
+          homeTactics:matchResult.homeTactics,
+          awayTactics:matchResult.awayTactics,
+          seed:matchResult.seed,
         },
         save.userTeamId, event0, allTeams,
       );
@@ -599,14 +661,25 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
 export function buildCupMatchResult(r, userTeamId, event, allTeams) {
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const defaultStats = { possession:{home:50,away:50}, shots:{home:0,away:0}, shotsOnTarget:{home:0,away:0}, xG:{home:0,away:0}, corners:{home:0,away:0}, fouls:{home:0,away:0}, yellowCards:{home:0,away:0} };
-  if (event.type === 'ucl_md') {
+  const authoritativePlan = {
+    homeFormation:r.homeFormation,
+    awayFormation:r.awayFormation,
+    homeMentality:r.homeMentality,
+    awayMentality:r.awayMentality,
+    homeTactics:r.homeTactics,
+    awayTactics:r.awayTactics,
+    seed:r.seed,
+    penalties:r.penalties ?? r.aggregate?.penalties ?? false,
+    extraTime:r.extraTime ?? r.aggregate?.extraTime ?? false,
+  };
+  if (event.type === 'ucl_md' || event.leaguePhase) {
     const userIsHome = r.userIsHome ?? true;
     const userName = teamsById.get(userTeamId)?.name ?? 'Your Team';
     const userCrest = teamsById.get(userTeamId)?.crest ?? '⚽';
     const oppId = r.opponentId ?? event.opponentId ?? 'opp';
     return {
-      isCupMatch:true, cupId:'ucl', cupName:'Champions League', cupIcon:'⭐',
-      isUCLMatchday:true, matchday:r.matchday,
+      isCupMatch:true, cupId:event.cupId ?? 'ucl', cupName:event.cupName ?? 'Champions League', cupIcon:event.cupIcon ?? '⭐',
+      isUCLMatchday:event.type === 'ucl_md', matchday:r.matchday,
       opponentName:r.opponentName, opponentNation:r.opponentNation,
       userGoals:r.userGoals, oppGoals:r.oppGoals, points:r.points, result:r.result,
       scorers:r.scorers ?? [],
@@ -616,12 +689,13 @@ export function buildCupMatchResult(r, userTeamId, event, allTeams) {
       awayGoals:userIsHome ? r.oppGoals : r.userGoals,
       homeTeamName:userIsHome ? userName : r.opponentName,
       awayTeamName:userIsHome ? r.opponentName : userName,
-      homeTeamCrest:userIsHome ? userCrest : (r.opponentNation ?? '⚽'),
-      awayTeamCrest:userIsHome ? (r.opponentNation ?? '⚽') : userCrest,
+      homeTeamCrest:userIsHome ? userCrest : (r.opponentNation ?? event.opponentCrest ?? '⚽'),
+      awayTeamCrest:userIsHome ? (r.opponentNation ?? event.opponentCrest ?? '⚽') : userCrest,
       homeScorers:r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : []),
       awayScorers:r.awayScorers ?? (userIsHome ? [] : (r.scorers ?? [])),
       events:r.events ?? [], stats:r.stats ?? defaultStats,
       fitnessUpdates:r.fitnessUpdates ?? [], isUserMatch:true, userTeamId, gameweek:event.gw,
+      ...authoritativePlan,
     };
   }
 
@@ -643,6 +717,7 @@ export function buildCupMatchResult(r, userTeamId, event, allTeams) {
     events:r.events ?? [], stats:r.stats ?? defaultStats,
     fitnessUpdates:r.fitnessUpdates ?? [], isUserMatch:true, userTeamId,
     gameweek:event.gw, aggregate:r.aggregate ?? null,
+    ...authoritativePlan,
   };
 }
 
