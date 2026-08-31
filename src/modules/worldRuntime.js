@@ -1,4 +1,4 @@
-import { _db, getAllPlayers, getAllStandings, putPlayersBulk } from './db.js';
+import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
 import { mutateRow, sortTable } from './standings.js';
 import {
@@ -7,6 +7,10 @@ import {
   resultFromCanonicalLeagueRecord,
   tickPlayerSuspensions,
 } from './world.js';
+import {
+  markWorldCompetitionRecordsApplied,
+  pendingWorldCompetitionRecords,
+} from './worldCompetitions.js';
 
 /** modules/worldRuntime.js — atomic P1 projection of canonical world match records */
 
@@ -117,6 +121,15 @@ export function projectWorldBatch(players, standings, results) {
   };
 }
 
+export function projectNonLeaguePlayers(players, results) {
+  const cache = new Map(players.map(player => [player.id, { ...player }]));
+  applyWorldPlayerStats(cache, results);
+  applyFitness(cache, results);
+  applyInjuries(cache, results);
+  finalisePlayerForm(cache, results);
+  return [...cache.values()];
+}
+
 function commitWorldProjection(fixtures, standings, players) {
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(['fixtures', 'standings', 'players'], 'readwrite');
@@ -126,6 +139,25 @@ function commitWorldProjection(fixtures, standings, players) {
     fixtures.forEach(fixture => fixtureStore.put(fixture));
     standings.forEach(row => standingStore.put(row));
     players.forEach(player => playerStore.put(player));
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+function commitWorldCompetitionProjection(save, worldCompetitions, players) {
+  return new Promise((resolve, reject) => {
+    const tx = _db.transaction(['save', 'players'], 'readwrite');
+    const saveStore = tx.objectStore('save');
+    const playerStore = tx.objectStore('players');
+    players.forEach(player => playerStore.put(player));
+    saveStore.put({
+      ...save,
+      id:'active',
+      saveSchemaVersion:SAVE_SCHEMA_VERSION,
+      lastPlayedAt:new Date().toISOString(),
+      worldCompetitions,
+    });
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
@@ -154,14 +186,28 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
   return results;
 }
 
+/**
+ * Background cup records live inside the save row, so their apply-once flag and
+ * player mutations commit together. A tab close can leave the whole batch
+ * pending, or the whole batch applied, but never half-project a tournament.
+ */
+export async function applyPendingWorldCompetitionProjections(save) {
+  const pending = pendingWorldCompetitionRecords(save?.worldCompetitions);
+  if (!pending.length) return { save, results:[] };
+  const players = await getAllPlayers();
+  const projectedPlayers = projectNonLeaguePlayers(players, pending);
+  const worldCompetitions = markWorldCompetitionRecordsApplied(
+    save.worldCompetitions,
+    pending.map(record => record.id),
+  );
+  const nextSave = { ...save, worldCompetitions };
+  await commitWorldCompetitionProjection(nextSave, worldCompetitions, projectedPlayers);
+  return { save:nextSave, results:pending };
+}
+
 /** Cup matches use the same player-stat projection but have no league table row. */
 export async function applyNonLeaguePlayerResults(results) {
   if (!results.length) return;
   const players = await getAllPlayers();
-  const cache = new Map(players.map(player => [player.id, { ...player }]));
-  applyWorldPlayerStats(cache, results);
-  applyFitness(cache, results);
-  applyInjuries(cache, results);
-  finalisePlayerForm(cache, results);
-  await putPlayersBulk([...cache.values()]);
+  await putPlayersBulk(projectNonLeaguePlayers(players, results));
 }
