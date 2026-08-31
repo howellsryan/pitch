@@ -62,8 +62,9 @@ describe('P3 position conversion', () => {
 
   it('refuses goalkeeper/outfield instant conversions', () => {
     const gk = player({ position:'GK', goalkeeping:80, positionSuitability:{ GK:1 } });
+    const outfield = player();
     expect(startPositionConversion(gk, 'CB', '2025/26', 1)).toBe(gk);
-    expect(startPositionConversion(player(), 'GK', '2025/26', 1)).toBe(player());
+    expect(startPositionConversion(outfield, 'GK', '2025/26', 1)).toBe(outfield);
   });
 });
 
