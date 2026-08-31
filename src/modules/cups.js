@@ -133,7 +133,21 @@ export function computeTwoLegOutcome(leg1, leg2, rng = Math.random) {
   return resolveTwoLegTie(leg1, leg2, rng);
 }
 
-export function resolveCupProgress(cupId, roundName, roundIdx, cupState, userGoals, oppGoals, userWon, userIsHome) {
+function deterministicCupRoll(seed, salt = '') {
+  return _synthHash(`${seed ?? 1}:${salt}`) / 4294967296;
+}
+
+export function resolveSingleLegKnockout(userGoals, oppGoals, seed) {
+  if (userGoals > oppGoals) return { userWon:true, penalties:false, extraTime:false };
+  if (oppGoals > userGoals) return { userWon:false, penalties:false, extraTime:false };
+  return {
+    userWon:deterministicCupRoll(seed, 'single-leg') < 0.5,
+    penalties:true,
+    extraTime:true,
+  };
+}
+
+export function resolveCupProgress(cupId, roundName, roundIdx, cupState, userGoals, oppGoals, userWon, userIsHome, tieSeed = null) {
   const rules = getCompetitionRules(cupId);
   const nextIdx = roundIdx + 1;
   const isFinal = nextIdx >= (rules?.rounds?.length ?? 99);
@@ -143,9 +157,13 @@ export function resolveCupProgress(cupId, roundName, roundIdx, cupState, userGoa
   }
   if (isTwoLegRound(cupId, roundName, 2)) {
     const leg1 = cupState?.results?.[cupState.results.length - 1];
+    const tieRng = tieSeed == null
+      ? Math.random
+      : () => deterministicCupRoll(tieSeed, `${cupId}:${roundName}:aggregate`);
     const aggregate = resolveTwoLegTie(
       { userGoals: leg1?.userGoals ?? 0, oppGoals: leg1?.oppGoals ?? 0, userIsHome: leg1?.userIsHome ?? true },
       { userGoals, oppGoals, userIsHome },
+      tieRng,
     );
     return {
       roundIndex: aggregate.userWon ? nextIdx : roundIdx,
@@ -244,21 +262,29 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
   const away = userIsHome ? opponent : userTeam;
   const hPl = userIsHome ? userPlayers : oppPlayers;
   const aPl = userIsHome ? oppPlayers : userPlayers;
+  const userFormation = event?.userFormation ?? '4-3-3';
+  const userLineup = event?.userLineup ?? null;
+  const hFormation = userIsHome ? userFormation : undefined;
+  const aFormation = userIsHome ? undefined : userFormation;
+  const hLineup = userIsHome ? userLineup : null;
+  const aLineup = userIsHome ? null : userLineup;
   const hMentality = userIsHome ? (event?.userMentality ?? 'balanced') : undefined;
   const aMentality = userIsHome ? undefined : (event?.userMentality ?? 'balanced');
-  const result = simulateMatch(home, away, hPl, aPl, undefined, undefined, undefined, undefined, hMentality, aMentality);
-  let userGoals = userIsHome ? result.homeGoals : result.awayGoals;
-  let oppGoals = userIsHome ? result.awayGoals : result.homeGoals;
+  const result = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality);
+  const userGoals = userIsHome ? result.homeGoals : result.awayGoals;
+  const oppGoals = userIsHome ? result.awayGoals : result.homeGoals;
 
   const twoLeg = isTwoLegRound(cupId, roundName, 1) || isTwoLegRound(cupId, roundName, 2);
-  if (userGoals === oppGoals && !twoLeg) {
-    if (Math.random() < 0.5) userGoals++; else oppGoals++;
-  }
+  const knockout = twoLeg
+    ? { userWon:userGoals > oppGoals, penalties:false, extraTime:false }
+    : resolveSingleLegKnockout(userGoals, oppGoals, result.seed);
 
   return {
     cupId,
     roundName,
-    userWon: userGoals > oppGoals,
+    userWon:knockout.userWon,
+    penalties:knockout.penalties,
+    extraTime:knockout.extraTime,
     userGoals,
     oppGoals,
     opponentId: opponent.id,
@@ -271,10 +297,27 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
     stats: result.stats,
     events: result.events ?? [],
     fitnessUpdates: result.fitnessUpdates ?? [],
+    homeFormation:result.homeFormation,
+    awayFormation:result.awayFormation,
+    homeMentality:result.homeMentality,
+    awayMentality:result.awayMentality,
+    homeTactics:result.homeTactics,
+    awayTactics:result.awayTactics,
+    seed:result.seed,
   };
 }
 
-export function simulateEuropeanLeaguePhaseMatchday(cupId, userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam) {
+export function simulateEuropeanLeaguePhaseMatchday(
+  cupId,
+  userTeam,
+  userPlayers,
+  cupState,
+  userMentality,
+  eventUserIsHome,
+  playersByTeam,
+  userFormation = '4-3-3',
+  userLineup = null,
+) {
   const rules = getCompetitionRules(cupId)?.leaguePhase;
   const lp = cupState?.leaguePhase;
   const md = lp?.matchday ?? 0;
@@ -284,13 +327,17 @@ export function simulateEuropeanLeaguePhaseMatchday(cupId, userTeam, userPlayers
   const opp = rawOpp.id === userTeam.id ? (UCL_CLUBS.find(c => c.id !== userTeam.id) ?? rawOpp) : rawOpp;
   const oppPlayers = playersByTeam?.get(opp.id) ?? buildSyntheticSquad(opp.id, opp.strength ?? 72);
   const userIsHome = eventUserIsHome ?? (Math.random() < 0.5);
-  const home = userIsHome ? userTeam : { id:opp.id, name:opp.name, crest:opp.nation ?? '⚽' };
-  const away = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation ?? '⚽' } : userTeam;
+  const home = userIsHome ? userTeam : { id:opp.id, name:opp.name, crest:opp.nation ?? '⚽', strength:opp.strength };
+  const away = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation ?? '⚽', strength:opp.strength } : userTeam;
   const hPl = userIsHome ? userPlayers : oppPlayers;
   const aPl = userIsHome ? oppPlayers : userPlayers;
+  const hFormation = userIsHome ? userFormation : undefined;
+  const aFormation = userIsHome ? undefined : userFormation;
+  const hLineup = userIsHome ? userLineup : null;
+  const aLineup = userIsHome ? null : userLineup;
   const hMentality = userIsHome ? (userMentality ?? 'balanced') : undefined;
   const aMentality = userIsHome ? undefined : (userMentality ?? 'balanced');
-  const r = simulateMatch(home, away, hPl, aPl, undefined, undefined, undefined, undefined, hMentality, aMentality);
+  const r = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality);
   const userG = userIsHome ? r.homeGoals : r.awayGoals;
   const oppG = userIsHome ? r.awayGoals : r.homeGoals;
   const points = userG > oppG ? 3 : userG === oppG ? 1 : 0;
@@ -313,11 +360,18 @@ export function simulateEuropeanLeaguePhaseMatchday(cupId, userTeam, userPlayers
     stats:r.stats,
     events:r.events ?? [],
     fitnessUpdates:r.fitnessUpdates ?? [],
+    homeFormation:r.homeFormation,
+    awayFormation:r.awayFormation,
+    homeMentality:r.homeMentality,
+    awayMentality:r.awayMentality,
+    homeTactics:r.homeTactics,
+    awayTactics:r.awayTactics,
+    seed:r.seed,
   };
 }
 
-export function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam) {
-  return simulateEuropeanLeaguePhaseMatchday('ucl', userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam);
+export function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam, userFormation = '4-3-3', userLineup = null) {
+  return simulateEuropeanLeaguePhaseMatchday('ucl', userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam, userFormation, userLineup);
 }
 
 export const _SYNTH_FIRST = ['A.','B.','C.','D.','E.','F.','G.','H.','J.','K.','L.','M.','N.','O.','P.','R.','S.','T.','V.','W.'];
