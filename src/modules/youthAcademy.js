@@ -1,4 +1,5 @@
 import { getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
+import { normalizePlayerModel } from './playerModel.js';
 
 /** modules/youthAcademy.js -- Youth cohort intake, development, promotion/release */
 export const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RM','LM','ST','ST','CF','RW','LW'];
@@ -165,7 +166,7 @@ export function generateYouthPlayer(teamId, reputation, season, index, league, i
   const seasonStr = String(season).replace('/', '_');
   const id = `youth_${teamId}_${seasonStr}_${index}_${Date.now()}_${Math.floor(Math.random()*1000)}`;
 
-  return {
+  return normalizePlayerModel({
     id,
     name:            randName(league),
     position:        pos,
@@ -193,7 +194,7 @@ export function generateYouthPlayer(teamId, reputation, season, index, league, i
     cleanSheets:     0,
     form:            50,
     transferListed:  false,
-  };
+  });
 }
 
 export function distributeAttributes(pos, base) {
@@ -384,4 +385,3 @@ export function getAcademyInfo(reputation, investment = 0) {
     cohortSize: 10 + Math.round(inv / 100 * 4),
   };
 }
-
