@@ -1,6 +1,17 @@
 <script>
   import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
   import { FORMATIONS, primaryRating, selectEleven } from '../../modules/matchEngine.js';
+  import {
+    DEFAULT_TEAM_INSTRUCTIONS,
+    TEAM_INSTRUCTION_DEFS,
+    createUserTacticalPlan,
+    defaultRoleForPosition,
+    getCompatibleRoles,
+    getRoleDefinition,
+    normalizeTeamInstructions,
+    roleSuitability,
+    summarizeManagerDNA,
+  } from '../../modules/tactics.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { contractYearsRemaining, renewContract } from '../../modules/transfers.js';
   import { fmt, posGroup, toast } from '../../ui/helpers.js';
@@ -24,9 +35,11 @@
   let players = $state([]);
   let formation = $state('4-3-3');
   let mentality = $state('balanced');
+  let instructions = $state({ ...DEFAULT_TEAM_INSTRUCTIONS });
   let savedLineup = $state([]);
   let formationOpen = $state(false);
   let mentalityOpen = $state(false);
+  let instructionsOpen = $state(false);
   let swapSlotIdx = $state(null);
   let swapPreselectId = $state(null);
   let rosterOpen = $state(false);
@@ -44,6 +57,7 @@
     formation = save.formation ?? '4-3-3';
     savedLineup = save.lineup ?? [];
     mentality = save.mentality ?? 'balanced';
+    instructions = normalizeTeamInstructions(save.tactics?.instructions ?? save.tactics ?? {});
     loaded = true;
   }
 
@@ -54,6 +68,13 @@
 
   const curMentObj = $derived(MENTALITIES.find(m => m.id === mentality) ?? MENTALITIES[1]);
   const slots = $derived(SLOT_LAYOUT[formation] ?? SLOT_LAYOUT['4-3-3']);
+  const managerDNA = $derived.by(() => summarizeManagerDNA(save?.managerDNA));
+  const changedInstructions = $derived(TEAM_INSTRUCTION_DEFS.filter(def => instructions[def.id] !== DEFAULT_TEAM_INSTRUCTIONS[def.id]));
+  const planSummary = $derived.by(() => {
+    if (!changedInstructions.length) return 'Balanced defaults';
+    return changedInstructions.slice(0, 2).map(def => instructionValueLabel(def, instructions[def.id])).join(' · ')
+      + (changedInstructions.length > 2 ? ` +${changedInstructions.length - 2}` : '');
+  });
 
   const assignment = $derived.by(() => {
     const avail = players.filter(p => p.inSquad !== false && !p.injured && !p.suspended).sort((a, b) => primaryRating(b) - primaryRating(a));
@@ -94,6 +115,20 @@
     { label: '5 at the back', formations: Object.keys(FORMATIONS).filter(f => f.startsWith('5-')) },
   ]);
 
+  function instructionValueLabel(def, value) {
+    return def.values.find(([id]) => id === value)?.[1] ?? value;
+  }
+
+  function activeRoleFor(player) {
+    if (!player) return null;
+    return getRoleDefinition(save?.playerRoles?.[player.id]) ?? defaultRoleForPosition(player.position);
+  }
+
+  function roleFitLabel(player, roleId) {
+    const fit = roleSuitability(player, roleId);
+    return fit >= 1.02 ? 'Strong fit' : fit >= .92 ? 'Good fit' : 'Stretch';
+  }
+
   async function pickFormation(f) {
     formationOpen = false;
     const sv = await getSave();
@@ -106,6 +141,27 @@
     await putSave({ ...sv, mentality: m.id });
     toast(`Mentality: ${m.fullLabel}`, 'info', 2000);
     screenTicks.squad++;
+  }
+
+  async function pickInstruction(key, value) {
+    const sv = await getSave();
+    const nextInstructions = normalizeTeamInstructions({ ...instructions, [key]:value });
+    const updated = { ...sv, tactics:createUserTacticalPlan(nextInstructions) };
+    await putSave(updated);
+    save = updated;
+    instructions = nextInstructions;
+  }
+
+  async function pickPlayerRole(player, roleId) {
+    const sv = await getSave();
+    const nextRoles = { ...(sv.playerRoles ?? {}) };
+    if (roleId) nextRoles[player.id] = roleId;
+    else delete nextRoles[player.id];
+    const updated = { ...sv, playerRoles:nextRoles };
+    await putSave(updated);
+    save = updated;
+    const role = roleId ? getRoleDefinition(roleId) : defaultRoleForPosition(player.position);
+    toast(`${player.name}: ${role?.label ?? 'Automatic role'}`, 'info', 2000);
   }
 
   function fitnessColor(fit) {
@@ -268,6 +324,19 @@
       </div>
     </div>
 
+    <div class="p2-plan-row">
+      <button class="team-plan-button" onclick={() => instructionsOpen = true}>
+        <span>Team plan</span>
+        <strong>{planSummary}</strong>
+        <small>{changedInstructions.length ? `${changedInstructions.length} instruction${changedInstructions.length === 1 ? '' : 's'} customised` : 'Tap to shape how your XI plays'}</small>
+      </button>
+      <div class="dna-card" aria-label="Manager DNA">
+        <span>Manager DNA</span>
+        <strong>{managerDNA.matches ? managerDNA.style : 'Forming'}</strong>
+        <small>{managerDNA.matches ? `${managerDNA.pressing} · ${managerDNA.averagePossession}% poss.` : 'Builds from matches'}</small>
+      </div>
+    </div>
+
     <div class="tac-pitch-area">
       <div class="pitch-wrap">
         <div class="pitch-bg">
@@ -280,11 +349,13 @@
           {#each slots as slot, i (i)}
             {@const pl = assignment[i]}
             {@const g = pl ? posGroup(pl.position) : posGroup(slot.p)}
-            <button class="pitch-slot" style="left:{slot.x}%;top:{slot.y}%" draggable={!!pl} onclick={() => openSlotSwap(i)} ondragstart={() => beginDrag(pl)} ondragover={(e) => e.preventDefault()} ondrop={() => dropOnSlot(i)} aria-label="{slot.p} slot">
+            {@const role = activeRoleFor(pl)}
+            <button class="pitch-slot" style="left:{slot.x}%;top:{slot.y}%" draggable={!!pl} onclick={() => openSlotSwap(i)} ondragstart={() => beginDrag(pl)} ondragover={(e) => e.preventDefault()} ondrop={() => dropOnSlot(i)} aria-label="{slot.p} slot{pl && role ? ` · ${pl.name} · ${role.label}` : ''}">
               <div class="slot-inner pos-{g} {!pl ? 'pos-empty' : ''} {pl?.injured ? 'slot-injured' : ''}">
                 {#if pl}
                   <div class="slot-rating">{primaryRating(pl)}</div>
                   <div class="slot-pos">{pl.position}</div>
+                  {#if role}<div class="slot-role">{role.short}</div>{/if}
                   {#if pl.injured}<div class="slot-inj-tag">INJ</div>{/if}
                 {:else}
                   <div class="slot-pos slot-empty-lbl">{slot.p}</div>
@@ -315,6 +386,29 @@
     </div>
   {/if}
 </div>
+
+{#if instructionsOpen}
+  <button class="sheet-backdrop" onclick={() => instructionsOpen = false} aria-label="Close team instructions"></button>
+  <div class="sheet instructions-sheet">
+    <div class="sheet-handle"></div>
+    <div class="swap-hdr">
+      <div><span class="swap-title">Team plan</span><div class="sheet-subtitle">Every choice is a trade-off inside the match engine.</div></div>
+      <button class="sheet-close" onclick={() => instructionsOpen = false} aria-label="Close">✕</button>
+    </div>
+    <div class="instruction-list">
+      {#each TEAM_INSTRUCTION_DEFS as def (def.id)}
+        <div class="instruction-row">
+          <span>{def.label}</span>
+          <div class="instruction-options" role="group" aria-label={def.label}>
+            {#each def.values as [value, label] (value)}
+              <button class:active={instructions[def.id] === value} onclick={() => pickInstruction(def.id, value)}>{label}</button>
+            {/each}
+          </div>
+        </div>
+      {/each}
+    </div>
+  </div>
+{/if}
 
 {#if swapSections}
   <button class="sheet-backdrop" onclick={closeSwap} aria-label="Close"></button>
@@ -366,9 +460,10 @@
     <div class="swap-list">
       {#each [...players].sort((a, b) => primaryRating(b) - primaryRating(a)) as p (p.id)}
         {@const fit = Math.round(p.fitness ?? 90)}
+        {@const role = activeRoleFor(p)}
         <button class="swap-row" onclick={() => openPlayer(p)}>
           <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
-          <span class="swap-row-info"><span class="swap-row-name">{p.name}</span><span class="swap-row-meta">Age {p.age}{p.injured ? ' · Injured' : ''}{p.transferListed ? ' · Listed' : ''}</span></span>
+          <span class="swap-row-info"><span class="swap-row-name">{p.name}</span><span class="swap-row-meta">Age {p.age}{role ? ` · ${role.label}` : ''}{p.injured ? ' · Injured' : ''}{p.transferListed ? ' · Listed' : ''}</span></span>
           <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span><span class="swap-row-rat">{primaryRating(p)}</span>
         </button>
       {/each}
@@ -380,12 +475,23 @@
   {@const p = playerSheet}
   {@const fit = Math.round(p.fitness ?? 90)}
   {@const yearsLeft = save ? contractYearsRemaining(p, save) : null}
+  {@const explicitRole = getRoleDefinition(save?.playerRoles?.[p.id])}
+  {@const currentRole = explicitRole ?? defaultRoleForPosition(p.position)}
   <button class="sheet-backdrop" onclick={closePlayer} aria-label="Close player"></button>
   <div class="sheet player-sheet">
     <div class="sheet-handle"></div>
     <div class="swap-hdr"><div><span class="swap-title">{p.name}</span><div class="player-sub"><span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span> Age {p.age} · {fit}% fit</div></div><button class="sheet-close" onclick={closePlayer} aria-label="Close">✕</button></div>
     <div class="player-metrics"><div><span>Rating</span><strong>{primaryRating(p)}</strong></div><div><span>Value</span><strong>{fmt.money(p.value)}</strong></div><div><span>Wage</span><strong>{fmt.wage(p.wage)}</strong></div>{#if yearsLeft !== null}<div><span>Contract</span><strong>{yearsLeft <= 0 ? 'Expiring' : yearsLeft + ' yrs'}</strong></div>{/if}</div>
     <div class="player-attributes"><div><span>GK</span><strong>{p.goalkeeping ?? 0}</strong></div><div><span>DEF</span><strong>{p.defence ?? 0}</strong></div><div><span>MID</span><strong>{p.midfield ?? 0}</strong></div><div><span>ATT</span><strong>{p.attack ?? 0}</strong></div></div>
+    <section class="role-section" aria-label="Tactical role">
+      <div class="role-heading"><div><span>Tactical role</span><strong>{currentRole?.label ?? 'Automatic'}</strong></div><small>Role fit changes how effectively this player executes the team plan.</small></div>
+      <div class="role-options">
+        <button class:active={!explicitRole} onclick={() => pickPlayerRole(p, null)}><strong>Auto</strong><small>{defaultRoleForPosition(p.position)?.label ?? 'Best fit'}</small></button>
+        {#each getCompatibleRoles(p) as role (role.id)}
+          <button class:active={explicitRole?.id === role.id} onclick={() => pickPlayerRole(p, role.id)}><strong>{role.label}</strong><small>{roleFitLabel(p, role.id)}</small></button>
+        {/each}
+      </div>
+    </section>
     <div class="player-actions">
       {#if yearsLeft !== null && !p.onLoan}<button class="player-primary" onclick={() => renewPlayerContract(p)}>Renew contract</button>{/if}
       <button onclick={() => toggleSquad(p)}>{p.inSquad === false ? 'Add to squad' : 'Exclude from squad'}</button>
@@ -402,7 +508,7 @@
   .chalk-header strong { display:block; font:700 25px/1 var(--font-display); letter-spacing:.03em; }
   .roster-button { min-height:44px; padding:0 12px; color:var(--color-tx-2); background:var(--color-surface); border:1px solid var(--color-line); border-radius:999px; cursor:pointer; font:600 11px var(--font-mono); }
 
-  .tac-controls { display: flex; gap: 10px; padding: 14px 16px; flex-shrink: 0; position: relative; z-index: 10; }
+  .tac-controls { display: flex; gap: 10px; padding: 14px 16px 8px; flex-shrink: 0; position: relative; z-index: 10; }
   .tac-dd-half { flex: 1; position: relative; }
   .tac-dd-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 4px; }
   .tac-dropdown { position: relative; }
@@ -435,6 +541,15 @@
   .m-dd-opt-info { display: flex; flex-direction: column; }
   .m-dd-opt-label { font-weight: 600; }
   .m-dd-opt-desc { font-size: 10px; color: var(--color-tx-3); }
+
+  .p2-plan-row { flex-shrink:0; display:grid; grid-template-columns:minmax(0,1.45fr) minmax(0,1fr); gap:8px; padding:0 16px 7px; }
+  .team-plan-button, .dna-card { min-width:0; min-height:52px; padding:8px 10px; text-align:left; border:1px solid var(--color-line); border-radius:10px; background:var(--color-surface); color:var(--color-tx); }
+  .team-plan-button { cursor:pointer; }
+  .team-plan-button span, .dna-card span { display:block; color:var(--color-tx-3); font:700 8px/1 var(--font-mono); letter-spacing:1.1px; text-transform:uppercase; }
+  .team-plan-button strong, .dna-card strong { display:block; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 12px/1.15 var(--font-body); }
+  .team-plan-button small, .dna-card small { display:block; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-tx-3); font:9px/1.2 var(--font-body); }
+  .dna-card { background:color-mix(in oklch,var(--color-club) 7%,var(--color-surface)); }
+  .dna-card strong { color:var(--color-club); }
 
   .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 12px; }
   .pitch-wrap { width: 100%; max-width: 420px; aspect-ratio: 68/100; margin: 0 auto; }
@@ -475,8 +590,9 @@
   .slot-inner.pos-ATT { border-color: var(--color-bad); }
   .slot-inner.pos-empty { border-color: var(--color-line); border-style: dashed; background: rgba(255,255,255,0.04); }
   .slot-inner.slot-injured { box-shadow: 0 0 0 2px var(--color-bad); }
-  .slot-rating { font-family: var(--font-display); font-size: 15px; line-height: 1; color: var(--color-tx); }
-  .slot-pos { font-family: var(--font-mono); font-size: 8px; color: var(--color-tx-2); }
+  .slot-rating { font-family: var(--font-display); font-size: 14px; line-height: .95; color: var(--color-tx); }
+  .slot-pos { font-family: var(--font-mono); font-size: 7px; line-height:1; color: var(--color-tx-2); }
+  .slot-role { margin-top:1px; color:var(--color-club); font:700 6px/1 var(--font-mono); letter-spacing:.2px; }
   .slot-empty-lbl { color: var(--color-tx-3); font-size: 9px; }
   .slot-inj-tag { position: absolute; top: -6px; font-size: 7px; font-family: var(--font-mono); font-weight: 700; color: var(--color-bad); background: var(--color-surface); padding: 0 3px; border-radius: 3px; }
   .slot-name { font-size: 9px; color: var(--color-tx); background: rgba(0,0,0,0.55); padding: 1px 5px; border-radius: 4px; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
@@ -512,7 +628,7 @@
   .pos-badge.pos-MID { color: var(--color-warn); }
   .pos-badge.pos-ATT { color: var(--color-bad); }
 
-  /* ── Bottom sheet (swap picker) ───────────────────────────── */
+  /* ── Bottom sheets ────────────────────────────────────────── */
   .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 900; animation: fade-in 0.2s ease; border: none; padding: 0; cursor: default; }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 901;
@@ -527,7 +643,15 @@
   .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--color-line); margin: 4px auto 12px; flex-shrink: 0; }
   .swap-hdr { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; margin-bottom: 10px; }
   .swap-title { font-family: var(--font-display); font-size: 17px; letter-spacing: 0.5px; }
+  .sheet-subtitle { margin-top:4px; color:var(--color-tx-3); font-size:10px; }
   .sheet-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); cursor: pointer; font-size: 14px; flex-shrink: 0; }
+  .instructions-sheet { max-height:88dvh; }
+  .instruction-list { min-height:0; overflow-y:auto; overscroll-behavior:contain; display:grid; gap:10px; padding-bottom:4px; }
+  .instruction-row { display:grid; gap:6px; }
+  .instruction-row > span { color:var(--color-tx-2); font:700 9px/1 var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
+  .instruction-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:3px; background:var(--color-raised); border:1px solid var(--color-line); border-radius:9px; }
+  .instruction-options button { min-height:38px; padding:5px 4px; border:0; border-radius:7px; background:transparent; color:var(--color-tx-3); cursor:pointer; font:600 10px/1.15 var(--font-body); }
+  .instruction-options button.active { background:var(--color-club); color:var(--color-on-club,#fff); box-shadow:0 3px 12px color-mix(in oklch,var(--color-club) 22%,transparent); }
   .swap-current { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--color-raised); border-radius: 10px; margin-bottom: 8px; flex-shrink: 0; }
   .swap-current-name { font-size: 13px; font-weight: 600; }
   .swap-current-meta { font-size: 10px; color: var(--color-tx-3); }
@@ -548,10 +672,26 @@
   .swap-row-fit { font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; }
   .swap-row-rat { font-family: var(--font-display); font-size: 15px; min-width: 24px; text-align: right; flex-shrink: 0; }
   .roster-sheet { max-height:86dvh; }
-  .player-sheet { max-height:70dvh; }
+  .player-sheet { max-height:82dvh; overflow-y:auto; }
   .player-sub { display:flex; align-items:center; gap:7px; margin-top:7px; font-size:11px; color:var(--color-tx-3); }
   .player-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--color-line); border:1px solid var(--color-line); border-radius:10px; overflow:hidden; }
   .player-metrics div { background:var(--color-raised); padding:10px; } .player-metrics span { display:block; color:var(--color-tx-3); font:9px var(--font-mono); letter-spacing:1px; text-transform:uppercase; } .player-metrics strong { display:block; margin-top:4px; font:17px var(--font-display); }
   .player-attributes { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; } .player-attributes div { padding:9px 4px; text-align:center; background:var(--color-raised); border:1px solid var(--color-line); border-radius:8px; } .player-attributes span { display:block; color:var(--color-tx-3); font:8px var(--font-mono); } .player-attributes strong { display:block; margin-top:3px; font:15px var(--font-display); }
+  .role-section { margin-top:12px; padding:11px; border:1px solid var(--color-line); border-radius:10px; background:var(--color-raised); }
+  .role-heading { display:flex; align-items:end; justify-content:space-between; gap:12px; }
+  .role-heading div span { display:block; color:var(--color-tx-3); font:700 8px var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
+  .role-heading div strong { display:block; margin-top:3px; font:700 13px var(--font-body); }
+  .role-heading > small { max-width:52%; color:var(--color-tx-3); font:9px/1.25 var(--font-body); text-align:right; }
+  .role-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:9px; }
+  .role-options button { min-height:48px; padding:7px 8px; text-align:left; border:1px solid var(--color-line); border-radius:8px; background:var(--color-surface); color:var(--color-tx); cursor:pointer; }
+  .role-options button.active { border-color:var(--color-club); background:color-mix(in oklch,var(--color-club) 12%,var(--color-surface)); }
+  .role-options strong, .role-options small { display:block; }
+  .role-options strong { font-size:11px; }
+  .role-options small { margin-top:3px; color:var(--color-tx-3); font:9px var(--font-mono); }
+  .role-options button.active small { color:var(--color-club); }
   .player-actions { display:grid; gap:8px; margin-top:14px; } .player-actions button { min-height:44px; color:var(--color-tx); background:var(--color-raised); border:1px solid var(--color-line); border-radius:9px; cursor:pointer; font:600 12px var(--font-body); } .player-actions .player-primary { color:var(--color-on-accent); background:var(--color-accent); border-color:var(--color-accent); }
+
+  @media (min-width: 720px) {
+    .sheet { left:50%; right:auto; width:min(560px,calc(100vw - 32px)); transform:translateX(-50%); }
+  }
 </style>
