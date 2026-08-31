@@ -26,9 +26,9 @@ for df in _data_files:
     MODULES.append((f'data/{df.name}', label))
 
 # Core modules (dependencies first). P0's competitionRules.js is deliberately
-# immediately before cups.js. P1's world.js sits after youthAcademy because it
-# consumes fixtures, match/standing helpers and youth/newgen generation, while
-# save/season/gameweek consume the living-world contracts after it.
+# immediately before cups.js. P1's world helpers sit after youthAcademy because
+# they consume fixtures, match/standing helpers and youth/newgen generation;
+# save/season/gameweek consume those contracts afterwards.
 MODULES += [
     ('modules/db.js',               'DATABASE'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
@@ -42,6 +42,7 @@ MODULES += [
     ('modules/promotion.js',        'PROMOTION'),
     ('modules/youthAcademy.js',     'YOUTH ACADEMY'),
     ('modules/world.js',            'LIVING WORLD'),
+    ('modules/worldRuntime.js',     'WORLD RUNTIME'),
     ('modules/save.js',             'SAVE'),
     ('modules/season.js',           'SEASON'),
     ('modules/gameweek.js',         'GAMEWEEK'),
