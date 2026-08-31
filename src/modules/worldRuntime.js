@@ -1,4 +1,5 @@
-import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, putPlayersBulk } from './db.js';
+import { getCompetitionRules } from './competitionRules.js';
+import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getSave, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
 import { buildPersonalStatePatches } from './playerModel.js';
 import { mutateRow, sortTable } from './standings.js';
@@ -167,18 +168,75 @@ export function projectWorldBatch(players, standings, results) {
 }
 
 /**
- * Fold P3's first world-week settlement into the already-required league
- * projection transaction. This avoids a second large IndexedDB write of the
- * same player rows. Later cup/European projections may add minutes in the same
- * week; the snapshot-based end-of-week reconciliation then writes only those
- * incremental participants.
+ * Return background clubs whose world week is not complete after league
+ * projection because a domestic/European fixture is scheduled for this GW.
+ * Existing canonical records are included as well so crash recovery keeps the
+ * same defer decision even after the competition state has advanced.
  */
-export function coalescePersonalStateProjection(projectedPlayers, changedPlayers, gameweek, season) {
+export function scheduledWorldCompetitionTeamIds(worldState, gameweek) {
+  const gw = Number(gameweek);
+  const ids = new Set();
+  if (!Number.isInteger(gw) || gw < 0) return ids;
+
+  for (const comp of Object.values(worldState?.competitions ?? {})) {
+    for (const record of comp.results ?? []) {
+      if (Number(record?.gameweek) !== gw) continue;
+      if (record.homeTeamId) ids.add(record.homeTeamId);
+      if (record.awayTeamId) ids.add(record.awayTeamId);
+    }
+
+    if (comp.processedGameweeks?.includes(gw)) continue;
+    const rules = getCompetitionRules(comp.id);
+    if (!rules) continue;
+
+    if (comp.format === 'uefa_league_phase' && comp.phase === 'league_phase') {
+      const matchday = Number(comp.leaguePhaseMatchday ?? 0);
+      if (rules.leaguePhase?.gws?.[matchday] !== gw) continue;
+      for (const teamId of comp.activeTeamIds ?? []) ids.add(teamId);
+      continue;
+    }
+
+    const roundIndex = Number(comp.roundIndex ?? 0);
+    if (rules.roundGWs?.[roundIndex] !== gw) continue;
+    for (const teamId of comp.activeTeamIds ?? []) ids.add(teamId);
+    for (const teamId of comp.entrantsByRound?.[roundIndex] ?? []) ids.add(teamId);
+    for (const teamId of comp.pendingByes ?? []) ids.add(teamId);
+    for (const tie of comp.pendingTies ?? []) {
+      if (tie.teamAId) ids.add(tie.teamAId);
+      if (tie.teamBId) ids.add(tie.teamBId);
+    }
+  }
+
+  return ids;
+}
+
+function managedPersonalStateTeamIds(players) {
+  const ids = new Set();
+  for (const player of players ?? []) {
+    if (player?.playingTimeAgreement?.scope === 'managed' && player.teamId) ids.add(player.teamId);
+  }
+  return ids;
+}
+
+/**
+ * Fold completed-club P3 weekly settlement into an already-required projection
+ * transaction. Clubs with another background competition fixture are deferred,
+ * and the managed club is always deferred until the pending-event queue is
+ * empty. That preserves one settlement per player after total weekly exposure
+ * is known without restoring a redundant ordinary full-world write.
+ */
+export function coalescePersonalStateProjection(projectedPlayers, changedPlayers, gameweek, season, { deferTeamIds = [] } = {}) {
   const gw = Number(gameweek);
   if (!Number.isInteger(gw) || gw < 0 || !season) {
     return { players:projectedPlayers, changedPlayers };
   }
-  const personalStatePatches = buildPersonalStatePatches(projectedPlayers, gw, season);
+
+  const deferred = new Set(deferTeamIds);
+  for (const teamId of managedPersonalStateTeamIds(projectedPlayers)) deferred.add(teamId);
+  const settlementCandidates = deferred.size
+    ? projectedPlayers.filter(player => !deferred.has(player.teamId))
+    : projectedPlayers;
+  const personalStatePatches = buildPersonalStatePatches(settlementCandidates, gw, season);
   if (!personalStatePatches.length) return { players:projectedPlayers, changedPlayers };
 
   const patchById = new Map(personalStatePatches.map(player => [player.id, player]));
@@ -240,9 +298,8 @@ function commitWorldCompetitionProjection(save, worldCompetitions, players) {
  * Apply every persisted-but-unprojected canonical fixture in one transaction.
  * A crash before commit leaves all records pending; a crash after commit leaves
  * all records applied. There is no state in which standings/player stats move
- * but the fixture still advertises itself as pending. P3's initial weekly
- * settlement is coalesced into this same transaction rather than rewriting the
- * same active player rows immediately afterwards.
+ * but the fixture still advertises itself as pending. P3 settlement is folded
+ * into this transaction only for clubs whose world week is complete here.
  */
 export async function applyPendingWorldLeagueProjections(fixtures) {
   const pending = fixtures.filter(fixture =>
@@ -253,12 +310,21 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
   if (!pending.length) return [];
 
   const results = pending.map(resultFromCanonicalLeagueRecord);
-  const [players, standings] = await Promise.all([getAllPlayers(), getAllStandings()]);
+  const [players, standings, save] = await Promise.all([getAllPlayers(), getAllStandings(), getSave()]);
   const projected = projectWorldBatch(players, standings, results);
   const weekKeys = new Set(pending.map(fixture => `${fixture.season ?? ''}:${fixture.gameweek ?? ''}`));
   const singleWeek = weekKeys.size === 1 ? pending[0] : null;
+  const deferredTeams = singleWeek
+    ? scheduledWorldCompetitionTeamIds(save?.worldCompetitions, singleWeek.gameweek)
+    : new Set();
   const withPersonalState = singleWeek
-    ? coalescePersonalStateProjection(projected.players, projected.changedPlayers, singleWeek.gameweek, singleWeek.season)
+    ? coalescePersonalStateProjection(
+      projected.players,
+      projected.changedPlayers,
+      singleWeek.gameweek,
+      singleWeek.season,
+      { deferTeamIds:deferredTeams },
+    )
     : { players:projected.players, changedPlayers:projected.changedPlayers };
   const appliedFixtures = pending.map(fixture => ({ ...fixture, projectionsApplied:true }));
   // Keep fixture apply-once flags, standings and every changed/P3-settled player
@@ -269,21 +335,32 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
 
 /**
  * Background cup records live inside the save row, so their apply-once flag and
- * participant player mutations commit together. A tab close can leave the whole
- * batch pending, or the whole batch applied, but never half-project a tournament.
- * Players from clubs outside the batch are intentionally not rewritten.
+ * participant player mutations commit together. P3 settlement is coalesced only
+ * after every pending background result for that world week has been projected,
+ * so league + domestic/European exposure is consumed once in total. Clubs
+ * outside the batch are intentionally not rewritten.
  */
 export async function applyPendingWorldCompetitionProjections(save) {
   const pending = pendingWorldCompetitionRecords(save?.worldCompetitions);
   if (!pending.length) return { save, results:[] };
   const players = await getAllPlayers();
   const projectedPlayers = projectNonLeaguePlayers(players, pending);
+  const weekKeys = new Set(pending.map(record => `${record.season ?? ''}:${record.gameweek ?? ''}`));
+  const singleWeek = weekKeys.size === 1 ? pending[0] : null;
+  const withPersonalState = singleWeek
+    ? coalescePersonalStateProjection(
+      projectedPlayers,
+      projectedPlayers,
+      singleWeek.gameweek,
+      singleWeek.season,
+    )
+    : { players:projectedPlayers };
   const worldCompetitions = markWorldCompetitionRecordsApplied(
     save.worldCompetitions,
     pending.map(record => record.id),
   );
   const nextSave = { ...save, worldCompetitions };
-  await commitWorldCompetitionProjection(nextSave, worldCompetitions, projectedPlayers);
+  await commitWorldCompetitionProjection(nextSave, worldCompetitions, withPersonalState.players);
   return { save:nextSave, results:pending };
 }
 
