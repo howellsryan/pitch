@@ -1,5 +1,6 @@
 import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
+import { buildPersonalStatePatches } from './playerModel.js';
 import { mutateRow, sortTable } from './standings.js';
 import {
   WORLD_RECORD_VERSION,
@@ -12,7 +13,7 @@ import {
   pendingWorldCompetitionRecords,
 } from './worldCompetitions.js';
 
-/** modules/worldRuntime.js — atomic P1 projection of canonical world match records */
+/** modules/worldRuntime.js — atomic P1/P3 projection of canonical world match records */
 
 function heavyLossMap(results) {
   const map = new Map();
@@ -165,6 +166,31 @@ export function projectWorldBatch(players, standings, results) {
   };
 }
 
+/**
+ * Fold P3's first world-week settlement into the already-required league
+ * projection transaction. This avoids a second large IndexedDB write of the
+ * same player rows. Later cup/European projections may add minutes in the same
+ * week; the snapshot-based end-of-week reconciliation then writes only those
+ * incremental participants.
+ */
+export function coalescePersonalStateProjection(projectedPlayers, changedPlayers, gameweek, season) {
+  const gw = Number(gameweek);
+  if (!Number.isInteger(gw) || gw < 0 || !season) {
+    return { players:projectedPlayers, changedPlayers };
+  }
+  const personalStatePatches = buildPersonalStatePatches(projectedPlayers, gw, season);
+  if (!personalStatePatches.length) return { players:projectedPlayers, changedPlayers };
+
+  const patchById = new Map(personalStatePatches.map(player => [player.id, player]));
+  const players = projectedPlayers.map(player => patchById.get(player.id) ?? player);
+  const changedById = new Map();
+  for (const player of changedPlayers) {
+    changedById.set(player.id, patchById.get(player.id) ?? player);
+  }
+  for (const player of personalStatePatches) changedById.set(player.id, player);
+  return { players, changedPlayers:[...changedById.values()] };
+}
+
 export function projectNonLeaguePlayers(players, results) {
   const participantTeams = nonLeagueParticipantTeamIds(results);
   const participantPlayers = players.filter(player => participantTeams.has(player.teamId));
@@ -214,7 +240,9 @@ function commitWorldCompetitionProjection(save, worldCompetitions, players) {
  * Apply every persisted-but-unprojected canonical fixture in one transaction.
  * A crash before commit leaves all records pending; a crash after commit leaves
  * all records applied. There is no state in which standings/player stats move
- * but the fixture still advertises itself as pending.
+ * but the fixture still advertises itself as pending. P3's initial weekly
+ * settlement is coalesced into this same transaction rather than rewriting the
+ * same active player rows immediately afterwards.
  */
 export async function applyPendingWorldLeagueProjections(fixtures) {
   const pending = fixtures.filter(fixture =>
@@ -227,10 +255,15 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
   const results = pending.map(resultFromCanonicalLeagueRecord);
   const [players, standings] = await Promise.all([getAllPlayers(), getAllStandings()]);
   const projected = projectWorldBatch(players, standings, results);
+  const weekKeys = new Set(pending.map(fixture => `${fixture.season ?? ''}:${fixture.gameweek ?? ''}`));
+  const singleWeek = weekKeys.size === 1 ? pending[0] : null;
+  const withPersonalState = singleWeek
+    ? coalescePersonalStateProjection(projected.players, projected.changedPlayers, singleWeek.gameweek, singleWeek.season)
+    : { players:projected.players, changedPlayers:projected.changedPlayers };
   const appliedFixtures = pending.map(fixture => ({ ...fixture, projectionsApplied:true }));
-  // Keep fixture apply-once flags, standings and every changed player in one
-  // transaction, but avoid rewriting thousands of byte-identical player rows.
-  await commitWorldProjection(appliedFixtures, projected.standings, projected.changedPlayers);
+  // Keep fixture apply-once flags, standings and every changed/P3-settled player
+  // in one transaction, but avoid rewriting thousands of byte-identical rows.
+  await commitWorldProjection(appliedFixtures, projected.standings, withPersonalState.changedPlayers);
   return results;
 }
 
