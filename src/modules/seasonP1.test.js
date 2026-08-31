@@ -40,4 +40,14 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('collapsedDeals:[]');
     expect(source).toContain('inboundOffers:[]');
   });
+
+  it('compacts the outgoing competition ledger and seeds a fresh P1 world for the next season', () => {
+    const source = functionBody('processEndOfSeason');
+    const historyIndex = source.indexOf('buildLivingWorldSeasonSummary');
+    const saveIndex = source.indexOf('const newSave = {');
+    expect(historyIndex).toBeGreaterThan(-1);
+    expect(saveIndex).toBeGreaterThan(historyIndex);
+    expect(source).toContain('worldCompetitions:buildWorldCompetitionState(allTeamsRefreshed, nextSeason, save.userTeamId, 1)');
+    expect(source).not.toContain('worldCompetitions:save.worldCompetitions');
+  });
 });
