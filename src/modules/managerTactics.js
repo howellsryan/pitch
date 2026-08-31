@@ -77,11 +77,15 @@ export function buildOpponentTacticalInsight({
   };
 }
 
+function userIsHomeForResult(result, userTeamId, explicitUserIsHome) {
+  return typeof explicitUserIsHome === 'boolean'
+    ? explicitUserIsHome
+    : result?.homeTeamId === userTeamId;
+}
+
 function userOutcome(result, userTeamId, userIsHome) {
   if (!result) return 'draw';
-  const isHome = typeof userIsHome === 'boolean'
-    ? userIsHome
-    : result.homeTeamId === userTeamId;
+  const isHome = userIsHomeForResult(result, userTeamId, userIsHome);
   const userGoals = Number(isHome ? result.homeGoals : result.awayGoals);
   const oppGoals = Number(isHome ? result.awayGoals : result.homeGoals);
   if (!Number.isFinite(userGoals) || !Number.isFinite(oppGoals)) return 'draw';
@@ -91,9 +95,7 @@ function userOutcome(result, userTeamId, userIsHome) {
 function userPossession(result, userTeamId, userIsHome) {
   const possession = result?.stats?.possession;
   if (!possession) return 50;
-  const isHome = typeof userIsHome === 'boolean'
-    ? userIsHome
-    : result.homeTeamId === userTeamId;
+  const isHome = userIsHomeForResult(result, userTeamId, userIsHome);
   return Number(isHome ? possession.home : possession.away) || 50;
 }
 
@@ -108,12 +110,16 @@ export function buildManagerDNASample(save, result, event, userIsHome, userPlaye
   const youthStarts = userPlayers.filter(player => (
     selected.has(player.id) && (player.isYouth === true || Number(player.age ?? 99) <= 21)
   )).length;
+  const isHome = userIsHomeForResult(result, save?.userTeamId, userIsHome);
+  const resultFormation = isHome ? result?.homeFormation : result?.awayFormation;
+  const resultMentality = isHome ? result?.homeMentality : result?.awayMentality;
+  const resultInstructions = isHome ? result?.homeTactics : result?.awayTactics;
 
   return {
     fingerprint:managerFingerprint(save, event),
-    formation:save?.formation ?? '4-3-3',
-    mentality:save?.mentality ?? 'balanced',
-    instructions:save?.tactics?.instructions ?? save?.tactics ?? {},
+    formation:resultFormation ?? save?.formation ?? '4-3-3',
+    mentality:resultMentality ?? save?.mentality ?? 'balanced',
+    instructions:resultInstructions ?? save?.tactics?.instructions ?? save?.tactics ?? {},
     outcome:userOutcome(result, save?.userTeamId, userIsHome),
     possession:userPossession(result, save?.userTeamId, userIsHome),
     youthStarts,
