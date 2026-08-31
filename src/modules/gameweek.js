@@ -290,7 +290,9 @@ async function runEndOfWorldGameweek(save) {
   // recovery advances the medical clock. The per-player settled-week key makes
   // this safe to retry if closeout is interrupted before the world clock itself
   // advances, including after gameweek numbers repeat in a later season.
-  const personalStatePatches = await settleWorldPersonalState(save.currentGameweek, save.season).catch(() => []);
+  // This write is fail-closed: if the P3 lifecycle cannot persist, the caller
+  // must not advance the shared world clock and silently skip a player week.
+  const personalStatePatches = await settleWorldPersonalState(save.currentGameweek, save.season);
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   const newOffers = await generateAIOffers().catch(() => []) ?? [];
   await simulateAITransfers(save).catch(() => {});
