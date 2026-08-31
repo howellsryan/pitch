@@ -94,20 +94,20 @@
   const assignment = $derived.by(() => {
     const avail = players.filter(p => p.inSquad !== false && !p.injured && !p.suspended);
     const out = new Array(slots.length).fill(null);
-    const usedIds = new Set();
+    const usedIds = [];
     if (savedLineup.length === 11) {
       savedLineup.forEach((pid, i) => {
         const pl = players.find(p => p.id === pid);
-        if (pl) { out[i] = pl; usedIds.add(pl.id); }
+        if (pl) { out[i] = pl; usedIds.push(pl.id); }
       });
       return out;
     }
     slots.forEach((slot, i) => {
       const candidates = avail
-        .filter(p => !usedIds.has(p.id) && (slot.p === 'GK' ? p.position === 'GK' : p.position !== 'GK'))
+        .filter(p => !usedIds.includes(p.id) && (slot.p === 'GK' ? p.position === 'GK' : p.position !== 'GK'))
         .sort((a, b) => slotLevel(b, slot.p) - slotLevel(a, slot.p) || slotFit(b, slot.p) - slotFit(a, slot.p));
       const cand = candidates[0];
-      if (cand) { out[i] = cand; usedIds.add(cand.id); }
+      if (cand) { out[i] = cand; usedIds.push(cand.id); }
     });
     return out;
   });
