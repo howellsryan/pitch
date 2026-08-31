@@ -1,4 +1,5 @@
 import { rollInjuryCheck } from './injuries.js';
+import { baselineLevel, playerPositionGroup } from './playerModel.js';
 import {
   DEFAULT_TEAM_INSTRUCTIONS,
   chooseAIRole,
@@ -29,20 +30,13 @@ export function matchInjuryIntervalRate(perPhaseRate, interval = MATCH_INJURY_CH
   return 1 - Math.pow(1 - perPhaseRate, interval);
 }
 
+// Compatibility exports retained while P3 migrates existing callers.
 export function positionGroup(pos) {
-  if (ATT.has(pos)) return 'ATT';
-  if (MID.has(pos)) return 'MID';
-  if (DEF.has(pos)) return 'DEF';
-  if (pos === 'GK') return 'GK';
-  return 'MID';
+  return playerPositionGroup(pos);
 }
 
 export function primaryRating(player) {
-  const g = positionGroup(player.position);
-  if (g === 'ATT') return player.attack;
-  if (g === 'MID') return player.midfield;
-  if (g === 'DEF') return player.defence;
-  return player.goalkeeping;
+  return baselineLevel(player);
 }
 
 export const FORMATIONS = {

@@ -25,8 +25,9 @@ for df in _data_files:
     label = df.stem.upper().replace('_', ' ')
     MODULES.append((f'data/{df.name}', label))
 
-# Core modules (dependencies first). P2's tactics domain and manager-facing
-# adapter are deliberately loaded immediately before matchEngine.js so the
+# Core modules (dependencies first). P3's pure player-model selectors are
+# loaded before every simulation/domain consumer. P2's tactics domain and
+# manager-facing adapter follow immediately before matchEngine.js so the
 # stripped legacy bundle has the same schema/functions available before
 # authoritative simulation/gameweek code is evaluated. P0's
 # competitionRules.js is immediately before cups.js. P1's world helpers sit
@@ -35,6 +36,7 @@ for df in _data_files:
 # living-world contracts afterwards.
 MODULES += [
     ('modules/db.js',               'DATABASE'),
+    ('modules/playerModel.js',      'PLAYER MODEL'),
     ('modules/tactics.js',          'TACTICS'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
