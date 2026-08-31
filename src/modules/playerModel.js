@@ -7,7 +7,7 @@
  * competing overall rating.
  */
 
-export const PLAYER_MODEL_VERSION = 1;
+export const PLAYER_MODEL_VERSION = 2;
 export const DEFAULT_INDIVIDUAL_MORALE = 50;
 export const DEFAULT_SHARPNESS = 50;
 export const MAX_PLAYER_TRAITS = 8;
@@ -42,6 +42,16 @@ function clampState(value, fallback) {
   return clamp(number, 0, 100);
 }
 
+function nonNegativeNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, number) : fallback;
+}
+
+function settledGameweek(value) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : null;
+}
+
 function round1(value) {
   return Math.round(value * 10) / 10;
 }
@@ -58,6 +68,12 @@ function centeredContribution(value, swing, fallback = 50) {
 function penaltyFromReadiness(readiness, maxPenalty, fallback = 100) {
   const normalized = clampState(readiness, fallback);
   return round2(-((100 - normalized) / 100) * maxPenalty);
+}
+
+function moveToward(value, target, step) {
+  if (value < target) return Math.min(target, value + step);
+  if (value > target) return Math.max(target, value - step);
+  return value;
 }
 
 function sameArray(left, right) {
@@ -130,10 +146,10 @@ export function normalizePlayerTraits(traits) {
 }
 
 /**
- * Additive P3 row normaliser. It owns only P3's new player-state fields and
- * spreads every legacy/career field through unchanged. Later work packages can
- * bump PLAYER_MODEL_VERSION and extend this function without adding a second
- * migration mechanism.
+ * Additive P3 row normaliser. It owns only P3's player-state fields and spreads
+ * every legacy/career field through unchanged. The settlement snapshots are
+ * initialised from the current cumulative stats, so upgrading an old career
+ * never mistakes the whole season for one week's participation.
  */
 export function normalizePlayerModel(player) {
   if (!player) return player;
@@ -147,6 +163,9 @@ export function normalizePlayerModel(player) {
     playingTimeAgreement:player.playingTimeAgreement ?? null,
     growthProfile:player.growthProfile ?? null,
     rehabilitation:player.rehabilitation ?? null,
+    personalStateAppearances:nonNegativeNumber(player.personalStateAppearances, nonNegativeNumber(player.appearances)),
+    personalStateMinutes:nonNegativeNumber(player.personalStateMinutes, nonNegativeNumber(player.minutes)),
+    personalStateSettledGameweek:settledGameweek(player.personalStateSettledGameweek),
   };
 }
 
@@ -161,7 +180,10 @@ export function playerModelNeedsNormalization(player) {
     || player.squadRole !== normalized.squadRole
     || player.playingTimeAgreement !== normalized.playingTimeAgreement
     || player.growthProfile !== normalized.growthProfile
-    || player.rehabilitation !== normalized.rehabilitation;
+    || player.rehabilitation !== normalized.rehabilitation
+    || player.personalStateAppearances !== normalized.personalStateAppearances
+    || player.personalStateMinutes !== normalized.personalStateMinutes
+    || player.personalStateSettledGameweek !== normalized.personalStateSettledGameweek;
 }
 
 /**
@@ -236,4 +258,67 @@ export function effectiveAttribute(player, attribute) {
   if (!breakdown) return raw;
   const nonPositionModifier = breakdown.totalModifier - breakdown.contributions.positionFit;
   return round1(clamp(raw + nonPositionModifier, 1, 99));
+}
+
+/**
+ * Settle morale/sharpness once at a completed world-gameweek boundary. The
+ * cumulative appearance/minute snapshots provide canonical participation
+ * evidence across league and cup projections without storing another result
+ * ledger. Rows already settled for this gameweek are returned by identity.
+ */
+export function settlePlayerPersonalState(player, gameweek) {
+  if (!player) return player;
+  const gw = Number(gameweek);
+  if (!Number.isInteger(gw) || gw < 0) return player;
+  if (player.personalStateSettledGameweek === gw) return player;
+
+  const currentAppearances = nonNegativeNumber(player.appearances);
+  const currentMinutes = nonNegativeNumber(player.minutes);
+  const previousAppearances = nonNegativeNumber(player.personalStateAppearances, currentAppearances);
+  const previousMinutes = nonNegativeNumber(player.personalStateMinutes, currentMinutes);
+  const appearanceDelta = Math.max(0, currentAppearances - previousAppearances);
+  const minuteDelta = Math.max(0, currentMinutes - previousMinutes);
+  const participated = appearanceDelta > 0 || minuteDelta > 0;
+
+  const currentMorale = clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE);
+  const currentSharpness = clampState(player.sharpness, DEFAULT_SHARPNESS);
+  let nextMorale = currentMorale;
+  let nextSharpness = currentSharpness;
+
+  if (participated) {
+    const exposureGain = clamp(Math.round(2 + Math.min(6, minuteDelta / 30)), 2, 8);
+    nextSharpness = clamp(currentSharpness + exposureGain, 0, 100);
+
+    const rating = Number(player.lastMatchRating);
+    let moraleDelta = Number.isFinite(rating)
+      ? rating >= 8 ? 4
+        : rating >= 7.2 ? 3
+          : rating >= 6.5 ? 1
+            : rating < 5.5 ? -3
+              : rating < 6 ? -1
+                : 0
+      : 0;
+    const form = clampState(player.form, 50);
+    if (form >= 70) moraleDelta += 1;
+    else if (form <= 35) moraleDelta -= 1;
+    nextMorale = clamp(currentMorale + moraleDelta, 0, 100);
+  } else {
+    // Match sharpness and confidence settle back toward neutral when unused;
+    // neutral players therefore require no weekly write at all.
+    nextSharpness = moveToward(currentSharpness, DEFAULT_SHARPNESS, 4);
+    nextMorale = moveToward(currentMorale, DEFAULT_INDIVIDUAL_MORALE, 2);
+  }
+
+  const snapshotsChanged = currentAppearances !== previousAppearances || currentMinutes !== previousMinutes;
+  const stateChanged = nextMorale !== currentMorale || nextSharpness !== currentSharpness;
+  if (!snapshotsChanged && !stateChanged) return player;
+
+  return {
+    ...player,
+    individualMorale:nextMorale,
+    sharpness:nextSharpness,
+    personalStateAppearances:currentAppearances,
+    personalStateMinutes:currentMinutes,
+    personalStateSettledGameweek:gw,
+  };
 }
