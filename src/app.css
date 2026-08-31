@@ -62,11 +62,11 @@
 }
 
 /**
- * P3 player detail is intentionally an internal scroller. Give it an explicit
- * border-box viewport height instead of relying on intrinsic content sizing;
- * this keeps the entire fixed sheet inside both mobile and 1280x800 viewports.
+ * P3 player detail is intentionally an internal scroller. The sheet is portaled
+ * alongside the screen rather than nested inside #screen-squad, so target its
+ * unique class directly and give it an explicit border-box viewport height.
  */
-#screen-squad .player-sheet {
+.player-sheet {
   top: auto;
   bottom: 0;
   height: 88dvh;
