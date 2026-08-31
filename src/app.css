@@ -62,18 +62,19 @@
 }
 
 /**
- * P3 player detail is intentionally an internal scroller. The sheet is portaled
- * alongside the screen rather than nested inside #screen-squad, so target its
- * unique class directly and give it an explicit border-box viewport height.
+ * P3 player detail is intentionally an internal scroller. Svelte's component
+ * stylesheet carries an extra generated class, so this global closeout rule is
+ * deliberately important: the player sheet, and only the player sheet, owns an
+ * explicit viewport-bounded border box at every breakpoint.
  */
-.player-sheet {
-  top: auto;
-  bottom: 0;
-  height: 88dvh;
-  max-height: 88dvh;
-  min-height: 0;
-  box-sizing: border-box;
-  overflow-y: auto;
+.sheet.player-sheet {
+  top: auto !important;
+  bottom: 0 !important;
+  height: 88dvh !important;
+  max-height: 88dvh !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
   overscroll-behavior: contain;
 }
 
