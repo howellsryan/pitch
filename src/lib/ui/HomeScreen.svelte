@@ -248,7 +248,6 @@
       {#if save?.boardObjective}
         <button class="objective" onclick={() => navigateTo('competitions')}><span>Board objective</span><strong>{save.boardObjective.label}</strong><i><b style:width={`${board.pct}%`}></b></i></button>
       {/if}
-      <nav class="club-links" aria-label="Club areas"><button onclick={() => navigateTo('academy')}>Academy</button><button onclick={() => navigateTo('trophies')}>Trophies</button><button onclick={() => navigateTo('settings')}>Settings</button></nav>
     </main>
 
     <section class="waiting-sheet" aria-labelledby="waiting-title">
@@ -317,8 +316,6 @@
   .objective strong { font-size: 12px; }
   .objective i { grid-column: 1 / -1; height: 3px; overflow: hidden; background: var(--color-raised); border-radius: 2px; }
   .objective b { display: block; height: 100%; background: var(--color-club); }
-  .club-links { display: flex; gap: 8px; padding: 12px 20px 0; }
-  .club-links button { min-height: 44px; flex: 1; color: var(--color-tx-2); background: transparent; border: 1px solid var(--color-line); border-radius: var(--radius-bug); font: 600 12px/1 var(--font-body); cursor: pointer; }
   .waiting-sheet { width: min(100% - 24px, 1016px); margin: auto auto 0; padding: 12px 16px calc(92px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, var(--color-raised), var(--color-surface)); border: 1px solid var(--color-line); border-bottom: 0; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: 0 -18px 48px rgba(0,0,0,.24); }
   .grabber { width: 38px; height: 4px; margin: 0 auto 14px; background: color-mix(in oklch, var(--color-tx) 22%, transparent); border-radius: 3px; }
   .waiting-heading { display: flex; align-items: center; gap: 7px; padding-bottom: 9px; }
