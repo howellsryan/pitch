@@ -1,4 +1,5 @@
 import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
+import { baselineLevel, currentEffectiveLevel } from './playerModel.js';
 import { patchSave } from './save.js';
 import { bumpMorale } from './standings.js';
 
@@ -34,7 +35,7 @@ export function formAdjustedValue(player) {
   const dampening = 1 - valueTier * 0.4;
 
   // ALSO dampen form for low-rated players — a 55-rated player on a hot streak
-  // shouldn't inflate as much as an 80-rated player on the same streak
+  // shouldn't inflate as much as an 80-rated player on the same hot streak
   // Rating dampening: 0.4 at rating 50, 0.7 at 65, 1.0 at 78+
   const ratingDamp = Math.min(1, Math.max(0.4, (cur - 50) / 28));
   const dampenedFormMult = 1 + (formMult - 1) * dampening * ratingDamp;
@@ -84,12 +85,14 @@ export function _freshContractExpiry(save) {
   return year + 3;
 }
 
+// P3 compatibility seam: every transfer-market consumer now observes the same
+// current quality as Squad, selection and match strength. Durable baseline is
+// retained only as a defensive fallback for malformed legacy rows.
 export function _fav_primaryRating(p) {
-  const pos = p.position;
-  if (['ST','CF','RW','LW','CAM'].includes(pos)) return p.attack;
-  if (['CM','CDM','RM','LM'].includes(pos))       return p.midfield;
-  if (['CB','RB','LB'].includes(pos))             return p.defence;
-  return p.goalkeeping;
+  const effective = Number(currentEffectiveLevel(p));
+  if (Number.isFinite(effective)) return effective;
+  const baseline = Number(baselineLevel(p));
+  return Number.isFinite(baseline) ? baseline : 50;
 }
 
 // ─── Contracts ──────────────────────────────────────────────
@@ -982,4 +985,3 @@ export function generateBuyCounter(player, offerAmount) {
 
   return { fee: counterFee, playerName: player.name, playerId: player.id };
 }
-
