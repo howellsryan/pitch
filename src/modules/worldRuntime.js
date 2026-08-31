@@ -110,7 +110,16 @@ function nonLeagueParticipantTeamIds(results) {
   return ids;
 }
 
+function shallowRowChanged(before, after) {
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const key of keys) {
+    if (before[key] !== after[key]) return true;
+  }
+  return false;
+}
+
 export function projectWorldBatch(players, standings, results) {
+  const originals = new Map(players.map(player => [player.id, player]));
   const playerCache = new Map(players.map(player => [player.id, { ...player }]));
   const standingCache = new Map(standings.map(row => [row.teamId, { ...row }]));
 
@@ -143,8 +152,15 @@ export function projectWorldBatch(players, standings, results) {
     projectedStandings.push(...sorted);
   }
 
+  const projectedPlayers = [...playerCache.values()];
+  const changedPlayers = projectedPlayers.filter(player => {
+    const original = originals.get(player.id);
+    return !original || shallowRowChanged(original, player);
+  });
+
   return {
-    players:[...playerCache.values()],
+    players:projectedPlayers,
+    changedPlayers,
     standings:projectedStandings,
   };
 }
@@ -212,7 +228,9 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
   const [players, standings] = await Promise.all([getAllPlayers(), getAllStandings()]);
   const projected = projectWorldBatch(players, standings, results);
   const appliedFixtures = pending.map(fixture => ({ ...fixture, projectionsApplied:true }));
-  await commitWorldProjection(appliedFixtures, projected.standings, projected.players);
+  // Keep fixture apply-once flags, standings and every changed player in one
+  // transaction, but avoid rewriting thousands of byte-identical player rows.
+  await commitWorldProjection(appliedFixtures, projected.standings, projected.changedPlayers);
   return results;
 }
 
