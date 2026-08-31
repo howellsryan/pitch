@@ -20,6 +20,7 @@ import {
   playerPositionGroup,
   positionSuitabilityFor,
   rehabilitationReadiness,
+  settlePlayerPersonalState,
 } from './playerModel.js';
 
 const RATINGS = { attack:91, midfield:82, defence:73, goalkeeping:64 };
@@ -38,7 +39,7 @@ const CASES = [
 
 describe('P3 canonical player-model baseline selectors', () => {
   it('versions the canonical player-model contract', () => {
-    expect(PLAYER_MODEL_VERSION).toBe(1);
+    expect(PLAYER_MODEL_VERSION).toBe(2);
   });
 
   it.each(CASES)('preserves established %s grouping and baseline rating', (position, group, attribute) => {
@@ -160,6 +161,75 @@ describe('P3 bounded effective level', () => {
   });
 });
 
+describe('P3 once-per-world-week personal state', () => {
+  it('uses canonical cumulative participation deltas to raise sharpness and confidence', () => {
+    const baseline = normalizePlayerModel({
+      ...player('CM'),
+      appearances:10,
+      minutes:800,
+      form:72,
+      individualMorale:50,
+      sharpness:50,
+    });
+    const afterMatch = {
+      ...baseline,
+      appearances:11,
+      minutes:890,
+      lastMatchRating:8.1,
+      form:72,
+    };
+    const settled = settlePlayerPersonalState(afterMatch, 17);
+
+    expect(settled.individualMorale).toBe(55);
+    expect(settled.sharpness).toBe(55);
+    expect(settled.personalStateAppearances).toBe(11);
+    expect(settled.personalStateMinutes).toBe(890);
+    expect(settled.personalStateSettledGameweek).toBe(17);
+    expect(settlePlayerPersonalState(settled, 17)).toBe(settled);
+  });
+
+  it('decays unused non-neutral state toward neutral without punishing a neutral player', () => {
+    const unused = normalizePlayerModel({
+      ...player('ST'),
+      appearances:5,
+      minutes:450,
+      individualMorale:60,
+      sharpness:70,
+    });
+    const settled = settlePlayerPersonalState(unused, 9);
+    expect(settled.individualMorale).toBe(58);
+    expect(settled.sharpness).toBe(66);
+    expect(settled.personalStateSettledGameweek).toBe(9);
+
+    const neutral = normalizePlayerModel({ ...player('ST'), appearances:5, minutes:450 });
+    expect(settlePlayerPersonalState(neutral, 9)).toBe(neutral);
+  });
+
+  it('handles season-stat resets by refreshing snapshots without inventing participation', () => {
+    const endOfSeason = normalizePlayerModel({
+      ...player('GK'),
+      appearances:34,
+      minutes:3060,
+    });
+    const newSeason = { ...endOfSeason, appearances:0, minutes:0 };
+    const settled = settlePlayerPersonalState(newSeason, 1);
+
+    expect(settled.individualMorale).toBe(DEFAULT_INDIVIDUAL_MORALE);
+    expect(settled.sharpness).toBe(DEFAULT_SHARPNESS);
+    expect(settled.personalStateAppearances).toBe(0);
+    expect(settled.personalStateMinutes).toBe(0);
+    expect(settled.personalStateSettledGameweek).toBe(1);
+  });
+
+  it('returns invalid or already-settled gameweeks by identity', () => {
+    const subject = normalizePlayerModel({ ...player('CB'), appearances:1, minutes:90 });
+    expect(settlePlayerPersonalState(subject, -1)).toBe(subject);
+    const played = { ...subject, appearances:2, minutes:180, lastMatchRating:7.4 };
+    const settled = settlePlayerPersonalState(played, 3);
+    expect(settlePlayerPersonalState(settled, 3)).toBe(settled);
+  });
+});
+
 describe('P3 canonical player-model normalisation', () => {
   it('adds neutral P3 state without changing durable or career fields', () => {
     const legacy = {
@@ -184,6 +254,9 @@ describe('P3 canonical player-model normalisation', () => {
     expect(migrated.playingTimeAgreement).toBeNull();
     expect(migrated.growthProfile).toBeNull();
     expect(migrated.rehabilitation).toBeNull();
+    expect(migrated.personalStateAppearances).toBe(19);
+    expect(migrated.personalStateMinutes).toBe(1211);
+    expect(migrated.personalStateSettledGameweek).toBeNull();
     expect(baselineLevel(migrated)).toBe(baselineLevel(legacy));
     expect(legacy.positionSuitability).toBeUndefined();
   });
