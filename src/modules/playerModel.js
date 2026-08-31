@@ -280,8 +280,11 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
 
   const currentAppearances = nonNegativeNumber(player.appearances);
   const currentMinutes = nonNegativeNumber(player.minutes);
-  const previousAppearances = nonNegativeNumber(player.personalStateAppearances, currentAppearances);
-  const previousMinutes = nonNegativeNumber(player.personalStateMinutes, currentMinutes);
+  const storedAppearances = nonNegativeNumber(player.personalStateAppearances, currentAppearances);
+  const storedMinutes = nonNegativeNumber(player.personalStateMinutes, currentMinutes);
+  const seasonStatsReset = currentAppearances < storedAppearances || currentMinutes < storedMinutes;
+  const previousAppearances = seasonStatsReset ? 0 : storedAppearances;
+  const previousMinutes = seasonStatsReset ? 0 : storedMinutes;
   const appearanceDelta = Math.max(0, currentAppearances - previousAppearances);
   const minuteDelta = Math.max(0, currentMinutes - previousMinutes);
   const participated = appearanceDelta > 0 || minuteDelta > 0;
@@ -315,7 +318,7 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
     nextMorale = moveToward(currentMorale, DEFAULT_INDIVIDUAL_MORALE, 2);
   }
 
-  const snapshotsChanged = currentAppearances !== previousAppearances || currentMinutes !== previousMinutes;
+  const snapshotsChanged = currentAppearances !== storedAppearances || currentMinutes !== storedMinutes;
   const stateChanged = nextMorale !== currentMorale || nextSharpness !== currentSharpness;
   if (!snapshotsChanged && !stateChanged) return player;
 
