@@ -21,6 +21,7 @@ const MIDFIELD_SET = new Set(MIDFIELD_POSITIONS);
 const DEFENCE_SET = new Set(DEFENCE_POSITIONS);
 
 function clampState(value, fallback) {
+  if (value == null) return fallback;
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(0, Math.min(100, number));
@@ -37,10 +38,6 @@ function sameObject(left, right) {
   const rightEntries = Object.entries(right);
   if (leftEntries.length !== rightEntries.length) return false;
   return rightEntries.every(([key, value]) => left[key] === value);
-}
-
-function hasOwn(object, key) {
-  return Object.prototype.hasOwnProperty.call(object, key);
 }
 
 /**
@@ -128,10 +125,10 @@ export function playerModelNeedsNormalization(player) {
     || !sameArray(player.traits, normalized.traits)
     || player.individualMorale !== normalized.individualMorale
     || player.sharpness !== normalized.sharpness
-    || !hasOwn(player, 'squadRole')
-    || !hasOwn(player, 'playingTimeAgreement')
-    || !hasOwn(player, 'growthProfile')
-    || !hasOwn(player, 'rehabilitation');
+    || player.squadRole !== normalized.squadRole
+    || player.playingTimeAgreement !== normalized.playingTimeAgreement
+    || player.growthProfile !== normalized.growthProfile
+    || player.rehabilitation !== normalized.rehabilitation;
 }
 
 /**
