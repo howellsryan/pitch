@@ -52,7 +52,7 @@ const MIDFIELD_SET = new Set(MIDFIELD_POSITIONS);
 const DEFENCE_SET = new Set(DEFENCE_POSITIONS);
 const SQUAD_ROLE_IDS = new Set(Object.keys(SQUAD_ROLE_DEFS));
 
-function clamp(value, min, max) {
+function playerModelClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
@@ -60,7 +60,7 @@ function clampState(value, fallback) {
   if (value == null) return fallback;
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
-  return clamp(number, 0, 100);
+  return playerModelClamp(number, 0, 100);
 }
 
 function nonNegativeNumber(value, fallback = 0) {
@@ -147,7 +147,7 @@ export function normalizePositionSuitability(positionSuitability, primaryPositio
       if (!position) continue;
       const suitability = Number(rawSuitability);
       if (!Number.isFinite(suitability)) continue;
-      normalized[position] = clamp(suitability, 0, 1);
+      normalized[position] = playerModelClamp(suitability, 0, 1);
     }
   }
   if (primaryPosition) normalized[primaryPosition] = 1;
@@ -171,7 +171,7 @@ function normalizePromiseHistory(history) {
     .map(sample => ({
       key:sample.key,
       appeared:Boolean(sample.appeared),
-      minutes:clamp(Math.round(nonNegativeNumber(sample.minutes)), 0, 90),
+      minutes:playerModelClamp(Math.round(nonNegativeNumber(sample.minutes)), 0, 90),
     }))
     .slice(-PLAYING_TIME_WINDOW_WEEKS);
 }
@@ -208,8 +208,8 @@ export function normalizePlayingTimeAgreement(agreement, role, teamId) {
     role:normalizedRole,
     status,
     history,
-    appearanceShare:round2(clamp(Number(agreement.appearanceShare) || 0, 0, 1)),
-    minuteShare:round2(clamp(Number(agreement.minuteShare) || 0, 0, 1)),
+    appearanceShare:round2(playerModelClamp(Number(agreement.appearanceShare) || 0, 0, 1)),
+    minuteShare:round2(playerModelClamp(Number(agreement.minuteShare) || 0, 0, 1)),
     deliveryScore:round2(Math.max(0, Number(agreement.deliveryScore) || 0)),
     lastEvaluatedKey:settledWeekKey(agreement.lastEvaluatedKey),
   };
@@ -251,7 +251,7 @@ export function normalizePlayerModel(player) {
     squadRoleTeamId,
     playingTimeAgreement,
     growthProfile:assignGrowthProfile(player),
-    potentialKnowledge:round2(clamp(Number(player.potentialKnowledge ?? .35), 0, 1)),
+    potentialKnowledge:round2(playerModelClamp(Number(player.potentialKnowledge ?? .35), 0, 1)),
     developmentProgress:nonNegativeNumber(player.developmentProgress, nonNegativeNumber(player.growthPoints)),
     developmentAppearances,
     developmentMinutes,
@@ -322,15 +322,15 @@ export function effectiveLevelBreakdown(player, { position = player?.position } 
     sharpness:centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS),
     fitness:penaltyFromReadiness(player.fitness, EFFECTIVE_LEVEL_LIMITS.fitnessPenalty),
     rehabilitation:penaltyFromReadiness(rehabilitationReadiness(player), EFFECTIVE_LEVEL_LIMITS.rehabilitationPenalty),
-    traits:round2(clamp(traitAttributeModifier(player, baselineAttribute(position)), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing)),
+    traits:round2(playerModelClamp(traitAttributeModifier(player, baselineAttribute(position)), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing)),
   };
   const rawModifier = Object.values(contributions).reduce((sum, value) => sum + value, 0);
-  const totalModifier = round2(clamp(
+  const totalModifier = round2(playerModelClamp(
     rawModifier,
     -EFFECTIVE_LEVEL_LIMITS.maxDrop,
     EFFECTIVE_LEVEL_LIMITS.maxUplift,
   ));
-  const effectiveLevel = round1(clamp(baseline + totalModifier, 1, 99));
+  const effectiveLevel = round1(playerModelClamp(baseline + totalModifier, 1, 99));
 
   return {
     position,
@@ -342,8 +342,25 @@ export function effectiveLevelBreakdown(player, { position = player?.position } 
   };
 }
 
-export function currentEffectiveLevel(player, options = {}) {
-  return effectiveLevelBreakdown(player, options)?.effectiveLevel;
+/** Numeric simulation selector: same bounds/formula as the explainable view, no object allocation. */
+export function currentEffectiveLevel(player, { position = player?.position } = {}) {
+  if (!player) return undefined;
+  const baseline = Number(baselineLevel(player, position));
+  if (!Number.isFinite(baseline)) return undefined;
+  const suitability = positionSuitabilityFor(player, position);
+  const rawModifier = round2((suitability - 1) * EFFECTIVE_LEVEL_LIMITS.positionFitPenalty)
+    + centeredContribution(player.form, EFFECTIVE_LEVEL_LIMITS.formSwing)
+    + centeredContribution(player.individualMorale, EFFECTIVE_LEVEL_LIMITS.moraleSwing, DEFAULT_INDIVIDUAL_MORALE)
+    + centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS)
+    + penaltyFromReadiness(player.fitness, EFFECTIVE_LEVEL_LIMITS.fitnessPenalty)
+    + penaltyFromReadiness(rehabilitationReadiness(player), EFFECTIVE_LEVEL_LIMITS.rehabilitationPenalty)
+    + round2(playerModelClamp(traitAttributeModifier(player, baselineAttribute(position)), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing));
+  const totalModifier = round2(playerModelClamp(
+    rawModifier,
+    -EFFECTIVE_LEVEL_LIMITS.maxDrop,
+    EFFECTIVE_LEVEL_LIMITS.maxUplift,
+  ));
+  return round1(playerModelClamp(baseline + totalModifier, 1, 99));
 }
 
 function effectiveStateModifier(player) {
@@ -352,7 +369,7 @@ function effectiveStateModifier(player) {
     + centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS)
     + penaltyFromReadiness(player.fitness, EFFECTIVE_LEVEL_LIMITS.fitnessPenalty)
     + penaltyFromReadiness(rehabilitationReadiness(player), EFFECTIVE_LEVEL_LIMITS.rehabilitationPenalty);
-  return round2(clamp(rawModifier, -EFFECTIVE_LEVEL_LIMITS.maxDrop, EFFECTIVE_LEVEL_LIMITS.maxUplift));
+  return round2(playerModelClamp(rawModifier, -EFFECTIVE_LEVEL_LIMITS.maxDrop, EFFECTIVE_LEVEL_LIMITS.maxUplift));
 }
 
 /** Hot simulation path: no explainability object allocation. */
@@ -360,8 +377,8 @@ export function effectiveAttribute(player, attribute) {
   if (!player) return undefined;
   const raw = Number(player[attribute]);
   if (!Number.isFinite(raw)) return undefined;
-  const trait = clamp(traitAttributeModifier(player, attribute), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing);
-  return round1(clamp(raw + effectiveStateModifier(player) + trait, 1, 99));
+  const trait = playerModelClamp(traitAttributeModifier(player, attribute), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing);
+  return round1(playerModelClamp(raw + effectiveStateModifier(player) + trait, 1, 99));
 }
 
 export function personalStateWeekKey(season, gameweek) {
@@ -370,7 +387,7 @@ export function personalStateWeekKey(season, gameweek) {
   return `${String(season ?? 'unknown')}:${gw}`;
 }
 
-function seasonStartYear(season) {
+function playerModelSeasonStartYear(season) {
   const parsed = parseInt(String(season ?? '').split('/')[0], 10);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -396,21 +413,18 @@ function weeklyParticipation(player) {
 export function settlePlayerPersonalState(player, gameweek, season = null) {
   if (!player) return player;
   const weekKey = personalStateWeekKey(season, gameweek);
-  if (!weekKey) return player;
+  if (!weekKey || player.personalStateSettledKey === weekKey) return player;
 
   const participation = weeklyParticipation(player);
-  const alreadySettled = player.personalStateSettledKey === weekKey;
   const participated = participation.appearanceDelta > 0 || participation.minuteDelta > 0;
-  if (alreadySettled && !participated) return player;
-
   const currentMorale = clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE);
   const currentSharpness = clampState(player.sharpness, DEFAULT_SHARPNESS);
   let nextMorale = currentMorale;
   let nextSharpness = currentSharpness;
 
   if (participated) {
-    const exposureGain = clamp(Math.round(2 + Math.min(6, participation.minuteDelta / 30)), 2, 8);
-    nextSharpness = clamp(currentSharpness + exposureGain, 0, 100);
+    const exposureGain = playerModelClamp(Math.round(2 + Math.min(6, participation.minuteDelta / 30)), 2, 8);
+    nextSharpness = playerModelClamp(currentSharpness + exposureGain, 0, 100);
     const rating = Number(player.lastMatchRating);
     let moraleDelta = Number.isFinite(rating)
       ? rating >= 8 ? 4
@@ -423,8 +437,8 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
     const form = clampState(player.form, 50);
     if (form >= 70) moraleDelta += 1;
     else if (form <= 35) moraleDelta -= 1;
-    nextMorale = clamp(currentMorale + moraleDelta, 0, 100);
-  } else if (!alreadySettled) {
+    nextMorale = playerModelClamp(currentMorale + moraleDelta, 0, 100);
+  } else {
     nextSharpness = moveToward(currentSharpness, DEFAULT_SHARPNESS, 4);
     nextMorale = moveToward(currentMorale, DEFAULT_INDIVIDUAL_MORALE, 2);
   }
@@ -589,8 +603,8 @@ function promiseStatus(history, role) {
   }
   return {
     status,
-    appearanceShare:round2(clamp(appearanceShare, 0, 1)),
-    minuteShare:round2(clamp(minuteShare, 0, 1)),
+    appearanceShare:round2(playerModelClamp(appearanceShare, 0, 1)),
+    minuteShare:round2(playerModelClamp(minuteShare, 0, 1)),
     deliveryScore:round2(deliveryScore),
   };
 }
@@ -611,23 +625,13 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
   const weekKey = personalStateWeekKey(season, gameweek);
   if (!agreement || !weekKey) return player;
   if (agreement.teamId !== player.teamId) return { ...player, playingTimeAgreement:null };
+  if (agreement.lastEvaluatedKey === weekKey) return player;
 
   const participation = weeklyParticipation(player);
-  const alreadyEvaluated = agreement.lastEvaluatedKey === weekKey;
-  const newExposure = participation.appearanceDelta > 0 || participation.minuteDelta > 0;
-  if (alreadyEvaluated && !newExposure) return player;
-  // Standalone callers do not own the participation snapshots. If a promise
-  // has already been evaluated but the P3 personal-state planner has not yet
-  // marked this same week, the apparent delta is the same match being replayed,
-  // not a legitimate second fixture. The composed planner sets this key before
-  // any later same-week cup/European reconciliation.
-  if (alreadyEvaluated && player.personalStateSettledKey !== weekKey) return player;
-
-  const existingSample = agreement.history.find(sample => sample.key === weekKey);
   const weeklySample = {
     key:weekKey,
-    appeared:Boolean(existingSample?.appeared) || participation.appearanceDelta > 0,
-    minutes:clamp(Math.round((existingSample?.minutes ?? 0) + participation.minuteDelta), 0, 90),
+    appeared:participation.appearanceDelta > 0,
+    minutes:playerModelClamp(Math.round(participation.minuteDelta), 0, 90),
   };
   const history = [
     ...agreement.history.filter(sample => sample.key !== weekKey),
@@ -635,11 +639,9 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
   ].slice(-PLAYING_TIME_WINDOW_WEEKS);
   const evaluation = promiseStatus(history, player.squadRole);
   let morale = clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE);
-  if (alreadyEvaluated) {
-    morale = clamp(morale + promiseMoralePenalty(evaluation.status) - promiseMoralePenalty(agreement.status), 0, 100);
-  } else if (evaluation.status === 'broken') morale = clamp(morale - 2, 0, 100);
-  else if (evaluation.status === 'at_risk') morale = clamp(morale - 1, 0, 100);
-  else if (evaluation.status === 'fulfilled' && ['at_risk', 'broken'].includes(agreement.status)) morale = clamp(morale + 1, 0, 100);
+  if (evaluation.status === 'broken') morale = playerModelClamp(morale - 2, 0, 100);
+  else if (evaluation.status === 'at_risk') morale = playerModelClamp(morale - 1, 0, 100);
+  else if (evaluation.status === 'fulfilled' && ['at_risk', 'broken'].includes(agreement.status)) morale = playerModelClamp(morale + 1, 0, 100);
 
   return {
     ...player,
@@ -654,15 +656,15 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
 }
 
 /**
- * Build the bounded changed-row set for one world week. This is the canonical
- * P3 weekly lifecycle: promises/personal state, development/conversion, then
- * rehabilitation. League projection may run the first slice before same-week
- * cup/European records, so snapshot-based subsystems reconcile additional
- * exposure while once-only conversion/rehab keys remain idempotent.
+ * Build the bounded changed-row set for one completed world week. This is the
+ * canonical P3 weekly lifecycle: promises/personal state, development/
+ * conversion, then rehabilitation. The caller must wait until all league,
+ * domestic-cup and European participation for each player is known; settled
+ * week keys make retries strict no-ops.
  */
 export function buildPersonalStatePatches(players, gameweek, season = null) {
   const managedTeamId = inferManagedTeamId(players);
-  const roleReady = refreshChangedSquadRoles(players, seasonStartYear(season), managedTeamId);
+  const roleReady = refreshChangedSquadRoles(players, playerModelSeasonStartYear(season), managedTeamId);
   const patches = [];
   for (let index = 0; index < roleReady.length; index++) {
     const original = players[index];

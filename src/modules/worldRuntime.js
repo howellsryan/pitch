@@ -1,4 +1,4 @@
-import { getCompetitionRules } from './competitionRules.js';
+import { getCompetitionRules, isTwoLegRound } from './competitionRules.js';
 import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getSave, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
 import { buildPersonalStatePatches } from './playerModel.js';
@@ -167,11 +167,45 @@ export function projectWorldBatch(players, standings, results) {
   };
 }
 
+function roundRobinPlayingTeamIds(teamIds, roundIndex) {
+  const list = [...new Set(teamIds ?? [])].sort();
+  if (list.length % 2) list.push(null);
+  if (list.length < 2) return new Set();
+
+  let rotation = [...list];
+  for (let round = 0; round < roundIndex; round++) {
+    rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, -1)];
+  }
+
+  const ids = new Set();
+  for (let index = 0; index < rotation.length / 2; index++) {
+    const home = rotation[index];
+    const away = rotation[rotation.length - 1 - index];
+    if (!home || !away) continue;
+    ids.add(home);
+    ids.add(away);
+  }
+  return ids;
+}
+
+function knockoutPlayingTeamIds(teamIds) {
+  const ids = [...new Set(teamIds ?? [])].sort();
+  const playing = new Set();
+  for (let index = 0; index < ids.length; index += 2) {
+    if (!ids[index + 1]) continue;
+    playing.add(ids[index]);
+    playing.add(ids[index + 1]);
+  }
+  return playing;
+}
+
 /**
  * Return background clubs whose world week is not complete after league
- * projection because a domestic/European fixture is scheduled for this GW.
- * Existing canonical records are included as well so crash recovery keeps the
- * same defer decision even after the competition state has advanced.
+ * projection because they will actually play a domestic/European fixture in
+ * this GW. Competition byes are deliberately excluded: a bye adds no exposure,
+ * so that club's week is already complete at league projection. Existing
+ * canonical records are included so crash recovery preserves the same defer
+ * decision after the competition state itself has advanced.
  */
 export function scheduledWorldCompetitionTeamIds(worldState, gameweek) {
   const gw = Number(gameweek);
@@ -192,19 +226,26 @@ export function scheduledWorldCompetitionTeamIds(worldState, gameweek) {
     if (comp.format === 'uefa_league_phase' && comp.phase === 'league_phase') {
       const matchday = Number(comp.leaguePhaseMatchday ?? 0);
       if (rules.leaguePhase?.gws?.[matchday] !== gw) continue;
-      for (const teamId of comp.activeTeamIds ?? []) ids.add(teamId);
+      for (const teamId of roundRobinPlayingTeamIds(comp.activeTeamIds, matchday)) ids.add(teamId);
       continue;
     }
 
     const roundIndex = Number(comp.roundIndex ?? 0);
     if (rules.roundGWs?.[roundIndex] !== gw) continue;
-    for (const teamId of comp.activeTeamIds ?? []) ids.add(teamId);
-    for (const teamId of comp.entrantsByRound?.[roundIndex] ?? []) ids.add(teamId);
-    for (const teamId of comp.pendingByes ?? []) ids.add(teamId);
-    for (const tie of comp.pendingTies ?? []) {
-      if (tie.teamAId) ids.add(tie.teamAId);
-      if (tie.teamBId) ids.add(tie.teamBId);
+    const roundName = rules.rounds?.[roundIndex];
+    if (isTwoLegRound(comp.id, roundName, 2)) {
+      for (const tie of comp.pendingTies ?? []) {
+        if (tie.teamAId) ids.add(tie.teamAId);
+        if (tie.teamBId) ids.add(tie.teamBId);
+      }
+      continue;
     }
+
+    const participants = [
+      ...(comp.activeTeamIds ?? []),
+      ...(comp.entrantsByRound?.[roundIndex] ?? []),
+    ];
+    for (const teamId of knockoutPlayingTeamIds(participants)) ids.add(teamId);
   }
 
   return ids;
