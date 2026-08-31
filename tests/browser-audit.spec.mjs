@@ -155,8 +155,12 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
   let squadLayout = null;
   for (const id of screens) {
     await go(page, id);
-    audits.push(await auditActiveScreen(page, id));
+    const audit = await auditActiveScreen(page, id);
+    audits.push(audit);
     if (id === 'squad') squadLayout = await auditSquadLayout(page);
+    if (id === 'competitions') {
+      await page.locator('#screen-competitions').screenshot({ path:'test-results/p1-competitions-390x844.png' });
+    }
   }
 
   await go(page, 'match');
