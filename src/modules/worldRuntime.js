@@ -51,6 +51,30 @@ function applyInjuries(cache, results) {
   }
 }
 
+function clearTransientProjectionFlags(player) {
+  delete player._played;
+  delete player._scored;
+  delete player._assisted;
+  delete player._cleanSheet;
+}
+
+function updatePlayedPlayerForm(player, heavyLossMargin) {
+  const age = player.age ?? 24;
+  const agePenalty = age >= 36 ? 6 : age >= 33 ? 4 : age >= 30 ? 2 : 0;
+  const recovery = Math.max(8, 20 - agePenalty);
+  player.fitness = Math.min(100, (player.fitness ?? 80) + recovery);
+  const currentForm = player.form ?? 50;
+  let formGain = 1;
+  if (player._scored) formGain += 3;
+  if (player._assisted) formGain += 2;
+  if (player._cleanSheet) formGain += 1;
+  const margin = heavyLossMargin.get(player.teamId) ?? 0;
+  if (margin >= 3 && !player._scored && !player._assisted) formGain -= (margin - 2) * 2;
+  const afterGain = currentForm + formGain;
+  const ceilingDecay = afterGain > 60 ? 1 : 0;
+  player.form = Math.min(99, Math.max(1, afterGain - ceilingDecay));
+}
+
 function finalisePlayerForm(cache, results) {
   const heavyLossMargin = heavyLossMap(results);
   for (const player of cache.values()) {
@@ -60,25 +84,20 @@ function finalisePlayerForm(cache, results) {
       if (currentForm > 50) player.form = Math.max(50, currentForm - 3);
       else if (currentForm < 50) player.form = Math.min(50, currentForm + 1);
     } else {
-      const age = player.age ?? 24;
-      const agePenalty = age >= 36 ? 6 : age >= 33 ? 4 : age >= 30 ? 2 : 0;
-      const recovery = Math.max(8, 20 - agePenalty);
-      player.fitness = Math.min(100, (player.fitness ?? 80) + recovery);
-      const currentForm = player.form ?? 50;
-      let formGain = 1;
-      if (player._scored) formGain += 3;
-      if (player._assisted) formGain += 2;
-      if (player._cleanSheet) formGain += 1;
-      const margin = heavyLossMargin.get(player.teamId) ?? 0;
-      if (margin >= 3 && !player._scored && !player._assisted) formGain -= (margin - 2) * 2;
-      const afterGain = currentForm + formGain;
-      const ceilingDecay = afterGain > 60 ? 1 : 0;
-      player.form = Math.min(99, Math.max(1, afterGain - ceilingDecay));
+      updatePlayedPlayerForm(player, heavyLossMargin);
     }
-    delete player._played;
-    delete player._scored;
-    delete player._assisted;
-    delete player._cleanSheet;
+    clearTransientProjectionFlags(player);
+  }
+}
+
+function finaliseNonLeaguePlayerForm(cache, results) {
+  const heavyLossMargin = heavyLossMap(results);
+  for (const player of cache.values()) {
+    // A cup batch must not make every player in every other league rested,
+    // fully fit and form-decayed. Only participants consume this match result;
+    // the weekly league/world closeout remains the sole global recovery tick.
+    if (player._played) updatePlayedPlayerForm(player, heavyLossMargin);
+    clearTransientProjectionFlags(player);
   }
 }
 
@@ -126,7 +145,7 @@ export function projectNonLeaguePlayers(players, results) {
   applyWorldPlayerStats(cache, results);
   applyFitness(cache, results);
   applyInjuries(cache, results);
-  finalisePlayerForm(cache, results);
+  finaliseNonLeaguePlayerForm(cache, results);
   return [...cache.values()];
 }
 
