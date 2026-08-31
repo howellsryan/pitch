@@ -106,7 +106,7 @@ export function resolvePlayerRole(player, requestedRoleId = player?.tacticalRole
   return defaultRoleForPosition(player?.position);
 }
 
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function _tacticsClamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
 export function roleSuitability(player, roleId = player?.tacticalRole) {
   const role = resolvePlayerRole(player, roleId);
@@ -119,7 +119,7 @@ export function roleSuitability(player, roleId = player?.tacticalRole) {
     total += weight;
   }
   const rating = total > 0 ? weighted / total : 50;
-  return clamp(0.78 + (rating / 99) * 0.30, 0.78, 1.08);
+  return _tacticsClamp(0.78 + (rating / 99) * 0.30, 0.78, 1.08);
 }
 
 function tacticTags(instructions) {
@@ -163,9 +163,9 @@ export function getRoleTeamModifiers(players, rolesById = {}, instructions = DEF
   }
   const n = players.length;
   return {
-    attackMult:clamp(1 + attack / n, .95, 1.05),
-    midfieldMult:clamp(1 + midfield / n, .95, 1.05),
-    defenceMult:clamp(1 + defence / n, .95, 1.05),
+    attackMult:_tacticsClamp(1 + attack / n, .95, 1.05),
+    midfieldMult:_tacticsClamp(1 + midfield / n, .95, 1.05),
+    defenceMult:_tacticsClamp(1 + defence / n, .95, 1.05),
     roleScore:score / n,
   };
 }
@@ -232,14 +232,14 @@ export function getTacticalModifiers(selfInput, opponentInput = DEFAULT_TEAM_INS
   if (self.pressing === 'aggressive' && opponent.buildUp === 'patient') mods.midShareBoost += .018;
   if (self.pressing === 'aggressive' && opponent.buildUp === 'direct') mods.defResistMult *= .965;
 
-  mods.goalProbMult = clamp(mods.goalProbMult, .78, 1.25);
-  mods.defResistMult = clamp(mods.defResistMult, .78, 1.25);
-  mods.midShareBoost = clamp(mods.midShareBoost, -.10, .10);
-  mods.shotsMult = clamp(mods.shotsMult, .78, 1.25);
-  mods.fitnessDrainMult = clamp(mods.fitnessDrainMult, .82, 1.35);
-  mods.yellowRiskMult = clamp(mods.yellowRiskMult, .72, 1.45);
-  mods.injuryRiskMult = clamp(mods.injuryRiskMult, .85, 1.22);
-  mods.lateDefResistMult = clamp(mods.lateDefResistMult, .85, 1.05);
+  mods.goalProbMult = _tacticsClamp(mods.goalProbMult, .78, 1.25);
+  mods.defResistMult = _tacticsClamp(mods.defResistMult, .78, 1.25);
+  mods.midShareBoost = _tacticsClamp(mods.midShareBoost, -.10, .10);
+  mods.shotsMult = _tacticsClamp(mods.shotsMult, .78, 1.25);
+  mods.fitnessDrainMult = _tacticsClamp(mods.fitnessDrainMult, .82, 1.35);
+  mods.yellowRiskMult = _tacticsClamp(mods.yellowRiskMult, .72, 1.45);
+  mods.injuryRiskMult = _tacticsClamp(mods.injuryRiskMult, .85, 1.22);
+  mods.lateDefResistMult = _tacticsClamp(mods.lateDefResistMult, .85, 1.05);
   return mods;
 }
 
