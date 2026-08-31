@@ -10,6 +10,19 @@ async function startArsenalCareer(page) {
   await expect(page.locator('#app')).toBeVisible({ timeout: 30000 });
 }
 
+async function waitForFullTimeOrCloseoutError(page, timeout = 30000) {
+  const fullTime = page.locator('.ft-status');
+  const errorToast = page.locator('.toast-error').last();
+  const winner = await Promise.race([
+    fullTime.waitFor({ state:'visible', timeout }).then(() => 'fulltime'),
+    errorToast.waitFor({ state:'visible', timeout }).then(() => 'error'),
+  ]);
+  if (winner === 'error') {
+    throw new Error(`World-week closeout failed: ${await errorToast.innerText()}`);
+  }
+  await expect(fullTime).toHaveText('FULL TIME');
+}
+
 test('P1 living world stays inside a throttled mobile browser budget', async ({ page, context }) => {
   const cdp = await context.newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate:4 });
@@ -24,7 +37,7 @@ test('P1 living world stays inside a throttled mobile browser budget', async ({ 
 
   const gameweekStartedAt = Date.now();
   await page.getByRole('button', { name:/Sim Instantly/ }).click();
-  await expect(page.locator('.ft-status')).toHaveText('FULL TIME', { timeout:30000 });
+  await waitForFullTimeOrCloseoutError(page);
   const gameweekMs = Date.now() - gameweekStartedAt;
 
   const storageUsage = await page.evaluate(async () => {
