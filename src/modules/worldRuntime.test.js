@@ -130,6 +130,30 @@ describe('P1 world projection runtime', () => {
     expect(byId.get('rested').form).toBe(62);
   });
 
+  it('persists only player rows whose projected state changed', () => {
+    const starter = player('starter', 'a', 'CM');
+    const alreadyNeutralRested = player('neutral', 'a', 'CM');
+    const recoveringRested = player('recovering', 'a', 'CM', { fitness:73, form:56 });
+    const opponent = player('opp', 'b', 'CM');
+    const result = {
+      homeTeamId:'a', awayTeamId:'b', homeGoals:0, awayGoals:0, events:[],
+      fitnessUpdates:[
+        { id:'starter', teamId:'a', newFitness:70 },
+        { id:'opp', teamId:'b', newFitness:70 },
+      ],
+    };
+
+    const projected = projectWorldBatch(
+      [starter, alreadyNeutralRested, recoveringRested, opponent],
+      [standing('a', 'League A'), standing('b', 'League A')],
+      [result],
+    );
+    const changedIds = projected.changedPlayers.map(row => row.id).sort();
+
+    expect(changedIds).toEqual(['opp', 'recovering', 'starter']);
+    expect(projected.players).toHaveLength(4);
+  });
+
   it('projects and returns only clubs participating in a cup batch', () => {
     const cupPlayer = player('cup', 'a', 'CM', { fitness:68, form:55 });
     const idleElsewhere = player('idle', 'other', 'CM', { fitness:61, form:67 });
