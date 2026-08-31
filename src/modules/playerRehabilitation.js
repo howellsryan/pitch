@@ -6,8 +6,8 @@
  * automatic; an early-return decision only exists once medically available.
  */
 
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function round2(value) { return Math.round(value * 100) / 100; }
+function rehabClamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function rehabRound2(value) { return Math.round(value * 100) / 100; }
 
 function severityFromWeeks(totalWeeks) {
   const weeks = Math.max(1, Number(totalWeeks ?? 1));
@@ -94,11 +94,11 @@ export function setEarlyReturn(player, enabled = true) {
 export function rehabilitationReinjuryMultiplier(player) {
   const rehab = player?.rehabilitation;
   if (!rehab || rehab.status === 'match_fit') return 1;
-  const readiness = clamp(Number(rehab.matchReadiness ?? 100), 0, 100);
-  const storedRisk = clamp(Number(rehab.reinjuryRisk ?? 0), 0, .6);
+  const readiness = rehabClamp(Number(rehab.matchReadiness ?? 100), 0, 100);
+  const storedRisk = rehabClamp(Number(rehab.reinjuryRisk ?? 0), 0, .6);
   const readinessRisk = ((100 - readiness) / 100) * .6;
   const early = rehab.earlyReturn ? .45 : 0;
-  return round2(clamp(1 + storedRisk + readinessRisk + early, 1, 2.2));
+  return rehabRound2(rehabClamp(1 + storedRisk + readinessRisk + early, 1, 2.2));
 }
 
 export function rehabilitationSelectionWarning(player) {
@@ -119,13 +119,13 @@ export function settleRehabilitation(player, gameweek, season = null) {
 
   const status = subject.injured ? 'rehabilitation' : rehab.status;
   const severity = rehab.severity ?? severityFromWeeks(rehab.sourceInjuryWeeks);
-  let readiness = clamp(Number(rehab.matchReadiness ?? rehabStartReadiness(severity)), 0, 100);
-  let reinjuryRisk = clamp(Number(rehab.reinjuryRisk ?? 0), 0, .6);
+  let readiness = rehabClamp(Number(rehab.matchReadiness ?? rehabStartReadiness(severity)), 0, 100);
+  let reinjuryRisk = rehabClamp(Number(rehab.reinjuryRisk ?? 0), 0, .6);
   let medicallyAvailable = Boolean(rehab.medicallyAvailable);
   let nextStatus = status;
 
   if (subject.injured) {
-    readiness = clamp(readiness + (severity === 'major' ? 6 : severity === 'moderate' ? 8 : 10), 0, 70);
+    readiness = rehabClamp(readiness + (severity === 'major' ? 6 : severity === 'moderate' ? 8 : 10), 0, 70);
     medicallyAvailable = false;
     reinjuryRisk = 0;
   } else {
@@ -136,8 +136,8 @@ export function settleRehabilitation(player, gameweek, season = null) {
       reinjuryRisk = severity === 'major' ? .28 : severity === 'moderate' ? .20 : .14;
     } else {
       const exposurePenalty = Number(subject.minutes ?? 0) > Number(subject.rehabilitationMinutes ?? subject.minutes ?? 0) ? 2 : 0;
-      readiness = clamp(readiness + (rehab.earlyReturn ? 7 : 11) - exposurePenalty, 0, 100);
-      reinjuryRisk = clamp(reinjuryRisk - (rehab.earlyReturn ? .025 : .045), 0, .6);
+      readiness = rehabClamp(readiness + (rehab.earlyReturn ? 7 : 11) - exposurePenalty, 0, 100);
+      reinjuryRisk = rehabClamp(reinjuryRisk - (rehab.earlyReturn ? .025 : .045), 0, .6);
       if (readiness >= 92 && reinjuryRisk <= .08) {
         nextStatus = 'match_fit';
         readiness = 100;
@@ -155,7 +155,7 @@ export function settleRehabilitation(player, gameweek, season = null) {
       status:nextStatus,
       medicallyAvailable,
       matchReadiness:Math.round(readiness),
-      reinjuryRisk:round2(reinjuryRisk),
+      reinjuryRisk:rehabRound2(reinjuryRisk),
       earlyReturn:nextStatus === 'match_fit' ? false : Boolean(rehab.earlyReturn),
       lastSettledKey:key,
     },
