@@ -616,6 +616,12 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
   const alreadyEvaluated = agreement.lastEvaluatedKey === weekKey;
   const newExposure = participation.appearanceDelta > 0 || participation.minuteDelta > 0;
   if (alreadyEvaluated && !newExposure) return player;
+  // Standalone callers do not own the participation snapshots. If a promise
+  // has already been evaluated but the P3 personal-state planner has not yet
+  // marked this same week, the apparent delta is the same match being replayed,
+  // not a legitimate second fixture. The composed planner sets this key before
+  // any later same-week cup/European reconciliation.
+  if (alreadyEvaluated && player.personalStateSettledKey !== weekKey) return player;
 
   const existingSample = agreement.history.find(sample => sample.key === weekKey);
   const weeklySample = {
