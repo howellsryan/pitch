@@ -787,8 +787,9 @@ export async function processInjuryRecovery() {
   if (typeof tickInjuryRecovery !== 'function') return [];
   const allPlayers = await getAllPlayers();
   const save = await getSave();
+  const hadInjured = allPlayers.some(p => p.injured);
+  if (!hadInjured) return [];
   const recoveryRows = injuryRecoveryWriteSet(allPlayers);
-  if (!recoveryRows.length) return [];
   const recovered = tickInjuryRecovery(recoveryRows);
   await putPlayersBulk(recoveryRows);
   return recovered.filter(p => p.teamId === save.userTeamId);
