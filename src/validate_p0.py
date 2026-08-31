@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""P0 compatibility bridge for the legacy bundle validator.
+"""Compatibility bridge for legacy bundle source-shape assertions.
 
 validate.js still carries a handful of assertions that intentionally describe
-pre-P0 behaviour/source layout (away goals, old FA Cup entry, UCL-only wrapper
-shape, and monolithic save import/export functions). We keep every other
-legacy assertion authoritative, but replace those exact checks with the real,
-deterministic P0 Vitest contracts.
+pre-P0/P1 behaviour or monolithic source layout. We keep every other legacy
+assertion authoritative, but replace those exact checks with deterministic
+Vitest contracts that exercise the current architecture.
 
 This is intentionally a narrow allow-list, not "ignore validator failures": an
 unknown legacy failure is fatal. As individual validate.js assertions are
@@ -53,9 +52,26 @@ SUPERSEDED_LEGACY_CHECKS = {
     'REG: import deletes old DB before restore',
     # The legacy check only scans the first 5,000 source characters of
     # advanceOneFixtureWithResult. P0 draw-state handling legitimately made
-    # the function longer; seasonP0.test.js now extracts the complete function
-    # boundary and preserves the actual generateAIOffers/AI closeout contract.
+    # the function longer; seasonP0.test.js preserves the real closeout contract.
     'advanceOneFixtureWithResult calls generateAIOffers',
+
+    # P1 moves weekly closeout behind one shared world-gameweek helper so Quick
+    # Sim and Broadcast cannot drift. These assertions inspect source slices of
+    # the two old monolithic functions rather than executing the closeout. The
+    # calls still happen once when the world GW completes; P1 world contracts
+    # now cover the new projection/recovery path deterministically.
+    'payWeeklyWages called from advanceOneFixture',
+    'payWeeklyWages called from advanceOneFixtureWithResult',
+    'updateTeamMorale called once per gameweek in advanceOneFixture',
+    'LOAN: simulateAILoans called in gameweek',
+    'INJ: recoveredPlayers returned from advanceOneFixture',
+    # updateCache was superseded by worldRuntime's atomic projection. The legacy
+    # checks search the retired helper's source for implementation details.
+    'INJ: updateCache reads fresh from DB (not stale allPlayers)',
+    'REG: rested players restore to 100',
+    # The rollover already clears collapsedDeals in season.js. Adding P1 world
+    # modules made validate.js's fixed 70k source slice end before that field.
+    'collapsedDeals cleared at season rollover',
 }
 
 P0_TEST_FILES = [
@@ -63,6 +79,9 @@ P0_TEST_FILES = [
     'src/modules/competitionIntegration.test.js',
     'src/modules/dbSaveMigration.test.js',
     'src/modules/seasonP0.test.js',
+    # P1 replacements for the living-world source-shape assertions above.
+    'src/modules/world.test.js',
+    'src/modules/worldRuntime.test.js',
 ]
 
 
@@ -97,14 +116,14 @@ def run_legacy_validator(env: dict[str, str]) -> bool:
     result_line = next((line.strip() for line in output.splitlines() if 'RESULT:' in line), None)
     if result_line:
         print(f'  {result_line}')
-    print('  ⚠️  Legacy validator hit only assertions superseded by P0 contracts:')
+    print('  ⚠️  Legacy validator hit only assertions superseded by deterministic contracts:')
     for label in sorted(labels):
         print(f'     ↳ {label}')
     return True
 
 
 def run_p0_contracts() -> bool:
-    print('\n── Running deterministic P0 replacement contracts ───────────')
+    print('\n── Running deterministic replacement contracts ──────────────')
     proc = subprocess.run(
         ['npx', 'vitest', 'run', *P0_TEST_FILES],
         cwd=REPO,
@@ -123,10 +142,10 @@ def main() -> int:
     if not run_legacy_validator(env):
         return 1
     if not run_p0_contracts():
-        print('\n❌ P0 replacement contracts failed.')
+        print('\n❌ Replacement contracts failed.')
         return 1
 
-    print('\n✅ Legacy validation + P0 replacement contracts passed.')
+    print('\n✅ Legacy validation + deterministic replacement contracts passed.')
     return 0
 
 
