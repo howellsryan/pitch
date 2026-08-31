@@ -293,7 +293,9 @@ describe('P1 world projection runtime', () => {
       },
     };
 
-    expect([...scheduledWorldCompetitionTeamIds(state, 1)].sort()).toEqual(['cup-a','cup-b','cup-c']);
+    // cup-c receives the odd-team bye, so its world week is already complete
+    // after league projection and must not be deferred for nonexistent exposure.
+    expect([...scheduledWorldCompetitionTeamIds(state, 1)].sort()).toEqual(['cup-a','cup-b']);
     expect([...scheduledWorldCompetitionTeamIds(state, 5)].sort()).toEqual(['euro-a','euro-b']);
   });
 
