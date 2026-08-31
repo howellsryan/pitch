@@ -76,7 +76,6 @@ test('P2 mobile tactics, opposition insight and watched result form one authorit
 
   await page.getByRole('button', { name:/Kick Off/ }).click();
   await expect(page.locator('.kickoff-beat')).toBeVisible({ timeout:15000 });
-  await page.locator('.kickoff-beat').click();
   await expect(page.locator('.live-controls')).toBeVisible({ timeout:15000 });
   await page.getByRole('button', { name:/Skip/ }).click();
   await expect(page.locator('.ft-status')).toHaveText('FULL TIME', { timeout:30000 });
