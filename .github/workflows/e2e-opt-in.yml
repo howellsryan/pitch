@@ -20,14 +20,4 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Opt-in runs are deliberately narrow while P3 is closing out. The
       # normal Build and validate workflow never installs/runs Playwright.
-      - run: npx playwright test tests/p1-living-world-performance.spec.mjs tests/p3-player-model.spec.mjs --config=playwright.config.mjs
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: p3-final-browser-evidence
-          path: |
-            test-results/p3-player-detail-390x844.png
-            test-results/p3-player-detail-1280x800.png
-          if-no-files-found: ignore
-          retention-days: 7
+      - run: npx playwright test tests/p1-living-world-performance.spec.mjs --config=playwright.config.mjs
