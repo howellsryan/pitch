@@ -25,13 +25,16 @@ for df in _data_files:
     label = df.stem.upper().replace('_', ' ')
     MODULES.append((f'data/{df.name}', label))
 
-# Core modules (dependencies first). P0's competitionRules.js is deliberately
-# immediately before cups.js. P1's world helpers sit after youthAcademy because
-# they consume fixtures, match/standing helpers and youth/newgen generation.
-# worldCompetitions.js follows world.js; worldRuntime/save/season/gameweek then
-# consume the living-world contracts afterwards.
+# Core modules (dependencies first). P2's tactics domain is deliberately loaded
+# immediately before matchEngine.js so the stripped legacy bundle has the same
+# schema/functions available before authoritative simulation code is evaluated.
+# P0's competitionRules.js is immediately before cups.js. P1's world helpers
+# sit after youthAcademy because they consume fixtures, match/standing helpers
+# and youth/newgen generation. worldRuntime/save/season/gameweek consume the
+# living-world contracts afterwards.
 MODULES += [
     ('modules/db.js',               'DATABASE'),
+    ('modules/tactics.js',          'TACTICS'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/standings.js',        'STANDINGS'),
     ('modules/fixtures.js',         'FIXTURES'),
