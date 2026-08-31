@@ -49,7 +49,7 @@ export function createRehabilitationState(player, status = 'rehabilitation') {
 export function shouldEnterRehabilitation(player) {
   if (!player?.injured) return false;
   const left = Math.max(0, Number(player.injuryGWsLeft ?? 0));
-  const total = Math.max(1, Number(player.injuryGWsTotal ?? left || 1));
+  const total = Math.max(1, Number(player.injuryGWsTotal ?? left ?? 1));
   return left <= Math.max(1, Math.ceil(total * .35));
 }
 
