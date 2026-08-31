@@ -115,7 +115,7 @@ describe('P3 completed world-week settlement', () => {
     expect(buildPersonalStatePatches(final.players, 5, '2025/26')).toEqual([]);
   });
 
-  it('applies no-fixture weekly recovery/decay once and replay is a no-op', () => {
+  it('applies no-fixture personal recovery/decay once and replay is a no-op', () => {
     const idle = player('idle', 'a', { individualMorale:60, sharpness:70 });
     const [settled] = buildPersonalStatePatches([idle], 5, '2025/26');
 
@@ -123,8 +123,8 @@ describe('P3 completed world-week settlement', () => {
       individualMorale:58,
       sharpness:66,
       personalStateSettledKey:'2025/26:5',
-      developmentSettledKey:'2025/26:5',
     });
+    expect(settled.developmentSettledKey).toBeNull();
     expect(buildPersonalStatePatches([settled], 5, '2025/26')).toEqual([]);
   });
 });
