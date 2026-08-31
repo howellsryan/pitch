@@ -1,0 +1,31 @@
+name: Opt-in E2E verification
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/e2e-trigger
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:app
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p3-final-browser-evidence
+          path: |
+            test-results/p3-player-detail-390x844.png
+            test-results/p3-player-detail-1280x800.png
+          if-no-files-found: ignore
+          retention-days: 7
