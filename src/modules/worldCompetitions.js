@@ -62,7 +62,7 @@ function alignKnockoutState(state, currentGameweek) {
   if (currentGameweek <= 1) return state;
   const rules = getCompetitionRules(state.id);
   if (!rules?.roundGWs?.length) return state;
-  const firstUpcoming = rules.roundGWs.findIndex(gw => gw >= currentGameweek);
+  let firstUpcoming = rules.roundGWs.findIndex(gw => gw >= currentGameweek);
   if (firstUpcoming < 0) {
     state.roundIndex = rules.roundGWs.length;
     state.activeTeamIds = [];
@@ -70,12 +70,16 @@ function alignKnockoutState(state, currentGameweek) {
   }
   if (firstUpcoming === 0) return state;
 
+  // A lazily-created migration has no leg-one aggregate. If it first appears
+  // during a second-leg week, align it to the following round instead of
+  // creating a second leg with no canonical first-leg record.
+  if (isTwoLegRound(state.id, rules.rounds?.[firstUpcoming], 2)) firstUpcoming += 1;
   state.roundIndex = firstUpcoming;
   const eligible = Object.entries(state.progressByTeam)
     .filter(([, item]) => (item.entryRound ?? 0) <= firstUpcoming)
     .map(([teamId]) => teamId);
-  const targetSize = Math.max(2, 2 ** Math.max(1, rules.rounds.length - firstUpcoming));
-  state.activeTeamIds = eligible.slice(0, Math.min(targetSize, eligible.length));
+  const targetSize = Math.max(2, Math.min(eligible.length, 2 ** Math.max(1, Math.ceil((rules.rounds.length - firstUpcoming) / 2))));
+  state.activeTeamIds = eligible.slice(0, targetSize);
   for (const [teamId, item] of Object.entries(state.progressByTeam)) {
     if ((item.entryRound ?? 0) <= firstUpcoming && !state.activeTeamIds.includes(teamId)) {
       state.progressByTeam[teamId] = { ...item, status:'eliminated', roundIndex:firstUpcoming - 1, roundName:rules.rounds[firstUpcoming - 1] ?? null };
@@ -123,13 +127,76 @@ function blankUefaRow(teamId) {
   return { teamId, played:0, won:0, drawn:0, lost:0, gf:0, ga:0, gd:0, points:0, position:0 };
 }
 
+function migratedUefaKnockoutSize(roundIndex) {
+  if (roundIndex <= 1) return 16;
+  if (roundIndex <= 3) return 16;
+  if (roundIndex <= 5) return 8;
+  if (roundIndex <= 7) return 4;
+  return 2;
+}
+
+function alignMigratedUefaState(state, currentGameweek) {
+  const rules = getCompetitionRules(state.id);
+  const phase = rules?.leaguePhase;
+  const finalLeaguePhaseGW = phase?.gws?.[phase.gws.length - 1] ?? 0;
+  if (!phase || currentGameweek <= finalLeaguePhaseGW) return state;
+
+  const rankedTeamIds = state.table.map(row => row.teamId);
+  state.table = state.table.map((row, index) => ({
+    ...row,
+    played:phase.matches,
+    position:index + 1,
+  }));
+  state.leaguePhaseMatchday = phase.matches;
+  state.phase = 'knockout';
+
+  let firstUpcoming = rules.roundGWs.findIndex(gw => gw >= currentGameweek);
+  if (firstUpcoming >= 0 && isTwoLegRound(state.id, rules.rounds?.[firstUpcoming], 2)) firstUpcoming += 1;
+
+  if (firstUpcoming < 0 || firstUpcoming >= rules.rounds.length) {
+    state.roundIndex = rules.rounds.length;
+    state.activeTeamIds = [];
+    state.directTeamIds = [];
+    state.winnerId = rankedTeamIds[0] ?? null;
+    state.runnerUpId = rankedTeamIds[1] ?? null;
+    for (const teamId of rankedTeamIds) {
+      state.progressByTeam[teamId] = teamId === state.winnerId
+        ? progress('winner', rules.rounds.length - 1, rules.rounds.at(-1) ?? 'Final', 'knockout')
+        : progress('eliminated', rules.rounds.length - 1, rules.rounds.at(-1) ?? 'Final', 'knockout');
+    }
+    return state;
+  }
+
+  state.roundIndex = firstUpcoming;
+  if (firstUpcoming <= 1) {
+    state.directTeamIds = rankedTeamIds.slice(0, 8);
+    state.activeTeamIds = rankedTeamIds.slice(8, 24);
+  } else {
+    state.directTeamIds = [];
+    state.activeTeamIds = rankedTeamIds.slice(0, migratedUefaKnockoutSize(firstUpcoming));
+  }
+
+  const active = new Set(state.activeTeamIds);
+  const direct = new Set(state.directTeamIds);
+  for (const teamId of rankedTeamIds) {
+    if (active.has(teamId)) {
+      state.progressByTeam[teamId] = progress('active', firstUpcoming, rules.rounds[firstUpcoming] ?? 'Knockout', 'knockout');
+    } else if (direct.has(teamId)) {
+      state.progressByTeam[teamId] = progress('waiting', 2, rules.rounds[2] ?? 'R16', 'knockout');
+    } else {
+      state.progressByTeam[teamId] = progress('eliminated', Math.max(-1, firstUpcoming - 1), firstUpcoming > 0 ? rules.rounds[firstUpcoming - 1] : 'League Phase', 'knockout');
+    }
+  }
+  return state;
+}
+
 function buildUefaState(cupId, teamIds, season, currentGameweek) {
   const rules = getCompetitionRules(cupId);
   const passedMatchdays = currentGameweek <= 1
     ? 0
     : (rules?.leaguePhase?.gws ?? []).filter(gw => gw < currentGameweek).length;
   const progressByTeam = Object.fromEntries(teamIds.map(teamId => [teamId, progress('active', 0, 'League Phase', 'league_phase')]));
-  return {
+  return alignMigratedUefaState({
     id:cupId,
     format:'uefa_league_phase',
     season,
@@ -146,7 +213,7 @@ function buildUefaState(cupId, teamIds, season, currentGameweek) {
     runnerUpId:null,
     results:[],
     processedGameweeks:[],
-  };
+  }, currentGameweek);
 }
 
 /** Build every supported domestic cup plus UCL/UEL/UECL background fields. */
