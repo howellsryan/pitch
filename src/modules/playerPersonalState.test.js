@@ -108,15 +108,26 @@ describe('P3 bounded personal-state write set', () => {
     expect(settled.individualMorale).toBeGreaterThan(50);
   });
 
-  it('shares the same per-player settlement contract used by the batch planner', () => {
+  it('composes personal state and seeded development in the same once-per-week planner', () => {
     const participant = {
       ...player('single'),
       appearances:11,
       minutes:845,
       lastMatchRating:6.8,
     };
-    expect(buildPersonalStatePatches([participant], 4, '2025/26')[0]).toEqual(
-      settlePlayerPersonalState(participant, 4, '2025/26'),
-    );
+    const [batch] = buildPersonalStatePatches([participant], 4, '2025/26');
+    const personal = settlePlayerPersonalState(participant, 4, '2025/26');
+
+    expect(batch).toMatchObject({
+      individualMorale:personal.individualMorale,
+      sharpness:personal.sharpness,
+      personalStateAppearances:personal.personalStateAppearances,
+      personalStateMinutes:personal.personalStateMinutes,
+      personalStateSettledKey:personal.personalStateSettledKey,
+      developmentAppearances:11,
+      developmentMinutes:845,
+      developmentSettledKey:'2025/26:4',
+    });
+    expect(batch.growthProfile).toEqual(participant.growthProfile);
   });
 });
