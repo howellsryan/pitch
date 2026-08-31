@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildP3PlayerModelBackfill } from './save.js';
 import { PLAYER_MODEL_VERSION, baselineLevel } from './playerModel.js';
 
-function v1Player(id, overrides = {}) {
+function v2Player(id, overrides = {}) {
   return {
     id,
     name:`Player ${id}`,
@@ -20,23 +20,30 @@ function v1Player(id, overrides = {}) {
     individualMorale:50,
     sharpness:50,
     squadRole:null,
+    squadRoleSource:null,
+    squadRoleTeamId:null,
     playingTimeAgreement:null,
     growthProfile:null,
     rehabilitation:null,
+    personalStateAppearances:21,
+    personalStateMinutes:1674,
+    personalStateSettledKey:null,
     ...overrides,
   };
 }
 
-describe('P3 player contract v1 to v2 backfill', () => {
-  it('seeds personal-state snapshots from current cumulative stats without changing football state', () => {
-    const before = v1Player('existing', {
+describe('P3 player contract v2 to v3 backfill', () => {
+  it('adds team-relative role state without changing football or personal-state history', () => {
+    const before = v2Player('existing', {
       onLoan:true,
       loanOriginalTeamId:'parent',
       injuryName:'Calf strain',
       potentialRating:89,
     });
     const save = {
-      playerModelVersion:1,
+      playerModelVersion:2,
+      userTeamId:'club',
+      season:'2025/26',
       currentGameweek:24,
       lineup:['existing'],
       pendingEvents:[{ type:'cup', gw:24 }],
@@ -45,25 +52,37 @@ describe('P3 player contract v1 to v2 backfill', () => {
     const migration = buildP3PlayerModelBackfill(save, [before], []);
     const [after] = migration.playerPatches;
 
-    expect(PLAYER_MODEL_VERSION).toBe(2);
-    expect(migration.save.playerModelVersion).toBe(2);
+    expect(PLAYER_MODEL_VERSION).toBe(3);
+    expect(migration.save.playerModelVersion).toBe(3);
     expect(migration.save.lineup).toEqual(save.lineup);
     expect(migration.save.pendingEvents).toEqual(save.pendingEvents);
-    expect(after).toMatchObject(before);
+    expect(after.id).toBe(before.id);
+    expect(after.teamId).toBe(before.teamId);
+    expect(after.onLoan).toBe(true);
+    expect(after.loanOriginalTeamId).toBe('parent');
+    expect(after.injuryName).toBe(before.injuryName);
+    expect(after.potentialRating).toBe(before.potentialRating);
     expect(after.personalStateAppearances).toBe(21);
     expect(after.personalStateMinutes).toBe(1674);
     expect(after.personalStateSettledKey).toBeNull();
+    expect(after.squadRole).toBe('crucial');
+    expect(after.squadRoleTeamId).toBe('club');
+    expect(after.playingTimeAgreement).toMatchObject({ scope:'managed', teamId:'club', role:'crucial', status:'settling' });
     expect(baselineLevel(after)).toBe(baselineLevel(before));
   });
 
-  it('does not rewrite a v2 player or rescan once the save marker is current', () => {
+  it('does not rescan once the v3 save marker is current', () => {
     const current = {
-      ...v1Player('current'),
-      personalStateAppearances:21,
-      personalStateMinutes:1674,
-      personalStateSettledKey:null,
+      ...v2Player('current'),
+      squadRole:'crucial',
+      squadRoleSource:'auto',
+      squadRoleTeamId:'club',
+      playingTimeAgreement:{
+        version:1, scope:'managed', teamId:'club', role:'crucial', status:'settling', history:[],
+        appearanceShare:0, minuteShare:0, deliveryScore:1, lastEvaluatedKey:null,
+      },
     };
-    const save = { playerModelVersion:PLAYER_MODEL_VERSION, lineup:['current'] };
+    const save = { playerModelVersion:PLAYER_MODEL_VERSION, userTeamId:'club', lineup:['current'] };
     const migration = buildP3PlayerModelBackfill(save, [current], []);
 
     expect(migration.save).toBe(save);
