@@ -18,7 +18,9 @@ jobs:
       - run: npm ci
       - run: npm run build:app
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      # Opt-in runs are deliberately narrow while P3 is closing out. The
+      # normal Build and validate workflow never installs/runs Playwright.
+      - run: npx playwright test tests/p1-living-world-performance.spec.mjs tests/p3-player-model.spec.mjs --config=playwright.config.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

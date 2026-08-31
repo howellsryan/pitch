@@ -10,7 +10,7 @@ async function startArsenalCareer(page) {
   await expect(page.locator('#app')).toBeVisible({ timeout: 30000 });
 }
 
-async function waitForFullTimeOrCloseoutError(page, timeout = 30000) {
+async function waitForFullTimeOrCloseoutError(page, timeout = 60000) {
   const fullTime = page.locator('.ft-status');
   const errorToast = page.locator('.toast-error').last();
   const winner = await Promise.race([
@@ -37,6 +37,9 @@ test('P1 living world stays inside a throttled mobile browser budget', async ({ 
 
   const gameweekStartedAt = Date.now();
   await page.getByRole('button', { name:/Sim Instantly/ }).click();
+  // The wait is deliberately longer than the regression ceiling so a slow
+  // closeout reports its actual elapsed time instead of hiding it behind a
+  // locator timeout. The pass/fail contract below remains the original <25s.
   await waitForFullTimeOrCloseoutError(page);
   const gameweekMs = Date.now() - gameweekStartedAt;
 

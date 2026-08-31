@@ -116,11 +116,23 @@ export function assignDefaultTraits(player) {
   return first.id === second.id ? [first.id] : [first.id, second.id];
 }
 
+/**
+ * Hot match/player selector. Preserve normalizeConfiguredTraits semantics
+ * (valid unique traits, input order, maximum three) without allocating a
+ * normalized array and Set on every effective-rating calculation.
+ */
 export function traitAttributeModifier(player, attribute) {
+  const traits = Array.isArray(player?.traits) ? player.traits : [];
+  const seen = [];
   let modifier = 0;
-  for (const trait of normalizeConfiguredTraits(player?.traits)) {
+  let accepted = 0;
+  for (const trait of traits) {
+    if (!TRAIT_IDS.has(trait) || seen.includes(trait)) continue;
+    seen.push(trait);
+    accepted++;
     const def = PLAYER_TRAIT_DEFS[trait];
     if (def?.attribute === attribute) modifier += def.modifier;
+    if (accepted >= 3) break;
   }
   return pathRound2(pathClamp(modifier, 0, 2.5));
 }
