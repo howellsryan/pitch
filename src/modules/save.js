@@ -28,12 +28,10 @@ import { assignCups, buildInitialCupState } from './cups.js';
 import { assignPotentials } from './potential.js';
 import { generateCohort } from './youthAcademy.js';
 import { generateBoardObjective } from './season.js';
-import { buildWorldBackfill, buildWorldLeagueSeason } from './world.js';
+import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P1 world. */
 
-// ALL_TEAMS is populated at runtime from all *_TEAMS arrays (auto-discovered).
-// To add a new league: just create the data file with csv_to_league.py — no code changes needed.
 export function getAllTeamData() {
   const sources = [
     typeof PL_TEAMS             !== 'undefined' ? PL_TEAMS             : [],
@@ -59,6 +57,14 @@ function seasonStartYear(save) {
   return Number.isFinite(parsed) ? parsed : 2025;
 }
 
+export function calculateWorldTotalGameweeks(teams) {
+  let max = 0;
+  for (const leagueTeams of groupTeamsByLeague(teams).values()) {
+    max = Math.max(max, Math.max(0, (leagueTeams.length - 1) * 2));
+  }
+  return max;
+}
+
 function backfillP1PlayerStats(player) {
   return {
     ...player,
@@ -80,16 +86,15 @@ function backfillP1PlayerStats(player) {
 }
 
 /**
- * Lazy P0 -> P1 domain migration. No IndexedDB store or save-envelope shape
- * changes, so save schema V2 remains valid: we only add fields to rows already
- * covered by the existing envelope and create the missing league rows/schedule.
+ * Lazy P0 -> P1 domain migration. No IndexedDB store or save-envelope version
+ * changes: all new state is additive inside rows already covered by schema V2.
  */
 export async function ensureLivingWorld(save) {
-  if (!save) return;
+  if (!save) return save;
   const [teams, fixtures, standings, players] = await Promise.all([
     getAllTeams(), getAllFixtures(), getAllStandings(), getAllPlayers(),
   ]);
-  if (!teams.length) return;
+  if (!teams.length) return save;
 
   const patch = buildWorldBackfill(teams, fixtures, standings, seasonStartYear(save));
   if (patch.fixturesToAdd.length) await putFixturesBulk(patch.fixturesToAdd);
@@ -99,20 +104,24 @@ export async function ensureLivingWorld(save) {
     .filter(player => player.appearances == null || player.minutes == null || player.yellowCards == null || player.ratingApps == null)
     .map(backfillP1PlayerStats);
   if (playerPatches.length) await putPlayersBulk(playerPatches);
+
+  const worldTotalGameweeks = calculateWorldTotalGameweeks(teams);
+  if (save.worldTotalGameweeks !== worldTotalGameweeks) {
+    const migrated = { ...save, worldTotalGameweeks };
+    await putSave(migrated);
+    return migrated;
+  }
+  return save;
 }
 
 export async function initApp() {
   await openDB();
-  const save = await getSave();
+  let save = await getSave();
   if (save && save._deleted) return null;
-  if (save) await ensureLivingWorld(save);
+  if (save) save = await ensureLivingWorld(save);
   return save ?? null;
 }
 
-/**
- * The budget a club actually starts a career with, from its reputation.
- * Deliberately deterministic, unlike season.js's seasonal refresh.
- */
 export function startingBudget(reputation) {
   const rep = Number.isFinite(reputation) ? reputation : 70;
   return Math.round(
@@ -140,6 +149,12 @@ export async function startNewGame(userTeamId, managerName) {
   const seasonYear = 2025;
   const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, `${seasonYear}/${String(seasonYear + 1).slice(2)}`, userLeague);
 
+  const teams = allTeamData.map(({ players: _, ...rest }) => ({
+    ...rest,
+    budget: startingBudget(rest.reputation ?? 70),
+    academyInvestment: 0,
+  }));
+
   const save = {
     userTeamId,
     userLeague,
@@ -148,6 +163,7 @@ export async function startNewGame(userTeamId, managerName) {
     season:          `${seasonYear}/${String(seasonYear + 1).slice(2)}`,
     currentGameweek: 1,
     totalGameweeks:  (leagueTeams.length - 1) * 2,
+    worldTotalGameweeks: calculateWorldTotalGameweeks(teams),
     cups:            buildInitialCupState(assignCups(userTeamData), userTeamId, userLeague),
     formation:       '4-3-3',
     mentality:       'balanced',
@@ -161,12 +177,6 @@ export async function startNewGame(userTeamId, managerName) {
     sacked:          false,
   };
 
-  const teams = allTeamData.map(({ players: _, ...rest }) => ({
-    ...rest,
-    budget: startingBudget(rest.reputation ?? 70),
-    academyInvestment: 0,
-  }));
-
   const players = allTeamData.flatMap(team =>
     (team.players ?? []).map(p => backfillP1PlayerStats({
       ...p, teamId: team.id,
@@ -177,7 +187,6 @@ export async function startNewGame(userTeamId, managerName) {
     }))
   );
 
-  // P1: fixtures and tables exist for the whole football world from day one.
   const world = buildWorldLeagueSeason(teams, seasonYear);
 
   await putTeamsBulk(teams);
@@ -186,13 +195,11 @@ export async function startNewGame(userTeamId, managerName) {
   await replaceAllStandings(world.standings);
   await replaceAllFixtures(world.fixtures);
 
-  // Auto-generate starting lineup so player can immediately play.
   const userPlayers = assignedPlayers.filter(p => p.teamId === userTeamId);
   const xi = selectEleven(userPlayers, save.formation, null);
   save.lineup = xi.map(p => p.id);
 
   await putSave(save);
-
   return save;
 }
 
