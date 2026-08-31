@@ -70,7 +70,7 @@ describe('applyMentalityChange', () => {
     const after = applyMentalityChange(ls, true, 'attacking');
 
     expect(after.homeMentality).toBe('attacking');
-    expect(after.awayMentality).toBe('balanced');
+    expect(after.awayMentality).toBe(ls.awayMentality);
     expect(after.hMods.goalProbMult).toBeGreaterThan(ls.hMods.goalProbMult);
     expect(after.hMidShare).toBeGreaterThan(ls.hMidShare);
   });
@@ -79,7 +79,7 @@ describe('applyMentalityChange', () => {
     const ls = makeLiveState();
     const after = applyMentalityChange(ls, false, 'defensive');
 
-    expect(after.homeMentality).toBe('balanced');
+    expect(after.homeMentality).toBe(ls.homeMentality);
     expect(after.awayMentality).toBe('defensive');
     expect(after.aMods.defResistMult).toBeGreaterThan(ls.aMods.defResistMult);
   });
