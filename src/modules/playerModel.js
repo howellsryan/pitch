@@ -396,10 +396,13 @@ function weeklyParticipation(player) {
 export function settlePlayerPersonalState(player, gameweek, season = null) {
   if (!player) return player;
   const weekKey = personalStateWeekKey(season, gameweek);
-  if (!weekKey || player.personalStateSettledKey === weekKey) return player;
+  if (!weekKey) return player;
 
   const participation = weeklyParticipation(player);
+  const alreadySettled = player.personalStateSettledKey === weekKey;
   const participated = participation.appearanceDelta > 0 || participation.minuteDelta > 0;
+  if (alreadySettled && !participated) return player;
+
   const currentMorale = clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE);
   const currentSharpness = clampState(player.sharpness, DEFAULT_SHARPNESS);
   let nextMorale = currentMorale;
@@ -421,7 +424,7 @@ export function settlePlayerPersonalState(player, gameweek, season = null) {
     if (form >= 70) moraleDelta += 1;
     else if (form <= 35) moraleDelta -= 1;
     nextMorale = clamp(currentMorale + moraleDelta, 0, 100);
-  } else {
+  } else if (!alreadySettled) {
     nextSharpness = moveToward(currentSharpness, DEFAULT_SHARPNESS, 4);
     nextMorale = moveToward(currentMorale, DEFAULT_INDIVIDUAL_MORALE, 2);
   }
@@ -532,6 +535,43 @@ export function assignDefaultSquadRoles(players, { currentYear = null, managedTe
   return result;
 }
 
+function roleNeedsRefresh(player, managedTeamId) {
+  if (!player) return false;
+  if (player.teamId === 'free_agents') {
+    return player.squadRole != null || player.squadRoleTeamId != null || player.playingTimeAgreement != null;
+  }
+  if (!player.teamId) return false;
+  const role = normalizeSquadRole(player.squadRole);
+  if (!role || player.squadRoleTeamId !== player.teamId) return true;
+  if (player.teamId === managedTeamId) {
+    return normalizePlayingTimeAgreement(player.playingTimeAgreement, role, player.teamId) == null;
+  }
+  return player.playingTimeAgreement != null;
+}
+
+/**
+ * Fresh careers and P3 migration assign every club role up front. Weekly
+ * settlement therefore only re-ranks clubs whose contract became stale after a
+ * transfer/free-agent move instead of sorting all 186 squads every gameweek.
+ */
+function refreshChangedSquadRoles(players, currentYear, managedTeamId) {
+  const teamIds = new Set();
+  let resetFreeAgents = false;
+  for (const player of players ?? []) {
+    if (!roleNeedsRefresh(player, managedTeamId)) continue;
+    if (player.teamId === 'free_agents') resetFreeAgents = true;
+    else if (player.teamId) teamIds.add(player.teamId);
+  }
+  if (!teamIds.size && !resetFreeAgents) return players;
+
+  const candidates = (players ?? []).filter(player =>
+    teamIds.has(player?.teamId) || (resetFreeAgents && player?.teamId === 'free_agents')
+  );
+  const refreshed = assignDefaultSquadRoles(candidates, { currentYear, managedTeamId });
+  const refreshedById = new Map(refreshed.map(player => [player.id, player]));
+  return (players ?? []).map(player => refreshedById.get(player?.id) ?? player);
+}
+
 function promiseStatus(history, role) {
   const target = SQUAD_ROLE_DEFS[role] ?? SQUAD_ROLE_DEFS.squad;
   const weeks = history.length;
@@ -555,6 +595,12 @@ function promiseStatus(history, role) {
   };
 }
 
+function promiseMoralePenalty(status) {
+  if (status === 'broken') return -2;
+  if (status === 'at_risk') return -1;
+  return 0;
+}
+
 export function settlePlayingTimeAgreement(player, gameweek, season = null) {
   if (!player?.playingTimeAgreement) return player;
   const agreement = normalizePlayingTimeAgreement(
@@ -563,21 +609,29 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
     player.squadRoleTeamId,
   );
   const weekKey = personalStateWeekKey(season, gameweek);
-  if (!agreement || !weekKey || agreement.lastEvaluatedKey === weekKey) return player;
+  if (!agreement || !weekKey) return player;
   if (agreement.teamId !== player.teamId) return { ...player, playingTimeAgreement:null };
 
   const participation = weeklyParticipation(player);
+  const alreadyEvaluated = agreement.lastEvaluatedKey === weekKey;
+  const newExposure = participation.appearanceDelta > 0 || participation.minuteDelta > 0;
+  if (alreadyEvaluated && !newExposure) return player;
+
+  const existingSample = agreement.history.find(sample => sample.key === weekKey);
+  const weeklySample = {
+    key:weekKey,
+    appeared:Boolean(existingSample?.appeared) || participation.appearanceDelta > 0,
+    minutes:clamp(Math.round((existingSample?.minutes ?? 0) + participation.minuteDelta), 0, 90),
+  };
   const history = [
     ...agreement.history.filter(sample => sample.key !== weekKey),
-    {
-      key:weekKey,
-      appeared:participation.appearanceDelta > 0,
-      minutes:clamp(Math.round(participation.minuteDelta), 0, 90),
-    },
+    weeklySample,
   ].slice(-PLAYING_TIME_WINDOW_WEEKS);
   const evaluation = promiseStatus(history, player.squadRole);
   let morale = clampState(player.individualMorale, DEFAULT_INDIVIDUAL_MORALE);
-  if (evaluation.status === 'broken') morale = clamp(morale - 2, 0, 100);
+  if (alreadyEvaluated) {
+    morale = clamp(morale + promiseMoralePenalty(evaluation.status) - promiseMoralePenalty(agreement.status), 0, 100);
+  } else if (evaluation.status === 'broken') morale = clamp(morale - 2, 0, 100);
   else if (evaluation.status === 'at_risk') morale = clamp(morale - 1, 0, 100);
   else if (evaluation.status === 'fulfilled' && ['at_risk', 'broken'].includes(agreement.status)) morale = clamp(morale + 1, 0, 100);
 
@@ -596,14 +650,13 @@ export function settlePlayingTimeAgreement(player, gameweek, season = null) {
 /**
  * Build the bounded changed-row set for one world week. This is the canonical
  * P3 weekly lifecycle: promises/personal state, development/conversion, then
- * rehabilitation. Every sub-system owns a season-scoped settled key.
+ * rehabilitation. League projection may run the first slice before same-week
+ * cup/European records, so snapshot-based subsystems reconcile additional
+ * exposure while once-only conversion/rehab keys remain idempotent.
  */
 export function buildPersonalStatePatches(players, gameweek, season = null) {
   const managedTeamId = inferManagedTeamId(players);
-  const roleReady = assignDefaultSquadRoles(players, {
-    currentYear:seasonStartYear(season),
-    managedTeamId,
-  });
+  const roleReady = refreshChangedSquadRoles(players, seasonStartYear(season), managedTeamId);
   const patches = [];
   for (let index = 0; index < roleReady.length; index++) {
     const original = players[index];
