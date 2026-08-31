@@ -1,4 +1,9 @@
-import { createUserTacticalPlan, updateManagerDNA } from './tactics.js';
+import {
+  buildOppositionInsight,
+  createUserTacticalPlan,
+  getAITacticalProfile,
+  updateManagerDNA,
+} from './tactics.js';
 
 /**
  * Manager-facing P2 adapters. Keep persistent career state in save while
@@ -18,6 +23,58 @@ export function decorateManagedPlayers(players, save) {
     ...player,
     tacticalRole:roles[player.id] ?? null,
   }));
+}
+
+/**
+ * Build the exact user-controlled side inputs expected by matchEngine.js.
+ *
+ * The AI side deliberately leaves formation/mentality undefined so the
+ * authoritative engine resolves its stable P2 tactical identity. Both Quick
+ * Sim and Watch should use this contract rather than inventing a second set of
+ * defaults in presentation code.
+ */
+export function buildManagedMatchInputs({
+  save,
+  homeTeam,
+  awayTeam,
+  homePlayers = [],
+  awayPlayers = [],
+  userIsHome,
+  overrideFormation = null,
+} = {}) {
+  const userFormation = overrideFormation ?? save?.formation ?? '4-3-3';
+  const userMentality = save?.mentality ?? 'balanced';
+  const userLineup = save?.lineup ?? null;
+
+  return {
+    homeTeam:userIsHome ? decorateManagedTeam(homeTeam, save) : homeTeam,
+    awayTeam:userIsHome ? awayTeam : decorateManagedTeam(awayTeam, save),
+    homePlayers:userIsHome ? decorateManagedPlayers(homePlayers, save) : homePlayers,
+    awayPlayers:userIsHome ? awayPlayers : decorateManagedPlayers(awayPlayers, save),
+    homeFormation:userIsHome ? userFormation : undefined,
+    awayFormation:userIsHome ? undefined : userFormation,
+    homeLineup:userIsHome ? userLineup : null,
+    awayLineup:userIsHome ? null : userLineup,
+    homeMentality:userIsHome ? userMentality : undefined,
+    awayMentality:userIsHome ? undefined : userMentality,
+  };
+}
+
+/**
+ * Team News projection for the same AI identity the match engine will use.
+ */
+export function buildOpponentTacticalInsight({
+  opponentTeam,
+  userTeam,
+  userIsHome,
+  form = [],
+  keyPlayer = null,
+} = {}) {
+  const profile = getAITacticalProfile(opponentTeam, userTeam, !userIsHome);
+  return {
+    profile,
+    insight:buildOppositionInsight({ team:opponentTeam, profile, form, keyPlayer }),
+  };
 }
 
 function userOutcome(result, userTeamId, userIsHome) {
