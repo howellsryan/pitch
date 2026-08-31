@@ -36,27 +36,36 @@ export function buildWorldLeagueSeason(teams, seasonYear) {
 
 /**
  * Existing P0 careers contain only the managed club's league schedule/table.
- * P1 backfills only missing leagues/rows and never rewrites played fixtures.
+ * P1 backfills missing leagues and adds league metadata to legacy rows. Played
+ * P0 fixtures are preserved byte-for-byte apart from additive metadata, so a
+ * migrated career never has an already-played result simulated again.
  */
 export function buildWorldBackfill(teams, fixtures, standings, seasonYear) {
   const teamsByLeague = groupTeamsByLeague(teams);
-  const fixtureLeagues = new Set();
   const teamLeague = new Map(teams.map(team => [team.id, team.league ?? 'Premier League']));
-  for (const fixture of fixtures) {
-    const league = fixture.league ?? teamLeague.get(fixture.homeTeamId) ?? teamLeague.get(fixture.awayTeamId);
-    if (league) fixtureLeagues.add(league);
-  }
-  const standingIds = new Set(standings.map(row => row.teamId));
+  const fixtureLeagues = new Set();
   const fixturesToAdd = [];
   const standingsToAdd = [];
 
+  for (const fixture of fixtures) {
+    const league = fixture.league ?? teamLeague.get(fixture.homeTeamId) ?? teamLeague.get(fixture.awayTeamId);
+    if (!league) continue;
+    fixtureLeagues.add(league);
+    if (!fixture.league || fixture.seasonYear == null) {
+      fixturesToAdd.push({ ...fixture, league, seasonYear:fixture.seasonYear ?? seasonYear });
+    }
+  }
+
+  const standingById = new Map(standings.map(row => [row.teamId, row]));
   for (const [league, leagueTeams] of teamsByLeague) {
     if (!fixtureLeagues.has(league)) {
       fixturesToAdd.push(...generateLeagueFixtures(leagueTeams.map(team => team.id), seasonYear)
         .map(fixture => ({ ...fixture, league, seasonYear })));
     }
     for (const team of leagueTeams) {
-      if (!standingIds.has(team.id)) standingsToAdd.push({ ...blankStandingRow(team), league });
+      const existing = standingById.get(team.id);
+      if (!existing) standingsToAdd.push({ ...blankStandingRow(team), league });
+      else if (!existing.league) standingsToAdd.push({ ...existing, league });
     }
   }
   return { fixturesToAdd, standingsToAdd };
@@ -87,6 +96,9 @@ export function toCanonicalLeagueRecord(fixture, result, season) {
 export function resultFromCanonicalLeagueRecord(fixture) {
   return {
     fixtureId:fixture.id,
+    gameweek:fixture.gameweek,
+    league:fixture.league ?? null,
+    season:fixture.season ?? null,
     homeTeamId:fixture.homeTeamId,
     awayTeamId:fixture.awayTeamId,
     homeGoals:fixture.homeGoals ?? 0,
@@ -202,8 +214,7 @@ export function applyWorldPlayerStats(cache, results) {
       } else if (event.type === 'yellow') {
         const player = cache.get(event.playerId);
         if (!player) continue;
-        const before = player.yellowCards ?? 0;
-        player.yellowCards = before + 1;
+        player.yellowCards = (player.yellowCards ?? 0) + 1;
         if ([5, 10, 15].includes(player.yellowCards)) {
           player.suspensionGWsLeft = Math.max(1, player.suspensionGWsLeft ?? 0);
           player.suspended = true;
@@ -257,8 +268,29 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
-export function buildLivingWorldSeasonSummary({ save, teams, standings, players, transfers = [], leagueChanges = null }) {
+function indexTransfers(transfers) {
+  const byPlayer = new Map();
+  const byTeam = new Map();
+  for (const move of transfers) {
+    if (!byPlayer.has(move.playerId)) byPlayer.set(move.playerId, []);
+    byPlayer.get(move.playerId).push(move);
+    for (const teamId of [move.fromTeamId, move.toTeamId]) {
+      if (!teamId) continue;
+      if (!byTeam.has(teamId)) byTeam.set(teamId, []);
+      byTeam.get(teamId).push(move);
+    }
+  }
+  return { byPlayer, byTeam };
+}
+
+export function buildLivingWorldSeasonSummary({ save, teams, standings, players, transfers = [], leagueChanges = null, awards = [] }) {
   const teamsById = new Map(teams.map(team => [team.id, team]));
+  const transfersBy = indexTransfers(transfers);
+  const awardsByPlayer = new Map();
+  for (const award of awards) {
+    if (!awardsByPlayer.has(award.playerId)) awardsByPlayer.set(award.playerId, []);
+    awardsByPlayer.get(award.playerId).push(award);
+  }
   const playersByLeague = new Map();
   for (const player of players) {
     const league = teamsById.get(player.teamId)?.league;
@@ -268,7 +300,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
   }
 
   const playerHistory = players.map(player => {
-    const moves = transfers.filter(move => move.playerId === player.id);
+    const moves = transfersBy.byPlayer.get(player.id) ?? [];
     return {
       playerId:player.id,
       name:player.name,
@@ -285,15 +317,19 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
       redCards:player.redCards ?? 0,
       majorInjuries:player.seasonMajorInjuries ?? [],
       transfers:moves.map(move => ({ fromTeamId:move.fromTeamId, toTeamId:move.toTeamId, fee:move.fee ?? 0, type:move.type, date:move.date })),
+      individualAwards:(awardsByPlayer.get(player.id) ?? []).map(award => award.kind),
     };
   });
 
   const clubHistory = teams.map(team => {
     const row = standings.find(standing => standing.teamId === team.id);
-    const significant = transfers
-      .filter(move => move.fromTeamId === team.id || move.toTeamId === team.id)
+    const significant = [...(transfersBy.byTeam.get(team.id) ?? [])]
       .sort((a, b) => (b.fee ?? 0) - (a.fee ?? 0))
       .slice(0, 3);
+    const userCups = team.id === save.userTeamId ? save.cups ?? {} : {};
+    const trophies = [];
+    if (row?.position === 1) trophies.push(team.league ?? 'Premier League');
+    for (const [cupId, state] of Object.entries(userCups)) if (state?.status === 'winner') trophies.push(cupId);
     return {
       teamId:team.id,
       league:team.league ?? 'Premier League',
@@ -301,6 +337,8 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
       points:row?.points ?? 0,
       form:row?.form ?? [],
       manager:team.id === save.userTeamId ? save.managerName : (team.managerName ?? 'AI Manager'),
+      cupRuns:userCups,
+      trophies,
       budget:team.budget ?? 0,
       reputation:team.reputation ?? 0,
       significantTransfers:significant,
@@ -316,7 +354,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
     competitionHistory.push({
       competition:league,
       champion:table[0]?.teamId ?? null,
-      relegated:table.slice(-Math.min(3, table.length)).map(row => row.teamId),
+      relegated:league === 'League Two' ? [] : table.slice(-Math.min(3, table.length)).map(row => row.teamId),
       topScorer:compactLeader(by('goals'), 'goals'),
       topAssists:compactLeader(by('assists'), 'assists'),
       cleanSheets:compactLeader(by('cleanSheets'), 'cleanSheets'),
@@ -331,6 +369,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
     playerHistory,
     clubHistory,
     competitionHistory,
+    awards,
     leagueChanges:leagueChanges ?? null,
   };
 }
