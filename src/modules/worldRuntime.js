@@ -101,6 +101,15 @@ function finaliseNonLeaguePlayerForm(cache, results) {
   }
 }
 
+function nonLeagueParticipantTeamIds(results) {
+  const ids = new Set();
+  for (const result of results) {
+    if (result.homeTeamId) ids.add(result.homeTeamId);
+    if (result.awayTeamId) ids.add(result.awayTeamId);
+  }
+  return ids;
+}
+
 export function projectWorldBatch(players, standings, results) {
   const playerCache = new Map(players.map(player => [player.id, { ...player }]));
   const standingCache = new Map(standings.map(row => [row.teamId, { ...row }]));
@@ -141,7 +150,9 @@ export function projectWorldBatch(players, standings, results) {
 }
 
 export function projectNonLeaguePlayers(players, results) {
-  const cache = new Map(players.map(player => [player.id, { ...player }]));
+  const participantTeams = nonLeagueParticipantTeamIds(results);
+  const participantPlayers = players.filter(player => participantTeams.has(player.teamId));
+  const cache = new Map(participantPlayers.map(player => [player.id, { ...player }]));
   applyWorldPlayerStats(cache, results);
   applyFitness(cache, results);
   applyInjuries(cache, results);
@@ -207,8 +218,9 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
 
 /**
  * Background cup records live inside the save row, so their apply-once flag and
- * player mutations commit together. A tab close can leave the whole batch
- * pending, or the whole batch applied, but never half-project a tournament.
+ * participant player mutations commit together. A tab close can leave the whole
+ * batch pending, or the whole batch applied, but never half-project a tournament.
+ * Players from clubs outside the batch are intentionally not rewritten.
  */
 export async function applyPendingWorldCompetitionProjections(save) {
   const pending = pendingWorldCompetitionRecords(save?.worldCompetitions);
