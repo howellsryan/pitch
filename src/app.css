@@ -103,6 +103,22 @@
 }
 
 /**
+ * P3 player detail is intentionally an internal scroller. A content-sized
+ * fixed sheet can grow above the viewport on shorter desktop windows even
+ * when max-height is present, because the generic sheet is bottom-anchored.
+ * Anchor this one to an explicit 88dvh viewport band at every breakpoint so
+ * its decision controls remain reachable without document overflow.
+ */
+#screen-squad .player-sheet {
+  top: 12dvh;
+  bottom: 0;
+  max-height: none;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/**
  * Reduced motion, once, for everything.
  *
  * The rule that matters: reduced motion renders the FINAL state, never
