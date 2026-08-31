@@ -81,6 +81,33 @@ describe('P3 bounded personal-state write set', () => {
     expect(next[0].personalStateAppearances).toBe(12);
   });
 
+  it('recognises participation after season statistics reset', () => {
+    const priorSeason = normalizePlayerModel({
+      ...player('new-season'),
+      appearances:21,
+      minutes:1674,
+      sharpness:50,
+      individualMorale:50,
+      personalStateAppearances:21,
+      personalStateMinutes:1674,
+      personalStateSettledKey:'2025/26:38',
+    });
+    const firstNewSeasonMatch = {
+      ...priorSeason,
+      appearances:1,
+      minutes:90,
+      lastMatchRating:7.4,
+      form:62,
+    };
+
+    const [settled] = buildPersonalStatePatches([firstNewSeasonMatch], 1, '2026/27');
+    expect(settled.personalStateAppearances).toBe(1);
+    expect(settled.personalStateMinutes).toBe(90);
+    expect(settled.personalStateSettledKey).toBe('2026/27:1');
+    expect(settled.sharpness).toBeGreaterThan(50);
+    expect(settled.individualMorale).toBeGreaterThan(50);
+  });
+
   it('shares the same per-player settlement contract used by the batch planner', () => {
     const participant = {
       ...player('single'),
