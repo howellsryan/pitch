@@ -69,9 +69,15 @@ SUPERSEDED_LEGACY_CHECKS = {
     # checks search the retired helper's source for implementation details.
     'INJ: updateCache reads fresh from DB (not stale allPlayers)',
     'REG: rested players restore to 100',
-    # The rollover already clears collapsedDeals in season.js. Adding P1 world
-    # modules made validate.js's fixed 70k source slice end before that field.
+    # Adding the P1 world/history implementation made validate.js's fixed source
+    # windows too short to see these unchanged rollover/wage details. They are
+    # covered across seasonP0.test.js and seasonP1.test.js against the real files.
     'collapsedDeals cleared at season rollover',
+    'processEndOfSeason clears signedThisSeason',
+    'LOAN: loan metadata cleared at season end',
+    'payWeeklyWages sums player wages per team',
+    'payWeeklyWages skips players on loan (already prepaid)',
+    'payWeeklyWages deducts bill from team budget',
 }
 
 P0_TEST_FILES = [
@@ -79,6 +85,7 @@ P0_TEST_FILES = [
     'src/modules/competitionIntegration.test.js',
     'src/modules/dbSaveMigration.test.js',
     'src/modules/seasonP0.test.js',
+    'src/modules/seasonP1.test.js',
     # P1 replacements for the living-world source-shape assertions above.
     'src/modules/world.test.js',
     'src/modules/worldRuntime.test.js',
