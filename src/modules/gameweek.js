@@ -1,6 +1,7 @@
 import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
 import { simulateMatch } from './matchEngine.js';
 import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
+import { buildPersonalStatePatches } from './playerModel.js';
 import { updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
@@ -277,14 +278,26 @@ async function settleWorldCompetitionGameweek(gw, save, allTeams) {
   return applied.save ?? persisted;
 }
 
+async function settleWorldPersonalState(gameweek) {
+  const allPlayers = await getAllPlayers();
+  const patches = buildPersonalStatePatches(allPlayers, gameweek);
+  if (patches.length) await putPlayersBulk(patches);
+  return patches;
+}
+
 async function runEndOfWorldGameweek(save) {
+  // P3 personal state observes the fully projected world week before injury
+  // recovery advances the medical clock. The per-player settled-gameweek guard
+  // makes this safe to retry if closeout is interrupted before the world clock
+  // itself advances.
+  const personalStatePatches = await settleWorldPersonalState(save.currentGameweek).catch(() => []);
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   const newOffers = await generateAIOffers().catch(() => []) ?? [];
   await simulateAITransfers(save).catch(() => {});
   await simulateAILoans(save).catch(() => {});
   await payWeeklyWages().catch(() => {});
   await updateTeamMorale(save.userTeamId).catch(() => {});
-  return { recoveredPlayers, newOffers };
+  return { recoveredPlayers, newOffers, personalStatePatches };
 }
 
 export async function advanceOneFixture(overrideFormation) {
