@@ -5,6 +5,11 @@ import { rollInjuryCheck } from './injuries.js';
 export const ATT = new Set(['ST','CF','RW','LW','CAM']);
 export const MID = new Set(['CM','CDM','CAM','RM','LM']);
 export const DEF = new Set(['CB','RB','LB']);
+export const MATCH_INJURY_CHECK_INTERVAL = 6;
+
+export function matchInjuryIntervalRate(perPhaseRate, interval = MATCH_INJURY_CHECK_INTERVAL) {
+  return 1 - Math.pow(1 - perPhaseRate, interval);
+}
 
 export function positionGroup(pos) {
   if (ATT.has(pos)) return 'ATT';
@@ -299,30 +304,30 @@ export function getMentalityMods(mentality) {
   switch (mentality) {
     case 'defensive':
       return {
-        goalProbMult:    0.72,   // less attacking threat
-        defResistMult:   1.30,   // compact, hard to break down
-        midShareBoost:  -0.07,   // fewer attacking phases
-        phasesBoostOpp:  0.04,   // opponents get slightly more ball from defensive shape
-        shotsMultSelf:   0.80,   // fewer shots created
-        shotsMultOpp:    0.88,   // opponents get fewer clear chances too (compact)
+        goalProbMult:    0.72,
+        defResistMult:   1.30,
+        midShareBoost:  -0.07,
+        phasesBoostOpp:  0.04,
+        shotsMultSelf:   0.80,
+        shotsMultOpp:    0.88,
       };
     case 'possession':
       return {
-        goalProbMult:    0.88,   // patient — probing, fewer rushed efforts
-        defResistMult:   1.08,   // more organised positional defence
-        midShareBoost:   0.09,   // dominate possession via midfield supremacy
-        phasesBoostOpp: -0.04,   // starve opposition of the ball
-        shotsMultSelf:   0.90,   // fewer but higher quality shots
-        shotsMultOpp:    0.82,   // opposition barely see the ball
+        goalProbMult:    0.88,
+        defResistMult:   1.08,
+        midShareBoost:   0.09,
+        phasesBoostOpp: -0.04,
+        shotsMultSelf:   0.90,
+        shotsMultOpp:    0.82,
       };
     case 'attacking':
       return {
-        goalProbMult:    1.32,   // progressive, direct — high press creates chances
-        defResistMult:   0.78,   // high line leaves gaps for counters
-        midShareBoost:   0.06,   // push forward, more attacking phases
-        phasesBoostOpp:  0.08,   // opponent gets counter opportunities
-        shotsMultSelf:   1.20,   // many shots, aggressive transitions
-        shotsMultOpp:    1.15,   // exposed defensively — opponents profit too
+        goalProbMult:    1.32,
+        defResistMult:   0.78,
+        midShareBoost:   0.06,
+        phasesBoostOpp:  0.08,
+        shotsMultSelf:   1.20,
+        shotsMultOpp:    1.15,
       };
     case 'balanced':
     default:
@@ -336,7 +341,6 @@ export function getMentalityMods(mentality) {
       };
   }
 }
-
 
 export function shouldSub(fitness, minute, trailsBy) {
   if (minute < 55) return false;
@@ -358,17 +362,13 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
   const hStr   = teamStrength(hElev);
   const aStr   = teamStrength(aElev);
 
-  // Mentality modifiers
   const hMods = getMentalityMods(homeMentality ?? 'balanced');
   const aMods = getMentalityMods(awayMentality ?? 'balanced');
 
-  // Midfield controls possession/phases: stronger midfield = more attacking phases
-  // Mentality midShareBoost shifts the balance further
   const rawMidShare = (hStr.midfield + aStr.midfield) > 0
     ? hStr.midfield / (hStr.midfield + aStr.midfield) : 0.5;
   const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + hMods.midShareBoost - aMods.midShareBoost));
 
-  // Fitness tracking
   const hFitness = new Map(hElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)]));
   const aFitness = new Map(aElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)]));
 
@@ -393,16 +393,12 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
     const attFitMap  = isHome ? hFitness : aFitness;
     const defFitMap  = isHome ? aFitness : hFitness;
 
-    // Fitness degrades each phase — older players tire faster
     for (const p of attActive) attFitMap.set(p.id, Math.max(0, (attFitMap.get(p.id) ?? 90) - 0.18 * ageDrain(p.age ?? 24)));
     for (const p of defActive) defFitMap.set(p.id, Math.max(0, (defFitMap.get(p.id) ?? 90) - 0.12 * ageDrain(p.age ?? 24)));
 
-    // Average fitness of attacking outfield players
     const attOutfield = attActive.filter(p => p.position !== 'GK');
     const avgAttFit   = attOutfield.reduce((s,p) => s+(attFitMap.get(p.id)??90),0) / Math.max(1,attOutfield.length);
 
-    // Use ATTACK stat of attacking team, DEFENCE+GK of defending team
-    // Apply mentality: attacker's goalProbMult × defender's defResistMult
     const attStr = isHome ? hStr : aStr;
     const defStr = isHome ? aStr : hStr;
     const attMods = isHome ? hMods : aMods;
@@ -410,11 +406,9 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
     const gProb  = goalChance(attStr, defStr, isHome) * fitMult(avgAttFit)
                    * attMods.goalProbMult / defMods.defResistMult;
 
-    // Goal?
     if (attActive.length >= 7 && Math.random() < gProb) {
       const scorer   = pickScorer(attActive);
-      // Assister probability increased by midfield quality
-      const assistProb = 0.55 + (attStr.midfield / 99) * 0.25; // 55-80%
+      const assistProb = 0.55 + (attStr.midfield / 99) * 0.25;
       const assister   = Math.random() < assistProb ? pickAssister(attActive, scorer.id) : null;
       if (isHome) hGoals++; else aGoals++;
       events.push({
@@ -427,7 +421,6 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
       });
     }
 
-    // Yellow card (~0.4% per phase — more likely from defenders)
     if (Math.random() < 0.004 && defActive.length) {
       const yellowCands = defActive.filter(p => p.position !== 'GK');
       if (yellowCands.length) {
@@ -440,28 +433,28 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
       }
     }
 
-    // Injury check — target ~20 injuries per team per season (~0.4 per match across ~50 games)
-    // Rate: 0.40/match ÷ (10 outfield × 120 phases) = 0.000333 per outfield per phase
-    if (typeof rollInjuryCheck === 'function') {
+    // Preserve the exact full-match injury probability while scanning players
+    // only every six phases. For a player active for all 120 phases:
+    // (1 - compoundedRate)^20 === (1 - perPhaseRate)^120.
+    if (typeof rollInjuryCheck === 'function' && phase % MATCH_INJURY_CHECK_INTERVAL === 0) {
       for (const side of [
-        { active: hActive, team: homeTeam, fitMap: hFitness },
-        { active: aActive, team: awayTeam, fitMap: aFitness },
+        { active: hActive, team: homeTeam },
+        { active: aActive, team: awayTeam },
       ]) {
         for (const p of side.active) {
           if (p.injured || p._injuredThisMatch) continue;
-          const isGK = p.position === 'GK';
-          const perPhaseRate = isGK ? 0.000120 : 0.000333;
-          if (Math.random() > perPhaseRate) continue;
+          const perPhaseRate = p.position === 'GK' ? 0.000120 : 0.000333;
+          const intervalRate = matchInjuryIntervalRate(perPhaseRate);
+          if (Math.random() > intervalRate) continue;
           const inj = rollInjuryCheck(p, false, true);
           if (inj) {
-            events.push({ type: 'injury', minute, teamId: side.team.id, playerId: p.id, playerName: p.name, injuryName: inj.injuryName, injuryGWsLeft: inj.injuryGWsLeft });
+            events.push({ type:'injury', minute, teamId:side.team.id, playerId:p.id, playerName:p.name, injuryName:inj.injuryName, injuryGWsLeft:inj.injuryGWsLeft });
             p._injuredThisMatch = true;
           }
         }
       }
     }
 
-    // AI substitutions (every 10 phases)
     if (phase % 10 === 0) {
       const trailH = aGoals - hGoals, trailA = hGoals - aGoals;
       if (hSubsLeft > 0) {
@@ -488,11 +481,9 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
   const hScorers = events.filter(e => e.type === 'goal' && e.teamId === homeTeam.id);
   const aScorers = events.filter(e => e.type === 'goal' && e.teamId === awayTeam.id);
 
-  // Fitness updates after match
   const fitnessUpdates = [];
-  const allPlayed = new Set([...hElev, ...hBench.filter(p => !hBenchLeft.includes(p))].map(p=>p.id));
-  for (const p of hElev)  fitnessUpdates.push({ id:p.id, teamId:homeTeam.id, newFitness:Math.max(30, hFitness.get(p.id) ?? 65) });
-  for (const p of aElev)  fitnessUpdates.push({ id:p.id, teamId:awayTeam.id, newFitness:Math.max(30, aFitness.get(p.id) ?? 65) });
+  for (const p of hElev) fitnessUpdates.push({ id:p.id, teamId:homeTeam.id, newFitness:Math.max(30, hFitness.get(p.id) ?? 65) });
+  for (const p of aElev) fitnessUpdates.push({ id:p.id, teamId:awayTeam.id, newFitness:Math.max(30, aFitness.get(p.id) ?? 65) });
 
   const stats = computeMatchStats(
     { homeGoals:hGoals, awayGoals:aGoals, homeTeamId:homeTeam.id, awayTeamId:awayTeam.id, events },
@@ -515,9 +506,6 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
 }
 
 // ─── Phased simulation for Watch Match mode ──────────────────
-// Simulates phases from startPhase to endPhase (1-120) using
-// provided live state. Returns events + updated live state.
-// Live state can be mutated between segments for real-time interventions.
 export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase, controlledTeamId = null) {
   const {
     hActive, aActive, hFitness, aFitness,
@@ -567,9 +555,9 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       const assister = Math.random() < assistProb ? pickAssister(attActive, scorer.id) : null;
       if (isHome) curHGoals++; else curAGoals++;
       segEvents.push({
-        type: 'goal', minute,
-        teamId: attTeam.id, playerId: scorer.id, playerName: scorer.name,
-        assistId: assister?.id ?? null, assistName: assister?.name ?? null,
+        type:'goal', minute,
+        teamId:attTeam.id, playerId:scorer.id, playerName:scorer.name,
+        assistId:assister?.id ?? null, assistName:assister?.name ?? null,
       });
     }
 
@@ -585,20 +573,18 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       }
     }
 
-    // Injury check for watch match segment — rates match simulateMatch
-    if (typeof rollInjuryCheck === 'function') {
+    if (typeof rollInjuryCheck === 'function' && phase % MATCH_INJURY_CHECK_INTERVAL === 0) {
       for (const side of [
-        { active: curHActive, team: homeTeam, fitMap: hFitness },
-        { active: curAActive, team: awayTeam, fitMap: aFitness },
+        { active:curHActive, team:homeTeam },
+        { active:curAActive, team:awayTeam },
       ]) {
         for (const p of side.active) {
           if (p.injured || p._injuredThisMatch) continue;
-          const isGK = p.position === 'GK';
-          const perPhaseRate = isGK ? 0.000120 : 0.000333;
-          if (Math.random() > perPhaseRate) continue;
+          const perPhaseRate = p.position === 'GK' ? 0.000120 : 0.000333;
+          if (Math.random() > matchInjuryIntervalRate(perPhaseRate)) continue;
           const inj = rollInjuryCheck(p, false, true);
           if (inj) {
-            segEvents.push({ type: 'injury', minute, teamId: side.team.id, playerId: p.id, playerName: p.name, injuryName: inj.injuryName, injuryGWsLeft: inj.injuryGWsLeft });
+            segEvents.push({ type:'injury', minute, teamId:side.team.id, playerId:p.id, playerName:p.name, injuryName:inj.injuryName, injuryGWsLeft:inj.injuryGWsLeft });
             p._injuredThisMatch = true;
           }
         }
@@ -630,13 +616,13 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
 
   return {
     segEvents,
-    updatedState: {
+    updatedState:{
       ...liveState,
-      hActive: curHActive, aActive: curAActive,
-      hBenchLeft: curHBench, aBenchLeft: curABench,
-      hSubsLeft: curHSubs, aSubsLeft: curASubsLeft,
-      hGoals: curHGoals, aGoals: curAGoals,
-      hPhases: curHPhases, aPhases: curAPhases,
+      hActive:curHActive, aActive:curAActive,
+      hBenchLeft:curHBench, aBenchLeft:curABench,
+      hSubsLeft:curHSubs, aSubsLeft:curASubsLeft,
+      hGoals:curHGoals, aGoals:curAGoals,
+      hPhases:curHPhases, aPhases:curAPhases,
     },
   };
 }
@@ -658,24 +644,24 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
   const hMidShare = Math.min(0.85, Math.max(0.15, rawMidShare + hMods.midShareBoost - aMods.midShareBoost));
 
   return {
-    hActive: [...hElev], aActive: [...aElev],
-    hBenchLeft: [...hBench], aBenchLeft: [...aBench],
-    hFitness: new Map(hElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)])),
-    aFitness: new Map(aElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)])),
-    hSubsLeft: 3, aSubsLeft: 3,
-    hGoals: 0, aGoals: 0,
-    hPhases: 0, aPhases: 0,
+    hActive:[...hElev], aActive:[...aElev],
+    hBenchLeft:[...hBench], aBenchLeft:[...aBench],
+    hFitness:new Map(hElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)])),
+    aFitness:new Map(aElev.map(p => [p.id, Math.min(100, p.fitness ?? 90)])),
+    hSubsLeft:3, aSubsLeft:3,
+    hGoals:0, aGoals:0,
+    hPhases:0, aPhases:0,
     hStr, aStr, hMidShare, hMods, aMods,
     hElev, aElev, hBench, aBench,
-    homeFormation: hFm, awayFormation: aFm,
-    homeMentality: homeMentality ?? 'balanced',
-    awayMentality: awayMentality ?? 'balanced',
+    homeFormation:hFm, awayFormation:aFm,
+    homeMentality:homeMentality ?? 'balanced',
+    awayMentality:awayMentality ?? 'balanced',
   };
 }
 
 // ─── Finalise a live match into the standard result shape ──────
 export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
-  const { hGoals, aGoals, hPhases, aPhases, hStr, aStr, hElev, aElev, hBench, aBenchLeft, hFitness, aFitness, homeFormation, awayFormation } = liveState;
+  const { hGoals, aGoals, hPhases, aPhases, hStr, aStr, hElev, aElev, hFitness, aFitness, homeFormation, awayFormation } = liveState;
   const fitnessUpdates = [];
   for (const p of hElev) fitnessUpdates.push({ id:p.id, teamId:homeTeam.id, newFitness:Math.max(30, hFitness.get(p.id) ?? 65) });
   for (const p of aElev) fitnessUpdates.push({ id:p.id, teamId:awayTeam.id, newFitness:Math.max(30, aFitness.get(p.id) ?? 65) });
@@ -689,13 +675,13 @@ export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
     hPhases, aPhases, hStr, aStr, hMods.shotsMultSelf, aMods.shotsMultSelf
   );
   return {
-    homeTeamId: homeTeam.id,    awayTeamId: awayTeam.id,
-    homeTeamName: homeTeam.name, awayTeamName: awayTeam.name,
-    homeTeamCrest: homeTeam.crest ?? '⚽', awayTeamCrest: awayTeam.crest ?? '⚽',
-    homeGoals: hGoals, awayGoals: aGoals,
-    homeScorers: hScorers, awayScorers: aScorers,
-    events: allEvents.sort((a,b) => a.minute - b.minute),
-    outcome: hGoals > aGoals ? 'home_win' : hGoals < aGoals ? 'away_win' : 'draw',
+    homeTeamId:homeTeam.id, awayTeamId:awayTeam.id,
+    homeTeamName:homeTeam.name, awayTeamName:awayTeam.name,
+    homeTeamCrest:homeTeam.crest ?? '⚽', awayTeamCrest:awayTeam.crest ?? '⚽',
+    homeGoals:hGoals, awayGoals:aGoals,
+    homeScorers:hScorers, awayScorers:aScorers,
+    events:allEvents.sort((a,b) => a.minute - b.minute),
+    outcome:hGoals > aGoals ? 'home_win' : hGoals < aGoals ? 'away_win' : 'draw',
     fitnessUpdates, stats,
     homeFormation, awayFormation,
   };
@@ -706,7 +692,6 @@ export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMu
   const total = (hPhases||60) + (aPhases||60);
   const homePoss = Math.round(((hPhases||60) / total) * 100);
 
-  // Shots based on phases + attack quality + mentality
   const hAttack = hStr?.attack ?? 65;
   const aAttack = aStr?.attack ?? 65;
   const hSM = hShotsMult ?? 1.0;
@@ -716,22 +701,19 @@ export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMu
   const hOnTarget    = Math.max(result.homeGoals, Math.min(hShotsTotal, Math.round(hShotsTotal * (0.33 + Math.random() * 0.15))));
   const aOnTarget    = Math.max(result.awayGoals, Math.min(aShotsTotal, Math.round(aShotsTotal * (0.33 + Math.random() * 0.15))));
 
-  // xG: shots on target × conversion rate based on attack/gk quality
-  // Real-world on-target conversion ~0.32 (1 in 3 on-target shots scores)
-  // xG per shot on target in real football: ~0.25-0.35 range
   const hGK = aStr?.goalkeeping ?? 75;
   const aGK = hStr?.goalkeeping ?? 75;
   const hXG = parseFloat((hOnTarget * (0.28 + (hAttack/99)*0.10 - (hGK/99)*0.08)).toFixed(2));
   const aXG = parseFloat((aOnTarget * (0.28 + (aAttack/99)*0.10 - (aGK/99)*0.08)).toFixed(2));
 
   return {
-    possession:    { home: homePoss, away: 100 - homePoss },
-    shots:         { home: hShotsTotal, away: aShotsTotal },
-    shotsOnTarget: { home: hOnTarget, away: aOnTarget },
-    xG:            { home: Math.max(0, hXG), away: Math.max(0, aXG) },
-    yellowCards:   { home: result.events.filter(e=>e.type==='yellow'&&e.teamId===result.homeTeamId).length, away: result.events.filter(e=>e.type==='yellow'&&e.teamId===result.awayTeamId).length },
-    substitutions: { home: result.events.filter(e=>e.type==='sub'&&e.teamId===result.homeTeamId).length, away: result.events.filter(e=>e.type==='sub'&&e.teamId===result.awayTeamId).length },
-    corners:       { home: Math.round(2 + Math.random()*6 + (homePoss>55?1:0)), away: Math.round(2 + Math.random()*6 + (homePoss<45?1:0)) },
-    fouls:         { home: Math.round(8 + Math.random()*7), away: Math.round(8 + Math.random()*7) },
+    possession:    { home:homePoss, away:100-homePoss },
+    shots:         { home:hShotsTotal, away:aShotsTotal },
+    shotsOnTarget: { home:hOnTarget, away:aOnTarget },
+    xG:            { home:Math.max(0,hXG), away:Math.max(0,aXG) },
+    yellowCards:   { home:result.events.filter(e=>e.type==='yellow'&&e.teamId===result.homeTeamId).length, away:result.events.filter(e=>e.type==='yellow'&&e.teamId===result.awayTeamId).length },
+    substitutions: { home:result.events.filter(e=>e.type==='sub'&&e.teamId===result.homeTeamId).length, away:result.events.filter(e=>e.type==='sub'&&e.teamId===result.awayTeamId).length },
+    corners:       { home:Math.round(2+Math.random()*6+(homePoss>55?1:0)), away:Math.round(2+Math.random()*6+(homePoss<45?1:0)) },
+    fouls:         { home:Math.round(8+Math.random()*7), away:Math.round(8+Math.random()*7) },
   };
 }
