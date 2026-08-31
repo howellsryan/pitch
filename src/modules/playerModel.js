@@ -248,15 +248,26 @@ export function currentEffectiveLevel(player, options = {}) {
   return effectiveLevelBreakdown(player, options)?.effectiveLevel;
 }
 
-/** Apply the same personal-state delta to a concrete attribute for simulation. */
+function effectiveNonPositionModifier(player) {
+  const rawModifier = centeredContribution(player.form, EFFECTIVE_LEVEL_LIMITS.formSwing)
+    + centeredContribution(player.individualMorale, EFFECTIVE_LEVEL_LIMITS.moraleSwing, DEFAULT_INDIVIDUAL_MORALE)
+    + centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS)
+    + penaltyFromReadiness(player.fitness, EFFECTIVE_LEVEL_LIMITS.fitnessPenalty)
+    + penaltyFromReadiness(rehabilitationReadiness(player), EFFECTIVE_LEVEL_LIMITS.rehabilitationPenalty);
+  return round2(clamp(rawModifier, -EFFECTIVE_LEVEL_LIMITS.maxDrop, EFFECTIVE_LEVEL_LIMITS.maxUplift));
+}
+
+/**
+ * Apply the same personal-state delta to a concrete simulation attribute.
+ * This hot path avoids allocating a full explainability breakdown for every
+ * ATT/MID/DEF lookup while remaining mathematically identical for the player's
+ * primary-position state modifier.
+ */
 export function effectiveAttribute(player, attribute) {
   if (!player) return undefined;
   const raw = Number(player[attribute]);
   if (!Number.isFinite(raw)) return undefined;
-  const breakdown = effectiveLevelBreakdown(player);
-  if (!breakdown) return raw;
-  const nonPositionModifier = breakdown.totalModifier - breakdown.contributions.positionFit;
-  return round1(clamp(raw + nonPositionModifier, 1, 99));
+  return round1(clamp(raw + effectiveNonPositionModifier(player), 1, 99));
 }
 
 export function personalStateWeekKey(season, gameweek) {
