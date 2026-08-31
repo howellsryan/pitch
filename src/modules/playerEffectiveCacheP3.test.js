@@ -49,4 +49,19 @@ describe('P3 effective-level hot selector cache', () => {
     subject.attack += 3;
     expect(currentEffectiveLevel(subject, { position:'ST' })).toBe(expected('ST'));
   });
+
+  it('shares canonical results across shallow copies with the same stable player id', () => {
+    const original = player();
+    const first = currentEffectiveLevel(original, { position:'ST' });
+    const copy = { ...original };
+
+    expect(currentEffectiveLevel(copy, { position:'ST' })).toBe(first);
+    expect(currentEffectiveLevel(copy, { position:'ST' }))
+      .toBe(effectiveLevelBreakdown(copy, { position:'ST' }).effectiveLevel);
+
+    copy.form = 20;
+    expect(currentEffectiveLevel(copy, { position:'ST' }))
+      .toBe(effectiveLevelBreakdown(copy, { position:'ST' }).effectiveLevel);
+    expect(currentEffectiveLevel(original, { position:'ST' })).toBe(first);
+  });
 });
