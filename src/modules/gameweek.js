@@ -61,7 +61,7 @@ function resolveLeaguePhaseHome(state, phaseRules, matchday) {
 
 function drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, allTeams) {
   if (isTwoLegRound(cupId, roundName, 2)) {
-    const leg1 = state.results?.[state.results.length - 1];
+    const leg1 = state?.results?.[state.results.length - 1];
     if (leg1) {
       const known = allTeams.find(t => t.id === leg1.opponentId) ?? UCL_CLUBS.find(c => c.id === leg1.opponentId);
       return {
@@ -278,19 +278,19 @@ async function settleWorldCompetitionGameweek(gw, save, allTeams) {
   return applied.save ?? persisted;
 }
 
-async function settleWorldPersonalState(gameweek) {
+async function settleWorldPersonalState(gameweek, season) {
   const allPlayers = await getAllPlayers();
-  const patches = buildPersonalStatePatches(allPlayers, gameweek);
+  const patches = buildPersonalStatePatches(allPlayers, gameweek, season);
   if (patches.length) await putPlayersBulk(patches);
   return patches;
 }
 
 async function runEndOfWorldGameweek(save) {
   // P3 personal state observes the fully projected world week before injury
-  // recovery advances the medical clock. The per-player settled-gameweek guard
-  // makes this safe to retry if closeout is interrupted before the world clock
-  // itself advances.
-  const personalStatePatches = await settleWorldPersonalState(save.currentGameweek).catch(() => []);
+  // recovery advances the medical clock. The per-player settled-week key makes
+  // this safe to retry if closeout is interrupted before the world clock itself
+  // advances, including after gameweek numbers repeat in a later season.
+  const personalStatePatches = await settleWorldPersonalState(save.currentGameweek, save.season).catch(() => []);
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   const newOffers = await generateAIOffers().catch(() => []) ?? [];
   await simulateAITransfers(save).catch(() => {});
