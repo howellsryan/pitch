@@ -97,6 +97,30 @@ SUPERSEDED_LEGACY_CHECKS = {
     # proves the AI side is not decorated as the user's squad.
     'REG: startWatch resolves userPlayers from resolved.userIsHome',
     'REG: startWatch resolves oppPlayers from resolved.userIsHome',
+
+    # P3 retires potential.js's per-match, Math.random()-driven development
+    # implementation. Development now settles once at the completed world-week
+    # boundary from canonical P1 participation/state, with deterministic seeded
+    # profile logic in playerDevelopment.js. These legacy checks assert details
+    # of the removed algorithm rather than the P3 behaviour. The P3 replacement
+    # tests below cover participation, profile calibration, deterministic gains,
+    # potential uncertainty and population bounds directly.
+    'applyDevelopment applies the morale multiplier',
+    'REG: development uses fitnessUpdates for participation',
+    'REG: development iterates fitnessUpdates to register ALL participants',
+    'REG: clean sheet uses participantIds from fitnessUpdates',
+    'REG: clean sheet finds GK from participants, not all cache',
+    'REG: defenders get clean sheet bonus',
+    'REG: CDM included in defensive clean sheet',
+    'REG: base playing points awarded',
+    'REG: goal scoring gives growth points',
+    'REG: assists give growth points',
+    'REG: GK clean sheet gives growth points',
+    'REG: youth multiplier 1.5x for age<=20',
+    'REG: youth multiplier 1.3x for age<=23',
+    'REG: ST primary boost is attack',
+    'REG: CB primary boost is defence',
+    'REG: GK primary boost is goalkeeping',
 }
 
 P0_TEST_FILES = [
@@ -113,6 +137,10 @@ P0_TEST_FILES = [
     # P2 replacements for watched mapping and deterministic cup parity.
     'src/game/managerTactics.test.js',
     'src/game/cupP2Parity.test.js',
+    # P3 replacements for retired per-match development/source-shape checks.
+    'src/modules/playerPathways.test.js',
+    'src/modules/playerDevelopment.test.js',
+    'src/modules/playerRehabilitation.test.js',
 ]
 
 
