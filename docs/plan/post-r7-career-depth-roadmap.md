@@ -171,6 +171,8 @@ Pitch's European competition model should be data-driven enough that rule change
 
 **P0-P1 are implemented and verified. P2-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested commit slices so a later agent can pick it up without reopening the main product and architecture decisions.
 
+**Detailed execution guides:** [P3–P12 implementation guide index](post-r7-implementation-guides/README.md). Use the roadmap for priority and scope, then the phase guide for contracts, migration, work packages, verification and commit boundaries.
+
 ### Phase packaging
 
 - Start each phase from the latest green `main` on a dedicated branch and open a draft pull request after the first coherent slice.
