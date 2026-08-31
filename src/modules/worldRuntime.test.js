@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { projectNonLeaguePlayers, projectWorldBatch } from './worldRuntime.js';
+import { assignDefaultSquadRoles, normalizePlayerModel } from './playerModel.js';
+import { coalescePersonalStateProjection, projectNonLeaguePlayers, projectWorldBatch } from './worldRuntime.js';
 
 function player(id, teamId, position = 'CM', extras = {}) {
   return {
@@ -152,6 +153,41 @@ describe('P1 world projection runtime', () => {
 
     expect(changedIds).toEqual(['opp', 'recovering', 'starter']);
     expect(projected.players).toHaveLength(4);
+  });
+
+  it('coalesces P3 weekly state into the existing changed-row projection', () => {
+    const prepared = assignDefaultSquadRoles([
+      player('starter', 'a', 'CM'),
+      player('p3-rested', 'a', 'CM', { individualMorale:60, sharpness:70 }),
+      player('opp', 'b', 'CM'),
+    ].map(normalizePlayerModel), { currentYear:2025, managedTeamId:null });
+    const result = {
+      homeTeamId:'a', awayTeamId:'b', homeGoals:0, awayGoals:0, events:[],
+      fitnessUpdates:[
+        { id:'starter', teamId:'a', newFitness:70 },
+        { id:'opp', teamId:'b', newFitness:70 },
+      ],
+    };
+    const projected = projectWorldBatch(
+      prepared,
+      [standing('a', 'League A'), standing('b', 'League A')],
+      [result],
+    );
+    expect(projected.changedPlayers.map(row => row.id).sort()).toEqual(['opp', 'starter']);
+
+    const coalesced = coalescePersonalStateProjection(
+      projected.players,
+      projected.changedPlayers,
+      1,
+      '2025/26',
+    );
+    const changedIds = coalesced.changedPlayers.map(row => row.id).sort();
+    const rested = coalesced.players.find(row => row.id === 'p3-rested');
+    const starter = coalesced.players.find(row => row.id === 'starter');
+
+    expect(changedIds).toEqual(['opp', 'p3-rested', 'starter']);
+    expect(rested).toMatchObject({ individualMorale:58, sharpness:66, personalStateSettledKey:'2025/26:1' });
+    expect(starter).toMatchObject({ personalStateSettledKey:'2025/26:1', developmentSettledKey:'2025/26:1' });
   });
 
   it('projects and returns only clubs participating in a cup batch', () => {
