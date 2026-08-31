@@ -193,6 +193,49 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });
 
+test('P1 living-world club profiles stay inspectable on a wide Competitions layout', async ({ page }) => {
+  await page.setViewportSize({ width:1280, height:800 });
+  await startArsenalCareer(page);
+  await go(page, 'match');
+
+  await page.getByRole('button', { name:/Sim Instantly/ }).click();
+  await expect(page.locator('.ft-status')).toHaveText('FULL TIME', { timeout:30000 });
+  await page.getByRole('button', { name:/Continue/ }).click();
+  await expect(page.locator('.after-wrap')).toBeVisible({ timeout:15000 });
+  await page.getByRole('button', { name:/Continue/ }).click();
+  await expect(page.locator('#screen-home')).toHaveClass(/active/, { timeout:15000 });
+
+  await go(page, 'competitions');
+  const clubs = [
+    { league:'La Liga', club:'Barcelona' },
+    { league:'Bundesliga', club:'Borussia Dortmund' },
+    { league:'Eredivisie', club:'Ajax' },
+  ];
+
+  for (const { league, club } of clubs) {
+    await page.getByRole('button', { name:league, exact:true }).click();
+    await expect(page.locator('.league-title')).toContainText(league);
+    await page.getByRole('button', { name:`Inspect ${club}` }).click();
+
+    const profile = page.getByRole('region', { name:`${club} world profile` });
+    await expect(profile).toBeVisible();
+    await expect(profile.locator('.club-name')).toHaveText(club);
+    await expect(profile.locator('.club-form .fdot').first(), `${club}: league form is inspectable after the world week`).toBeVisible();
+    await expect(profile.locator('.player-leader').first(), `${club}: player leaders are present`).toContainText(/[1-9]\d* apps/);
+    await expect(profile.locator('.club-last-five strong').first(), `${club}: a canonical recent result is visible`).toContainText(/\d+–\d+/);
+
+    const geometry = await page.evaluate(() => ({
+      viewport:window.innerWidth,
+      documentWidth:document.documentElement.scrollWidth,
+      screenWidth:document.querySelector('#screen-competitions')?.scrollWidth ?? 0,
+    }));
+    expect(geometry.documentWidth, `${club}: wide layout causes document overflow`).toBeLessThanOrEqual(geometry.viewport + 1);
+    expect(geometry.screenWidth, `${club}: Competitions surface causes horizontal overflow`).toBeLessThanOrEqual(geometry.viewport + 1);
+  }
+
+  expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
+});
+
 test('watched match runs from Team News through post-match and unlocks navigation', async ({ page }) => {
   await startArsenalCareer(page);
   await go(page, 'match');
