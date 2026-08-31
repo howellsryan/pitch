@@ -1,5 +1,6 @@
 import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
-import { pickAIFormation, simulateMatch } from './matchEngine.js';
+import { simulateMatch } from './matchEngine.js';
+import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
 import { updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress } from './cups.js';
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
@@ -11,7 +12,7 @@ import { applyWorldPlayerStats, toCanonicalLeagueRecord } from './world.js';
 import { advanceWorldCompetitions } from './worldCompetitions.js';
 import { applyNonLeaguePlayerResults, applyPendingWorldCompetitionProjections, applyPendingWorldLeagueProjections } from './worldRuntime.js';
 
-/** modules/gameweek.js — one user-event queue over a single P1 world clock. */
+/** modules/gameweek.js — one user-event queue over a single P2 world clock. */
 
 export const WORLD_SIM_BATCH_SIZE = 24;
 
@@ -344,17 +345,22 @@ export async function advanceOneFixture(overrideFormation) {
   if (event.type === 'league') {
     const fix = gwFixtures.find(f => f.id === event.fixtureId);
     if (fix) {
-      const home = teamsById.get(fix.homeTeamId) ?? { id:fix.homeTeamId, name:fix.homeTeamId, crest:'⚽' };
-      const away = teamsById.get(fix.awayTeamId) ?? { id:fix.awayTeamId, name:fix.awayTeamId, crest:'⚽' };
-      const hPl = playersByTeam.get(fix.homeTeamId) ?? [];
-      const aPl = playersByTeam.get(fix.awayTeamId) ?? [];
+      const userIsHome = fix.homeTeamId === save.userTeamId;
+      const rawHome = teamsById.get(fix.homeTeamId) ?? { id:fix.homeTeamId, name:fix.homeTeamId, crest:'⚽' };
+      const rawAway = teamsById.get(fix.awayTeamId) ?? { id:fix.awayTeamId, name:fix.awayTeamId, crest:'⚽' };
+      const rawHomePlayers = playersByTeam.get(fix.homeTeamId) ?? [];
+      const rawAwayPlayers = playersByTeam.get(fix.awayTeamId) ?? [];
+      const home = userIsHome ? decorateManagedTeam(rawHome, save) : rawHome;
+      const away = userIsHome ? rawAway : decorateManagedTeam(rawAway, save);
+      const hPl = userIsHome ? decorateManagedPlayers(rawHomePlayers, save) : rawHomePlayers;
+      const aPl = userIsHome ? rawAwayPlayers : decorateManagedPlayers(rawAwayPlayers, save);
       const fm = overrideFormation ?? save.formation ?? '4-3-3';
-      const hFm = fix.homeTeamId === save.userTeamId ? fm : pickAIFormation();
-      const aFm = fix.awayTeamId === save.userTeamId ? fm : pickAIFormation();
-      const hLineup = fix.homeTeamId === save.userTeamId ? (save.lineup ?? null) : null;
-      const aLineup = fix.awayTeamId === save.userTeamId ? (save.lineup ?? null) : null;
-      const hMentality = fix.homeTeamId === save.userTeamId ? (save.mentality ?? 'balanced') : 'balanced';
-      const aMentality = fix.awayTeamId === save.userTeamId ? (save.mentality ?? 'balanced') : 'balanced';
+      const hFm = userIsHome ? fm : undefined;
+      const aFm = userIsHome ? undefined : fm;
+      const hLineup = userIsHome ? (save.lineup ?? null) : null;
+      const aLineup = userIsHome ? null : (save.lineup ?? null);
+      const hMentality = userIsHome ? (save.mentality ?? 'balanced') : undefined;
+      const aMentality = userIsHome ? undefined : (save.mentality ?? 'balanced');
       const result = simulateMatch(home, away, hPl, aPl, hFm, aFm, hLineup, aLineup, hMentality, aMentality);
       await putFixture(toCanonicalLeagueRecord(fix, result, save.season));
       const worldResults = await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
@@ -367,8 +373,8 @@ export async function advanceOneFixture(overrideFormation) {
 
   } else if (event.type === 'ucl_md' || (event.type === 'cup' && event.leaguePhase)) {
     const cupId = event.cupId ?? 'ucl';
-    const userTeam = allTeams.find(t => t.id === save.userTeamId);
-    const userPlayers = playersByTeam.get(save.userTeamId) ?? [];
+    const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
+    const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
     const cupState = save.cups?.[cupId];
     const mdResult = simulateEuropeanLeaguePhaseMatchday(cupId, userTeam, userPlayers, cupState, save.mentality ?? 'balanced', event.userIsHome, playersByTeam);
     if (mdResult) {
@@ -386,8 +392,8 @@ export async function advanceOneFixture(overrideFormation) {
     pending = remaining;
 
   } else if (event.type === 'cup') {
-    const userTeam = allTeams.find(t => t.id === save.userTeamId);
-    const userPlayers = playersByTeam.get(save.userTeamId) ?? [];
+    const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
+    const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
     const cupState = save.cups?.[event.cupId];
     const result = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, { ...event, userMentality:save.mentality ?? 'balanced' });
     const progress = resolveCupProgress(event.cupId, event.roundName, event.roundIdx ?? 0, cupState, result.userGoals, result.oppGoals, result.userWon, result.userIsHome);
@@ -428,8 +434,13 @@ export async function advanceOneFixture(overrideFormation) {
   }
 
   const freshSave = gwDone ? await getSave() : save;
+  const userPlayersForDNA = playersByTeam.get(save.userTeamId) ?? [];
+  const userIsHomeForDNA = event.userIsHome ?? (singleResult?.homeTeamId === save.userTeamId);
+  const saveWithDNA = singleResult
+    ? applyManagerDNAResult(freshSave, singleResult, event, userIsHomeForDNA, userPlayersForDNA)
+    : freshSave;
   await putSave({
-    ...freshSave,
+    ...saveWithDNA,
     currentGameweek:nextGW,
     currentDate:gwDone ? newDate.toISOString() : save.currentDate,
     cups:updatedCups,
@@ -566,8 +577,12 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
   }
 
   const freshSave = gwDone ? await getSave() : save;
+  const userPlayersForDNA = playersByTeam.get(save.userTeamId) ?? [];
+  const saveWithDNA = singleResult
+    ? applyManagerDNAResult(freshSave, singleResult, event0, userIsHome, userPlayersForDNA)
+    : freshSave;
   await putSave({
-    ...freshSave,
+    ...saveWithDNA,
     currentGameweek:nextGW,
     currentDate:gwDone ? newDate.toISOString() : save.currentDate,
     cups:updatedCups,
@@ -642,7 +657,6 @@ export async function simulateFixtures(fixtures, teamsById, playersByTeam, save)
       home, away,
       playersByTeam.get(fixture.homeTeamId) ?? [],
       playersByTeam.get(fixture.awayTeamId) ?? [],
-      pickAIFormation(), pickAIFormation(), null, null, 'balanced', 'balanced',
     );
     const withContext = { ...result, gameweek:fixture.gameweek, league:fixture.league };
     toWrite.push(toCanonicalLeagueRecord(fixture, withContext, save.season));
