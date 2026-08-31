@@ -2,6 +2,7 @@ import { generateLeagueFixtures } from './fixtures.js';
 import { primaryRating } from './matchEngine.js';
 import { blankStandingRow, sortTable } from './standings.js';
 import { calcYouthPeakAge, distributeAttributes, randName } from './youthAcademy.js';
+import { buildWorldCompetitionHistory, worldCompetitionRunsForTeam } from './worldCompetitions.js';
 
 /**
  * P1 living-world domain helpers.
@@ -326,10 +327,13 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
     const significant = [...(transfersBy.byTeam.get(team.id) ?? [])]
       .sort((a, b) => (b.fee ?? 0) - (a.fee ?? 0))
       .slice(0, 3);
-    const userCups = team.id === save.userTeamId ? save.cups ?? {} : {};
+    const aiCups = worldCompetitionRunsForTeam(save.worldCompetitions, team.id);
+    const cupRuns = team.id === save.userTeamId ? { ...aiCups, ...(save.cups ?? {}) } : aiCups;
     const trophies = [];
     if (row?.position === 1) trophies.push(team.league ?? 'Premier League');
-    for (const [cupId, state] of Object.entries(userCups)) if (state?.status === 'winner') trophies.push(cupId);
+    for (const [cupId, state] of Object.entries(cupRuns)) {
+      if (state?.status === 'winner' || state?.winner === true) trophies.push(cupId);
+    }
     return {
       teamId:team.id,
       league:team.league ?? 'Premier League',
@@ -337,7 +341,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
       points:row?.points ?? 0,
       form:row?.form ?? [],
       manager:team.id === save.userTeamId ? save.managerName : (team.managerName ?? 'AI Manager'),
-      cupRuns:userCups,
+      cupRuns,
       trophies,
       budget:team.budget ?? 0,
       reputation:team.reputation ?? 0,
@@ -362,6 +366,12 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
         .sort((a, b) => (b.averageRating ?? 0) - (a.averageRating ?? 0))[0] ?? null, 'averageRating'),
     });
   }
+  competitionHistory.push(...buildWorldCompetitionHistory(
+    save.worldCompetitions,
+    players,
+    save.userTeamId,
+    save.cups ?? {},
+  ));
 
   return {
     version:WORLD_RECORD_VERSION,
