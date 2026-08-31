@@ -60,6 +60,39 @@ describe('P3 bounded personal-state write set', () => {
     expect(buildPersonalStatePatches(first, 8, '2025/26')).toEqual([]);
   });
 
+  it('reconciles additional cup minutes in the same world week exactly once', () => {
+    const leagueParticipant = {
+      ...player('double-header'),
+      appearances:11,
+      minutes:890,
+      lastMatchRating:7.4,
+      form:64,
+    };
+    const [afterLeague] = buildPersonalStatePatches([leagueParticipant], 9, '2025/26');
+    const sharpnessAfterLeague = afterLeague.sharpness;
+    const progressAfterLeague = afterLeague.developmentProgress;
+
+    const afterCupInput = {
+      ...afterLeague,
+      appearances:12,
+      minutes:950,
+      lastMatchRating:7.1,
+    };
+    const [afterCup] = buildPersonalStatePatches([afterCupInput], 9, '2025/26');
+
+    expect(afterCup).toMatchObject({
+      personalStateAppearances:12,
+      personalStateMinutes:950,
+      personalStateSettledKey:'2025/26:9',
+      developmentAppearances:12,
+      developmentMinutes:950,
+      developmentSettledKey:'2025/26:9',
+    });
+    expect(afterCup.sharpness).toBeGreaterThan(sharpnessAfterLeague);
+    expect(afterCup.developmentProgress).toBeGreaterThanOrEqual(progressAfterLeague);
+    expect(buildPersonalStatePatches([afterCup], 9, '2025/26')).toEqual([]);
+  });
+
   it('does not confuse the same gameweek number in a later season', () => {
     const firstSeason = {
       ...player('rollover'),
