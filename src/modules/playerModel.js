@@ -47,9 +47,8 @@ function nonNegativeNumber(value, fallback = 0) {
   return Number.isFinite(number) ? Math.max(0, number) : fallback;
 }
 
-function settledGameweek(value) {
-  const number = Number(value);
-  return Number.isInteger(number) && number >= 0 ? number : null;
+function settledWeekKey(value) {
+  return typeof value === 'string' && value ? value : null;
 }
 
 function round1(value) {
@@ -165,7 +164,7 @@ export function normalizePlayerModel(player) {
     rehabilitation:player.rehabilitation ?? null,
     personalStateAppearances:nonNegativeNumber(player.personalStateAppearances, nonNegativeNumber(player.appearances)),
     personalStateMinutes:nonNegativeNumber(player.personalStateMinutes, nonNegativeNumber(player.minutes)),
-    personalStateSettledGameweek:settledGameweek(player.personalStateSettledGameweek),
+    personalStateSettledKey:settledWeekKey(player.personalStateSettledKey),
   };
 }
 
@@ -183,7 +182,7 @@ export function playerModelNeedsNormalization(player) {
     || player.rehabilitation !== normalized.rehabilitation
     || player.personalStateAppearances !== normalized.personalStateAppearances
     || player.personalStateMinutes !== normalized.personalStateMinutes
-    || player.personalStateSettledGameweek !== normalized.personalStateSettledGameweek;
+    || player.personalStateSettledKey !== normalized.personalStateSettledKey;
 }
 
 /**
@@ -260,17 +259,24 @@ export function effectiveAttribute(player, attribute) {
   return round1(clamp(raw + nonPositionModifier, 1, 99));
 }
 
+export function personalStateWeekKey(season, gameweek) {
+  const gw = Number(gameweek);
+  if (!Number.isInteger(gw) || gw < 0) return null;
+  return `${String(season ?? 'unknown')}:${gw}`;
+}
+
 /**
  * Settle morale/sharpness once at a completed world-gameweek boundary. The
  * cumulative appearance/minute snapshots provide canonical participation
  * evidence across league and cup projections without storing another result
- * ledger. Rows already settled for this gameweek are returned by identity.
+ * ledger. Rows already settled for this season-scoped week key are returned by
+ * identity, so a gameweek number repeating next season cannot suppress work.
  */
-export function settlePlayerPersonalState(player, gameweek) {
+export function settlePlayerPersonalState(player, gameweek, season = null) {
   if (!player) return player;
-  const gw = Number(gameweek);
-  if (!Number.isInteger(gw) || gw < 0) return player;
-  if (player.personalStateSettledGameweek === gw) return player;
+  const weekKey = personalStateWeekKey(season, gameweek);
+  if (!weekKey) return player;
+  if (player.personalStateSettledKey === weekKey) return player;
 
   const currentAppearances = nonNegativeNumber(player.appearances);
   const currentMinutes = nonNegativeNumber(player.minutes);
@@ -319,15 +325,15 @@ export function settlePlayerPersonalState(player, gameweek) {
     sharpness:nextSharpness,
     personalStateAppearances:currentAppearances,
     personalStateMinutes:currentMinutes,
-    personalStateSettledGameweek:gw,
+    personalStateSettledKey:weekKey,
   };
 }
 
 /** Build the bounded write-set for one settled world gameweek. */
-export function buildPersonalStatePatches(players, gameweek) {
+export function buildPersonalStatePatches(players, gameweek, season = null) {
   const patches = [];
   for (const player of players ?? []) {
-    const settled = settlePlayerPersonalState(player, gameweek);
+    const settled = settlePlayerPersonalState(player, gameweek, season);
     if (settled !== player) patches.push(settled);
   }
   return patches;
