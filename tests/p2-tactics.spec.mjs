@@ -91,3 +91,33 @@ test('P2 mobile tactics, opposition insight and watched result form one authorit
 
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });
+
+test('P2 tactics and Team News stay readable at 1280x800', async ({ page }) => {
+  await page.setViewportSize({ width:1280, height:800 });
+  await startArsenalCareer(page);
+
+  await go(page, 'squad');
+  await page.getByRole('button', { name:/Team plan/i }).click();
+  const instructionSheet = page.locator('.instructions-sheet');
+  await expect(instructionSheet).toBeVisible();
+  await expect(instructionSheet.getByRole('group', { name:'Build-up' })).toBeVisible();
+  await expect(instructionSheet.getByRole('group', { name:'Set pieces' })).toBeVisible();
+  const squadGeometry = await noHorizontalOverflow(page, '#screen-squad');
+  expect(squadGeometry.doc, 'P2 wide Squad causes document overflow').toBeLessThanOrEqual(squadGeometry.width + 1);
+  expect(squadGeometry.surface, 'P2 wide Squad causes horizontal overflow').toBeLessThanOrEqual(squadGeometry.width + 1);
+  await page.screenshot({ path:'test-results/p2-squad-tactics-1280x800.png' });
+  await instructionSheet.getByRole('button', { name:'Close' }).click();
+
+  await go(page, 'match');
+  const insight = page.locator('[data-testid="opposition-insight"]');
+  await expect(insight).toBeVisible({ timeout:15000 });
+  await expect(insight).toContainText('Likely Approach');
+  await expect(insight).toContainText('Threat');
+  await expect(insight).toContainText('Opportunity');
+  const matchGeometry = await noHorizontalOverflow(page, '#screen-match');
+  expect(matchGeometry.doc, 'P2 wide Team News causes document overflow').toBeLessThanOrEqual(matchGeometry.width + 1);
+  expect(matchGeometry.surface, 'P2 wide Team News causes horizontal overflow').toBeLessThanOrEqual(matchGeometry.width + 1);
+  await page.screenshot({ path:'test-results/p2-team-news-1280x800.png' });
+
+  expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
+});
