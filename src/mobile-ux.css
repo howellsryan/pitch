@@ -1,43 +1,30 @@
 /*
  * Cross-screen mobile ergonomics found by the browser audit.
  *
- * The floating Broadcast navigation owns the bottom-right interaction zone on
- * phones. Screens that finish with actionable content must either lift that
- * content above the nav or shorten their working viewport so controls never
- * sit underneath it. Keep this file narrow: these are shell-level collisions,
- * not screen redesigns.
+ * Mobile navigation now lives in a compact shared top rail instead of a
+ * floating bottom-right pill. The rail gets its own shell space, so screens
+ * should use the full remaining viewport rather than carrying per-screen
+ * clearance hacks for navigation. Keep this file narrow: these are shell-level
+ * collisions, not screen redesigns.
  */
 @media (max-width: 768px) {
-  /* The nav trigger itself is a primary mobile control, so it must meet the
-     same 44px touch target as the destination pills. */
-  .broadcast-nav .menu {
-    width: 44px !important;
-    height: 44px !important;
+  /* Reserve one small navigation row above every normal game screen. The live
+     Broadcast state hides navigation entirely and gets the full viewport back. */
+  .main {
+    margin-top: calc(48px + env(safe-area-inset-top, 0px));
+    height: calc(100dvh - 48px - env(safe-area-inset-top, 0px));
   }
 
-  /* Home's waiting sheet is part of a document-flow screen rather than a
-     fixed footer. Extra padding merely made the document taller, so reserve
-     the nav zone by lifting the sheet itself. It is already styled as an
-     overlapping bottom sheet, so this preserves the intended metaphor. */
-  #screen-home .waiting-sheet {
-    position: relative !important;
-    bottom: 76px !important;
-    margin-bottom: -76px !important;
+  .match-navigation-locked .main {
+    margin-top: 0;
+    height: 100dvh;
   }
 
-  /* Team News now deliberately uses the same bottom-right navigation as every
-     other pre-match screen. Keep the match actions above that shared control;
-     navigation is hidden as soon as kickoff begins. */
-  #screen-match .tn-actions {
-    margin-bottom: 76px !important;
-  }
-
-  /* Chalk is mounted inside an overflow-y screen, so flex:1 alone does not
-     give its root a finite height. Give it a real mobile working viewport and
-     leave the bottom 76px to the floating nav. */
+  /* Chalk is mounted inside an overflow-y screen, so give its root the full
+     shell working height. The old bottom-navigation reservation is gone. */
   #screen-squad .tactics-screen {
-    height: calc(100dvh - 76px) !important;
-    max-height: calc(100dvh - 76px) !important;
+    height: 100% !important;
+    max-height: 100% !important;
     overflow: hidden !important;
   }
 
@@ -75,13 +62,11 @@
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* Academy already has its own vertical scroller. Its destructive Release
-     action needs more clearance than passive content because the floating nav
-     pill begins above the menu circle. Reserve 96px here so no youth action
-     can be partially covered, while keeping the cards scrollable. */
+  /* Academy owns its own internal scroller and can now use the complete shell
+     working height because navigation no longer covers its lower actions. */
   #screen-academy .academy-screen {
-    height: calc(100dvh - 96px) !important;
-    max-height: calc(100dvh - 96px) !important;
+    height: 100% !important;
+    max-height: 100% !important;
     overflow: hidden !important;
   }
 
