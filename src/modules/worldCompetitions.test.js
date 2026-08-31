@@ -34,6 +34,15 @@ function playersByTeam(teams) {
   return new Map(teams.map(item => [item.id, squad(item.id, item.reputation ?? 70)]));
 }
 
+function europeanTeams(count = 110) {
+  const leagues = ['Premier League', 'La Liga', 'Bundesliga', 'Serie A', 'Ligue 1', 'Eredivisie'];
+  return Array.from({ length:count }, (_, index) => team(
+    `euro_${index}`,
+    leagues[index % leagues.length],
+    99 - index / 10,
+  ));
+}
+
 describe('P1 living-world competitions', () => {
   it('seeds supported domestic and European competitions without duplicating the managed club', () => {
     const teams = [
@@ -55,6 +64,17 @@ describe('P1 living-world competitions', () => {
     expect(world.competitions.uel).toBeTruthy();
     expect(world.competitions.uecl).toBeTruthy();
     expect(Object.values(world.competitions).some(comp => comp.progressByTeam?.user)).toBe(false);
+  });
+
+  it('aligns a migrated post-league-phase career to the next UEFA knockout round', () => {
+    const world = buildWorldCompetitionState(europeanTeams(), '2025/26', null, 25);
+    const ucl = world.competitions.ucl;
+
+    expect(ucl.phase).toBe('knockout');
+    expect(ucl.roundIndex).toBe(2);
+    expect(ucl.activeTeamIds).toHaveLength(16);
+    expect(ucl.activeTeamIds.every(teamId => ucl.progressByTeam[teamId]?.status === 'active')).toBe(true);
+    expect(ucl.table.every((row, index) => row.position === index + 1)).toBe(true);
   });
 
   it('advances scheduled AI cup ties through the authoritative fast match engine', async () => {
