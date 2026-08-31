@@ -84,6 +84,41 @@ function slotRating(player, slot) {
   return Number.isFinite(level) ? level : -Infinity;
 }
 
+function createSlotRatingLookup() {
+  const cache = new WeakMap();
+  return (player, slot) => {
+    let ratings = cache.get(player);
+    if (!ratings) {
+      ratings = new Map();
+      cache.set(player, ratings);
+    }
+    if (!ratings.has(slot)) ratings.set(slot, slotRating(player, slot));
+    return ratings.get(slot);
+  };
+}
+
+function createPrimaryRatingLookup() {
+  const cache = new WeakMap();
+  return player => {
+    if (!cache.has(player)) cache.set(player, primaryRating(player) ?? 0);
+    return cache.get(player);
+  };
+}
+
+function bestPlayerForSlot(players, slot, isAvailable, ratingFor) {
+  let best = null;
+  let bestRating = -Infinity;
+  for (const player of players) {
+    if (!isAvailable(player) || !slotEligible(player, slot)) continue;
+    const rating = ratingFor(player, slot);
+    if (best === null || rating > bestRating || (rating === bestRating && String(player.id).localeCompare(String(best.id)) < 0)) {
+      best = player;
+      bestRating = rating;
+    }
+  }
+  return best;
+}
+
 function withMatchPosition(player, position) {
   return { ...player, matchPosition:position ?? player.position };
 }
@@ -91,11 +126,10 @@ function withMatchPosition(player, position) {
 function assignRequestedLineup(players, formation) {
   const remaining = [...players];
   const assigned = [];
+  const ratingFor = createSlotRatingLookup();
   for (const slot of formationSlots(formation)) {
-    const eligible = remaining.filter(player => slotEligible(player, slot));
-    if (!eligible.length) continue;
-    eligible.sort((a,b) => slotRating(b, slot) - slotRating(a, slot) || String(a.id).localeCompare(String(b.id)));
-    const player = eligible[0];
+    const player = bestPlayerForSlot(remaining, slot, () => true, ratingFor);
+    if (!player) continue;
     assigned.push(withMatchPosition(player, slot));
     remaining.splice(remaining.findIndex(item => item.id === player.id), 1);
   }
@@ -122,19 +156,18 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
   }
 
   const chosen = [];
+  const ratingFor = createSlotRatingLookup();
   for (const slot of formationSlots(formation)) {
-    const candidates = avail
-      .filter(player => !used.has(player.id) && slotEligible(player, slot))
-      .sort((a,b) => slotRating(b, slot) - slotRating(a, slot) || String(a.id).localeCompare(String(b.id)));
-    const pick = candidates[0];
+    const pick = bestPlayerForSlot(avail, slot, player => !used.has(player.id), ratingFor);
     if (!pick) continue;
     chosen.push(withMatchPosition(pick, slot));
     used.add(pick.id);
   }
 
   if (chosen.length < 11) {
+    const primaryFor = createPrimaryRatingLookup();
     const rem = avail.filter(p => !used.has(p.id))
-      .sort((a,b) => (primaryRating(b) ?? 0) - (primaryRating(a) ?? 0) || String(a.id).localeCompare(String(b.id)));
+      .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
     for (const player of rem) {
       if (chosen.length >= 11) break;
       chosen.push(withMatchPosition(player, player.position));
@@ -146,9 +179,10 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
 
 export function selectBench(players, eleven) {
   const usedIds = new Set(eleven.map(p => p.id));
+  const primaryFor = createPrimaryRatingLookup();
   return players
     .filter(p => !p.injured && !p.suspended && p.inSquad !== false && !usedIds.has(p.id))
-    .sort((a,b) => (primaryRating(b) ?? 0) - (primaryRating(a) ?? 0) || String(a.id).localeCompare(String(b.id)));
+    .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
 }
 
 function matchAttribute(player, attribute) {
