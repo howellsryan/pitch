@@ -151,22 +151,30 @@ function declineAttribute(player, seed) {
 }
 
 /**
- * Pure once-per-world-week development. The key makes the projection replay
- * safe; cumulative P1 participation snapshots avoid coupling to event order.
+ * Pure world-week development. League projection may settle the first slice of
+ * a week before a cup/European projection adds more minutes. A matching settled
+ * key therefore blocks repeated decline, not legitimate additional exposure.
+ * Participation snapshots make same-week reconciliation incremental and replay
+ * safe, while developmentBoostedKey keeps the historical one-attribute-boost
+ * ceiling per world week.
  */
 export function settlePlayerDevelopment(player, gameweek, season = null) {
   if (!player) return player;
   const key = `${String(season ?? 'unknown')}:${Number(gameweek)}`;
-  if (!Number.isInteger(Number(gameweek)) || Number(gameweek) < 0 || player.developmentSettledKey === key) return player;
+  if (!Number.isInteger(Number(gameweek)) || Number(gameweek) < 0) return player;
 
+  const alreadySettled = player.developmentSettledKey === key;
   const profileState = assignGrowthProfile(player);
   const profile = GROWTH_PROFILE_DEFS[profileState.id];
   const exposure = weeklyExposure(player);
+  if (alreadySettled && !exposure.snapshotsChanged) return player;
+
   const currentLevel = durableLevel(player);
   const potential = Math.max(currentLevel, Number(player.potentialRating ?? currentLevel));
   const age = Number(player.age ?? 24);
   let next = { ...player, growthProfile:profileState };
   let progress = Math.max(0, Number(player.developmentProgress ?? player.growthPoints ?? 0));
+  let boostedThisWeek = player.developmentBoostedKey === key;
 
   if (exposure.appeared && currentLevel < potential && age <= profileState.peakAge + 1) {
     const rating = Number(player.lastMatchRating);
@@ -178,13 +186,16 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
     const variance = .9 + devDeterministicUnit(`${player.id}:${key}:growth`) * .2;
     progress += Math.max(0, (minutesScore + ratingBonus) * profile.growthRate * readinessMult * variance);
     const threshold = developmentThreshold(player, profile);
-    if (progress >= threshold) {
+    if (progress >= threshold && !boostedThisWeek) {
       next = boostAttribute(next, `${player.id}:${key}:boost`);
       progress -= threshold;
+      boostedThisWeek = true;
     }
   }
 
-  if (age > profileState.peakAge + 1) {
+  // A same-week reconciliation must not roll the deterministic age decline a
+  // second time. The first settlement already made that week's decline choice.
+  if (!alreadySettled && age > profileState.peakAge + 1) {
     const yearsPast = age - profileState.peakAge - 1;
     const declineChance = devClamp((.045 + yearsPast * .035) * profile.declineRate, 0, .55);
     if (devDeterministicUnit(`${player.id}:${key}:decline`) < declineChance) {
@@ -194,7 +205,8 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
 
   const changedFootball = ['attack','midfield','defence','goalkeeping'].some(attr => next[attr] !== player[attr]);
   const progressChanged = devRound2(progress) !== devRound2(Number(player.developmentProgress ?? player.growthPoints ?? 0));
-  if (!changedFootball && !progressChanged && !exposure.snapshotsChanged && player.growthProfile?.id === profileState.id) return player;
+  const boostKeyChanged = boostedThisWeek && player.developmentBoostedKey !== key;
+  if (!changedFootball && !progressChanged && !exposure.snapshotsChanged && !boostKeyChanged && player.growthProfile?.id === profileState.id) return player;
 
   return {
     ...next,
@@ -203,6 +215,7 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
     developmentAppearances:exposure.current.appearances,
     developmentMinutes:exposure.current.minutes,
     developmentSettledKey:key,
+    ...(boostedThisWeek ? { developmentBoostedKey:key } : {}),
   };
 }
 
