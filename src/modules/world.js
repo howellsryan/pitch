@@ -30,7 +30,9 @@ export function buildWorldLeagueSeason(teams, seasonYear) {
   for (const [league, leagueTeams] of groupTeamsByLeague(teams)) {
     fixtures.push(...generateLeagueFixtures(leagueTeams.map(team => team.id), seasonYear)
       .map(fixture => ({ ...fixture, league, seasonYear })));
-    standings.push(...leagueTeams.map(team => ({ ...blankStandingRow(team), league })));
+    const initialTable = sortTable(leagueTeams.map(team => ({ ...blankStandingRow(team), league })));
+    initialTable.forEach((row, index) => { row.position = index + 1; });
+    standings.push(...initialTable);
   }
   return { fixtures, standings };
 }
