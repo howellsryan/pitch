@@ -29,6 +29,7 @@ import { assignPotentials } from './potential.js';
 import { generateCohort } from './youthAcademy.js';
 import { generateBoardObjective } from './season.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
+import { buildWorldCompetitionState } from './worldCompetitions.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P1 world. */
 
@@ -106,8 +107,11 @@ export async function ensureLivingWorld(save) {
   if (playerPatches.length) await putPlayersBulk(playerPatches);
 
   const worldTotalGameweeks = calculateWorldTotalGameweeks(teams);
-  if (save.worldTotalGameweeks !== worldTotalGameweeks) {
-    const migrated = { ...save, worldTotalGameweeks };
+  const worldCompetitions = save.worldCompetitions?.competitions
+    ? save.worldCompetitions
+    : buildWorldCompetitionState(teams, save.season, save.userTeamId, save.currentGameweek ?? 1);
+  if (save.worldTotalGameweeks !== worldTotalGameweeks || save.worldCompetitions !== worldCompetitions) {
+    const migrated = { ...save, worldTotalGameweeks, worldCompetitions };
     await putSave(migrated);
     return migrated;
   }
@@ -147,7 +151,8 @@ export async function startNewGame(userTeamId, managerName) {
   const leagueTeams = allTeamData.filter(t => (t.league ?? 'Premier League') === userLeague);
 
   const seasonYear = 2025;
-  const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, `${seasonYear}/${String(seasonYear + 1).slice(2)}`, userLeague);
+  const season = `${seasonYear}/${String(seasonYear + 1).slice(2)}`;
+  const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague);
 
   const teams = allTeamData.map(({ players: _, ...rest }) => ({
     ...rest,
@@ -160,11 +165,12 @@ export async function startNewGame(userTeamId, managerName) {
     userLeague,
     managerName:     managerName || 'The Manager',
     currentDate:     new Date(seasonYear, 7, 9).toISOString(),
-    season:          `${seasonYear}/${String(seasonYear + 1).slice(2)}`,
+    season,
     currentGameweek: 1,
     totalGameweeks:  (leagueTeams.length - 1) * 2,
     worldTotalGameweeks: calculateWorldTotalGameweeks(teams),
     cups:            buildInitialCupState(assignCups(userTeamData), userTeamId, userLeague),
+    worldCompetitions: buildWorldCompetitionState(teams, season, userTeamId, 1),
     formation:       '4-3-3',
     mentality:       'balanced',
     lineup:          null,
