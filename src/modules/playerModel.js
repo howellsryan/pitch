@@ -51,6 +51,25 @@ const ATTACK_SET = new Set(ATTACK_POSITIONS);
 const MIDFIELD_SET = new Set(MIDFIELD_POSITIONS);
 const DEFENCE_SET = new Set(DEFENCE_POSITIONS);
 const SQUAD_ROLE_IDS = new Set(Object.keys(SQUAD_ROLE_DEFS));
+const POSITION_GROUP_BY_POSITION = Object.freeze({
+  ST:'ATT', CF:'ATT', RW:'ATT', LW:'ATT', CAM:'ATT',
+  CM:'MID', CDM:'MID', RM:'MID', LM:'MID',
+  CB:'DEF', RB:'DEF', LB:'DEF', GK:'GK',
+});
+const BASELINE_ATTRIBUTE_BY_POSITION = Object.freeze({
+  ST:'attack', CF:'attack', RW:'attack', LW:'attack', CAM:'attack',
+  CM:'midfield', CDM:'midfield', RM:'midfield', LM:'midfield',
+  CB:'defence', RB:'defence', LB:'defence', GK:'goalkeeping',
+});
+
+// Effective level is queried extremely frequently by the living-world market
+// and lineup consumers. Keep a per-object/per-position memo of the canonical
+// selector, guarded by every raw input that can affect the result. The cache is
+// therefore an execution optimisation only: in-place form/fitness/morale,
+// rehabilitation, traits, baseline or suitability changes invalidate it before
+// a value can be reused, and WeakMap ownership prevents persistence/state leaks.
+const EFFECTIVE_LEVEL_CACHE = new WeakMap();
+const EMPTY_TRAITS = Object.freeze([]);
 
 function playerModelClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -119,19 +138,11 @@ function sameJson(left, right) {
  * before the midfield set. Unknown legacy positions retain the MID fallback.
  */
 export function playerPositionGroup(position) {
-  if (ATTACK_SET.has(position)) return 'ATT';
-  if (MIDFIELD_SET.has(position)) return 'MID';
-  if (DEFENCE_SET.has(position)) return 'DEF';
-  if (position === 'GK') return 'GK';
-  return 'MID';
+  return POSITION_GROUP_BY_POSITION[position] ?? 'MID';
 }
 
 export function baselineAttribute(position) {
-  const group = playerPositionGroup(position);
-  if (group === 'ATT') return 'attack';
-  if (group === 'MID') return 'midfield';
-  if (group === 'DEF') return 'defence';
-  return 'goalkeeping';
+  return BASELINE_ATTRIBUTE_BY_POSITION[position] ?? 'midfield';
 }
 
 /** Durable football level for a position, with no form/fitness/morale effects. */
@@ -342,11 +353,61 @@ export function effectiveLevelBreakdown(player, { position = player?.position } 
   };
 }
 
-/** Numeric simulation selector: same bounds/formula as the explainable view, no object allocation. */
+function effectiveCacheMatches(entry, player, position, baseline) {
+  if (!entry || entry.primaryPosition !== player.position || !Object.is(entry.baseline, baseline)) return false;
+  if (!Object.is(entry.rawSuitability, player.positionSuitability?.[position])) return false;
+  if (!Object.is(entry.form, player.form)
+    || !Object.is(entry.morale, player.individualMorale)
+    || !Object.is(entry.sharpness, player.sharpness)
+    || !Object.is(entry.fitness, player.fitness)
+    || entry.injured !== Boolean(player.injured)) return false;
+  const rehabilitation = player.rehabilitation;
+  const hasRehabilitation = Boolean(rehabilitation && typeof rehabilitation === 'object' && !Array.isArray(rehabilitation));
+  if (entry.hasRehabilitation !== hasRehabilitation) return false;
+  if (hasRehabilitation && (
+    !Object.is(entry.rehabMatchReadiness, rehabilitation.matchReadiness)
+    || !Object.is(entry.rehabReadiness, rehabilitation.readiness)
+  )) return false;
+  const traits = Array.isArray(player.traits) ? player.traits : EMPTY_TRAITS;
+  return sameArray(entry.traits, traits);
+}
+
+function cacheEffectiveLevel(player, position, baseline, value) {
+  let byPosition = EFFECTIVE_LEVEL_CACHE.get(player);
+  if (!byPosition) {
+    byPosition = new Map();
+    EFFECTIVE_LEVEL_CACHE.set(player, byPosition);
+  }
+  const rehabilitation = player.rehabilitation;
+  const hasRehabilitation = Boolean(rehabilitation && typeof rehabilitation === 'object' && !Array.isArray(rehabilitation));
+  const traits = Array.isArray(player.traits) ? player.traits : EMPTY_TRAITS;
+  byPosition.set(position, {
+    primaryPosition:player.position,
+    baseline,
+    rawSuitability:player.positionSuitability?.[position],
+    form:player.form,
+    morale:player.individualMorale,
+    sharpness:player.sharpness,
+    fitness:player.fitness,
+    injured:Boolean(player.injured),
+    hasRehabilitation,
+    rehabMatchReadiness:hasRehabilitation ? rehabilitation.matchReadiness : undefined,
+    rehabReadiness:hasRehabilitation ? rehabilitation.readiness : undefined,
+    traits:[...traits],
+    value,
+  });
+  return value;
+}
+
+/** Numeric simulation selector: same bounds/formula as the explainable view, memoised by its raw inputs. */
 export function currentEffectiveLevel(player, { position = player?.position } = {}) {
   if (!player) return undefined;
-  const baseline = Number(baselineLevel(player, position));
+  const attribute = baselineAttribute(position);
+  const baseline = Number(player[attribute]);
   if (!Number.isFinite(baseline)) return undefined;
+  const cached = EFFECTIVE_LEVEL_CACHE.get(player)?.get(position);
+  if (effectiveCacheMatches(cached, player, position, baseline)) return cached.value;
+
   const suitability = positionSuitabilityFor(player, position);
   const rawModifier = round2((suitability - 1) * EFFECTIVE_LEVEL_LIMITS.positionFitPenalty)
     + centeredContribution(player.form, EFFECTIVE_LEVEL_LIMITS.formSwing)
@@ -354,13 +415,14 @@ export function currentEffectiveLevel(player, { position = player?.position } = 
     + centeredContribution(player.sharpness, EFFECTIVE_LEVEL_LIMITS.sharpnessSwing, DEFAULT_SHARPNESS)
     + penaltyFromReadiness(player.fitness, EFFECTIVE_LEVEL_LIMITS.fitnessPenalty)
     + penaltyFromReadiness(rehabilitationReadiness(player), EFFECTIVE_LEVEL_LIMITS.rehabilitationPenalty)
-    + round2(playerModelClamp(traitAttributeModifier(player, baselineAttribute(position)), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing));
+    + round2(playerModelClamp(traitAttributeModifier(player, attribute), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing));
   const totalModifier = round2(playerModelClamp(
     rawModifier,
     -EFFECTIVE_LEVEL_LIMITS.maxDrop,
     EFFECTIVE_LEVEL_LIMITS.maxUplift,
   ));
-  return round1(playerModelClamp(baseline + totalModifier, 1, 99));
+  const value = round1(playerModelClamp(baseline + totalModifier, 1, 99));
+  return cacheEffectiveLevel(player, position, baseline, value);
 }
 
 function effectiveStateModifier(player) {

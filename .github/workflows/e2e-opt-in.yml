@@ -16,8 +16,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Diagnostic only: keep function names readable for the CPU profiler.
-      # The normal Build and validate workflow still uses the production build.
-      - run: node tools/make-entry.mjs && npx vite build --minify=false
+      - run: npm run build:app
       - run: npx playwright install --with-deps chromium
+      # Opt-in only while P3 closes out. Normal Build and validate never runs E2E.
       - run: npx playwright test tests/p1-living-world-performance.spec.mjs --config=playwright.config.mjs
