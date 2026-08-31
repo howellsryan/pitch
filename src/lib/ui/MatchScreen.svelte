@@ -10,9 +10,10 @@
     advanceOneFixture, advanceOneFixtureWithResult, getNextMatchEvent,
   } from '../../modules/gameweek.js';
   import {
-    buildLiveMatchState, finaliseLiveMatch, pickAIFormation,
+    buildLiveMatchState, finaliseLiveMatch,
     positionGroup, primaryRating, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
+  import { buildManagedMatchInputs, buildOpponentTacticalInsight } from '../../modules/managerTactics.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
@@ -37,37 +38,25 @@
    * registerScreen()/navigateTo() mechanism every other screen uses — not a
    * TabBar destination of its own.
    *
-   * Unlike the other screens' screenTicks effect, `active` (not
-   * screenTicks.match) gates whether a fresh navigateTo('match') reloads —
-   * a match that's mid-flight must survive the user tapping away to another
-   * screen and back (the old modal blocked that; a route doesn't need to,
-   * per docs/plan/02-design-system.md's "live match is a route, so the
-   * [showModal-blocks-navigation] constraint goes away"). The component
-   * keeps ticking in the background regardless of which screen is visible.
+   * P2 keeps this route presentation-only: Quick Sim and Watch both construct
+   * the same authoritative manager/AI tactical inputs before matchEngine.js
+   * advances the result stream. Broadcast only visualises that stream.
    */
 
-  const WATCH_PHASES_PER_TICK = 1;   // 1 phase per tick = ~0.75 match-min
-  const WATCH_TICK_MS         = 1000; // ~120s at 1x; faster modes remain available
+  const WATCH_PHASES_PER_TICK = 1;
+  const WATCH_TICK_MS         = 1000;
   const TOTAL_PHASES          = 120;
 
-  let active  = $state(false); // a match is loaded or in progress — blocks re-entry
+  let active  = $state(false);
   let loading = $state(true);
-  let beat    = $state('teamNews'); // 'teamNews' | 'kickoff' | 'live' | 'fulltime' | 'after'
+  let beat    = $state('teamNews');
 
-  // $state.raw, not $state, for matchCtx/live/result: all three are always
-  // reassigned wholesale (never deep-mutated in place — see the `live =
-  // {...live, x}` pattern throughout), and live/result eventually flow into
-  // advanceOneFixtureWithResult -> putFixture (IndexedDB). Deep-proxying
-  // them under plain $state broke that: structured clone can't serialize a
-  // Svelte 5 reactive Proxy, so putFixture threw DataCloneError on
-  // liveState's nested arrays (allEvents, fitnessUpdates, etc.) the moment a
-  // watched (not quick-simmed) match tried to commit its result.
   let matchCtx = $state.raw(null);
-  let beforeTable = [];   // plain (non-reactive) — only ever read once, at commit
+  let beforeTable = [];
   let afterTable  = [];
-  let tableSlice  = $state([]); // drives the animate:flip table in the After beat
+  let tableSlice  = $state([]);
 
-  let live = $state.raw(null); // { liveState, allEvents, homeTeam, awayTeam, userTeam, oppTeam, userPlayers, oppPlayers, userIsHome, matchEvent, currentPhase, paused, speedMultiplier }
+  let live = $state.raw(null);
   let tickTimer = null;
   let kickoffTimer = null;
   let broadcastFrame = $state(null);
@@ -82,7 +71,7 @@
   let displayHomeGoals = $state(0);
   let displayAwayGoals = $state(0);
 
-  let result          = $state.raw(null); // finalised match result (same shape whether from finaliseLiveMatch or advanceOneFixture's singleResult)
+  let result          = $state.raw(null);
   let resultCommitted = $state(false);
   let committing       = $state(false);
 
@@ -96,7 +85,6 @@
     try { window.navigator?.vibrate?.(pattern); } catch { /* not supported */ }
   }
 
-  // ── Team News data (ported from ui/prematch.js's showPreMatchModal) ────
   async function getTeamRecentForm(teamId, n = 5) {
     const all = await getAllFixtures();
     return all
@@ -144,7 +132,7 @@
       compLabel  = save.userLeague ?? 'League';
       isLeague   = true;
     } else if (event.type === 'ucl_md') {
-      oppTeam    = teamByName(event.oppName) ?? { name: event.oppName, reputation: event.oppStrength ?? 72 };
+      oppTeam    = teamsById.get(event.opponentId) ?? teamByName(event.oppName) ?? { id:event.opponentId, name: event.oppName, reputation: event.oppStrength ?? 72 };
       userIsHome = event.userIsHome ?? true;
       matchTitle = `Champions League · Matchday ${event.matchday}`;
       compLabel  = 'Champions League';
@@ -154,7 +142,7 @@
       const cupState  = save.cups?.[event.cupId];
       const lastResult = cupState?.results?.slice(-1)[0];
       const oppName  = event.opponentName ?? lastResult?.opponentName ?? 'TBD';
-      oppTeam    = teamsById.get(event.opponentId) ?? teamByName(oppName) ?? { name: oppName, reputation: event.opponentRep ?? 70 };
+      oppTeam    = teamsById.get(event.opponentId) ?? teamByName(oppName) ?? { id:event.opponentId, name: oppName, reputation: event.opponentRep ?? 70 };
       userIsHome = event.userIsHome ?? true;
       matchTitle = `${meta.name ?? event.cupId} · ${event.roundName ?? ''}`;
       compLabel  = meta.name ?? event.cupId;
@@ -163,14 +151,31 @@
       return null;
     }
 
+    // P1 already tracks the real world; use it for cup/European opponents when
+    // the drawn club exists in the persisted world rather than showing a
+    // generic scouting card.
+    if (!isLeague && oppTeam?.id && teamsById.has(oppTeam.id)) {
+      [oppForm, oppInForm] = await Promise.all([
+        getTeamRecentForm(oppTeam.id, 5).catch(() => []),
+        getInFormPlayer(oppTeam.id).catch(() => null),
+      ]);
+    }
+
     const userPlayers  = await getPlayersByTeam(save.userTeamId);
     const userFormation = save.formation ?? '4-3-3';
     const userLineup    = save.lineup ?? null;
+    const { profile:oppTacticalProfile, insight:oppInsight } = buildOpponentTacticalInsight({
+      opponentTeam:oppTeam,
+      userTeam,
+      userIsHome,
+      form:oppForm,
+      keyPlayer:oppInForm,
+    });
 
     const { injuredInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers);
 
     return {
-      event, save, userTeam, oppTeam, oppForm, oppInForm,
+      event, save, userTeam, oppTeam, oppForm, oppInForm, oppTacticalProfile, oppInsight,
       matchTitle, compLabel, compColor, isLeague, userIsHome,
       userPlayers, userFormation, userLineup,
       injuredInLineup, lineupIncomplete,
@@ -202,8 +207,6 @@
     return { text: 'Underdog', cls: 'diff-easy' };
   }
 
-  // ── Team News: read-only XI-on-pitch preview (shares slot layout with
-  // SquadScreen.svelte via src/game/formationLayout.js) ─────────────────
   function assignToSlots(xi, slots) {
     const used = [];
     const out  = new Array(slots.length).fill(null);
@@ -233,17 +236,11 @@
   const displayHomeTeam = $derived(live?.homeTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.userTeam : matchCtx.oppTeam) : null));
   const displayAwayTeam = $derived(live?.awayTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.oppTeam : matchCtx.userTeam) : null));
 
-  // ── Load / entry point ──────────────────────────────────────────────
   async function loadMatch() {
     active = true;
     loading = true;
     await openDB();
     const save = await getSave();
-    // No save yet — this $effect runs on MatchScreen's initial mount too,
-    // same as every other screen's, well before a career exists (or Play is
-    // ever pressed). Bail quietly like HomeScreen.svelte's load() does;
-    // screenTicks.match bumping for real (via TabBar/Home's Play button)
-    // re-triggers this once a save is there.
     if (!save || save._deleted) { active = false; loading = true; return; }
     const event = await getNextMatchEvent();
 
@@ -257,8 +254,6 @@
 
     const ctx = await buildMatchCtx(event, save);
     if (!ctx) {
-      // Fixture vanished from under us (shouldn't happen) — same fallback
-      // ui/prematch.js used: advance silently rather than get stuck.
       await advanceOneFixture(null);
       await renderHome();
       active = false;
@@ -270,8 +265,6 @@
     beforeTable = ctx.isLeague ? await getTableSliceAroundTeam(save.userTeamId, 1).catch(() => []) : [];
     loading = false;
     beat = 'teamNews';
-    // Auto-save checkpoint 1/2 (ROADMAP.md item 7) — right before the
-    // pre-match beat commits. Best-effort and silent when signed out.
     cloudSaveCheckpoint();
   }
 
@@ -295,10 +288,6 @@
     else if (beat === 'teamNews') void Promise.resolve().then(refreshTeamNewsLineup);
   });
 
-  // ── Resolve real home/away teams + players for kickoff ──────────────
-  // Ported from ui/prematch.js's _launchWatchMatch — same logic, minus the
-  // modal launch. Stub opponents (European draws with no real squad in the
-  // DB) come from src/game/opponents.js.
   async function resolveMatchTeams(ctx) {
     const allTeams2  = await getAllTeams();
     const teamsById2 = new Map(allTeams2.map(t => [t.id, t]));
@@ -337,7 +326,6 @@
     return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHomeC, patchedEvent };
   }
 
-  // ── Team News actions ────────────────────────────────────────────────
   async function startWatch() {
     if (matchCtx.lineupBlocked) { toast(blockMsg, 'error', 5000); return; }
     loading = true;
@@ -345,28 +333,31 @@
     loading = false;
     if (!resolved) { await simInstant(); return; }
 
-    const formation   = matchCtx.userFormation;
-    const aiFormation = pickAIFormation();
-    const userLineup  = matchCtx.save.lineup ?? null;
-    const homeFormation = resolved.userIsHome ? formation : aiFormation;
-    const awayFormation = resolved.userIsHome ? aiFormation : formation;
-    const homeLineup  = resolved.userIsHome ? userLineup : null;
-    const awayLineup  = resolved.userIsHome ? null : userLineup;
-    const userMentality = matchCtx.save.mentality ?? 'balanced';
-    const homeMentality = resolved.userIsHome ? userMentality : 'balanced';
-    const awayMentality = resolved.userIsHome ? 'balanced' : userMentality;
+    // The watched route now uses the exact same save-backed manager context as
+    // Quick Sim: persisted instructions/roles on the user side and undefined
+    // AI overrides so matchEngine resolves the stable P2 opponent identity.
+    const inputs = buildManagedMatchInputs({
+      save:matchCtx.save,
+      homeTeam:resolved.homeTeam,
+      awayTeam:resolved.awayTeam,
+      homePlayers:resolved.homePlayers,
+      awayPlayers:resolved.awayPlayers,
+      userIsHome:resolved.userIsHome,
+      overrideFormation:matchCtx.userFormation,
+    });
 
     const liveState = buildLiveMatchState(
-      resolved.homeTeam, resolved.awayTeam, resolved.homePlayers, resolved.awayPlayers,
-      homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality
+      inputs.homeTeam, inputs.awayTeam, inputs.homePlayers, inputs.awayPlayers,
+      inputs.homeFormation, inputs.awayFormation, inputs.homeLineup, inputs.awayLineup,
+      inputs.homeMentality, inputs.awayMentality
     );
 
     live = {
       liveState, allEvents: [],
-      homeTeam: resolved.homeTeam, awayTeam: resolved.awayTeam,
+      homeTeam: inputs.homeTeam, awayTeam: inputs.awayTeam,
       userTeam: matchCtx.userTeam, oppTeam: matchCtx.oppTeam,
-      userPlayers: resolved.userIsHome ? resolved.homePlayers : resolved.awayPlayers,
-      oppPlayers:  resolved.userIsHome ? resolved.awayPlayers : resolved.homePlayers,
+      userPlayers: resolved.userIsHome ? inputs.homePlayers : inputs.awayPlayers,
+      oppPlayers:  resolved.userIsHome ? inputs.awayPlayers : inputs.homePlayers,
       userIsHome: resolved.userIsHome,
       matchEvent: resolved.patchedEvent,
       currentPhase: 0, paused: false, speedMultiplier: 1,
@@ -374,7 +365,7 @@
     setMatchNavigationLocked(true);
     displayHomeGoals = 0;
     displayAwayGoals = 0;
-    presentationPossession = resolved.userIsHome ? resolved.homeTeam.id : resolved.awayTeam.id;
+    presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
     broadcastSimulation = createBroadcastSimulation({
       homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id,
       possessionTeamId: presentationPossession,
@@ -417,8 +408,6 @@
       live = { userTeam: matchCtx.userTeam, matchEvent: matchCtx.event, userIsHome: result?.homeTeamId === matchCtx.save.userTeamId };
       applyCommitExtras(res);
       beat = 'fulltime';
-      // Auto-save checkpoint 2/2 — right after advanceOneFixture wrote the
-      // match result (quick-sim path).
       cloudSaveCheckpoint();
     } catch (err) {
       loading = false;
@@ -427,7 +416,6 @@
     }
   }
 
-  // ── Live tick engine (ported from ui/watchmatch.js) ──────────────────
   function scheduleTick(extraDelay = 0) {
     const delay = Math.round(WATCH_TICK_MS / (live.speedMultiplier || 1));
     tickTimer = window.setTimeout(runTick, delay + extraDelay);
@@ -532,7 +520,6 @@
     beat = 'fulltime';
   }
 
-  // ── Substitutions (src/game/substitutions.js) ────────────────────────
   const subsLeft = $derived.by(() => {
     if (!live?.liveState) return 0;
     return live.userIsHome ? live.liveState.hSubsLeft : live.liveState.aSubsLeft;
@@ -591,7 +578,6 @@
     applyTacticsSub(tacticsSubIn, player);
   }
 
-  // ── Formation change (src/game/formationChange.js) ───────────────────
   function openTacticsSheet() {
     tacticsSheetWasPaused = live.paused;
     if (!live.paused) togglePause();
@@ -623,7 +609,6 @@
     if (!tacticsSheetWasPaused) togglePause();
   }
 
-  // ── Commit + After beat ───────────────────────────────────────────────
   function applyCommitExtras(res) {
     for (const cr of res.cupResults ?? []) {
       if (cr.isUCLMatchday) {
@@ -661,8 +646,6 @@
         const res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
         applyCommitExtras(res);
         resultCommitted = true;
-        // Auto-save checkpoint 2/2 — right after advanceOneFixtureWithResult
-        // wrote the match result (watch-match path).
         cloudSaveCheckpoint();
       } catch (err) {
         committing = false;
@@ -692,7 +675,6 @@
     await navigateTo('home');
   }
 
-  // ── Display helpers ───────────────────────────────────────────────────
   function userVerdict(r) {
     if (!r || !matchCtx) return '';
     const isHome = r.homeTeamId === matchCtx.save.userTeamId;
@@ -756,9 +738,21 @@
             {#each m.oppForm as r, i (i)}<span class="tn-form-pill {r.result}">{r.result}</span>{/each}
           </div>
         {:else}
-          <div class="tn-empty-note">{m.event.type === 'league' ? 'No results yet' : 'European opposition'}</div>
+          <div class="tn-empty-note">{m.event.type === 'league' ? 'No results yet' : 'No recent world results'}</div>
         {/if}
       </div>
+
+      {#if m.oppInsight}
+        <div class="tn-section tn-opposition-plan" data-testid="opposition-insight">
+          <div class="tn-section-title"><Icon name="tactics" size={14} /><span>Likely Approach</span></div>
+          <div class="tn-insight-head">
+            <strong>{m.oppInsight.style}</strong>
+            <span>{m.oppInsight.shape} · {m.oppInsight.mentality}</span>
+          </div>
+          <div class="tn-insight-line"><b>Threat</b><span>{m.oppInsight.threat}</span></div>
+          <div class="tn-insight-line"><b>Opportunity</b><span>{m.oppInsight.weakness}</span></div>
+        </div>
+      {/if}
 
       {#if m.oppInForm}
         {@const fl = formLabel(m.oppInForm)}
@@ -864,7 +858,6 @@
         {/if}
       </div>
       <div class="momentum" aria-label={`Possession momentum: ${homeShare}% ${live.homeTeam.name}`}><span>{live.homeTeam.name.split(' ')[0]}</span><div><i style={`width:${homeShare}%`}></i></div><span>{live.awayTeam.name.split(' ')[0]}</span></div>
-
     </div>
 
     <div class="live-controls">
@@ -1037,7 +1030,6 @@
           </div>
         </div>
       </div>
-
     </section>
   {/if}
 </div>
@@ -1046,7 +1038,6 @@
   .match-screen { height: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; font-family: var(--font-body); color: var(--color-tx); background: var(--color-ground); }
   .match-loading { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--color-tx-2); }
 
-  /* ── Team News ─────────────────────────────────────────────── */
   .tn-wrap { flex: 1; overflow-y: auto; padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 14px; }
   .tn-comp-badge { font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px; text-align: center; }
   .tn-matchup { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1079,6 +1070,13 @@
   .tn-form-pill.L { background: color-mix(in oklch, var(--color-bad) 25%, transparent); color: var(--color-bad); }
   .tn-empty-note { font-size: 11px; color: var(--color-tx-3); }
 
+  .tn-opposition-plan { padding: 10px 12px; border: 1px solid var(--color-line); border-radius: 10px; background: var(--color-surface); }
+  .tn-insight-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .tn-insight-head strong { font:700 14px var(--font-display); }
+  .tn-insight-head span { color:var(--color-tx-3); font:9px var(--font-mono); text-transform:capitalize; text-align:right; }
+  .tn-insight-line { display:grid; grid-template-columns:66px minmax(0,1fr); gap:8px; margin-top:6px; color:var(--color-tx-2); font-size:10px; line-height:1.4; }
+  .tn-insight-line b { color:var(--color-club); font:700 9px var(--font-mono); text-transform:uppercase; letter-spacing:.6px; }
+
   .tn-inform-card { display: flex; align-items: center; gap: 10px; }
   .tn-inform-flag { min-width: 34px; padding: 4px 5px; border: 1px solid var(--color-line); border-radius: 5px; color: var(--color-tx-2); font: 700 9px var(--font-mono); text-align: center; }
   .tn-inform-name { font-weight: 600; font-size: 13px; }
@@ -1099,14 +1097,12 @@
   .tn-actions, .ft-actions, .after-actions { display: flex; gap: 10px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); flex-shrink: 0; }
   .tn-actions .btn-full, .live-controls .ctrl-btn, .after-section-title, .ft-scorers div { display: flex; align-items: center; justify-content: center; gap: 5px; }
 
-  /* ── Kickoff ───────────────────────────────────────────────── */
   .kickoff-beat { flex: 1; display: flex; align-items: center; justify-content: center; gap: 24px; cursor: pointer; animation: ko-in 0.6s ease; }
   .ko-crest { width: 56px; height: 56px; display: grid; place-items: center; }
   .ko-vs { font-family: var(--font-display); font-size: 22px; letter-spacing: 2px; color: var(--color-club); }
   @keyframes ko-in { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
   @media (prefers-reduced-motion: reduce) { .kickoff-beat { animation: none; } }
 
-  /* ── Live ──────────────────────────────────────────────────── */
   .live-wrap { flex: 1; min-height: 0; overflow: hidden; padding: 10px 10px 6px; display: flex; flex-direction: column; }
   .broadcast-label { margin-bottom: 7px; font: 10px var(--font-mono); letter-spacing: 1.4px; color: var(--color-tx-3); text-align: center; }
   .score-bug { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1179,7 +1175,6 @@
     .live-controls { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
   }
 
-  /* ── Full time ─────────────────────────────────────────────── */
   .ft-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
   .ft-verdict { font-family: var(--font-display); font-size: 16px; letter-spacing: 2px; }
   .ft-win { color: var(--color-live); }
@@ -1194,7 +1189,6 @@
   .ft-sep { margin: 0 10px; opacity: 0.4; }
   .ft-status { font-size: 10px; font-family: var(--font-mono); letter-spacing: 2px; color: var(--color-tx-3); }
 
-  /* ── After ─────────────────────────────────────────────────── */
   .after-wrap { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
   .after-stats-lbl { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-tx-3); font-family: var(--font-mono); }
   .after-stats { display: flex; flex-direction: column; gap: 8px; }
@@ -1224,7 +1218,6 @@
   .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
   .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }
 
-  /* ── Live tactics room: full-height so browser chrome never covers it ── */
   .match-tactics {
     position: fixed; inset: 0; z-index: 1000; height: 100dvh; min-height: 0;
     display: flex; flex-direction: column; overflow: hidden;
