@@ -113,6 +113,7 @@ async function auditActiveScreen(page, id) {
       docScrollWidth: document.documentElement.scrollWidth,
       unnamed,
       tiny,
+      navRect,
       navMenuRect,
       navOverlaps,
       clippedRight,
@@ -157,7 +158,23 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
     await go(page, id);
     const audit = await auditActiveScreen(page, id);
     audits.push(audit);
-    if (id === 'squad') squadLayout = await auditSquadLayout(page);
+    if (id === 'squad') {
+      squadLayout = await auditSquadLayout(page);
+      await page.locator('#screen-squad').screenshot({ path:'test-results/mobile-top-nav-squad-390x844.png' });
+
+      await page.getByRole('button', { name:'Open navigation' }).click();
+      const fan = page.locator('#nav-destinations');
+      await expect(fan).toBeVisible();
+      const fanGeometry = await fan.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return { top:rect.top, right:rect.right, bottom:rect.bottom, viewportWidth:window.innerWidth, viewportHeight:window.innerHeight };
+      });
+      expect(fanGeometry.top, 'squad: opened navigation should begin below the top rail').toBeGreaterThanOrEqual(48);
+      expect(fanGeometry.right, 'squad: opened navigation exceeds the right edge').toBeLessThanOrEqual(fanGeometry.viewportWidth + 1);
+      expect(fanGeometry.bottom, 'squad: opened navigation exceeds the viewport height').toBeLessThanOrEqual(fanGeometry.viewportHeight + 1);
+      await page.getByRole('button', { name:'Close navigation' }).click();
+      await expect(fan).toBeHidden();
+    }
     if (id === 'competitions') {
       await page.locator('#screen-competitions').screenshot({ path:'test-results/p1-competitions-390x844.png' });
     }
@@ -171,12 +188,17 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
     expect(audit.docScrollWidth, `${audit.screenId}: document horizontal overflow`).toBeLessThanOrEqual(audit.viewport.width + 1);
     expect(audit.unnamed, `${audit.screenId}: visible controls without an accessible name`).toEqual([]);
     expect(audit.clippedRight, `${audit.screenId}: content clipped off the right edge outside an intentional scroller`).toEqual([]);
-    expect(audit.navOverlaps, `${audit.screenId}: floating navigation overlaps another interactive control`).toEqual([]);
+    expect(audit.navOverlaps, `${audit.screenId}: top navigation overlaps another interactive control`).toEqual([]);
+    if (audit.navRect) {
+      expect(audit.navRect.top, `${audit.screenId}: mobile navigation is not anchored to the top`).toBeLessThanOrEqual(1);
+      expect(audit.navRect.height, `${audit.screenId}: mobile navigation rail is too tall`).toBeLessThanOrEqual(56);
+      expect(audit.navRect.bottom, `${audit.screenId}: mobile navigation consumes too much vertical space`).toBeLessThanOrEqual(56);
+    }
     if (audit.navMenuRect) {
       expect(audit.navMenuRect.width, `${audit.screenId}: nav trigger is narrower than 44px`).toBeGreaterThanOrEqual(44);
       expect(audit.navMenuRect.height, `${audit.screenId}: nav trigger is shorter than 44px`).toBeGreaterThanOrEqual(44);
-      expect(audit.navMenuRect.top, `${audit.screenId}: navigation must use the shared bottom-right position`).toBeGreaterThan(audit.viewport.height / 2);
-      expect(audit.navMenuRect.bottom, `${audit.screenId}: navigation is not anchored near the bottom edge`).toBeGreaterThan(audit.viewport.height - 80);
+      expect(audit.navMenuRect.top, `${audit.screenId}: nav trigger is not in the top rail`).toBeLessThan(56);
+      expect(audit.navMenuRect.right, `${audit.screenId}: nav trigger is not anchored top-right`).toBeGreaterThan(audit.viewport.width - 24);
     }
   }
 
@@ -184,6 +206,7 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
   expect(squadLayout?.pitchArea, 'squad: pitch area exists').not.toBeNull();
   expect(squadLayout?.pitch, 'squad: pitch exists').not.toBeNull();
   expect(squadLayout?.bench, 'squad: bench exists').not.toBeNull();
+  expect(squadLayout.screen.height, 'squad: reclaimed viewport is unexpectedly short').toBeGreaterThanOrEqual(790);
   expect(squadLayout.pitch.top, 'squad: pitch starts above its working area').toBeGreaterThanOrEqual(squadLayout.pitchArea.top - 1);
   expect(squadLayout.pitch.bottom, 'squad: pitch overflows into the bench').toBeLessThanOrEqual(squadLayout.pitchArea.bottom + 1);
   expect(squadLayout.pitch.width, 'squad: pitch is wider than its working area').toBeLessThanOrEqual(squadLayout.pitchArea.width + 1);
