@@ -8,7 +8,8 @@ import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
 import { applyWorldPlayerStats, toCanonicalLeagueRecord } from './world.js';
-import { applyNonLeaguePlayerResults, applyPendingWorldLeagueProjections } from './worldRuntime.js';
+import { advanceWorldCompetitions } from './worldCompetitions.js';
+import { applyNonLeaguePlayerResults, applyPendingWorldCompetitionProjections, applyPendingWorldLeagueProjections } from './worldRuntime.js';
 
 /** modules/gameweek.js — one user-event queue over a single P1 world clock. */
 
@@ -246,6 +247,35 @@ async function settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam) {
   return projected;
 }
 
+async function settleWorldCompetitionGameweek(gw, save, allTeams) {
+  let workingSave = save;
+  const recovered = await applyPendingWorldCompetitionProjections(workingSave);
+  if (recovered.results.length) {
+    workingSave = recovered.save ?? workingSave;
+    await applyDevelopment(recovered.results).catch(() => {});
+  }
+  if (!workingSave?.worldCompetitions?.competitions) return workingSave;
+
+  const freshPlayers = await getAllPlayers();
+  const advanced = await advanceWorldCompetitions(
+    workingSave.worldCompetitions,
+    gw,
+    allTeams,
+    groupByTeam(freshPlayers),
+  );
+  if (!advanced.state) return workingSave;
+
+  // Persist canonical cup records before projecting them. If the tab closes
+  // here, the next closeout recovers the still-pending records exactly once.
+  await putSave({ ...workingSave, worldCompetitions:advanced.state });
+  if (!advanced.records.length) return { ...workingSave, worldCompetitions:advanced.state };
+
+  const persisted = await getSave();
+  const applied = await applyPendingWorldCompetitionProjections(persisted);
+  if (applied.results.length) await applyDevelopment(applied.results).catch(() => {});
+  return applied.save ?? persisted;
+}
+
 async function runEndOfWorldGameweek(save) {
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   const newOffers = await generateAIOffers().catch(() => []) ?? [];
@@ -259,6 +289,15 @@ async function runEndOfWorldGameweek(save) {
 export async function advanceOneFixture(overrideFormation) {
   let save = await getSave();
   if (save.currentGameweek > getEffectiveTotalGW(save)) return { finished:true };
+
+  // Recover any persisted AI cup records before selecting this week's squads.
+  // That prevents a reload between record-write and projection from duplicating
+  // appearances/cards/injuries when the user resumes the same world week.
+  const recoveredCompetition = await applyPendingWorldCompetitionProjections(save);
+  if (recoveredCompetition.results.length) {
+    save = recoveredCompetition.save ?? save;
+    await applyDevelopment(recoveredCompetition.results).catch(() => {});
+  }
 
   const gw = save.currentGameweek;
   let [allTeams, allPlayers, gwFixtures] = await Promise.all([
@@ -281,7 +320,9 @@ export async function advanceOneFixture(overrideFormation) {
 
   if (!pending.length) {
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
-    const { recoveredPlayers, newOffers } = await runEndOfWorldGameweek(save);
+    const latestAfterLeague = await getSave();
+    const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
+    const { recoveredPlayers, newOffers } = await runEndOfWorldGameweek(competitionSave);
     const freshSave = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
@@ -375,9 +416,12 @@ export async function advanceOneFixture(overrideFormation) {
 
   if (gwDone) {
     // Weeks with a cup but no managed league match still advance every other
-    // domestic league on the same date before the clock moves forward.
+    // domestic league and background competition on the same date before the
+    // shared world clock moves forward.
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
-    const end = await runEndOfWorldGameweek(save);
+    const latestAfterLeague = await getSave();
+    const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
+    const end = await runEndOfWorldGameweek(competitionSave);
     recoveredPlayers = end.recoveredPlayers;
     newOffers = end.newOffers;
     newDate.setDate(newDate.getDate() + 7);
@@ -401,6 +445,12 @@ export async function advanceOneFixture(overrideFormation) {
 
 export async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
   let save = await getSave();
+  const recoveredCompetition = await applyPendingWorldCompetitionProjections(save);
+  if (recoveredCompetition.results.length) {
+    save = recoveredCompetition.save ?? save;
+    await applyDevelopment(recoveredCompetition.results).catch(() => {});
+  }
+
   const gw = save.currentGameweek;
   let [allTeams, allPlayers, gwFixtures] = await Promise.all([
     getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
@@ -507,7 +557,9 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
   const newDate = new Date(save.currentDate);
   if (gwDone) {
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
-    const end = await runEndOfWorldGameweek(save);
+    const latestAfterLeague = await getSave();
+    const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
+    const end = await runEndOfWorldGameweek(competitionSave);
     recoveredPlayers = end.recoveredPlayers;
     newOffers = end.newOffers;
     newDate.setDate(newDate.getDate() + 7);
