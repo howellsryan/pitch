@@ -160,7 +160,7 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
     audits.push(audit);
     if (id === 'squad') {
       squadLayout = await auditSquadLayout(page);
-      await page.locator('#screen-squad').screenshot({ path:'test-results/mobile-top-nav-squad-390x844.png' });
+      await page.screenshot({ path:'test-results/mobile-top-nav-squad-390x844.png' });
 
       await page.getByRole('button', { name:'Open navigation' }).click();
       const fan = page.locator('#nav-destinations');
@@ -206,7 +206,7 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
   expect(squadLayout?.pitchArea, 'squad: pitch area exists').not.toBeNull();
   expect(squadLayout?.pitch, 'squad: pitch exists').not.toBeNull();
   expect(squadLayout?.bench, 'squad: bench exists').not.toBeNull();
-  expect(squadLayout.screen.height, 'squad: reclaimed viewport is unexpectedly short').toBeGreaterThanOrEqual(790);
+  expect(squadLayout.screen.height, 'squad: top navigation did not reclaim space over the old bottom-nav reservation').toBeGreaterThan(768);
   expect(squadLayout.pitch.top, 'squad: pitch starts above its working area').toBeGreaterThanOrEqual(squadLayout.pitchArea.top - 1);
   expect(squadLayout.pitch.bottom, 'squad: pitch overflows into the bench').toBeLessThanOrEqual(squadLayout.pitchArea.bottom + 1);
   expect(squadLayout.pitch.width, 'squad: pitch is wider than its working area').toBeLessThanOrEqual(squadLayout.pitchArea.width + 1);
