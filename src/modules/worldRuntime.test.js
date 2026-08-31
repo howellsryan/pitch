@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { projectWorldBatch } from './worldRuntime.js';
+import { projectNonLeaguePlayers, projectWorldBatch } from './worldRuntime.js';
 
 function player(id, teamId, position = 'CM', extras = {}) {
   return {
@@ -128,6 +128,26 @@ describe('P1 world projection runtime', () => {
     expect(byId.get('played').fitness).toBe(80);
     expect(byId.get('rested').fitness).toBe(100);
     expect(byId.get('rested').form).toBe(62);
+  });
+
+  it('does not globally recover or decay players outside a cup batch', () => {
+    const cupPlayer = player('cup', 'a', 'CM', { fitness:68, form:55 });
+    const idleElsewhere = player('idle', 'other', 'CM', { fitness:61, form:67 });
+    const opponent = player('opp', 'b', 'CM', { fitness:80, form:50 });
+    const result = {
+      homeTeamId:'a', awayTeamId:'b', homeGoals:1, awayGoals:0,
+      events:[{ type:'goal', minute:30, teamId:'a', playerId:'cup' }],
+      fitnessUpdates:[
+        { id:'cup', teamId:'a', newFitness:60 },
+        { id:'opp', teamId:'b', newFitness:70 },
+      ],
+    };
+
+    const projected = projectNonLeaguePlayers([cupPlayer, idleElsewhere, opponent], [result]);
+    const byId = new Map(projected.map(p => [p.id, p]));
+
+    expect(byId.get('cup')).toMatchObject({ appearances:1, goals:1, fitness:80 });
+    expect(byId.get('idle')).toMatchObject({ appearances:0, fitness:61, form:67 });
   });
 
   it('ticks a prior suspension before applying a new card threshold', () => {
