@@ -30,8 +30,9 @@ import { generateCohort } from './youthAcademy.js';
 import { generateBoardObjective } from './season.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
+import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
 
-/** modules/save.js — New game creation, save state management. Supports the full P1 world. */
+/** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
 export function getAllTeamData() {
   const sources = [
@@ -121,11 +122,49 @@ export async function ensureLivingWorld(save) {
   return save;
 }
 
+/**
+ * Pure P2 save backfill. Tactical instructions, role assignments and Manager
+ * DNA are manager/career state, so they live on the existing save row rather
+ * than mutating universal player/team data or introducing another DB store.
+ */
+export function buildP2SaveBackfill(save) {
+  if (!save) return save;
+  return {
+    ...save,
+    tactics:createUserTacticalPlan(save.tactics?.instructions ?? save.tactics ?? {}),
+    playerRoles:save.playerRoles && typeof save.playerRoles === 'object' && !Array.isArray(save.playerRoles)
+      ? { ...save.playerRoles }
+      : {},
+    managerDNA:{ ...createManagerDNA(), ...(save.managerDNA ?? {}) },
+  };
+}
+
+/**
+ * Lazy P1 -> P2 migration. Existing formation, mentality and lineup are spread
+ * through untouched. The V2 save envelope and IndexedDB schema remain valid.
+ */
+export async function ensureP2Tactics(save) {
+  if (!save) return save;
+  const migrated = buildP2SaveBackfill(save);
+  const needsMigration = !save.tactics
+    || save.tactics.source !== 'user'
+    || !save.playerRoles
+    || !save.managerDNA;
+  if (needsMigration) {
+    await putSave(migrated);
+    return migrated;
+  }
+  return save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
   if (save && save._deleted) return null;
-  if (save) save = await ensureLivingWorld(save);
+  if (save) {
+    save = await ensureLivingWorld(save);
+    save = await ensureP2Tactics(save);
+  }
   return save ?? null;
 }
 
@@ -177,6 +216,9 @@ export async function startNewGame(userTeamId, managerName) {
     formation:       '4-3-3',
     mentality:       'balanced',
     lineup:          null,
+    tactics:         createUserTacticalPlan(),
+    playerRoles:     {},
+    managerDNA:      createManagerDNA(),
     inboundOffers:   [],
     collapsedDeals:  [],
     inbox:           [],
