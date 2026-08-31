@@ -184,7 +184,7 @@ describe('P3 once-per-world-week personal state', () => {
     expect(settled.sharpness).toBe(55);
     expect(settled.personalStateAppearances).toBe(11);
     expect(settled.personalStateMinutes).toBe(890);
-    expect(settled.personalStateSettledGameweek).toBe(17);
+    expect(settled.personalStateSettledKey).toBe('unknown:17');
     expect(settlePlayerPersonalState(settled, 17)).toBe(settled);
   });
 
@@ -199,7 +199,7 @@ describe('P3 once-per-world-week personal state', () => {
     const settled = settlePlayerPersonalState(unused, 9);
     expect(settled.individualMorale).toBe(58);
     expect(settled.sharpness).toBe(66);
-    expect(settled.personalStateSettledGameweek).toBe(9);
+    expect(settled.personalStateSettledKey).toBe('unknown:9');
 
     const neutral = normalizePlayerModel({ ...player('ST'), appearances:5, minutes:450 });
     expect(settlePlayerPersonalState(neutral, 9)).toBe(neutral);
@@ -218,7 +218,7 @@ describe('P3 once-per-world-week personal state', () => {
     expect(settled.sharpness).toBe(DEFAULT_SHARPNESS);
     expect(settled.personalStateAppearances).toBe(0);
     expect(settled.personalStateMinutes).toBe(0);
-    expect(settled.personalStateSettledGameweek).toBe(1);
+    expect(settled.personalStateSettledKey).toBe('unknown:1');
   });
 
   it('returns invalid or already-settled gameweeks by identity', () => {
@@ -256,7 +256,7 @@ describe('P3 canonical player-model normalisation', () => {
     expect(migrated.rehabilitation).toBeNull();
     expect(migrated.personalStateAppearances).toBe(19);
     expect(migrated.personalStateMinutes).toBe(1211);
-    expect(migrated.personalStateSettledGameweek).toBeNull();
+    expect(migrated.personalStateSettledKey).toBeNull();
     expect(baselineLevel(migrated)).toBe(baselineLevel(legacy));
     expect(legacy.positionSuitability).toBeUndefined();
   });
