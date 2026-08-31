@@ -51,6 +51,8 @@ describe('P1 living-world contracts', () => {
     expect(new Set(world.fixtures.map(f => f.league))).toEqual(new Set(['League A', 'League B']));
     expect(world.fixtures.filter(f => f.league === 'League A')).toHaveLength(12);
     expect(world.fixtures.filter(f => f.league === 'League B')).toHaveLength(12);
+    expect(world.standings.filter(row => row.league === 'League A').map(row => row.position)).toEqual([1, 2, 3, 4]);
+    expect(world.standings.filter(row => row.league === 'League B').map(row => row.position)).toEqual([1, 2, 3, 4]);
   });
 
   it('backfills missing leagues without replacing an existing P0 league schedule', () => {
