@@ -30,6 +30,7 @@ test('R6 market stays windowed while using the dense flat treatment', async ({ p
   await navigateMobile(page, 'Market');
 
   await expect(page.locator('#screen-transfers')).toHaveClass(/active/);
+  await page.getByRole('button', { name:'Buy', exact:true }).click();
   await expect(page.locator('.tr-count')).toContainText('player', { timeout: 15000 });
   await expect(page.locator('.buy-row').first()).toBeVisible();
 
