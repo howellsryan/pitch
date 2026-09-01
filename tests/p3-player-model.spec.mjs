@@ -20,7 +20,7 @@ async function go(page, id) {
 
 async function openFirstPlayerDetail(page) {
   await go(page, 'squad');
-  const rosterButton = page.locator('.roster-button');
+  const rosterButton = page.getByRole('button', { name:/\d+ players/ });
   await expect(rosterButton).toBeVisible();
   await rosterButton.click();
   const roster = page.locator('.roster-sheet');
