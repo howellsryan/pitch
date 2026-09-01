@@ -130,6 +130,26 @@ describe('P4 user transfer-deal actions', () => {
     expect(result.terms.contract.squadRole).toBe('important');
   });
 
+  it('keeps a renewal counter stable after the manager responds', () => {
+    const first = resolveRenewalContractOffer(renewalDeal(), {
+      player:renewalPlayer,
+      terms:{ contract:{ wage:42_000, duration:2, squadRole:'rotation', signingBonus:0 } },
+      weekKey:'2025/26:2',
+    });
+    const sentBack = transitionMarketDeal(first, 'player_negotiation', {
+      eventKey:'2025/26:2:test-user-counter', weekKey:'2025/26:2', actor:'user',
+      reasonCode:'user_contract_counter', awaiting:'player', stateOwner:'player', terms:first.terms,
+    });
+    const second = resolveRenewalContractOffer(sentBack, {
+      player:renewalPlayer,
+      terms:first.terms,
+      weekKey:'2025/26:2',
+    });
+
+    expect(second.state).toBe('agreed');
+    expect(second.decisionLog.at(-1).reasonCode).toBe('player_accepts_renewal');
+  });
+
   it('can agree a materially improved renewal after a player counter', () => {
     const first = resolveRenewalContractOffer(renewalDeal(), {
       player:renewalPlayer,
