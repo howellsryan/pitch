@@ -73,7 +73,8 @@ MODULES += [
 RENAMES = [
     ('fmtMoney(',        'fmt.money('),
     ('fmtWage(',         'fmt.wage('),
-    ('fmtDate(',         'fmt.dateShort('),
+    ('fmtDate(',         'fmt.date('),
+    ('fmtShort(',        'fmt.dateShort('),
     ('showToast(',       'toast('),
     ('formLbl(',         'formLabel('),
     ('potentialAgingAdjust', 'agingValueAdjust'),
