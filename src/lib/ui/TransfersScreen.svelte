@@ -1,6 +1,7 @@
 <script>
   import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, openDB, putPlayer } from '../../modules/db.js';
   import { primaryRating } from '../../modules/matchEngine.js';
+  import { counterMarketDeal, isUserClubDeal } from '../../modules/transferDealActions.js';
   import {
     _loanFee, _loanWageCost, acceptMarketDeal, canClubSignPlayer, contractYearsRemaining, createUserMarketDeal, formAdjustedValue,
     getLoanableInPlayers, loanOutPlayer, playerMinRepToSign, transferWindowStatus, withdrawMarketDeal,
@@ -16,6 +17,7 @@
   const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.' };
   const LOAN_IN_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Player is already out on loan.', SIGNED_THIS_SEASON: 'Player already moved this season.', INSUFFICIENT_FUNDS: 'Not enough budget.', CLUB_WONT_LOAN: "This club won't loan out this player." };
   const LOAN_OUT_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Already on loan.', SIGNED_THIS_SEASON: 'Already moved this season.', NO_LOAN_TAKERS: 'No clubs interested in this player right now.' };
+  const TERMINAL_DEAL_STATES = new Set(['completed','rejected','withdrawn','expired','hijacked']);
 
   const ROW_H = 68;
   const OVERSCAN = 6;
@@ -279,12 +281,45 @@
     return fit >= 75 ? 'var(--color-live)' : fit >= 50 ? 'var(--color-warn)' : 'var(--color-bad)';
   }
 
-  const activeDeals = $derived((save?.transferMarket?.activeDeals ?? []).filter(deal => !['completed','rejected','withdrawn','expired','hijacked'].includes(deal.state)));
-  const dealHistory = $derived([...(save?.transferMarket?.terminalSummaries ?? []), ...(save?.transferMarket?.activeDeals ?? []).filter(deal => ['completed','rejected','withdrawn','expired','hijacked'].includes(deal.state))].slice(-30).reverse());
+  const activeDeals = $derived((save?.transferMarket?.activeDeals ?? []).filter(deal => isUserClubDeal(deal, save?.userTeamId) && !TERMINAL_DEAL_STATES.has(deal.state)));
+  const dealHistory = $derived([...(save?.transferMarket?.terminalSummaries ?? []), ...(save?.transferMarket?.activeDeals ?? []).filter(deal => TERMINAL_DEAL_STATES.has(deal.state))].filter(deal => isUserClubDeal(deal, save?.userTeamId)).slice(-30).reverse());
   const stageLabel = state => ({ interest:'Interest', seller_terms:'Seller terms', club_negotiation:'Club negotiation', player_negotiation:'Player negotiation', agreed:'Agreed', completed:'Completed', rejected:'Rejected', withdrawn:'Withdrawn', expired:'Expired', hijacked:'Hijacked' })[state] ?? state;
+  let counterDeal = $state(null);
+  let counterAmount = $state(0);
+  let counterBusy = $state(false);
+
   async function acceptDeal(deal) {
     try { await acceptMarketDeal(deal.id); toast(`${deal.playerName}: terms accepted`, 'success', 3200); screenTicks.transfers++; }
     catch (error) { toast(error.message, 'error', 3500); }
+  }
+  function openCounterDeal(deal) {
+    counterDeal = deal;
+    counterAmount = Math.max(100_000, deal.terms?.fee?.upfront ?? 0);
+  }
+  function closeCounterDeal() { if (!counterBusy) counterDeal = null; }
+  async function submitCounterDeal() {
+    if (!counterDeal) return;
+    counterBusy = true;
+    try {
+      const result = await counterMarketDeal(counterDeal.id, counterAmount);
+      const lastReason = result.decisionLog?.at(-1)?.reasonCode;
+      const buyerName = byId.get(result.buyerTeamId)?.name || 'The buying club';
+      const message = lastReason === 'buyer_counter'
+        ? `${result.playerName}: ${buyerName} countered at ${fmt.money(result.terms.fee.upfront)}.`
+        : lastReason === 'buyer_accepts_counter'
+          ? `${result.playerName}: your counter was accepted.`
+          : lastReason === 'buyer_walks_away'
+            ? `${result.playerName}: ${buyerName} walked away.`
+            : `${result.playerName}: counter offer sent.`;
+      toast(message, lastReason === 'buyer_walks_away' ? 'error' : 'success', 4000);
+      counterDeal = null;
+      screenTicks.transfers++;
+    } catch (error) {
+      const message = error.message === 'INSUFFICIENT_FUNDS' ? 'That counter is above your available transfer budget.' : error.message;
+      toast(message, 'error', 3500);
+    } finally {
+      counterBusy = false;
+    }
   }
   async function withdrawDeal(deal) {
     try { await withdrawMarketDeal(deal.id); toast(`${deal.playerName}: negotiation withdrawn`, 'success', 2600); screenTicks.transfers++; }
@@ -332,13 +367,12 @@
     {#if tab === 'deals'}
       <div class="tr-panel">
         <div class="tr-panel-title">Active Negotiations</div>
-        <div class="tr-window-banner">Deals progress once when a world week completes. Reserved commitments are protected until a deal closes.</div>
         {#if !activeDeals.length}
           <div class="tr-empty-inline">No active deals.<br><span>Open an enquiry from Buy, list a player from Sell, or start contract talks with a free agent.</span></div>
         {:else}
           <div class="sell-scroll">
             {#each activeDeals as deal (deal.id)}
-              <div class="sell-row">
+              <div class="sell-row deal-row">
                 <div class="pl-flag-sm">{deal.type === 'loan' ? 'LN' : deal.type === 'renewal' ? 'CT' : 'TR'}</div>
                 <div class="pl-info">
                   <div class="pl-name">{deal.playerName || deal.playerId}</div>
@@ -346,8 +380,15 @@
                   {#if deal.interest?.strongestConcern}<div class="pl-meta">Concern: {deal.interest.strongestConcern}</div>{/if}
                 </div>
                 <div class="pl-right"><div class="pl-val">{fmt.money(deal.type === 'loan' ? deal.terms.loan.fee : deal.terms.fee.upfront)}</div></div>
-                {#if deal.awaiting === 'user'}<button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>{/if}
-                <button class="sell-btn" onclick={() => withdrawDeal(deal)}>Walk away</button>
+                <div class="deal-actions">
+                  {#if deal.awaiting === 'user'}
+                    <button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>
+                    {#if deal.state === 'club_negotiation' && deal.type === 'transfer'}
+                      <button class="sell-btn btn-secondary" onclick={() => openCounterDeal(deal)}>Counter</button>
+                    {/if}
+                  {/if}
+                  <button class="sell-btn btn-secondary" onclick={() => withdrawDeal(deal)}>Walk away</button>
+                </div>
               </div>
             {/each}
           </div>
@@ -713,6 +754,30 @@
   </div>
 {/if}
 
+<!-- ── Deal counter sheet ───────────────────────────────────── -->
+{#if counterDeal}
+  {@const otherClubId = String(counterDeal.sellerTeamId) === String(save?.userTeamId) ? counterDeal.buyerTeamId : counterDeal.sellerTeamId}
+  {@const otherClub = byId.get(otherClubId)}
+  <button class="sheet-backdrop" onclick={closeCounterDeal} aria-label="Close"></button>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Counter Offer</div>
+    <div class="confirm-body">
+      <div class="confirm-row"><span>Player</span><strong>{counterDeal.playerName || counterDeal.playerId}</strong></div>
+      <div class="confirm-row"><span>Club</span><strong>{otherClub?.name || otherClubId}</strong></div>
+      <div class="confirm-row"><span>Current offer</span><strong>{fmt.money(counterDeal.terms?.fee?.upfront ?? 0)}</strong></div>
+      <label class="counter-field">
+        <span>Counter fee</span>
+        <input class="tr-search" type="number" min="100000" step="100000" bind:value={counterAmount} />
+      </label>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-full btn-primary" disabled={counterBusy || counterAmount <= 0} onclick={submitCounterDeal}>{counterBusy ? 'Sending…' : 'Send Counter'}</button>
+      <button class="btn-full btn-secondary" disabled={counterBusy} onclick={closeCounterDeal}>Cancel</button>
+    </div>
+  </div>
+{/if}
+
 <!-- ── Sell confirm sheet ───────────────────────────────────── -->
 {#if sellConfirm}
   {@const p = sellConfirm.player}
@@ -865,6 +930,8 @@
     padding: 8px 10px; cursor: pointer;
   }
   .sell-row.is-locked { opacity: 0.5; }
+  .deal-row { cursor: default; flex-wrap: wrap; }
+  .deal-actions { width: 100%; display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 
   .pl-flag { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 22px; color: var(--color-tx-3); font: 700 8px/1 var(--font-mono); letter-spacing: .06em; }
   .pl-flag-sm {
@@ -970,6 +1037,8 @@
   .confirm-body { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
   .confirm-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--color-tx-2); padding: 4px 0; }
   .confirm-row strong { color: var(--color-tx); }
+  .counter-field { display: grid; gap: 6px; padding-top: 8px; font-size: 11px; color: var(--color-tx-2); }
+  .counter-field .tr-search { width: 100%; box-sizing: border-box; }
   .loan-breakdown { background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
   .loan-breakdown-title { font-size: 9px; font-weight: 700; color: var(--color-tx-3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
   .loan-total { border-top: 1px solid var(--color-line); margin-top: 4px; padding-top: 6px; }
@@ -981,6 +1050,10 @@
   .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
   .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }
 
+  @media (min-width: 720px) {
+    .deal-row { flex-wrap: nowrap; }
+    .deal-actions { width: auto; flex-wrap: nowrap; flex-shrink: 0; }
+  }
   @media (min-width: 900px) {
     .sheet { left: auto; width: 420px; right: 0; border-radius: 18px 0 0 0; }
   }
