@@ -103,6 +103,31 @@
 }
 
 /**
+ * Squad is a viewport workspace, not a document-scrolling route. A transformed
+ * `.screen` establishes the containing block for fixed descendants; allowing
+ * #screen-squad itself to retain scrollTop therefore moves its bottom sheets
+ * above the desktop viewport after transitioning from the roster. Keep route
+ * scrolling disabled and let the sheet/pitch own their internal overflow.
+ */
+#screen-squad {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/** P3 player detail owns a viewport-bounded internal scroller. */
+.sheet.player-sheet {
+  top: auto !important;
+  bottom: 0 !important;
+  height: 88dvh !important;
+  max-height: 88dvh !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+/**
  * Reduced motion, once, for everything.
  *
  * The rule that matters: reduced motion renders the FINAL state, never

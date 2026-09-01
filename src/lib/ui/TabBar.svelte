@@ -22,10 +22,6 @@
     open = false;
   }
 
-  function labelFor(id) {
-    return destinations.find((destination) => destination.id === id)?.label ?? 'Home';
-  }
-
   function toggle() { open = !open; }
   function handleKey(event) { if (event.key === 'Escape') open = false; }
 
@@ -40,6 +36,22 @@
 <svelte:window onkeydown={handleKey} />
 
 <nav class="broadcast-nav" aria-label="Game navigation">
+  <div class="top-rail">
+    <button
+      class="menu"
+      onclick={toggle}
+      aria-label={open ? 'Close navigation' : 'Open navigation'}
+      aria-expanded={open}
+      aria-controls="nav-destinations"
+    >
+      <span class="menu-disc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16"/>
+        </svg>
+      </span>
+    </button>
+  </div>
+
   {#if open}
     <div class="fan" id="nav-destinations" aria-label="Destinations">
       {#each destinations as destination, i (destination.id)}
@@ -74,29 +86,36 @@
       {/each}
     </div>
   {/if}
-  <div class="pill">
-    <span class="eyebrow">{labelFor(active)}</span>
-    <span class="divider"></span>
-    <button class="menu" onclick={toggle} aria-label="Open navigation" aria-expanded={open} aria-controls="nav-destinations">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-    </button>
-  </div>
 </nav>
 
 <style>
   .broadcast-nav { display: none; }
   @media (max-width: 768px) {
-    .broadcast-nav { position: fixed; z-index: 110; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-    .pill { height: 54px; display: flex; align-items: center; gap: 11px; padding: 0 7px 0 16px; color: var(--color-tx); background: color-mix(in oklch, var(--color-raised) 94%, transparent); border: 1px solid var(--color-line); border-radius: 999px; box-shadow: 0 8px 28px rgba(0,0,0,.42); backdrop-filter: blur(14px); }
-    .eyebrow { min-width: 54px; font: 700 18px/1 var(--font-display); letter-spacing: .055em; text-transform: uppercase; }
-    .divider { width: 1px; height: 22px; background: var(--color-line); }
-    .menu { width: 40px; height: 40px; display: grid; place-items: center; color: var(--color-on-accent); background: var(--color-accent); border: 0; border-radius: 50%; cursor: pointer; }
-    .menu svg { width: 19px; height: 19px; }
-    .fan { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    .broadcast-nav {
+      position: fixed;
+      z-index: 110;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: calc(48px + env(safe-area-inset-top, 0px));
+      padding: env(safe-area-inset-top, 0px) 12px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      background: color-mix(in oklch, var(--color-ground) 92%, transparent);
+      border-bottom: 1px solid var(--color-line);
+      backdrop-filter: blur(14px);
+    }
+    .top-rail { width: 100%; height: 48px; display: flex; align-items: center; justify-content: flex-end; }
+    .menu { width: 44px; height: 44px; display: grid; place-items: center; padding: 5px; color: var(--color-on-accent); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
+    .menu-disc { width: 34px; height: 34px; display: grid; place-items: center; background: var(--color-accent); border-radius: 11px; box-shadow: 0 4px 16px rgba(0,0,0,.28); }
+    .menu svg { width: 17px; height: 17px; }
+    .fan { position: absolute; top: calc(100% + 8px); right: 12px; max-height: calc(100dvh - 72px - env(safe-area-inset-top, 0px)); overflow-y: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; padding: 0 2px 4px; scrollbar-width: none; }
+    .fan::-webkit-scrollbar { display: none; }
     .destination { min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 8px 14px 8px 11px; color: var(--color-tx-2); background: color-mix(in oklch, var(--color-raised) 96%, transparent); border: 1px solid var(--color-line); border-radius: 999px; box-shadow: 0 5px 18px rgba(0,0,0,.3); font: 600 13px/1 var(--font-body); cursor: pointer; animation: fan-in var(--dur-base) var(--ease-out) both; animation-delay: calc(var(--i) * 30ms); }
     .destination.current { color: var(--color-on-accent); background: var(--color-accent); border-color: var(--color-accent); }
     .destination svg { width: 19px; height: 19px; }
     button:focus-visible { outline: 3px solid var(--color-club); outline-offset: 3px; }
   }
-  @keyframes fan-in { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes fan-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 </style>

@@ -8,19 +8,38 @@ import { LEAGUE_TWO_TEAMS } from '../data/leagueTwo.js';
 import { LIGUE_1_TEAMS } from '../data/ligue1.js';
 import { PL_TEAMS } from '../data/plTeams.js';
 import { SERIE_A_TEAMS } from '../data/serieA.js';
-import { getSave, openDB, putPlayersBulk, putSave, putTeamsBulk, replaceAllFixtures, replaceAllStandings } from './db.js';
+import {
+  getAllFixtures,
+  getAllPlayers,
+  getAllStandings,
+  getAllTeams,
+  getSave,
+  openDB,
+  putFixturesBulk,
+  putPlayersBulk,
+  putSave,
+  putStandingsBulk,
+  putTeamsBulk,
+  replaceAllFixtures,
+  replaceAllStandings,
+} from './db.js';
 import { selectEleven } from './matchEngine.js';
-import { blankStandingRow } from './standings.js';
-import { generateLeagueFixtures } from './fixtures.js';
 import { assignCups, buildInitialCupState } from './cups.js';
 import { assignPotentials } from './potential.js';
+import {
+  PLAYER_MODEL_VERSION,
+  assignDefaultSquadRoles,
+  normalizePlayerModel,
+  playerModelNeedsNormalization,
+} from './playerModel.js';
 import { generateCohort } from './youthAcademy.js';
 import { generateBoardObjective } from './season.js';
+import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
+import { buildWorldCompetitionState } from './worldCompetitions.js';
+import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
 
-/** modules/save.js — New game creation, save state management. Supports all leagues. */
+/** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
-// ALL_TEAMS is populated at runtime from all *_TEAMS arrays (auto-discovered).
-// To add a new league: just create the data file with csv_to_league.py — no code changes needed.
 export function getAllTeamData() {
   const sources = [
     typeof PL_TEAMS             !== 'undefined' ? PL_TEAMS             : [],
@@ -41,25 +60,179 @@ export function getAllTeamData() {
   return sources.flat();
 }
 
-export async function initApp() {
-  await openDB();
-  const save = await getSave();
-  if (save && save._deleted) return null;
-  return save ?? null;
+function seasonStartYear(save) {
+  const parsed = parseInt(String(save?.season ?? '').split('/')[0], 10);
+  return Number.isFinite(parsed) ? parsed : 2025;
+}
+
+export function calculateWorldTotalGameweeks(teams) {
+  let max = 0;
+  for (const leagueTeams of groupTeamsByLeague(teams).values()) {
+    max = Math.max(max, Math.max(0, (leagueTeams.length - 1) * 2));
+  }
+  return max;
+}
+
+function backfillP1PlayerStats(player) {
+  return {
+    ...player,
+    appearances:player.appearances ?? 0,
+    starts:player.starts ?? 0,
+    minutes:player.minutes ?? 0,
+    goals:player.goals ?? 0,
+    assists:player.assists ?? 0,
+    cleanSheets:player.cleanSheets ?? 0,
+    yellowCards:player.yellowCards ?? 0,
+    redCards:player.redCards ?? 0,
+    ratingTotal:player.ratingTotal ?? 0,
+    ratingApps:player.ratingApps ?? 0,
+    averageRating:player.averageRating ?? null,
+    lastMatchRating:player.lastMatchRating ?? null,
+    seasonMajorInjuries:player.seasonMajorInjuries ?? [],
+    suspensionGWsLeft:player.suspensionGWsLeft ?? 0,
+  };
 }
 
 /**
- * The budget a club actually starts a career with, from its reputation.
- *
- * Exported because the entry screen's club select (src/lib/ui/EntryScreen.svelte,
- * R1) advertises this number while the player is choosing — the data files'
- * own `budget` field is NOT what a new save gets, so showing that instead
- * misreports all but a couple of clubs.
- *
- * Deliberately deterministic, unlike season.js's reputationBudget(), which
- * adds ±6% variance for the seasonal refresh: the figure shown in the picker
- * has to be the figure the save is created with.
+ * Lazy P0 -> P1 domain migration. No IndexedDB store or save-envelope version
+ * changes: all new state is additive inside rows already covered by schema V2.
  */
+export async function ensureLivingWorld(save) {
+  if (!save) return save;
+  const [teams, fixtures, standings, players] = await Promise.all([
+    getAllTeams(), getAllFixtures(), getAllStandings(), getAllPlayers(),
+  ]);
+  if (!teams.length) return save;
+
+  const patch = buildWorldBackfill(teams, fixtures, standings, seasonStartYear(save));
+  if (patch.fixturesToAdd.length) await putFixturesBulk(patch.fixturesToAdd);
+  if (patch.standingsToAdd.length) await putStandingsBulk(patch.standingsToAdd);
+
+  const playerPatches = players
+    .filter(player => player.appearances == null || player.minutes == null || player.yellowCards == null || player.ratingApps == null)
+    .map(backfillP1PlayerStats);
+  if (playerPatches.length) await putPlayersBulk(playerPatches);
+
+  const worldTotalGameweeks = calculateWorldTotalGameweeks(teams);
+  const hasCurrentCompetitionWorld = Boolean(
+    save.worldCompetitions?.competitions && save.worldCompetitions?.season === save.season,
+  );
+  const worldCompetitions = hasCurrentCompetitionWorld
+    ? save.worldCompetitions
+    : buildWorldCompetitionState(teams, save.season, save.userTeamId, save.currentGameweek ?? 1);
+  if (save.worldTotalGameweeks !== worldTotalGameweeks || !hasCurrentCompetitionWorld) {
+    const migrated = { ...save, worldTotalGameweeks, worldCompetitions };
+    await putSave(migrated);
+    return migrated;
+  }
+  return save;
+}
+
+/**
+ * Pure P2 save backfill. Tactical instructions, role assignments and Manager
+ * DNA are manager/career state, so they live on the existing save row rather
+ * than mutating universal player/team data or introducing another DB store.
+ */
+export function buildP2SaveBackfill(save) {
+  if (!save) return save;
+  return {
+    ...save,
+    tactics:createUserTacticalPlan(save.tactics?.instructions ?? save.tactics ?? {}),
+    playerRoles:save.playerRoles && typeof save.playerRoles === 'object' && !Array.isArray(save.playerRoles)
+      ? { ...save.playerRoles }
+      : {},
+    managerDNA:{ ...createManagerDNA(), ...(save.managerDNA ?? {}) },
+  };
+}
+
+/**
+ * Lazy P1 -> P2 migration. Existing formation, mentality and lineup are spread
+ * through untouched. The V2 save envelope and IndexedDB schema remain valid.
+ */
+export async function ensureP2Tactics(save) {
+  if (!save) return save;
+  const migrated = buildP2SaveBackfill(save);
+  const needsMigration = !save.tactics
+    || save.tactics.source !== 'user'
+    || !save.playerRoles
+    || !save.managerDNA;
+  if (needsMigration) {
+    await putSave(migrated);
+    return migrated;
+  }
+  return save;
+}
+
+function roleContractChanged(before, after) {
+  return before?.squadRole !== after?.squadRole
+    || before?.squadRoleSource !== after?.squadRoleSource
+    || before?.squadRoleTeamId !== after?.squadRoleTeamId
+    || JSON.stringify(before?.playingTimeAgreement ?? null) !== JSON.stringify(after?.playingTimeAgreement ?? null);
+}
+
+/**
+ * Pure P3 migration plan. The save-level marker is the single contract version
+ * for this domain. Player/team rows intentionally carry no second version tag.
+ */
+export function buildP3PlayerModelBackfill(save, players = [], teams = []) {
+  if (!save || Number(save.playerModelVersion ?? 0) >= PLAYER_MODEL_VERSION) {
+    return { save, playerPatches:[], teamPatches:[] };
+  }
+
+  const normalizedPlayers = players.map(normalizePlayerModel);
+  const preparedPlayers = assignDefaultSquadRoles(normalizedPlayers, {
+    currentYear:seasonStartYear(save),
+    managedTeamId:save.userTeamId,
+  });
+  const playerPatches = preparedPlayers.filter((player, index) =>
+    playerModelNeedsNormalization(players[index]) || roleContractChanged(players[index], player)
+  );
+
+  const teamPatches = teams.flatMap(team => {
+    if (!Array.isArray(team.youthPlayers)) return [];
+    const needsPatch = team.youthPlayers.some(playerModelNeedsNormalization);
+    if (!needsPatch) return [];
+    return [{ ...team, youthPlayers:team.youthPlayers.map(normalizePlayerModel) }];
+  });
+
+  const migratedSave = {
+    ...save,
+    ...(Array.isArray(save.youthCohort)
+      ? { youthCohort:save.youthCohort.map(normalizePlayerModel) }
+      : {}),
+    playerModelVersion:PLAYER_MODEL_VERSION,
+  };
+
+  return { save:migratedSave, playerPatches, teamPatches };
+}
+
+/**
+ * One-time additive P2 -> P3 migration. The marker is persisted last: if any
+ * preceding write is interrupted, the next load safely rebuilds the plan and
+ * rewrites only rows that still need normalisation.
+ */
+export async function ensureP3PlayerModel(save) {
+  if (!save || Number(save.playerModelVersion ?? 0) >= PLAYER_MODEL_VERSION) return save;
+  const [players, teams] = await Promise.all([getAllPlayers(), getAllTeams()]);
+  const migration = buildP3PlayerModelBackfill(save, players, teams);
+  if (migration.playerPatches.length) await putPlayersBulk(migration.playerPatches);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
+export async function initApp() {
+  await openDB();
+  let save = await getSave();
+  if (save && save._deleted) return null;
+  if (save) {
+    save = await ensureLivingWorld(save);
+    save = await ensureP2Tactics(save);
+    save = await ensureP3PlayerModel(save);
+  }
+  return save ?? null;
+}
+
 export function startingBudget(reputation) {
   const rep = Number.isFinite(reputation) ? reputation : 70;
   return Math.round(
@@ -81,25 +254,38 @@ export async function startNewGame(userTeamId, managerName) {
   const userTeamData = allTeamData.find(t => t.id === userTeamId);
   if (!userTeamData) throw new Error(`Unknown team: ${userTeamId}`);
 
-  // Determine which league to simulate for standings/fixtures
   const userLeague  = userTeamData.league ?? 'Premier League';
   const leagueTeams = allTeamData.filter(t => (t.league ?? 'Premier League') === userLeague);
 
   const seasonYear = 2025;
-  const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, `${seasonYear}/${String(seasonYear + 1).slice(2)}`, userLeague);
+  const season = `${seasonYear}/${String(seasonYear + 1).slice(2)}`;
+  const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague)
+    .map(normalizePlayerModel);
+
+  const teams = allTeamData.map(({ players: _, ...rest }) => ({
+    ...rest,
+    budget: startingBudget(rest.reputation ?? 70),
+    academyInvestment: 0,
+  }));
 
   const save = {
     userTeamId,
     userLeague,
     managerName:     managerName || 'The Manager',
     currentDate:     new Date(seasonYear, 7, 9).toISOString(),
-    season:          `${seasonYear}/${String(seasonYear + 1).slice(2)}`,
+    season,
     currentGameweek: 1,
     totalGameweeks:  (leagueTeams.length - 1) * 2,
+    worldTotalGameweeks: calculateWorldTotalGameweeks(teams),
     cups:            buildInitialCupState(assignCups(userTeamData), userTeamId, userLeague),
+    worldCompetitions: buildWorldCompetitionState(teams, season, userTeamId, 1),
     formation:       '4-3-3',
     mentality:       'balanced',
     lineup:          null,
+    tactics:         createUserTacticalPlan(),
+    playerRoles:     {},
+    managerDNA:      createManagerDNA(),
+    playerModelVersion: PLAYER_MODEL_VERSION,
     inboundOffers:   [],
     collapsedDeals:  [],
     inbox:           [],
@@ -109,17 +295,8 @@ export async function startNewGame(userTeamId, managerName) {
     sacked:          false,
   };
 
-  // Store all teams (strip players array) with reputation-scaled budgets
-  const teams = allTeamData.map(({ players: _, ...rest }) => ({
-    ...rest,
-    budget: startingBudget(rest.reputation ?? 70),
-    academyInvestment: 0,
-  }));
-
-  // Store all players with teamId. Contracts run 1-4 years so the whole
-  // league doesn't come out of contract in the same season.
   const players = allTeamData.flatMap(team =>
-    (team.players ?? []).map(p => ({
+    (team.players ?? []).map(p => backfillP1PlayerStats({
       ...p, teamId: team.id,
       fitness: 100, injured: false, suspended: false,
       inSquad: true, goals: 0, assists: 0, cleanSheets: 0, form: 50,
@@ -128,28 +305,22 @@ export async function startNewGame(userTeamId, managerName) {
     }))
   );
 
-  // Only generate fixtures + standings for the user's own league
-  const standings = leagueTeams
-    .map(t => blankStandingRow(t))
-    .sort((a, b) => a.teamName.localeCompare(b.teamName))
-    .map((row, i) => ({ ...row, position: i + 1 }));
-  const fixtures  = generateLeagueFixtures(leagueTeams.map(t => t.id), seasonYear);
+  const world = buildWorldLeagueSeason(teams, seasonYear);
 
   await putTeamsBulk(teams);
-  await putPlayersBulk(assignPotentials(players));
-  // A career can now be started while another save exists (R7). Fixtures and
-  // standings use league-specific primary keys, so bulk-put would leave rows
-  // from the previous league behind. Replace the stores atomically instead.
-  await replaceAllStandings(standings);
-  await replaceAllFixtures(fixtures);
+  const assignedPlayers = assignDefaultSquadRoles(
+    assignPotentials(players).map(normalizePlayerModel),
+    { currentYear:seasonYear, managedTeamId:userTeamId },
+  );
+  await putPlayersBulk(assignedPlayers);
+  await replaceAllStandings(world.standings);
+  await replaceAllFixtures(world.fixtures);
 
-  // Auto-generate starting lineup so player can immediately play
-  const userPlayers = players.filter(p => p.teamId === userTeamId);
+  const userPlayers = assignedPlayers.filter(p => p.teamId === userTeamId);
   const xi = selectEleven(userPlayers, save.formation, null);
   save.lineup = xi.map(p => p.id);
 
   await putSave(save);
-
   return save;
 }
 

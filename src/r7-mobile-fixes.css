@@ -1,9 +1,17 @@
 /* R7 mobile geometry corrections discovered by the browser audit.
  * Keep interactive Academy rows physically clear of the floating Broadcast
  * nav rather than relying on content being scrollable underneath it.
+ *
+ * P1's living-world table makes every club row interactive. Reserve the
+ * floating nav plus one row-height safety band on that screen too, so a row
+ * cannot remain partially visible with its raw hitbox underneath the nav.
  */
 @media (max-width: 699px) {
   #screen-academy .ac-card {
     padding-block: 10px !important;
+  }
+
+  #screen-competitions {
+    bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
 }

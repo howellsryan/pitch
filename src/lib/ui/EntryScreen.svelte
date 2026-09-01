@@ -9,9 +9,8 @@
    * the landing page for someone who has never heard of the game.
    *
    * Only ever shown when no career exists — boot() sends a returning player
-   * straight into the game, which stays the right default. "Continue your
-   * career" is therefore deferred to R7 along with the Settings link that
-   * would make it reachable; see docs/plan/07-redesign.md.
+   * straight into the game, which stays the right default. R7/P0 also reuse
+   * this picker when a player chooses New Career from the saved-career menu.
    *
    * Two taps to a started career, deliberately: tap a club, tap start. The
    * hero's button only scrolls — it is not a step, so it does not count.
@@ -20,7 +19,14 @@
    * all; it hands off to enterGame() below, exactly as its own resume branch
    * does, so a new career and a resumed one reveal the shell identically.
    */
-  import { importSaveFile, importSaveFromCode } from '../../modules/db.js';
+  import {
+    activateCareerSlot,
+    createCareerSlot,
+    deleteCareerSlot,
+    getActiveSlotId,
+    importSaveFile,
+    importSaveFromCode,
+  } from '../../modules/db.js';
   import { getAllTeamData, startingBudget, startNewGame } from '../../modules/save.js';
   import { difficultyBand, keyPlayer, squadStrength } from '../../game/clubStrength.js';
   import { resolveAccent } from '../theme.mjs';
@@ -154,19 +160,62 @@
     clubSheet = true;
   }
 
+  /**
+   * A cold start still writes the legacy/default slot. When this picker was
+   * opened from CareerMenu, allocate a new isolated slot only at the moment a
+   * real career is about to be written. If setup/import fails, delete that
+   * partial slot and restore the previous active career pointer.
+   */
+  async function inRequestedCareerSlot(action) {
+    if (!entryState.newCareerRequested) return action(null);
+
+    const previousSlotId = getActiveSlotId();
+    let slotId = null;
+    try {
+      slotId = await createCareerSlot({ activate:true });
+      const result = await action(slotId);
+      entryState.newCareerRequested = false;
+      return result;
+    } catch (err) {
+      if (slotId) {
+        try {
+          await deleteCareerSlot(slotId);
+          await activateCareerSlot(previousSlotId);
+        } catch (rollbackErr) {
+          console.error('[new-career-rollback]', rollbackErr);
+        }
+      }
+      throw err;
+    }
+  }
+
+  function backToCareers() {
+    if (busy || !entryState.newCareerRequested) return;
+    selected = null;
+    clubSheet = false;
+    importSheet = false;
+    saveCode = '';
+    entryState.newCareerRequested = false;
+    entryState.hasSave = true;
+  }
+
   async function start() {
     if (!selected || busy) return;
     busy = true;
     try {
-      await startNewGame(selected.id, managerName.trim() || undefined);
+      await inRequestedCareerSlot(() => startNewGame(selected.id, managerName.trim() || undefined));
       await themeForTeam(selected.id);
       clubSheet = false;
       // enterGame() hides #ng and moves focus to the shell; the sheet's own
       // focus restore would otherwise land on the now-hidden club card.
       await enterGame();
     } catch (err) {
-      busy = false;
       toast(err.message, 'error');
+    } finally {
+      // EntryScreen stays mounted behind #app and is reused by P0's New Career
+      // flow. Leaving this true after a successful first career makes Back a
+      // no-op and every later Start button permanently disabled.
+      busy = false;
     }
   }
 
@@ -180,7 +229,7 @@
     busy = true;
     _showFullOverlay('Loading save…');
     try {
-      await importSaveFromCode(code);
+      await inRequestedCareerSlot((slotId) => importSaveFromCode(code, slotId ?? getActiveSlotId()));
       window.location.reload();
     } catch (err) {
       busy = false;
@@ -195,7 +244,7 @@
     busy = true;
     _showFullOverlay('Loading save…');
     try {
-      await importSaveFile(file);
+      await inRequestedCareerSlot((slotId) => importSaveFile(file, slotId ?? getActiveSlotId()));
       window.location.reload();
     } catch (err) {
       busy = false;
@@ -227,6 +276,9 @@
         <!-- Gated with the picker, not shown from mount: restoring a save
              deletes and rebuilds every store, so it must not run while
              boot()'s cloud pull may still be in flight. -->
+        {#if entryState.newCareerRequested}
+          <button class="link" onclick={backToCareers}>← Back to saved careers</button>
+        {/if}
         <button class="link" onclick={() => (importSheet = true)}>Import a saved career</button>
       {/if}
       <p class="nowall">No account. No sign-up. Your career saves in this browser.</p>
@@ -345,8 +397,11 @@
 
 <Sheet bind:open={importSheet} title="Import a career">
   <p class="s-copy">
-    Load a <code>.pitch</code> file you exported, or paste a save code. This replaces
-    any career currently in this browser.
+    {#if entryState.newCareerRequested}
+      Load a <code>.pitch</code> file you exported, or paste a save code. It will be restored into a new independent career slot.
+    {:else}
+      Load a <code>.pitch</code> file you exported, or paste a save code. This replaces any career currently in this browser.
+    {/if}
   </p>
   <div class="sheet-cta">
     <Button variant="ghost" size="lg" full onclick={() => fileEl?.click()} disabled={busy}>
@@ -458,6 +513,7 @@
     text-underline-offset: 3px;
     cursor: pointer;
   }
+  .link + .link { margin-top: 2px; }
   .link:hover { color: var(--color-tx); }
   .nowall {
     margin: 2px 0 0;

@@ -113,6 +113,7 @@ async function auditActiveScreen(page, id) {
       docScrollWidth: document.documentElement.scrollWidth,
       unnamed,
       tiny,
+      navRect,
       navMenuRect,
       navOverlaps,
       clippedRight,
@@ -155,8 +156,28 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
   let squadLayout = null;
   for (const id of screens) {
     await go(page, id);
-    audits.push(await auditActiveScreen(page, id));
-    if (id === 'squad') squadLayout = await auditSquadLayout(page);
+    const audit = await auditActiveScreen(page, id);
+    audits.push(audit);
+    if (id === 'squad') {
+      squadLayout = await auditSquadLayout(page);
+      await page.screenshot({ path:'test-results/mobile-top-nav-squad-390x844.png' });
+
+      await page.getByRole('button', { name:'Open navigation' }).click();
+      const fan = page.locator('#nav-destinations');
+      await expect(fan).toBeVisible();
+      const fanGeometry = await fan.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return { top:rect.top, right:rect.right, bottom:rect.bottom, viewportWidth:window.innerWidth, viewportHeight:window.innerHeight };
+      });
+      expect(fanGeometry.top, 'squad: opened navigation should begin below the top rail').toBeGreaterThanOrEqual(48);
+      expect(fanGeometry.right, 'squad: opened navigation exceeds the right edge').toBeLessThanOrEqual(fanGeometry.viewportWidth + 1);
+      expect(fanGeometry.bottom, 'squad: opened navigation exceeds the viewport height').toBeLessThanOrEqual(fanGeometry.viewportHeight + 1);
+      await page.getByRole('button', { name:'Close navigation' }).click();
+      await expect(fan).toBeHidden();
+    }
+    if (id === 'competitions') {
+      await page.locator('#screen-competitions').screenshot({ path:'test-results/p1-competitions-390x844.png' });
+    }
   }
 
   await go(page, 'match');
@@ -167,12 +188,17 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
     expect(audit.docScrollWidth, `${audit.screenId}: document horizontal overflow`).toBeLessThanOrEqual(audit.viewport.width + 1);
     expect(audit.unnamed, `${audit.screenId}: visible controls without an accessible name`).toEqual([]);
     expect(audit.clippedRight, `${audit.screenId}: content clipped off the right edge outside an intentional scroller`).toEqual([]);
-    expect(audit.navOverlaps, `${audit.screenId}: floating navigation overlaps another interactive control`).toEqual([]);
+    expect(audit.navOverlaps, `${audit.screenId}: top navigation overlaps another interactive control`).toEqual([]);
+    if (audit.navRect) {
+      expect(audit.navRect.top, `${audit.screenId}: mobile navigation is not anchored to the top`).toBeLessThanOrEqual(1);
+      expect(audit.navRect.height, `${audit.screenId}: mobile navigation rail is too tall`).toBeLessThanOrEqual(56);
+      expect(audit.navRect.bottom, `${audit.screenId}: mobile navigation consumes too much vertical space`).toBeLessThanOrEqual(56);
+    }
     if (audit.navMenuRect) {
       expect(audit.navMenuRect.width, `${audit.screenId}: nav trigger is narrower than 44px`).toBeGreaterThanOrEqual(44);
       expect(audit.navMenuRect.height, `${audit.screenId}: nav trigger is shorter than 44px`).toBeGreaterThanOrEqual(44);
-      expect(audit.navMenuRect.top, `${audit.screenId}: navigation must use the shared bottom-right position`).toBeGreaterThan(audit.viewport.height / 2);
-      expect(audit.navMenuRect.bottom, `${audit.screenId}: navigation is not anchored near the bottom edge`).toBeGreaterThan(audit.viewport.height - 80);
+      expect(audit.navMenuRect.top, `${audit.screenId}: nav trigger is not in the top rail`).toBeLessThan(56);
+      expect(audit.navMenuRect.right, `${audit.screenId}: nav trigger is not anchored top-right`).toBeGreaterThan(audit.viewport.width - 24);
     }
   }
 
@@ -180,11 +206,55 @@ test('mobile browser UX audit across the playable app', async ({ page }) => {
   expect(squadLayout?.pitchArea, 'squad: pitch area exists').not.toBeNull();
   expect(squadLayout?.pitch, 'squad: pitch exists').not.toBeNull();
   expect(squadLayout?.bench, 'squad: bench exists').not.toBeNull();
+  expect(squadLayout.screen.height, 'squad: top navigation did not reclaim space over the old bottom-nav reservation').toBeGreaterThan(768);
   expect(squadLayout.pitch.top, 'squad: pitch starts above its working area').toBeGreaterThanOrEqual(squadLayout.pitchArea.top - 1);
   expect(squadLayout.pitch.bottom, 'squad: pitch overflows into the bench').toBeLessThanOrEqual(squadLayout.pitchArea.bottom + 1);
   expect(squadLayout.pitch.width, 'squad: pitch is wider than its working area').toBeLessThanOrEqual(squadLayout.pitchArea.width + 1);
   expect(squadLayout.pitch.height, 'squad: pitch has collapsed too small to use').toBeGreaterThan(250);
   expect(squadLayout.bench.bottom, 'squad: bench falls outside the reserved mobile viewport').toBeLessThanOrEqual(squadLayout.screen.bottom + 1);
+
+  expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
+});
+
+test('P1 living-world club profiles stay inspectable on a wide Competitions layout', async ({ page }) => {
+  await page.setViewportSize({ width:1280, height:800 });
+  await startArsenalCareer(page);
+  await go(page, 'match');
+
+  await page.getByRole('button', { name:/Sim Instantly/ }).click();
+  await expect(page.locator('.ft-status')).toHaveText('FULL TIME', { timeout:30000 });
+  await page.getByRole('button', { name:/Continue/ }).click();
+  await expect(page.locator('.after-wrap')).toBeVisible({ timeout:15000 });
+  await page.getByRole('button', { name:/Continue/ }).click();
+  await expect(page.locator('#screen-home')).toHaveClass(/active/, { timeout:15000 });
+
+  await go(page, 'competitions');
+  const clubs = [
+    { league:'La Liga', club:'Barcelona' },
+    { league:'Bundesliga', club:'Borussia Dortmund' },
+    { league:'Eredivisie', club:'Ajax' },
+  ];
+
+  for (const { league, club } of clubs) {
+    await page.getByRole('button', { name:league, exact:true }).click();
+    await expect(page.locator('.league-title')).toContainText(league);
+    await page.getByRole('button', { name:`Inspect ${club}` }).click();
+
+    const profile = page.getByRole('region', { name:`${club} world profile` });
+    await expect(profile).toBeVisible();
+    await expect(profile.locator('.club-name')).toHaveText(club);
+    await expect(profile.locator('.club-form .fdot').first(), `${club}: league form is inspectable after the world week`).toBeVisible();
+    await expect(profile.locator('.player-leader').first(), `${club}: player leaders are present`).toContainText(/[1-9]\d* apps/);
+    await expect(profile.locator('.club-last-five strong').first(), `${club}: a canonical recent result is visible`).toContainText(/\d+–\d+/);
+
+    const geometry = await page.evaluate(() => ({
+      viewport:window.innerWidth,
+      documentWidth:document.documentElement.scrollWidth,
+      screenWidth:document.querySelector('#screen-competitions')?.scrollWidth ?? 0,
+    }));
+    expect(geometry.documentWidth, `${club}: wide layout causes document overflow`).toBeLessThanOrEqual(geometry.viewport + 1);
+    expect(geometry.screenWidth, `${club}: Competitions surface causes horizontal overflow`).toBeLessThanOrEqual(geometry.viewport + 1);
+  }
 
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });

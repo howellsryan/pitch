@@ -1,20 +1,24 @@
-import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
-import { pickAIFormation, simulateMatch } from './matchEngine.js';
-import { applyResult, recomputePositions, updateTeamMorale } from './standings.js';
-import { CUP_META, UCL_CLUBS, simulateCupRound, simulateUCLMatchday, isEuroLegRound, resolveCupProgress } from './cups.js';
+import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
+import { simulateMatch } from './matchEngine.js';
+import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
+import { buildPersonalStatePatches } from './playerModel.js';
+import { updateTeamMorale } from './standings.js';
+import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
+import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
 import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
+import { applyWorldPlayerStats, toCanonicalLeagueRecord } from './world.js';
+import { advanceWorldCompetitions } from './worldCompetitions.js';
+import { applyNonLeaguePlayerResults, applyPendingWorldCompetitionProjections, applyPendingWorldLeagueProjections } from './worldRuntime.js';
 
-/** modules/gameweek.js — One-event-per-press architecture: buildPendingEvents, advanceOneFixture */
+/** modules/gameweek.js — one user-event queue over a single P2 world clock. */
 
-// ─── Compute effective season length including post-season cups ──
-// European cup finals (UCL/UEL/UECL) happen AFTER the league ends.
-// If the user is still active in one, extend totalGameweeks so the
-// season continues until all their cup business is resolved.
+export const WORLD_SIM_BATCH_SIZE = 24;
+
 export function getEffectiveTotalGW(save) {
-  const leagueGWs = save.totalGameweeks ?? 38;
+  const leagueGWs = Math.max(save.totalGameweeks ?? 38, save.worldTotalGameweeks ?? 0);
   let maxCupGW = leagueGWs;
   if (!save.cups) return leagueGWs;
   for (const [cupId, state] of Object.entries(save.cups)) {
@@ -22,7 +26,6 @@ export function getEffectiveTotalGW(save) {
     const meta = CUP_META[cupId];
     if (!meta) continue;
     const roundIdx = state.roundIndex ?? 0;
-    // Check all remaining rounds for this cup
     for (let i = roundIdx; i < (meta.roundGWs?.length ?? 0); i++) {
       const gw = meta.roundGWs[i];
       if (gw > maxCupGW) maxCupGW = gw;
@@ -31,502 +34,747 @@ export function getEffectiveTotalGW(save) {
   return maxCupGW;
 }
 
-// ─── Build the queue of pending events for current GW ─────────
-export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
-  const events = [];
+function currentBracketSeed(state) {
+  const value = state?.bracketSeed ?? state?.leaguePhase?.position ?? state?.seed ?? null;
+  return Number.isInteger(value) ? value : null;
+}
 
-  // 1. User's league fixture for this GW
-  const leagueFix = fixtures.find(f =>
-    f.competition === 'league' &&
-    !f.played &&
-    (f.homeTeamId === userTeamId || f.awayTeamId === userTeamId)
-  );
-  if (leagueFix) {
-    events.push({ type: 'league', fixtureId: leagueFix.id, gw });
+function inheritBracketSeed(cupId, roundName, state, opponentSeed, progress) {
+  const current = currentBracketSeed(state);
+  if (isTwoLegRound(cupId, roundName, 1) || progress?.status === 'eliminated') return current;
+  if (!Number.isInteger(opponentSeed)) return current;
+  return current == null ? opponentSeed : Math.min(current, opponentSeed);
+}
+
+function resolveLeaguePhaseHome(state, phaseRules, matchday) {
+  const planned = state?.leaguePhase?.venues?.[matchday];
+  if (typeof planned === 'boolean') return planned;
+  const completed = (state?.results ?? []).filter(result => result?.isLeaguePhaseMatchday);
+  const homePlayed = completed.filter(result => result.userIsHome).length;
+  const targetHomes = phaseRules.homeMatches ?? Math.floor(phaseRules.matches / 2);
+  const homesNeeded = targetHomes - homePlayed;
+  const matchesRemaining = phaseRules.matches - matchday;
+  if (homesNeeded <= 0) return false;
+  if (homesNeeded >= matchesRemaining) return true;
+  return Math.random() < homesNeeded / matchesRemaining;
+}
+
+function drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, allTeams) {
+  if (isTwoLegRound(cupId, roundName, 2)) {
+    const leg1 = state?.results?.[state.results.length - 1];
+    if (leg1) {
+      const known = allTeams.find(t => t.id === leg1.opponentId) ?? UCL_CLUBS.find(c => c.id === leg1.opponentId);
+      return {
+        opponent: {
+          id: leg1.opponentId,
+          name: leg1.opponentName,
+          crest: known?.nation ?? known?.crest ?? '⚽',
+          rep: known?.strength ?? known?.reputation ?? 70,
+        },
+        opponentSeed: Number.isInteger(leg1.opponentSeed) ? leg1.opponentSeed : null,
+        userIsHome: !(leg1.userIsHome ?? true),
+      };
+    }
   }
 
+  if (isUefaCompetition(cupId)) {
+    const position = currentBracketSeed(state);
+    const allowedSeeds = getUefaKnockoutOpponentSeeds(cupId, position, roundName);
+    const opponentSeed = allowedSeeds.length
+      ? allowedSeeds[Math.floor(Math.random() * allowedSeeds.length)]
+      : null;
+    const rankedPool = UCL_CLUBS
+      .filter(c => c.id !== userTeamId)
+      .sort((a, b) => (b.strength ?? 0) - (a.strength ?? 0) || String(a.id).localeCompare(String(b.id)));
+    const pick = opponentSeed == null
+      ? rankedPool[Math.floor(Math.random() * rankedPool.length)]
+      : rankedPool[Math.min(opponentSeed - 1, rankedPool.length - 1)];
+    const seeding = getUefaKnockoutSeeding(cupId, position, roundName);
+    const seededVenue = seeding.secondLegHome == null ? null : !seeding.secondLegHome;
+    return {
+      opponent: pick ? { id:pick.id, name:pick.name, crest:pick.nation, rep:pick.strength } : null,
+      opponentSeed,
+      userIsHome: seededVenue ?? Math.random() < 0.5,
+    };
+  }
+
+  const cupNation = CUP_META[cupId]?.nation;
+  const ENGLISH_LEAGUES = new Set(['Premier League', 'Championship', 'League One', 'League Two']);
+  let pool;
+  if (cupNation === 'England') {
+    pool = allTeams.filter(t => t.id !== userTeamId && ENGLISH_LEAGUES.has(t.league ?? 'Premier League'));
+  } else {
+    pool = allTeams.filter(t => t.id !== userTeamId && (t.league ?? 'Premier League') === userLeague);
+  }
+  const eligible = pool.length > 0 ? pool : allTeams.filter(t => t.id !== userTeamId);
+  const pick = eligible[Math.floor(Math.random() * eligible.length)];
+  return {
+    opponent: pick ? { id:pick.id, name:pick.name, crest:pick.crest ?? '⚽', rep:pick.reputation ?? 70 } : null,
+    opponentSeed: null,
+    userIsHome: Math.random() < 0.5,
+  };
+}
+
+export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
+  const events = [];
+  const leagueFix = fixtures.find(f =>
+    f.competition === 'league' && !f.played &&
+    (f.homeTeamId === userTeamId || f.awayTeamId === userTeamId)
+  );
+  if (leagueFix) events.push({ type:'league', fixtureId:leagueFix.id, gw });
   if (!cupState) return events;
 
-  // 2. Cup events scheduled for this GW
   for (const [cupId, state] of Object.entries(cupState)) {
     if (state.status !== 'active') continue;
     const meta = CUP_META[cupId];
-    if (!meta) continue;
+    const rules = getCompetitionRules(cupId);
+    if (!meta || !rules) continue;
 
-    // UCL group stage matchday
-    if (cupId === 'ucl' && meta.isGroupStage && !state.leaguePhaseComplete) {
-      const gwList = meta.groupStageGWs ?? [];
-      if (gwList.includes(gw) && (state.leaguePhase?.matchday ?? 0) < 8) {
-        const lp  = state.leaguePhase ?? {};
-        const opp = lp.opponents?.[lp.matchday ?? 0];
-        events.push({
-          type:    'ucl_md',
-          cupId:   'ucl',
-          gw,
-          matchday: (lp.matchday ?? 0) + 1,
-          oppName:  opp?.name ?? 'European Club',
+    if (rules.leaguePhase && !state.leaguePhaseComplete) {
+      const lp = state.leaguePhase ?? {};
+      const matchday = lp.matchday ?? 0;
+      if (rules.leaguePhase.gws.includes(gw) && matchday < rules.leaguePhase.matches) {
+        const opp = lp.opponents?.[matchday];
+        const base = {
+          cupId, gw, matchday:matchday + 1, leaguePhase:true,
+          opponentId:opp?.id,
+          opponentName:opp?.name ?? 'European Club',
+          opponentCrest:opp?.nation ?? '🌍',
+          opponentRep:opp?.strength ?? 72,
+          oppName:opp?.name ?? 'European Club',
           oppNation:opp?.nation ?? '🌍',
-          oppStrength: opp?.strength ?? 72,
-          userIsHome: Math.random() < 0.5,
+          oppStrength:opp?.strength ?? 72,
+          userIsHome:resolveLeaguePhaseHome(state, rules.leaguePhase, matchday),
+        };
+        if (cupId === 'ucl') events.push({ type:'ucl_md', ...base });
+        else events.push({
+          type:'cup', ...base, roundIdx:null,
+          roundName:`League Phase · Matchday ${matchday + 1}`,
+          cupName:meta.name, cupIcon:meta.icon,
         });
       }
       continue;
     }
 
-    // Standard knockout round
     const roundIdx = state.roundIndex ?? 0;
-    const roundGW  = meta.roundGWs?.[roundIdx];
-    if (roundGW === gw) {
-      const teamsById  = new Map(allTeams.map(t => [t.id, t]));
-      const userTeam   = teamsById.get(userTeamId);
-      const userLeague = userTeam?.league ?? 'Premier League';
-      const roundName  = meta.rounds[roundIdx] ?? 'Final';
-      // Pre-draw the opponent now so pre-match modal can display it
-      let drawnOpp = null;
-      let forcedUserIsHome = null;
-      const isEuropean = ['ucl','uel','uecl'].includes(cupId);
-      if (isEuropean && isEuroLegRound(cupId, roundName, 2)) {
-        // Leg 2: same opponent as leg 1, venue flipped (the "return leg")
-        const leg1 = state.results?.[state.results.length - 1];
-        const oppMeta = UCL_CLUBS.find(c => c.id === leg1?.opponentId);
-        drawnOpp = leg1 ? { id: leg1.opponentId, name: leg1.opponentName, crest: oppMeta?.nation ?? '⚽', rep: oppMeta?.strength ?? 70 } : null;
-        forcedUserIsHome = !(leg1?.userIsHome ?? true);
-      } else if (isEuropean) {
-        const pool = UCL_CLUBS.filter(c => c.id !== userTeamId);
-        const pick = pool[Math.floor(Math.random() * pool.length)];
-        drawnOpp = { id: pick.id, name: pick.name, crest: pick.nation, rep: pick.strength };
-      } else {
-        // Nation-wide draw for FA Cup; same-league for other domestic cups
-        const cupNation  = CUP_META[cupId]?.nation;
-        const ENGLISH_LEAGUES = new Set(['Premier League','Championship','League One','League Two']);
-        let pool;
-        if (cupNation === 'England') {
-          pool = allTeams.filter(t => t.id !== userTeamId && ENGLISH_LEAGUES.has(t.league ?? 'Premier League'));
-        } else {
-          pool = allTeams.filter(t => t.id !== userTeamId && (t.league ?? 'Premier League') === userLeague);
-        }
-        const eligible = pool.length > 0 ? pool : allTeams.filter(t => t.id !== userTeamId);
-        const pick = eligible[Math.floor(Math.random() * eligible.length)];
-        if (pick) drawnOpp = { id: pick.id, name: pick.name, crest: pick.crest ?? '⚽', rep: pick.reputation ?? 70 };
-      }
-      const userIsHome = forcedUserIsHome ?? (Math.random() < 0.5);
-      events.push({
-        type: 'cup',
-        cupId,
-        gw,
-        roundIdx,
-        roundName,
-        cupName:       meta.name,
-        cupIcon:      meta.icon,
-        opponentId:   drawnOpp?.id,
-        opponentName: drawnOpp?.name ?? 'TBD',
-        opponentCrest:drawnOpp?.crest ?? '⚽',
-        opponentRep:  drawnOpp?.rep ?? 70,
-        userIsHome,
-      });
-    }
+    const roundGW = meta.roundGWs?.[roundIdx];
+    if (roundGW !== gw) continue;
+    const teamsById = new Map(allTeams.map(t => [t.id, t]));
+    const userTeam = teamsById.get(userTeamId);
+    const userLeague = userTeam?.league ?? 'Premier League';
+    const roundName = meta.rounds[roundIdx] ?? 'Final';
+    const draw = drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, allTeams);
+    events.push({
+      type:'cup', cupId, gw, roundIdx, roundName,
+      cupName:meta.name, cupIcon:meta.icon,
+      opponentId:draw.opponent?.id,
+      opponentName:draw.opponent?.name ?? 'TBD',
+      opponentCrest:draw.opponent?.crest ?? '⚽',
+      opponentRep:draw.opponent?.rep ?? 70,
+      opponentSeed:draw.opponentSeed ?? null,
+      userIsHome:draw.userIsHome,
+    });
   }
-
   return events;
 }
 
-// ─── Get next event to play ────────────────────────────────────
+export function updateLeaguePhaseCupState(cupId, cupState, matchResult, userTeamId, rng = Math.random) {
+  const phaseRules = getCompetitionRules(cupId)?.leaguePhase;
+  if (!phaseRules) return cupState;
+  const lp = cupState?.leaguePhase ?? {};
+  const userGoals = Number(matchResult?.userGoals ?? 0);
+  const oppGoals = Number(matchResult?.oppGoals ?? 0);
+  const points = Number.isFinite(matchResult?.points)
+    ? matchResult.points
+    : userGoals > oppGoals ? 3 : userGoals === oppGoals ? 1 : 0;
+  const matchday = (lp.matchday ?? 0) + 1;
+  const nextLeaguePhase = {
+    ...lp, matchday,
+    points:(lp.points ?? 0) + points,
+    gf:(lp.gf ?? 0) + userGoals,
+    ga:(lp.ga ?? 0) + oppGoals,
+    gd:(lp.gd ?? 0) + userGoals - oppGoals,
+  };
+  const complete = matchday >= phaseRules.matches;
+  const nextResults = [...(cupState?.results ?? []), { ...matchResult, points, isLeaguePhaseMatchday:true }];
+  if (!complete) return { ...cupState, leaguePhase:nextLeaguePhase, leaguePhaseComplete:false, results:nextResults };
+
+  const finish = finishLeaguePhase(cupId, nextLeaguePhase, userTeamId, rng);
+  return {
+    ...cupState,
+    leaguePhase:{
+      ...nextLeaguePhase,
+      table:finish?.table ?? [],
+      position:finish?.position ?? null,
+      qualificationRoute:finish?.route ?? 'eliminated',
+    },
+    leaguePhaseComplete:true,
+    qualificationRoute:finish?.route ?? 'eliminated',
+    seed:finish?.seed ?? null,
+    bracketSeed:finish?.seed ?? null,
+    roundIndex:finish?.roundIndex ?? 0,
+    status:finish?.status ?? 'eliminated',
+    results:nextResults,
+  };
+}
+
 export async function getNextMatchEvent() {
   const save = await getSave();
   if (save.currentGameweek > getEffectiveTotalGW(save)) return null;
-
-  // If there's a pending events queue, return the first
   if (save.pendingEvents?.length) return save.pendingEvents[0];
-
-  // Otherwise build it for the current GW
-  const gw       = save.currentGameweek;
+  const gw = save.currentGameweek;
   const fixtures = await getFixturesByGW(gw);
   const allTeams = await getAllTeams();
-  const events   = buildPendingEvents(gw, save.userTeamId, fixtures, save.cups, allTeams);
-
-  if (!events.length) {
-    // GW has no user events — advance silently
-    return { type: 'no_user_event', gw };
-  }
-
-  // Save the queue
-  await putSave({ ...save, pendingEvents: events });
+  const events = buildPendingEvents(gw, save.userTeamId, fixtures, save.cups, allTeams);
+  if (!events.length) return { type:'no_user_event', gw };
+  await putSave({ ...save, pendingEvents:events });
   return events[0];
 }
 
-// ─── Also exported for pre-match modal ────────────────────────
 export async function getNextUserFixture() {
   const save = await getSave();
-  const all  = await getAllFixtures();
+  const all = await getAllFixtures();
   return all
     .filter(f => !f.played && (f.homeTeamId === save.userTeamId || f.awayTeamId === save.userTeamId))
     .sort((a, b) => a.gameweek - b.gameweek)[0] ?? null;
 }
 
-// ─── Simulate ONE event ────────────────────────────────────────
+async function settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam) {
+  let fixtures = await getFixturesByGW(gw);
+  const unplayed = fixtures.filter(f => f.competition === 'league' && !f.played);
+  if (unplayed.length) await simulateFixtures(unplayed, teamsById, playersByTeam, save);
+  fixtures = await getFixturesByGW(gw);
+  const projected = await applyPendingWorldLeagueProjections(fixtures);
+  if (projected.length) await applyDevelopment(projected).catch(() => {});
+  return projected;
+}
+
+async function settleWorldCompetitionGameweek(gw, save, allTeams) {
+  let workingSave = save;
+  const recovered = await applyPendingWorldCompetitionProjections(workingSave);
+  if (recovered.results.length) {
+    workingSave = recovered.save ?? workingSave;
+    await applyDevelopment(recovered.results).catch(() => {});
+  }
+  if (!workingSave?.worldCompetitions?.competitions) return workingSave;
+
+  const freshPlayers = await getAllPlayers();
+  const advanced = await advanceWorldCompetitions(
+    workingSave.worldCompetitions,
+    gw,
+    allTeams,
+    groupByTeam(freshPlayers),
+  );
+  if (!advanced.state) return workingSave;
+
+  // Persist canonical cup records before projecting them. If the tab closes
+  // here, the next closeout recovers the still-pending records exactly once.
+  await putSave({ ...workingSave, worldCompetitions:advanced.state });
+  if (!advanced.records.length) return { ...workingSave, worldCompetitions:advanced.state };
+
+  const persisted = await getSave();
+  const applied = await applyPendingWorldCompetitionProjections(persisted);
+  if (applied.results.length) await applyDevelopment(applied.results).catch(() => {});
+  return applied.save ?? persisted;
+}
+
+export function personalStateSettlementRequiresFullWorld(fixtures) {
+  return !(fixtures ?? []).some(fixture => fixture?.competition === 'league');
+}
+
+async function settleWorldPersonalState(gameweek, season, userTeamId, fixtures) {
+  // League projection has already settled every completed background club,
+  // while background competition projection settles the clubs it deferred.
+  // The final boundary therefore only needs the managed squad on an ordinary
+  // league week. A genuinely league-less/cup-only week has no global league
+  // projection, so it deliberately retains the full-world recovery path.
+  const candidates = personalStateSettlementRequiresFullWorld(fixtures) || !userTeamId
+    ? await getAllPlayers()
+    : await getPlayersByTeam(userTeamId);
+  const patches = buildPersonalStatePatches(candidates, gameweek, season);
+  if (patches.length) await putPlayersBulk(patches);
+  return patches;
+}
+
+async function runEndOfWorldGameweek(save, fixtures) {
+  // P3 personal state observes the fully projected world week before injury
+  // recovery advances the medical clock. The per-player settled-week key makes
+  // this safe to retry if closeout is interrupted before the world clock itself
+  // advances, including after gameweek numbers repeat in a later season.
+  // This write is fail-closed: if the P3 lifecycle cannot persist, the caller
+  // must not advance the shared world clock and silently skip a player week.
+  const personalStatePatches = await settleWorldPersonalState(
+    save.currentGameweek,
+    save.season,
+    save.userTeamId,
+    fixtures,
+  );
+  const recoveredPlayers = await processInjuryRecovery().catch(() => []);
+  const newOffers = await generateAIOffers().catch(() => []) ?? [];
+  await simulateAITransfers(save).catch(() => {});
+  await simulateAILoans(save).catch(() => {});
+  await payWeeklyWages().catch(() => {});
+  await updateTeamMorale(save.userTeamId).catch(() => {});
+  return { recoveredPlayers, newOffers, personalStatePatches };
+}
+
 export async function advanceOneFixture(overrideFormation) {
-  const save = await getSave();
-  if (save.currentGameweek > getEffectiveTotalGW(save)) return { finished: true };
+  let save = await getSave();
+  if (save.currentGameweek > getEffectiveTotalGW(save)) return { finished:true };
+
+  // Recover any persisted AI cup records before selecting this week's squads.
+  // That prevents a reload between record-write and projection from duplicating
+  // appearances/cards/injuries when the user resumes the same world week.
+  const recoveredCompetition = await applyPendingWorldCompetitionProjections(save);
+  if (recoveredCompetition.results.length) {
+    save = recoveredCompetition.save ?? save;
+    await applyDevelopment(recoveredCompetition.results).catch(() => {});
+  }
 
   const gw = save.currentGameweek;
-  const [allTeams, allPlayers, gwFixtures] = await Promise.all([
+  let [allTeams, allPlayers, gwFixtures] = await Promise.all([
     getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
   ]);
-  const teamsById     = new Map(allTeams.map(t => [t.id, t]));
-  const playersByTeam = groupByTeam(allPlayers);
 
-  // Build/read pending events queue
+  // Recover a canonical P1 result left pending by a tab close. The atomic
+  // projection either applies the whole batch or nothing, so this cannot double.
+  const recoveredProjection = await applyPendingWorldLeagueProjections(gwFixtures);
+  if (recoveredProjection.length) {
+    allPlayers = await getAllPlayers();
+    gwFixtures = await getFixturesByGW(gw);
+  }
+
+  const teamsById = new Map(allTeams.map(t => [t.id, t]));
+  const playersByTeam = groupByTeam(allPlayers);
   let pending = save.pendingEvents?.length
     ? [...save.pendingEvents]
     : buildPendingEvents(gw, save.userTeamId, gwFixtures, save.cups, allTeams);
 
   if (!pending.length) {
-    // No user events this GW — silently simulate AI fixtures and advance
-    const aiUnplayed = gwFixtures.filter(f => !f.played);
-    const aiResults  = await simulateFixtures(aiUnplayed, teamsById, playersByTeam, save);
-    for (const r of aiResults) await applyResult(r);
-    await recomputePositions();
-    // Tick recovery before updateCache so AI match injuries don't get ticked same GW
-    const recoveredPlayers = await processInjuryRecovery().catch(() => []);
-    await updateCache(allPlayers, aiResults);
-    await applyDevelopment(aiResults).catch(() => {});
-    const newOffers = await generateAIOffers().catch(() => []);
-    await simulateAITransfers(save).catch(() => {});
-    await simulateAILoans(save).catch(() => {});
-    await payWeeklyWages().catch(() => {});
-    await updateTeamMorale(save.userTeamId).catch(() => {});
-    const freshSave1 = await getSave();
+    await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
+    const latestAfterLeague = await getSave();
+    const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
+    const { recoveredPlayers, newOffers } = await runEndOfWorldGameweek(competitionSave, gwFixtures);
+    const freshSave = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
-    await putSave({ ...freshSave1, currentGameweek: gw + 1, currentDate: newDate.toISOString(), pendingEvents: [] });
-    return { skipped: true, gameweek: gw, nextGW: gw + 1, finished: gw + 1 > getEffectiveTotalGW(save), newOffers: newOffers ?? [], recoveredPlayers: recoveredPlayers ?? [] };
+    await putSave({ ...freshSave, currentGameweek:gw + 1, currentDate:newDate.toISOString(), pendingEvents:[] });
+    return {
+      skipped:true, gameweek:gw, nextGW:gw + 1,
+      finished:gw + 1 > getEffectiveTotalGW(save), newOffers, recoveredPlayers,
+    };
   }
 
   const event = pending[0];
   const remaining = pending.slice(1);
   let singleResult = null;
-  let cupResults   = [];
-  let updatedCups  = JSON.parse(JSON.stringify(save.cups ?? {}));
+  const cupResults = [];
+  const updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
   let recoveredPlayers = [];
+  let newOffers = [];
 
   if (event.type === 'league') {
-    // ── Simulate league fixture ──────────────────────────────
-    const fix    = gwFixtures.find(f => f.id === event.fixtureId);
-    if (!fix) { pending = remaining; } else {
-      const home = teamsById.get(fix.homeTeamId) ?? { id:fix.homeTeamId, name:fix.homeTeamId, crest:'⚽' };
-      const away = teamsById.get(fix.awayTeamId) ?? { id:fix.awayTeamId, name:fix.awayTeamId, crest:'⚽' };
-      const hPl  = playersByTeam.get(fix.homeTeamId) ?? [];
-      const aPl  = playersByTeam.get(fix.awayTeamId) ?? [];
-      const fm   = overrideFormation ?? save.formation ?? '4-3-3';
-      const hFm  = fix.homeTeamId === save.userTeamId ? fm : pickAIFormation(hPl);
-      const aFm  = fix.awayTeamId === save.userTeamId ? fm : pickAIFormation(aPl);
-      const hLineup = fix.homeTeamId === save.userTeamId ? (save.lineup ?? null) : null;
-      const aLineup = fix.awayTeamId === save.userTeamId ? (save.lineup ?? null) : null;
-
-      const hMentality = fix.homeTeamId === save.userTeamId ? (save.mentality ?? 'balanced') : 'balanced';
-      const aMentality = fix.awayTeamId === save.userTeamId ? (save.mentality ?? 'balanced') : 'balanced';
-
+    const fix = gwFixtures.find(f => f.id === event.fixtureId);
+    if (fix) {
+      const userIsHome = fix.homeTeamId === save.userTeamId;
+      const rawHome = teamsById.get(fix.homeTeamId) ?? { id:fix.homeTeamId, name:fix.homeTeamId, crest:'⚽' };
+      const rawAway = teamsById.get(fix.awayTeamId) ?? { id:fix.awayTeamId, name:fix.awayTeamId, crest:'⚽' };
+      const rawHomePlayers = playersByTeam.get(fix.homeTeamId) ?? [];
+      const rawAwayPlayers = playersByTeam.get(fix.awayTeamId) ?? [];
+      const home = userIsHome ? decorateManagedTeam(rawHome, save) : rawHome;
+      const away = userIsHome ? rawAway : decorateManagedTeam(rawAway, save);
+      const hPl = userIsHome ? decorateManagedPlayers(rawHomePlayers, save) : rawHomePlayers;
+      const aPl = userIsHome ? rawAwayPlayers : decorateManagedPlayers(rawAwayPlayers, save);
+      const fm = overrideFormation ?? save.formation ?? '4-3-3';
+      const hFm = userIsHome ? fm : undefined;
+      const aFm = userIsHome ? undefined : fm;
+      const hLineup = userIsHome ? (save.lineup ?? null) : null;
+      const aLineup = userIsHome ? null : (save.lineup ?? null);
+      const hMentality = userIsHome ? (save.mentality ?? 'balanced') : undefined;
+      const aMentality = userIsHome ? undefined : (save.mentality ?? 'balanced');
       const result = simulateMatch(home, away, hPl, aPl, hFm, aFm, hLineup, aLineup, hMentality, aMentality);
-      await putFixture({ ...fix, played:true, homeGoals:result.homeGoals, awayGoals:result.awayGoals, homeScorers:result.homeScorers, awayScorers:result.awayScorers, events:result.events });
-      await applyResult(result);
-
-      // AI fixtures for this GW — simulate silently NOW
-      const refreshedGW = await getFixturesByGW(gw);
-      const aiUnplayed  = refreshedGW.filter(f => !f.played);
-      const aiResults   = await simulateFixtures(aiUnplayed, teamsById, playersByTeam, save);
-      for (const r of aiResults) await applyResult(r);
-      await recomputePositions();
-      // Tick recovery BEFORE updateCache so newly-injured players (written by updateCache) aren't ticked this GW
-      recoveredPlayers = await processInjuryRecovery().catch(() => []);
-      await updateCache(allPlayers, [result, ...aiResults]);
-      await applyDevelopment([result, ...aiResults]).catch(() => {});
-
+      await putFixture(toCanonicalLeagueRecord(fix, result, save.season));
+      const worldResults = await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
       singleResult = { ...result, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
+      // settleWorldLeagueGameweek already projects the managed result together
+      // with the background leagues; keep its result list available to dev only.
+      void worldResults;
     }
     pending = remaining;
 
-  } else if (event.type === 'ucl_md') {
-    // ── Simulate UCL league phase matchday ────────────────────
-    const userTeam   = allTeams.find(t => t.id === save.userTeamId);
-    const userPlayers = playersByTeam.get(save.userTeamId) ?? [];
-    const cupState   = save.cups?.ucl;
-    const mdResult   = simulateUCLMatchday(userTeam, userPlayers, cupState, save.mentality ?? 'balanced', event.userIsHome, playersByTeam);
-
+  } else if (event.type === 'ucl_md' || (event.type === 'cup' && event.leaguePhase)) {
+    const cupId = event.cupId ?? 'ucl';
+    const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
+    const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
+    const cupState = save.cups?.[cupId];
+    const mdResult = simulateEuropeanLeaguePhaseMatchday(
+      cupId,
+      userTeam,
+      userPlayers,
+      cupState,
+      save.mentality ?? 'balanced',
+      event.userIsHome,
+      playersByTeam,
+      overrideFormation ?? save.formation ?? '4-3-3',
+      save.lineup ?? null,
+    );
     if (mdResult) {
-      const lp    = cupState.leaguePhase ?? {};
-      const newMD = (lp.matchday ?? 0) + 1;
-      const newPts = (lp.points ?? 0) + mdResult.points;
-      const newGD  = (lp.gd ?? 0) + mdResult.gd;
-      const phaseComplete = newMD >= 8;
-      updatedCups.ucl = {
-        ...cupState,
-        leaguePhase: { ...lp, matchday: newMD, points: newPts, gd: newGD },
-        results: [...(cupState.results ?? []), { ...mdResult, isUCLMatchday: true }],
-        leaguePhaseComplete: phaseComplete,
-        ...(phaseComplete ? { roundIndex:0, status: newPts >= 7 ? 'active' : 'eliminated' } : {}),
+      updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, mdResult, save.userTeamId);
+      const reportResult = {
+        ...mdResult,
+        opponentId:mdResult.opponentId ?? event.opponentId,
+        opponentName:mdResult.opponentName ?? event.opponentName ?? event.oppName,
       };
-      cupResults.push({ ...mdResult, cupId:'ucl', isUCLMatchday:true });
-
-      // Build a synthetic "result" for the match report
-      singleResult = buildCupMatchResult(mdResult, save.userTeamId, event, allTeams);
-      // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
-      recoveredPlayers = await processInjuryRecovery().catch(() => []);
-      await updateCache(allPlayers, [mdResult]);
+      cupResults.push(reportResult);
+      singleResult = buildCupMatchResult(reportResult, save.userTeamId, event, allTeams);
+      await applyNonLeaguePlayerResults([mdResult]).catch(() => {});
       await applyDevelopment([mdResult]).catch(() => {});
     }
     pending = remaining;
 
   } else if (event.type === 'cup') {
-    // ── Simulate knockout cup round ───────────────────────────
-    const userTeam    = allTeams.find(t => t.id === save.userTeamId);
-    const userPlayers = playersByTeam.get(save.userTeamId) ?? [];
-    const cupState    = save.cups?.[event.cupId];
-    const result      = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, { ...event, userMentality: save.mentality ?? 'balanced' });
-    const progress    = resolveCupProgress(event.cupId, event.roundName, event.roundIdx ?? 0, cupState, result.userGoals, result.oppGoals, result.userWon, result.userIsHome);
-    const resultOut   = progress.aggregate ? { ...result, userWon: progress.aggregate.userWon, aggregate: progress.aggregate } : result;
-
+    const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
+    const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
+    const cupState = save.cups?.[event.cupId];
+    const result = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, {
+      ...event,
+      userMentality:save.mentality ?? 'balanced',
+      userFormation:overrideFormation ?? save.formation ?? '4-3-3',
+      userLineup:save.lineup ?? null,
+    });
+    const progress = resolveCupProgress(
+      event.cupId,
+      event.roundName,
+      event.roundIdx ?? 0,
+      cupState,
+      result.userGoals,
+      result.oppGoals,
+      result.userWon,
+      result.userIsHome,
+      result.seed,
+    );
+    const resultOut = {
+      ...result,
+      opponentSeed:event.opponentSeed ?? null,
+      ...(progress.aggregate ? { userWon:progress.aggregate.userWon, aggregate:progress.aggregate } : {}),
+    };
     updatedCups[event.cupId] = {
       ...cupState,
-      roundIndex: progress.roundIndex,
-      status:     progress.status,
-      results:    [...(cupState?.results ?? []), resultOut],
+      roundIndex:progress.roundIndex,
+      status:progress.status,
+      bracketSeed:inheritBracketSeed(event.cupId, event.roundName, cupState, event.opponentSeed, progress),
+      results:[...(cupState?.results ?? []), resultOut],
     };
     cupResults.push(resultOut);
     singleResult = buildCupMatchResult(resultOut, save.userTeamId, event, allTeams);
-    // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
-    recoveredPlayers = await processInjuryRecovery().catch(() => []);
-    await updateCache(allPlayers, [result]);
+    await applyNonLeaguePlayerResults([result]).catch(() => {});
     await applyDevelopment([result]).catch(() => {});
     pending = remaining;
   }
 
-  // ── Advance GW if no more pending events ──────────────────
-  const gwDone     = pending.length === 0;
-  const nextGW     = gwDone ? gw + 1 : gw;
-  const newDate    = new Date(save.currentDate);
-  if (gwDone) newDate.setDate(newDate.getDate() + 7);
+  const gwDone = pending.length === 0;
+  const nextGW = gwDone ? gw + 1 : gw;
+  const newDate = new Date(save.currentDate);
 
-  let newOffers = [];
-  if (gwDone) newOffers = await generateAIOffers().catch(() => []) ?? [];
-  if (gwDone) await simulateAITransfers(save).catch(() => {});
-  if (gwDone) await simulateAILoans(save).catch(() => {});
-  if (gwDone) await payWeeklyWages().catch(() => {});
-  if (gwDone) await updateTeamMorale(save.userTeamId).catch(() => {});
+  if (gwDone) {
+    // Weeks with a cup but no managed league match still advance every other
+    // domestic league and background competition on the same date before the
+    // shared world clock moves forward.
+    await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
+    const latestAfterLeague = await getSave();
+    const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
+    const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
+    recoveredPlayers = end.recoveredPlayers;
+    newOffers = end.newOffers;
+    newDate.setDate(newDate.getDate() + 7);
+  }
 
-  // Re-read save so we don't overwrite the offers generateAIOffers just wrote
-  const freshSave2 = gwDone ? await getSave() : save;
-
+  const freshSave = gwDone ? await getSave() : save;
+  const userPlayersForDNA = playersByTeam.get(save.userTeamId) ?? [];
+  const userIsHomeForDNA = event.userIsHome ?? (singleResult?.homeTeamId === save.userTeamId);
+  const saveWithDNA = singleResult
+    ? applyManagerDNAResult(freshSave, singleResult, event, userIsHomeForDNA, userPlayersForDNA)
+    : freshSave;
   await putSave({
-    ...freshSave2,
-    currentGameweek: nextGW,
-    currentDate:     gwDone ? newDate.toISOString() : save.currentDate,
-    cups:            updatedCups,
-    pendingEvents:   pending,
+    ...saveWithDNA,
+    currentGameweek:nextGW,
+    currentDate:gwDone ? newDate.toISOString() : save.currentDate,
+    cups:updatedCups,
+    pendingEvents:pending,
   });
 
   return {
-    singleResult,
-    eventType:  event.type,
-    cupResults,
-    gameweek:   gw,
-    nextGW,
-    finished:   nextGW > getEffectiveTotalGW(save),
-    eventsLeft: pending.length,
-    newOffers,
-    recoveredPlayers,
+    singleResult, eventType:event.type, cupResults, gameweek:gw, nextGW,
+    finished:nextGW > getEffectiveTotalGW(save), eventsLeft:pending.length,
+    newOffers, recoveredPlayers,
   };
 }
 
-// ─── Advance using a pre-computed Watch Match result ──────────
-// Called after the live viewer finishes — skips simulation,
-// applies the pre-computed result, then runs the normal GW logic.
 export async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
-  const save = await getSave();
-  const gw   = save.currentGameweek;
-  const [allTeams, allPlayers, gwFixtures] = await Promise.all([
+  let save = await getSave();
+  const recoveredCompetition = await applyPendingWorldCompetitionProjections(save);
+  if (recoveredCompetition.results.length) {
+    save = recoveredCompetition.save ?? save;
+    await applyDevelopment(recoveredCompetition.results).catch(() => {});
+  }
+
+  const gw = save.currentGameweek;
+  let [allTeams, allPlayers, gwFixtures] = await Promise.all([
     getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
   ]);
-  const teamsById     = new Map(allTeams.map(t => [t.id, t]));
-  const playersByTeam = groupByTeam(allPlayers);
 
-  let pending = save.pendingEvents?.length
+  const recoveredProjection = await applyPendingWorldLeagueProjections(gwFixtures);
+  if (recoveredProjection.length) {
+    allPlayers = await getAllPlayers();
+    gwFixtures = await getFixturesByGW(gw);
+  }
+
+  const teamsById = new Map(allTeams.map(t => [t.id, t]));
+  const playersByTeam = groupByTeam(allPlayers);
+  const pending = save.pendingEvents?.length
     ? [...save.pendingEvents]
     : buildPendingEvents(gw, save.userTeamId, gwFixtures, save.cups, allTeams);
-
-  const event0    = pending[0];
+  const event0 = pending[0] ?? event;
   const remaining = pending.slice(1);
-  let updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
+  const updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
   let singleResult = null;
   let recoveredPlayers = [];
+  let newOffers = [];
 
   if (event0?.type === 'league') {
     const fix = gwFixtures.find(f => f.id === event0.fixtureId);
     if (fix) {
-      await putFixture({ ...fix, played:true, homeGoals:matchResult.homeGoals, awayGoals:matchResult.awayGoals, homeScorers:matchResult.homeScorers, awayScorers:matchResult.awayScorers, events:matchResult.events });
-      await applyResult(matchResult);
-      await recomputePositions();
-
-      // AI fixtures for same GW
-      const aiUnplayed = gwFixtures.filter(f => !f.played && f.id !== fix.id);
-      const aiResults  = await simulateFixtures(aiUnplayed, teamsById, playersByTeam, save);
-      for (const r of aiResults) await applyResult(r);
-      await recomputePositions();
-      // Recovery before updateCache so newly-injured players aren't ticked same GW
-      recoveredPlayers = await processInjuryRecovery().catch(() => []);
-      await updateCache(allPlayers, [matchResult, ...aiResults]);
-      await applyDevelopment([matchResult]).catch(() => {});
+      await putFixture(toCanonicalLeagueRecord(fix, matchResult, save.season));
+      await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
     }
     singleResult = { ...matchResult, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
 
   } else if (event0?.type === 'ucl_md' || event0?.type === 'cup') {
-    // For cup events in watch mode — apply the raw match result and
-    // reconstruct the cup state update using the score.
     const userGoals = userIsHome ? matchResult.homeGoals : matchResult.awayGoals;
-    const oppGoals  = userIsHome ? matchResult.awayGoals : matchResult.homeGoals;
-    const isEuroLeg = event0.type === 'cup' && (isEuroLegRound(event0.cupId, event0.roundName, 1) || isEuroLegRound(event0.cupId, event0.roundName, 2));
-    const userWon   = isEuroLeg ? userGoals > oppGoals : (userGoals > oppGoals || (userGoals === oppGoals && Math.random() < 0.5));
-    let aggregate   = null;
+    const oppGoals = userIsHome ? matchResult.awayGoals : matchResult.homeGoals;
+    let aggregate = null;
 
-    if (event0.type === 'ucl_md') {
-      const cupState = save.cups?.ucl;
-      const lp = cupState?.leaguePhase ?? {};
-      const pts = userGoals > oppGoals ? 3 : userGoals === oppGoals ? 1 : 0;
-      const newMD = (lp.matchday ?? 0) + 1;
-      const phaseComplete = newMD >= 8;
-      updatedCups.ucl = {
-        ...cupState,
-        leaguePhase: { ...lp, matchday: newMD, points: (lp.points??0)+pts, gd: (lp.gd??0)+(userGoals-oppGoals) },
-        results: [...(cupState?.results??[]), { userGoals, oppGoals, points:pts, result: pts===3?'W':pts===1?'D':'L', opponentName: event0.oppName, userIsHome }],
-        leaguePhaseComplete: phaseComplete,
-        ...(phaseComplete ? { roundIndex:0, status: ((lp.points??0)+pts) >= 7 ? 'active' : 'eliminated' } : {}),
+    if (event0.type === 'ucl_md' || event0.leaguePhase) {
+      const cupId = event0.cupId ?? 'ucl';
+      const cupState = save.cups?.[cupId];
+      const points = userGoals > oppGoals ? 3 : userGoals === oppGoals ? 1 : 0;
+      const mdResult = {
+        cupId,
+        matchday:(cupState?.leaguePhase?.matchday ?? 0) + 1,
+        opponentId:event0.opponentId,
+        opponentName:event0.opponentName ?? event0.oppName,
+        opponentNation:event0.opponentCrest ?? event0.oppNation,
+        userGoals, oppGoals, userIsHome, points,
+        gd:userGoals - oppGoals,
+        result:points === 3 ? 'W' : points === 1 ? 'D' : 'L',
+        homeTeamId:matchResult.homeTeamId,
+        awayTeamId:matchResult.awayTeamId,
+        homeGoals:matchResult.homeGoals,
+        awayGoals:matchResult.awayGoals,
+        homeScorers:matchResult.homeScorers,
+        awayScorers:matchResult.awayScorers,
+        scorers:userIsHome ? matchResult.homeScorers : matchResult.awayScorers,
+        stats:matchResult.stats,
+        events:matchResult.events,
+        fitnessUpdates:matchResult.fitnessUpdates,
+        homeFormation:matchResult.homeFormation,
+        awayFormation:matchResult.awayFormation,
+        homeMentality:matchResult.homeMentality,
+        awayMentality:matchResult.awayMentality,
+        homeTactics:matchResult.homeTactics,
+        awayTactics:matchResult.awayTactics,
+        seed:matchResult.seed,
       };
+      updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, mdResult, save.userTeamId);
+      singleResult = buildCupMatchResult(mdResult, save.userTeamId, event0, allTeams);
     } else {
       const cupState = save.cups?.[event0.cupId];
-      const progress = resolveCupProgress(event0.cupId, event0.roundName, event0.roundIdx ?? 0, cupState, userGoals, oppGoals, userWon, userIsHome);
+      const twoLeg = isTwoLegRound(event0.cupId, event0.roundName, 1) || isTwoLegRound(event0.cupId, event0.roundName, 2);
+      const knockout = twoLeg
+        ? { userWon:userGoals > oppGoals, penalties:false, extraTime:false }
+        : resolveSingleLegKnockout(userGoals, oppGoals, matchResult.seed);
+      const progress = resolveCupProgress(
+        event0.cupId,
+        event0.roundName,
+        event0.roundIdx ?? 0,
+        cupState,
+        userGoals,
+        oppGoals,
+        knockout.userWon,
+        userIsHome,
+        matchResult.seed,
+      );
       aggregate = progress.aggregate;
       updatedCups[event0.cupId] = {
         ...cupState,
-        roundIndex: progress.roundIndex,
-        status:     progress.status,
-        results:    [...(cupState?.results ?? []), { userGoals, oppGoals, userWon: aggregate ? aggregate.userWon : userWon, userIsHome, opponentId: event0.opponentId, opponentName: event0.opponentName, ...(aggregate ? { aggregate } : {}) }],
+        roundIndex:progress.roundIndex,
+        status:progress.status,
+        bracketSeed:inheritBracketSeed(event0.cupId, event0.roundName, cupState, event0.opponentSeed, progress),
+        results:[
+          ...(cupState?.results ?? []),
+          {
+            userGoals, oppGoals, userWon:aggregate ? aggregate.userWon : knockout.userWon,
+            userIsHome, opponentId:event0.opponentId, opponentName:event0.opponentName,
+            opponentSeed:event0.opponentSeed ?? null,
+            penalties:aggregate?.penalties ?? knockout.penalties,
+            extraTime:aggregate?.extraTime ?? knockout.extraTime,
+            homeFormation:matchResult.homeFormation,
+            awayFormation:matchResult.awayFormation,
+            homeMentality:matchResult.homeMentality,
+            awayMentality:matchResult.awayMentality,
+            homeTactics:matchResult.homeTactics,
+            awayTactics:matchResult.awayTactics,
+            seed:matchResult.seed,
+            ...(aggregate ? { aggregate } : {}),
+          },
+        ],
       };
+      singleResult = buildCupMatchResult(
+        {
+          userGoals, oppGoals, userIsHome,
+          homeScorers:matchResult.homeScorers, awayScorers:matchResult.awayScorers,
+          scorers:(matchResult.homeScorers ?? []).concat(matchResult.awayScorers ?? []),
+          opponentId:event0.opponentId, opponentName:event0.opponentName,
+          opponentSeed:event0.opponentSeed ?? null,
+          stats:matchResult.stats, events:matchResult.events,
+          fitnessUpdates:matchResult.fitnessUpdates, aggregate,
+          penalties:aggregate?.penalties ?? knockout.penalties,
+          extraTime:aggregate?.extraTime ?? knockout.extraTime,
+          homeFormation:matchResult.homeFormation,
+          awayFormation:matchResult.awayFormation,
+          homeMentality:matchResult.homeMentality,
+          awayMentality:matchResult.awayMentality,
+          homeTactics:matchResult.homeTactics,
+          awayTactics:matchResult.awayTactics,
+          seed:matchResult.seed,
+        },
+        save.userTeamId, event0, allTeams,
+      );
     }
-    singleResult = buildCupMatchResult(
-      { userGoals, oppGoals, userIsHome, homeScorers: matchResult.homeScorers, awayScorers: matchResult.awayScorers, scorers: matchResult.homeScorers.concat(matchResult.awayScorers), opponentName: event0.opponentName ?? event0.oppName, opponentNation: event0.oppNation, stats: matchResult.stats, events: matchResult.events, fitnessUpdates: matchResult.fitnessUpdates, aggregate },
-      save.userTeamId, event0, allTeams
-    );
-    // Tick recovery BEFORE updateCache so newly-injured players aren't ticked this GW
-    recoveredPlayers = await processInjuryRecovery().catch(() => []);
-    await updateCache(allPlayers, [matchResult]);
+
+    await applyNonLeaguePlayerResults([matchResult]).catch(() => {});
     await applyDevelopment([matchResult]).catch(() => {});
   }
 
-  // Advance GW if no more pending
-  const gwDone  = remaining.length === 0;
-  const nextGW  = gwDone ? gw + 1 : gw;
+  const gwDone = remaining.length === 0;
+  const nextGW = gwDone ? gw + 1 : gw;
   const newDate = new Date(save.currentDate);
-  let newOffers = [];
   if (gwDone) {
+    await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
+    const latestAfterLeague = await getSave();
+    const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
+    const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
+    recoveredPlayers = end.recoveredPlayers;
+    newOffers = end.newOffers;
     newDate.setDate(newDate.getDate() + 7);
-    newOffers = await generateAIOffers().catch(()=>[]) ?? [];
-    await simulateAITransfers(save).catch(() => {});
-    await simulateAILoans(save).catch(() => {});
-    await payWeeklyWages().catch(() => {});
-    await updateTeamMorale(save.userTeamId).catch(() => {});
   }
 
-  // Re-read save so we don't overwrite the offers generateAIOffers just wrote
-  const freshSave3 = gwDone ? await getSave() : save;
-  await putSave({ ...freshSave3, currentGameweek: nextGW, currentDate: gwDone ? newDate.toISOString() : save.currentDate, cups: updatedCups, pendingEvents: remaining });
+  const freshSave = gwDone ? await getSave() : save;
+  const userPlayersForDNA = playersByTeam.get(save.userTeamId) ?? [];
+  const saveWithDNA = singleResult
+    ? applyManagerDNAResult(freshSave, singleResult, event0, userIsHome, userPlayersForDNA)
+    : freshSave;
+  await putSave({
+    ...saveWithDNA,
+    currentGameweek:nextGW,
+    currentDate:gwDone ? newDate.toISOString() : save.currentDate,
+    cups:updatedCups,
+    pendingEvents:remaining,
+  });
 
-  return { singleResult, eventType: event0?.type, cupResults: [], gameweek: gw, nextGW, finished: nextGW > getEffectiveTotalGW(save), eventsLeft: remaining.length, newOffers, recoveredPlayers };
-}
-
-// ─── Build a synthetic match result for the report modal ──────
-export function buildCupMatchResult(r, userTeamId, event, allTeams) {
-  const teamsById = new Map(allTeams.map(t => [t.id, t]));
-  const defaultStats = { possession:{home:50,away:50}, shots:{home:0,away:0}, shotsOnTarget:{home:0,away:0}, xG:{home:0,away:0}, corners:{home:0,away:0}, fouls:{home:0,away:0}, yellowCards:{home:0,away:0} };
-  if (event.type === 'ucl_md') {
-    const userIsHome = r.userIsHome ?? true;
-    const userName   = teamsById.get(userTeamId)?.name ?? 'Your Team';
-    const userCrest  = teamsById.get(userTeamId)?.crest ?? '⚽';
-    // Use the real opponent ID from the result so event.teamId matching works in the timeline
-    const oppId      = r.opponentId ?? (event.oppId ?? 'opp');
-    return {
-      isCupMatch:    true,
-      cupId:         'ucl',
-      cupName:       'Champions League',
-      cupIcon:       '⭐',
-      isUCLMatchday: true,
-      matchday:      r.matchday,
-      opponentName:  r.opponentName,
-      opponentNation:r.opponentNation,
-      userGoals:     r.userGoals,
-      oppGoals:      r.oppGoals,
-      points:        r.points,
-      result:        r.result,
-      scorers:       r.scorers ?? [],
-      homeTeamId:    userIsHome ? userTeamId : oppId,
-      awayTeamId:    userIsHome ? oppId : userTeamId,
-      homeGoals:     userIsHome ? r.userGoals : r.oppGoals,
-      awayGoals:     userIsHome ? r.oppGoals  : r.userGoals,
-      homeTeamName:  userIsHome ? userName : r.opponentName,
-      awayTeamName:  userIsHome ? r.opponentName : userName,
-      homeTeamCrest: userIsHome ? userCrest : (r.opponentNation ?? '⚽'),
-      awayTeamCrest: userIsHome ? (r.opponentNation ?? '⚽') : userCrest,
-      homeScorers:   r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : []),
-      awayScorers:   r.awayScorers ?? (userIsHome ? [] : (r.scorers ?? [])),
-      events:        r.events ?? [],
-      stats:         r.stats ?? defaultStats,
-      fitnessUpdates:r.fitnessUpdates ?? [],
-      isUserMatch:   true,
-      userTeamId,
-      gameweek:      event.gw,
-    };
-  }
-  // Standard cup
-  const userIsHome = r.userIsHome ?? true;
   return {
-    isCupMatch:    true,
-    cupId:         event.cupId,
-    cupName:       event.cupName,
-    cupIcon:       event.cupIcon,
-    roundName:     event.roundName,
-    homeTeamId:    userIsHome ? userTeamId : (r.opponentId ?? 'opp'),
-    awayTeamId:    userIsHome ? (r.opponentId ?? 'opp') : userTeamId,
-    homeGoals:     userIsHome ? r.userGoals : r.oppGoals,
-    awayGoals:     userIsHome ? r.oppGoals  : r.userGoals,
-    homeTeamName:  userIsHome ? (teamsById.get(userTeamId)?.name ?? 'Your Team') : (r.opponentName ?? 'Opponent'),
-    awayTeamName:  userIsHome ? (r.opponentName ?? 'Opponent') : (teamsById.get(userTeamId)?.name ?? 'Your Team'),
-    homeTeamCrest: userIsHome ? (teamsById.get(userTeamId)?.crest ?? '⚽') : '⚽',
-    awayTeamCrest: userIsHome ? '⚽' : (teamsById.get(userTeamId)?.crest ?? '⚽'),
-    homeScorers:   r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : (r.oppScorers ?? [])),
-    awayScorers:   r.awayScorers ?? (userIsHome ? (r.oppScorers ?? []) : (r.scorers ?? [])),
-    events:        r.events ?? [],
-    stats:         r.stats ?? defaultStats,
-    fitnessUpdates:r.fitnessUpdates ?? [],
-    isUserMatch:   true,
-    userTeamId,
-    gameweek:      event.gw,
-    aggregate:     r.aggregate ?? null,
+    singleResult, eventType:event0?.type, cupResults:[], gameweek:gw, nextGW,
+    finished:nextGW > getEffectiveTotalGW(save), eventsLeft:remaining.length,
+    newOffers, recoveredPlayers,
   };
 }
 
-// ─── Helpers ─────────────────────────────────────────────────
+export function buildCupMatchResult(r, userTeamId, event, allTeams) {
+  const teamsById = new Map(allTeams.map(t => [t.id, t]));
+  const defaultStats = { possession:{home:50,away:50}, shots:{home:0,away:0}, shotsOnTarget:{home:0,away:0}, xG:{home:0,away:0}, corners:{home:0,away:0}, fouls:{home:0,away:0}, yellowCards:{home:0,away:0} };
+  const authoritativePlan = {
+    homeFormation:r.homeFormation,
+    awayFormation:r.awayFormation,
+    homeMentality:r.homeMentality,
+    awayMentality:r.awayMentality,
+    homeTactics:r.homeTactics,
+    awayTactics:r.awayTactics,
+    seed:r.seed,
+    penalties:r.penalties ?? r.aggregate?.penalties ?? false,
+    extraTime:r.extraTime ?? r.aggregate?.extraTime ?? false,
+  };
+  if (event.type === 'ucl_md' || event.leaguePhase) {
+    const userIsHome = r.userIsHome ?? true;
+    const userName = teamsById.get(userTeamId)?.name ?? 'Your Team';
+    const userCrest = teamsById.get(userTeamId)?.crest ?? '⚽';
+    const oppId = r.opponentId ?? event.opponentId ?? 'opp';
+    return {
+      isCupMatch:true, cupId:event.cupId ?? 'ucl', cupName:event.cupName ?? 'Champions League', cupIcon:event.cupIcon ?? '⭐',
+      isUCLMatchday:event.type === 'ucl_md', matchday:r.matchday,
+      opponentName:r.opponentName, opponentNation:r.opponentNation,
+      userGoals:r.userGoals, oppGoals:r.oppGoals, points:r.points, result:r.result,
+      scorers:r.scorers ?? [],
+      homeTeamId:userIsHome ? userTeamId : oppId,
+      awayTeamId:userIsHome ? oppId : userTeamId,
+      homeGoals:userIsHome ? r.userGoals : r.oppGoals,
+      awayGoals:userIsHome ? r.oppGoals : r.userGoals,
+      homeTeamName:userIsHome ? userName : r.opponentName,
+      awayTeamName:userIsHome ? r.opponentName : userName,
+      homeTeamCrest:userIsHome ? userCrest : (r.opponentNation ?? event.opponentCrest ?? '⚽'),
+      awayTeamCrest:userIsHome ? (r.opponentNation ?? event.opponentCrest ?? '⚽') : userCrest,
+      homeScorers:r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : []),
+      awayScorers:r.awayScorers ?? (userIsHome ? [] : (r.scorers ?? [])),
+      events:r.events ?? [], stats:r.stats ?? defaultStats,
+      fitnessUpdates:r.fitnessUpdates ?? [], isUserMatch:true, userTeamId, gameweek:event.gw,
+      ...authoritativePlan,
+    };
+  }
+
+  const userIsHome = r.userIsHome ?? true;
+  const oppId = r.opponentId ?? event.opponentId ?? 'opp';
+  return {
+    isCupMatch:true, cupId:event.cupId, cupName:event.cupName, cupIcon:event.cupIcon,
+    roundName:event.roundName,
+    homeTeamId:userIsHome ? userTeamId : oppId,
+    awayTeamId:userIsHome ? oppId : userTeamId,
+    homeGoals:userIsHome ? r.userGoals : r.oppGoals,
+    awayGoals:userIsHome ? r.oppGoals : r.userGoals,
+    homeTeamName:userIsHome ? (teamsById.get(userTeamId)?.name ?? 'Your Team') : (r.opponentName ?? event.opponentName ?? 'Opponent'),
+    awayTeamName:userIsHome ? (r.opponentName ?? event.opponentName ?? 'Opponent') : (teamsById.get(userTeamId)?.name ?? 'Your Team'),
+    homeTeamCrest:userIsHome ? (teamsById.get(userTeamId)?.crest ?? '⚽') : (event.opponentCrest ?? '⚽'),
+    awayTeamCrest:userIsHome ? (event.opponentCrest ?? '⚽') : (teamsById.get(userTeamId)?.crest ?? '⚽'),
+    homeScorers:r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : (r.oppScorers ?? [])),
+    awayScorers:r.awayScorers ?? (userIsHome ? (r.oppScorers ?? []) : (r.scorers ?? [])),
+    events:r.events ?? [], stats:r.stats ?? defaultStats,
+    fitnessUpdates:r.fitnessUpdates ?? [], isUserMatch:true, userTeamId,
+    gameweek:event.gw, aggregate:r.aggregate ?? null,
+    ...authoritativePlan,
+  };
+}
+
 export async function simulateFixtures(fixtures, teamsById, playersByTeam, save) {
   const results = [];
   const toWrite = [];
-  for (const f of fixtures) {
-    const home = teamsById.get(f.homeTeamId) ?? { id:f.homeTeamId, name:f.homeTeamId, crest:'⚽' };
-    const away = teamsById.get(f.awayTeamId) ?? { id:f.awayTeamId, name:f.awayTeamId, crest:'⚽' };
-    const r    = simulateMatch(home, away, playersByTeam.get(f.homeTeamId)??[], playersByTeam.get(f.awayTeamId)??[], pickAIFormation(), pickAIFormation());
-    toWrite.push({ ...f, played:true, homeGoals:r.homeGoals, awayGoals:r.awayGoals, homeScorers:r.homeScorers, awayScorers:r.awayScorers, events:r.events });
-    results.push(r);
+  for (let index = 0; index < fixtures.length; index++) {
+    const fixture = fixtures[index];
+    const home = teamsById.get(fixture.homeTeamId) ?? { id:fixture.homeTeamId, name:fixture.homeTeamId, crest:'⚽' };
+    const away = teamsById.get(fixture.awayTeamId) ?? { id:fixture.awayTeamId, name:fixture.awayTeamId, crest:'⚽' };
+    const result = simulateMatch(
+      home, away,
+      playersByTeam.get(fixture.homeTeamId) ?? [],
+      playersByTeam.get(fixture.awayTeamId) ?? [],
+    );
+    const withContext = { ...result, gameweek:fixture.gameweek, league:fixture.league };
+    toWrite.push(toCanonicalLeagueRecord(fixture, withContext, save.season));
+    results.push(withContext);
+    // Keep the background engine responsive without making Broadcast the world engine.
+    if ((index + 1) % WORLD_SIM_BATCH_SIZE === 0) await Promise.resolve();
   }
   if (toWrite.length) await putFixturesBulk(toWrite);
   return results;
 }
 
+// Compatibility helpers remain exported for the legacy validator and focused tests.
 export function buildHeavyLossMap(results) {
   const map = new Map();
   for (const r of results) {
@@ -539,109 +787,76 @@ export function buildHeavyLossMap(results) {
 }
 
 export async function updateCache(allPlayersIgnored, results) {
-  // Always read fresh from DB — processInjuryRecovery may have cleared injuries
-  const freshPlayers = await getAllPlayers();
-  const cache = new Map(freshPlayers.map(p => [p.id, { ...p }]));
-  updatePlayerStats(cache, results);
-  applyFitnessUpdates(cache, results);
-  applyInjuryUpdates(cache, results);
-  const heavyLossMargin = buildHeavyLossMap(results);
-  for (const p of cache.values()) {
-    if (!p._played) {
-      p.fitness = 100; // rested players fully recover
-      const currentForm = p.form ?? 50;
-      if (currentForm > 50) {
-        p.form = Math.max(50, currentForm - 3);
-      } else if (currentForm < 50) {
-        p.form = Math.min(50, currentForm + 1);
-      }
-    } else {
-      const baseRecovery = 20;
-      const age = p.age ?? 24;
-      const agePenalty = age >= 36 ? 6 : age >= 33 ? 4 : age >= 30 ? 2 : 0;
-      const recovery = Math.max(8, baseRecovery - agePenalty);
-      p.fitness = Math.min(100, (p.fitness ?? 80) + recovery);
-      const currentForm = p.form ?? 50;
-      let formGain = 1;
-      if (p._scored)      formGain += 3;
-      if (p._assisted)    formGain += 2;
-      if (p._cleanSheet)  formGain += 1;
-      // Heavy loss penalty: -2 per goal margin above 2 (e.g. 3-0 loss = -2, 5-0 = -6)
-      // Scorers/assisters are shielded — individual brilliance offsets team performance
-      const margin = heavyLossMargin.get(p.teamId) ?? 0;
-      if (margin >= 3 && !p._scored && !p._assisted) {
-        formGain -= (margin - 2) * 2;
-      }
-      // Ceiling decay: form above 85 drifts -1 each GW even when playing
-      // Makes 99 form genuinely rare — must keep contributing to maintain it
-      const afterGain = currentForm + formGain;
-      const ceilingDecay = afterGain > 60 ? 1 : 0;
-      p.form = Math.min(99, Math.max(1, afterGain - ceilingDecay));
-    }
-    delete p._played;
-    delete p._scored;
-    delete p._assisted;
-    delete p._cleanSheet;
-  }
-  await putPlayersBulk([...cache.values()]);
+  await applyNonLeaguePlayerResults(results);
 }
 
-// ─── Tick injury recovery at GW end; returns recovered player names (user team only) ───
+/**
+ * Only players whose medical clock can advance belong in the weekly recovery
+ * write set. Keeping this pure makes the no-full-world-rewrite contract easy to
+ * verify independently of IndexedDB.
+ */
+export function injuryRecoveryWriteSet(allPlayers) {
+  return (allPlayers ?? []).filter(player => player?.injured);
+}
+
 export async function processInjuryRecovery() {
   if (typeof tickInjuryRecovery !== 'function') return [];
   const allPlayers = await getAllPlayers();
   const save = await getSave();
   const hadInjured = allPlayers.some(p => p.injured);
-  const recovered = tickInjuryRecovery(allPlayers);
-  // Always save when any player was injured — tickInjuryRecovery decrements
-  // injuryGWsLeft for ALL injured players, not just those who fully recovered.
-  // Without this, mid-recovery decrements are lost and injuries never end.
-  if (hadInjured || recovered.length) {
-    await putPlayersBulk(allPlayers);
-  }
-  // Only return user-team recoveries for toast notifications
+  if (!hadInjured) return [];
+  const recoveryRows = injuryRecoveryWriteSet(allPlayers);
+  const recovered = tickInjuryRecovery(recoveryRows);
+  await putPlayersBulk(recoveryRows);
   return recovered.filter(p => p.teamId === save.userTeamId);
 }
 
 export function groupByTeam(players) {
-  const m = new Map();
-  for (const p of players) { if (!m.has(p.teamId)) m.set(p.teamId, []); m.get(p.teamId).push(p); }
-  return m;
+  const map = new Map();
+  for (const player of players) {
+    if (!map.has(player.teamId)) map.set(player.teamId, []);
+    map.get(player.teamId).push(player);
+  }
+  return map;
 }
 
 export function updatePlayerStats(cache, results) {
-  for (const r of results) {
-    for (const evt of [...(r.homeScorers??[]), ...(r.awayScorers??[])]) {
-      const p=cache.get(evt.playerId); if(p){p.goals=(p.goals??0)+1;p._played=true;p._scored=true;}
-      if(evt.assistId){const a=cache.get(evt.assistId);if(a){a.assists=(a.assists??0)+1;a._played=true;a._assisted=true;}}
+  applyWorldPlayerStats(cache, results);
+}
+
+export function awardCS(cache, teamId) {
+  for (const p of cache.values()) {
+    if (p.teamId === teamId && p.position === 'GK' && p.inSquad !== false && !p.injured) {
+      p.cleanSheets = (p.cleanSheets ?? 0) + 1;
+      p._played = true;
+      p._cleanSheet = true;
+      break;
     }
-    if(r.awayGoals===0) awardCS(cache,r.homeTeamId);
-    if(r.homeGoals===0) awardCS(cache,r.awayTeamId);
   }
 }
 
-export function awardCS(cache,teamId) {
-  for(const p of cache.values()){if(p.teamId===teamId&&p.position==='GK'&&p.inSquad!==false&&!p.injured){p.cleanSheets=(p.cleanSheets??0)+1;p._played=true;p._cleanSheet=true;break;}}
-}
-
-export function applyFitnessUpdates(cache,results) {
-  for(const r of results) for(const fu of r.fitnessUpdates??[]){const p=cache.get(fu.id);if(p){p.fitness=fu.newFitness;p._played=true;}}
+export function applyFitnessUpdates(cache, results) {
+  for (const r of results) {
+    for (const fu of r.fitnessUpdates ?? []) {
+      const p = cache.get(fu.id);
+      if (p) { p.fitness = fu.newFitness; p._played = true; }
+    }
+  }
 }
 
 export function applyInjuryUpdates(cache, results) {
   if (typeof applyInjury !== 'function') return;
   for (const r of results) {
-    for (const evt of (r.events ?? [])) {
+    for (const evt of r.events ?? []) {
       if (evt.type !== 'injury') continue;
       const p = cache.get(evt.playerId);
       if (!p) continue;
       applyInjury(p, {
-        injuryName:     evt.injuryName,
-        injuryType:     evt.injuryType ?? 'unknown',
-        injuryGWsLeft:  evt.injuryGWsLeft,
-        injuryGWsTotal: evt.injuryGWsLeft,
+        injuryName:evt.injuryName,
+        injuryType:evt.injuryType ?? 'unknown',
+        injuryGWsLeft:evt.injuryGWsLeft,
+        injuryGWsTotal:evt.injuryGWsLeft,
       });
     }
   }
 }
-

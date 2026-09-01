@@ -1,12 +1,8 @@
 // Thin fetch wrapper over the /api routes (functions/, dispatched by
 // functions/_worker.js). Token lives in localStorage so it survives reloads.
-// Pattern ported from howellsryan/pocketrpg's src/cloud/api.js, trimmed to
-// what Pitch's single-save-per-account v1 needs — no character id, no
-// native-app login hook (Pitch is web-only).
 //
-// Ambient browser APIs go through `window.` throughout, matching the rest of
-// src/lib/ui/ (e.g. MatchScreen.svelte's window.setTimeout) — eslint.config.mjs
-// only whitelists `window` itself as a bare global, not fetch/localStorage/etc.
+// P0 keeps cloud saves opaque, but every request now carries the same stable
+// career slot ID used by local persistence and .pitch envelopes.
 
 const TOKEN_KEY = 'pitch_cloud_token';
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -28,8 +24,6 @@ export function clearAuth() {
   setToken(null);
 }
 
-// Pull a `#token=...` fragment dropped by the OAuth callback redirect into
-// localStorage and clean the URL bar. Call once on boot (src/ui/renderers.js).
 export function captureTokenFromHash() {
   if (!window.location.hash) return false;
   const match = window.location.hash.match(/[#&]token=([^&]+)/);
@@ -61,12 +55,14 @@ async function request(path, options = {}) {
   } finally {
     window.clearTimeout(timeoutId);
   }
+
   if (res.status === 401) {
     clearAuth();
     const err = new Error('Not authenticated');
     err.status = 401;
     throw err;
   }
+
   let body = null;
   try { body = await res.json(); } catch { /* non-JSON */ }
   if (!res.ok) {
@@ -80,10 +76,11 @@ async function request(path, options = {}) {
 
 export const api = {
   me: () => request('/api/auth/me'),
-  getSave: () => request('/api/save'),
-  putSave: (save_blob) => request('/api/save', {
+  getSave: (slotId = 'legacy') => request(`/api/save?slotId=${encodeURIComponent(slotId)}`),
+  listSaves: () => request('/api/save?list=1'),
+  putSave: (slotId, save_blob, metadata = null) => request('/api/save', {
     method: 'PUT',
-    body: JSON.stringify({ save_blob }),
+    body: JSON.stringify({ slot_id: slotId, save_blob, metadata }),
   }),
 };
 

@@ -18,7 +18,12 @@ function squad(tid) {
 function makeLiveState() {
   const home = { id: 'h', name: 'Home', crest: 'H', reputation: 80 };
   const away = { id: 'a', name: 'Away', crest: 'A', reputation: 75 };
-  return buildLiveMatchState(home, away, squad('h'), squad('a'), '4-3-3', '4-3-3');
+  // Explicit balanced overrides isolate the command contract from P2's AI
+  // pre-match identity selection. Separate P2 tests cover AI starting styles.
+  return buildLiveMatchState(
+    home, away, squad('h'), squad('a'),
+    '4-3-3', '4-3-3', null, null, 'balanced', 'balanced',
+  );
 }
 
 describe('applyFormationChange', () => {
@@ -70,7 +75,7 @@ describe('applyMentalityChange', () => {
     const after = applyMentalityChange(ls, true, 'attacking');
 
     expect(after.homeMentality).toBe('attacking');
-    expect(after.awayMentality).toBe('balanced');
+    expect(after.awayMentality).toBe(ls.awayMentality);
     expect(after.hMods.goalProbMult).toBeGreaterThan(ls.hMods.goalProbMult);
     expect(after.hMidShare).toBeGreaterThan(ls.hMidShare);
   });
@@ -79,7 +84,7 @@ describe('applyMentalityChange', () => {
     const ls = makeLiveState();
     const after = applyMentalityChange(ls, false, 'defensive');
 
-    expect(after.homeMentality).toBe('balanced');
+    expect(after.homeMentality).toBe(ls.homeMentality);
     expect(after.awayMentality).toBe('defensive');
     expect(after.aMods.defResistMult).toBeGreaterThan(ls.aMods.defResistMult);
   });

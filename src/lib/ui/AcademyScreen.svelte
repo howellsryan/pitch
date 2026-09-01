@@ -37,7 +37,11 @@
 
   const cohort = $derived(save?.youthCohort ?? []);
   const sortedCohort = $derived(
-    [...cohort].sort((a, b) => (b.isWonderkid !== a.isWonderkid ? (b.isWonderkid ? 1 : -1) : b.potentialRating - a.potentialRating))
+    [...cohort].sort((a, b) => (
+      b.isWonderkid !== a.isWonderkid
+        ? (b.isWonderkid ? 1 : -1)
+        : getPotentialStars(b) - getPotentialStars(a) || primaryRating(b) - primaryRating(a)
+    ))
   );
   const agingOutCount = $derived(cohort.filter(p => p.age >= 19).length);
 
