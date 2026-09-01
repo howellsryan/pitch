@@ -5,7 +5,11 @@
 
   let { player, onchange = () => {} } = $props();
   let busy = $state(false);
-  let selected = $state(player?.developmentPlan?.id ?? 'balanced');
+  let selected = $state('balanced');
+
+  $effect(() => {
+    selected = player?.developmentPlan?.id ?? 'balanced';
+  });
 
   const effective = $derived(effectiveDevelopmentPlan({ ...player, developmentPlan:{ ...(player?.developmentPlan ?? {}), id:selected } }));
   const recommendation = $derived(automaticPlanRecommendation(player));
