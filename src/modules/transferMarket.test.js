@@ -15,6 +15,7 @@ import {
   normalizeDealTerms,
   projectLegacyInboundOffers,
   rebuildReservedCommitments,
+  rolloverTransferMarket,
   transitionMarketDeal,
   validateDealTerms,
 } from './transferMarket.js';
@@ -156,5 +157,14 @@ describe('P4 transfer-market contracts', () => {
     expect(market.terminalSummaries[0]).toMatchObject({ id:rejected.id, state:'rejected' });
     const ticked = markTransferMarketTick(market, 'week:2025/26:4');
     expect(markTransferMarketTick(ticked, 'week:2025/26:4')).toBe(ticked);
+  });
+
+  it('expires unfinished deals and clears weekly tick keys at season rollover', () => {
+    const market = markTransferMarketTick({ ...createEmptyTransferMarket(), activeDeals:[deal()] }, '2025/26:4');
+    const next = rolloverTransferMarket(market, '2026/27');
+    expect(next.activeDeals).toEqual([]);
+    expect(next.terminalSummaries.at(-1)).toMatchObject({ state:'expired', reasonCode:'season_rollover' });
+    expect(next.processedTickKeys).toEqual([]);
+    expect(next.lastTickKey).toBeNull();
   });
 });

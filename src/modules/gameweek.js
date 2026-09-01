@@ -5,7 +5,7 @@ import { buildPersonalStatePatches } from './playerModel.js';
 import { updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
-import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
+import { advanceTransferMarketWeek } from './transfers.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
@@ -310,9 +310,10 @@ async function runEndOfWorldGameweek(save, fixtures) {
     fixtures,
   );
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
-  const newOffers = await generateAIOffers().catch(() => []) ?? [];
-  await simulateAITransfers(save).catch(() => {});
-  await simulateAILoans(save).catch(() => {});
+  // P4 advances transfers once per completed world week. The persisted tick key
+  // makes retries safe and prevents one market step per pending fixture.
+  const marketResult = await advanceTransferMarketWeek(save).catch(() => ({ newOffers:[] }));
+  const newOffers = marketResult.newOffers ?? [];
   await payWeeklyWages().catch(() => {});
   await updateTeamMorale(save.userTeamId).catch(() => {});
   return { recoveredPlayers, newOffers, personalStatePatches };

@@ -7,7 +7,7 @@
 - **Product:** free browser-first football career simulator, 9 leagues / 186 clubs, mobile-first, no forced account. It is **simulator-only**: do not add manual/on-pitch football controls. Broadcast is a watchable presentation of simulated football, not a playable match mode.
 - **Live product:** `pitch-sim.com`. The app is built with Vite/Svelte 5 and deployed by **Cloudflare Workers Builds**, not GitHub Actions.
 - **R0-R7 redesign is complete.** `docs/plan/07-redesign.md` remains the historical redesign reference. R8 quality/light-mode/PWA work remains a separate parallel quality stream.
-- **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is COMPLETE (1 Sep 2026). P4 — Transfer Market and Contracts 2.0 is NEXT.**
+- **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is COMPLETE (1 Sep 2026). P4 — Transfer Market and Contracts 2.0 is COMPLETE (1 Sep 2026). P5 — Scouting, Coaching, Training and Squad Planning is NEXT.**
 - Detailed P3-P12 execution guides live under `docs/plan/post-r7-implementation-guides/`; use the roadmap for product priority and the phase guide for execution seams.
 - Read the live roadmap before non-trivial work. If this guide and the roadmap disagree, fix this guide in the same change.
 
@@ -215,4 +215,14 @@ Whenever code is committed/pushed:
 - visually inspect changed UI rather than inferring it from source;
 - report: what changed, verification/test counts, PR link, direct live preview link, next milestone, and any check that could not be completed.
 
-**Next roadmap milestone after P3:** `P4 — Transfer Market and Contracts 2.0`, beginning from the canonical P3 player quality/role contracts in `docs/plan/post-r7-implementation-guides/p4-transfer-market-and-contracts-2.md`. Do not begin P4 until the P3 roadmap PR is merged or otherwise accepted as the green baseline.
+### P4 completion baseline
+
+- bounded/versioned `save.transferMarket` with additive legacy-offer migration and immutable completed history;
+- deterministic legal transitions, typed fee/loan/contract terms, transparent interest reasons and rival/hijack outcomes;
+- need-first AI recruitment through the shared minimal squad-planning service;
+- exactly one idempotent market tick per completed world week plus unique deadline-hour ticks;
+- atomic settlement across save, teams, players and transfers, including retry keys, exchange and loan-back execution;
+- persisted Deals/Market/Loans/Contracts/history UI with no modal-owned negotiation state;
+- **257/257 Vitest tests** green across 44 files, plus the UI emoji audit and legacy replacement contracts.
+
+**Next roadmap milestone after P4:** `P5 — Scouting, Coaching, Training and Squad Planning`, expanding P4's shared need projection rather than replacing it.

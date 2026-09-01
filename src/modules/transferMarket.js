@@ -734,3 +734,14 @@ export function markTransferMarketTick(marketInput, tickKey) {
     processedTickKeys:[...market.processedTickKeys, tickKey].slice(-16),
   };
 }
+
+/** Expire unfinished negotiations and retain only bounded summaries at rollover. */
+export function rolloverTransferMarket(marketInput, nextSeason) {
+  const market = normalizeTransferMarket(marketInput);
+  const weekKey = `${nextSeason}:0`;
+  const activeDeals = market.activeDeals.map(deal => {
+    if (isTerminalDeal(deal)) return deal;
+    return transitionMarketDeal(deal, 'expired', { weekKey, actor:'system', reasonCode:'season_rollover', awaiting:null, stateOwner:'system' });
+  });
+  return compactTransferMarket({ ...market, activeDeals, processedTickKeys:[], lastTickKey:null });
+}

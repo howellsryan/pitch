@@ -232,6 +232,127 @@ export const putStandingsBulk = ss => bulkPut('standings', ss);
 export const replaceAllStandings = ss => clearAndBulkPut('standings', ss);
 export const getAllTransfers = () => req2p(store('transfers').getAll());
 export const addTransfer = t => req2p(store('transfers','readwrite').add(t));
+
+/**
+ * Complete one agreed P4 deal in a single IndexedDB transaction. The deal is
+ * re-read inside the transaction and immutable history is checked first, so a
+ * retry after an interrupted UI flow cannot charge or move a player twice.
+ */
+export function settleTransferMarketDealAtomic(dealId) {
+  return new Promise((resolve, reject) => {
+    const tx = _db.transaction(['save', 'teams', 'players', 'transfers'], 'readwrite');
+    const saves = tx.objectStore('save');
+    const teamsStore = tx.objectStore('teams');
+    const playersStore = tx.objectStore('players');
+    const historyStore = tx.objectStore('transfers');
+    let result = null;
+    let failure = null;
+    const requests = [saves.get('active'), teamsStore.getAll(), playersStore.getAll(), historyStore.getAll()];
+    let remaining = requests.length;
+
+    const fail = error => {
+      failure = error instanceof Error ? error : new Error(String(error));
+      try { tx.abort(); } catch {}
+    };
+    for (const request of requests) {
+      request.onerror = () => fail(request.error ?? new Error('TRANSFER_SETTLEMENT_READ_FAILED'));
+      request.onsuccess = () => {
+        remaining -= 1;
+        if (remaining || failure) return;
+        try {
+          const [saveReq, teamReq, playerReq, historyReq] = requests;
+          const save = saveReq.result;
+          const allTeams = teamReq.result ?? [];
+          const allPlayers = playerReq.result ?? [];
+          const history = historyReq.result ?? [];
+          const market = save?.transferMarket;
+          const existingByDeal = history.find(item => item.dealId === dealId);
+          if (existingByDeal) {
+            result = { success:true, idempotent:true, deal:null, history:existingByDeal };
+            return;
+          }
+          const deal = market?.activeDeals?.find(item => item.id === dealId);
+          if (!deal) throw new Error('DEAL_NOT_FOUND');
+          const existing = history.find(item => item.idempotencyKey === deal.idempotencyKey);
+          if (existing) {
+            result = { success:true, idempotent:true, deal, history:existing };
+            return;
+          }
+          if (deal.state !== 'agreed') throw new Error('DEAL_NOT_READY');
+
+          const rejectSettlement = reasonCode => {
+            const rejectedDeal = { ...deal, state:'rejected', awaiting:null, stateOwner:'system', decisionLog:[...(deal.decisionLog ?? []), { eventKey:`${deal.idempotencyKey}:settlement-rejected`, weekKey:market.lastTickKey ?? deal.updatedWeekKey, from:'agreed', to:'rejected', actor:'system', reasonCode }].slice(-24) };
+            const activeDeals = market.activeDeals.map(item => item.id === deal.id ? rejectedDeal : item);
+            saves.put({ ...save, transferMarket:{ ...market, activeDeals, reservedCommitments:(market.reservedCommitments ?? []).filter(item => item.dealId !== deal.id) }, inboundOffers:(save.inboundOffers ?? []).filter(item => item.dealId !== deal.id), lastPlayedAt:new Date().toISOString() });
+            result = { success:false, idempotent:false, deal:rejectedDeal, error:reasonCode };
+          };
+          if (!deal.termsValid) { rejectSettlement('invalid_terms'); return; }
+
+          const player = allPlayers.find(item => String(item.id) === String(deal.playerId));
+          const buyer = allTeams.find(item => item.id === deal.buyerTeamId);
+          const seller = allTeams.find(item => item.id === deal.sellerTeamId);
+          if (!player) { rejectSettlement('player_not_found'); return; }
+          if (deal.type !== 'renewal' && deal.type !== 'free_agent' && player.teamId !== deal.sellerTeamId) { rejectSettlement('player_ownership_changed'); return; }
+          if (deal.type === 'renewal' && player.teamId !== deal.buyerTeamId) { rejectSettlement('player_ownership_changed'); return; }
+          if (!buyer) { rejectSettlement('buyer_not_found'); return; }
+
+          const terms = deal.terms;
+          const installments = terms.fee?.installments ?? [];
+          const fee = deal.type === 'loan'
+            ? Number(terms.loan?.fee ?? 0)
+            : Number(terms.fee?.upfront ?? 0) + installments.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+          const signingBonus = Number(terms.contract?.signingBonus ?? 0);
+          const remainingWeeks = Math.max(0, Number(save.totalGameweeks ?? 38) - Number(save.currentGameweek ?? 1) + 1);
+          const loanWages = deal.type === 'loan' ? Number(terms.contract?.wage ?? 0) * remainingWeeks * Number(terms.loan?.wageContributionPercentage ?? 100) / 100 : 0;
+          const cost = deal.type === 'renewal' || deal.type === 'free_agent' ? signingBonus : fee + signingBonus + loanWages;
+          if (Number(buyer.budget ?? 0) < cost) { rejectSettlement('insufficient_funds'); return; }
+
+          const exchangePlayerId = terms.fee?.exchangePlayerId;
+          const exchangePlayer = exchangePlayerId ? allPlayers.find(item => String(item.id) === String(exchangePlayerId)) : null;
+          if (exchangePlayerId && (!exchangePlayer || exchangePlayer.teamId !== buyer.id || buyer.id === seller?.id)) { rejectSettlement('invalid_exchange_player'); return; }
+          const buyerSquad = allPlayers.filter(item => item.teamId === buyer.id && !item.onLoan);
+          const sellerSquad = allPlayers.filter(item => item.teamId === seller?.id && !item.onLoan);
+          if (deal.type !== 'renewal' && buyerSquad.length + (exchangePlayer ? 0 : 1) > 30) { rejectSettlement('buyer_squad_full'); return; }
+          if (seller && !['renewal','free_agent'].includes(deal.type) && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
+          if (seller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
+
+          const nextBuyer = { ...buyer, budget:Number(buyer.budget ?? 0) - cost };
+          const changedTeams = new Map([[nextBuyer.id, nextBuyer]]);
+          if (seller && seller.id !== buyer.id && fee > 0) changedTeams.set(seller.id, { ...seller, budget:Number(seller.budget ?? 0) + fee });
+          for (const team of changedTeams.values()) teamsStore.put(team);
+
+          const seasonYear = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 0;
+          let nextPlayer;
+          if (deal.type === 'renewal') {
+            nextPlayer = { ...player, wage:terms.contract.wage, squadRole:terms.contract.squadRole, contractExpiry:seasonYear + terms.contract.duration, releaseClause:terms.contract.releaseClause || null };
+          } else if (deal.type === 'loan') {
+            nextPlayer = { ...player, teamId:buyer.id, onLoan:true, loanedFrom:deal.sellerTeamId, loanOriginalTeamId:deal.sellerTeamId, loanSeason:save.season, loanRecallable:Boolean(terms.loan?.recall), signedThisSeason:true };
+          } else if (terms.fee?.loanBack && seller) {
+            nextPlayer = { ...player, teamId:seller.id, wage:terms.contract.wage, squadRole:terms.contract.squadRole, contractExpiry:seasonYear + terms.contract.duration, releaseClause:terms.contract.releaseClause || null, signedThisSeason:true, onLoan:true, loanedFrom:buyer.id, loanOriginalTeamId:buyer.id, loanSeason:save.season, loanRecallable:false };
+          } else {
+            nextPlayer = { ...player, teamId:buyer.id, wage:terms.contract.wage, squadRole:terms.contract.squadRole, contractExpiry:seasonYear + terms.contract.duration, releaseClause:terms.contract.releaseClause || null, signedThisSeason:true, onLoan:false, loanedFrom:null, loanedTo:null };
+          }
+          playersStore.put(nextPlayer);
+          if (exchangePlayer && seller) playersStore.put({ ...exchangePlayer, teamId:seller.id, signedThisSeason:true, contractExpiry:seasonYear + 3, onLoan:false, loanedFrom:null, loanedTo:null });
+
+          const completedDeal = { ...deal, state:'completed', awaiting:null, stateOwner:'system', updatedWeekKey:market.lastTickKey ?? deal.updatedWeekKey, decisionLog:[...(deal.decisionLog ?? []), { eventKey:`${deal.idempotencyKey}:completed`, weekKey:market.lastTickKey ?? deal.updatedWeekKey, from:'agreed', to:'completed', actor:'system', reasonCode:'settled' }].slice(-24) };
+          const activeDeals = market.activeDeals.map(item => item.id === deal.id ? completedDeal : item);
+          const reservedCommitments = (market.reservedCommitments ?? []).filter(item => item.dealId !== deal.id);
+          const nextSave = { ...save, transferMarket:{ ...market, activeDeals, reservedCommitments }, inboundOffers:(save.inboundOffers ?? []).filter(item => item.dealId !== deal.id), lastPlayedAt:new Date().toISOString() };
+          saves.put(nextSave);
+          const historyRow = { idempotencyKey:deal.idempotencyKey, dealId:deal.id, playerId:player.id, playerName:player.name, fromTeamId:deal.sellerTeamId, toTeamId:deal.buyerTeamId, fee, type:deal.type, terms, obligations:{ installments, loanWages, sellOnPercentage:terms.fee?.sellOnPercentage ?? 0, optionToBuy:terms.loan?.optionToBuy ?? 0, obligationToBuy:terms.loan?.obligationToBuy ?? 0 }, date:save.currentDate, season:save.season };
+          historyStore.add(historyRow);
+          result = { success:true, idempotent:false, deal:completedDeal, player:nextPlayer, history:historyRow };
+        } catch (error) {
+          fail(error);
+        }
+      };
+    }
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = () => reject(failure ?? tx.error ?? new Error('TRANSFER_SETTLEMENT_FAILED'));
+    tx.onabort = () => reject(failure ?? tx.error ?? new Error('TRANSFER_SETTLEMENT_ABORTED'));
+  });
+}
 export const getAllHonors = () => req2p(store('honors').getAll());
 export const addHonor = h => req2p(store('honors','readwrite').add(h));
 export const getAllSeasons = () => req2p(store('seasons').getAll());

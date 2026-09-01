@@ -49,9 +49,10 @@ describe('P0 UEFA season finance integration', () => {
       ? source.slice(closeoutStart, closeoutEnd)
       : '';
 
-    expect(closeoutSource).toContain('generateAIOffers');
-    expect(closeoutSource).toContain('simulateAITransfers');
-    expect(closeoutSource).toContain('simulateAILoans');
+    expect(closeoutSource).toContain('advanceTransferMarketWeek');
+    expect(closeoutSource).not.toContain('generateAIOffers');
+    expect(closeoutSource).not.toContain('simulateAITransfers');
+    expect(closeoutSource).not.toContain('simulateAILoans');
     expect(closeoutSource).toContain('payWeeklyWages');
 
     const quickStart = source.indexOf('export async function advanceOneFixture(');

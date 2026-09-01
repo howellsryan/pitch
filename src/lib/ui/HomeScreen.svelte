@@ -3,7 +3,7 @@
   import { getAllFixtures, getAllPlayers, getAllTeams, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
   import { getUpcomingForTeam } from '../../modules/fixtures.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
-  import { isDeadlineDay, generateAIOffers, simulateAITransfers } from '../../modules/transfers.js';
+  import { advanceTransferMarketWeek, isDeadlineDay } from '../../modules/transfers.js';
   import { patchSave } from '../../modules/save.js';
   import { getEffectiveTotalGW } from '../../modules/gameweek.js';
   import { fmt, navigateTo, toast } from '../../ui/helpers.js';
@@ -95,10 +95,9 @@
     const s = await getSave();
     const cur = new Date(s.currentDate);
     const afterDeadline = dd.window === 'summer' ? new Date(cur.getFullYear(), 8, 2) : new Date(cur.getFullYear(), 1, 2);
-    const before = (s.inboundOffers ?? []).filter((offer) => offer.status === 'expired').length;
-    const expiredOffers = (s.inboundOffers ?? []).map((offer) => offer.status === 'pending' ? { ...offer, status: 'expired' } : offer);
-    const expiredCount = expiredOffers.filter((offer) => offer.status === 'expired').length - before;
-    await patchSave({ currentDate: afterDeadline.toISOString(), deadlineHoursUsed: null, inboundOffers: expiredOffers });
+    const expiredCount = (s.transferMarket?.activeDeals ?? []).filter((deal) => !['completed','rejected','withdrawn','expired','hijacked'].includes(deal.state)).length;
+    const closedSave = await patchSave({ currentDate: afterDeadline.toISOString(), deadlineHoursUsed: null });
+    await advanceTransferMarketWeek(closedSave, `deadline-close:${s.season}:${dd.window}`);
     toast(expiredCount > 0 ? `Transfer window closed — ${expiredCount} pending offer${expiredCount > 1 ? 's' : ''} expired.` : 'Transfer window closed. Back to business!', 'info', 5000);
     screenTicks.home++;
   }
@@ -109,15 +108,17 @@
     try {
       const s = await getSave();
       const used = s.deadlineHoursUsed || 0;
-      const [deals, newOffers] = await Promise.all([simulateAITransfers(s).catch(() => []), generateAIOffers().catch(() => [])]);
       const newUsed = used + 1;
+      const marketResult = await advanceTransferMarketWeek(s, `deadline:${s.season}:${ddInfo.window}:${newUsed}`);
+      const deals = (marketResult.settled ?? []).filter((deal) => deal.success && !deal.idempotent);
+      const newOffers = marketResult.newOffers ?? [];
       await patchSave({ deadlineHoursUsed: newUsed });
       const parts = [];
       if (deals.length) parts.push(`${deals.length} AI deal${deals.length > 1 ? 's' : ''}`);
       if (newOffers.length) parts.push(`${newOffers.length} offer${newOffers.length > 1 ? 's' : ''} for your players`);
       toast(parts.length ? `Hour ${newUsed}: ${parts.join(' · ')}!` : `Hour ${newUsed}: Quiet on the market. (${10 - newUsed} left)`, parts.length ? 'success' : 'info', 5000);
       if (deals.length) {
-        const dealList = deals.slice(0, 5).map((deal) => `${deal.playerName}: ${deal.fromTeamName} → ${deal.toTeamName}`).join('\n');
+        const dealList = deals.slice(0, 5).map((result) => `${result.history?.playerName}: ${byId.get(result.history?.fromTeamId)?.name ?? 'Free agent'} → ${byId.get(result.history?.toTeamId)?.name ?? 'club'}`).join('\n');
         const extra = deals.length > 5 ? `\n…and ${deals.length - 5} more` : '';
         await addNewsItem(_makeNewsItem('transfer_in', `Deadline Day — Hour ${newUsed}`, `${deals.length} deal${deals.length > 1 ? 's' : ''} completed:\n${dealList}${extra}`, { gw: s.currentGameweek, date: s.currentDate, icon: 'transfer' }));
       }

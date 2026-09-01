@@ -741,7 +741,7 @@ chk('collapsedDeals initialized as empty array in startNewGame', code.includes("
 // docs/plan/04-migration-phases.md) — checked against transfersScreenSrc
 // instead of the bundle, same reasoning as the other *ScreenSrc reads.
 chk('collapsedDeals checked in TransfersScreen.svelte', transfersScreenSrc.includes('detailIsCollapsed'));
-chk('collapsedDeals recorded on counter-offer rejection', transfersScreenSrc.includes('collapsedDeals || []), player.id'));
+chk('collapsedDeals recorded on counter-offer rejection', transfersScreenSrc.includes('withdrawMarketDeal') && code.includes('terminalSummaries'));
 chk('collapsedDeals cleared at season rollover', (()=>{const s=code.indexOf('processEndOfSeason');const chunk=s>-1?code.slice(s,s+70000):'';return chunk.includes('collapsedDeals');})());
 chk('Deal Collapsed UI shown when blocked', transfersScreenSrc.includes('Deal Collapsed'));
 chk('Offer controls hidden when collapsed', transfersScreenSrc.includes('{#if detailIsCollapsed}'));
@@ -814,7 +814,7 @@ chk('simulateAITransfers assigns a fresh contract', (()=>{const s=code.indexOf('
 chk('New-game players get a starting contractExpiry', code.includes('contractExpiry: seasonYear + 1'));
 chk('Youth promotion (AI) sets a 3-year contract', code.includes('contractExpiry: promoteYear + 3'));
 chk('SquadScreen shows contract years remaining and a Renew action', squadScreenSrc.includes('contractYearsRemaining') && squadScreenSrc.includes('renewContract'));
-chk('TransfersScreen has a Free Agents tab', transfersScreenSrc.includes("selectTab('free')") && transfersScreenSrc.includes('signFreeAgent'));
+chk('TransfersScreen has a Free Agents tab', transfersScreenSrc.includes("selectTab('free')") && (transfersScreenSrc.includes('signFreeAgent') || transfersScreenSrc.includes("type:'free_agent'")));
 
 // ── Season-end contract resolution (executed directly, not just string-matched) ──
 (() => {
