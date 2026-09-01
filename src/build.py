@@ -30,7 +30,9 @@ for df in _data_files:
 # composes them. P2's tactics domain and manager-facing adapter follow before
 # matchEngine.js so the stripped legacy bundle exposes the same contracts as
 # the ES-module build. P0's competitionRules.js is immediately before cups.js.
-# P1's world helpers sit after youthAcademy because they consume fixtures,
+# P4's shared squad planner and pure market state machine load after the P2/P3
+# selectors they consume and immediately before transfers.js, whose runtime
+# facade persists/settles those contracts. P1's world helpers sit after youthAcademy because they consume fixtures,
 # match/standing helpers and youth/newgen generation. worldRuntime/save/season/
 # gameweek consume the living-world contracts afterwards.
 MODULES += [
@@ -46,6 +48,8 @@ MODULES += [
     ('modules/fixtures.js',         'FIXTURES'),
     ('modules/competitionRules.js', 'COMPETITION RULES'),
     ('modules/cups.js',             'CUPS'),
+    ('modules/squadPlanning.js',    'SQUAD PLANNING'),
+    ('modules/transferMarket.js',   'TRANSFER MARKET'),
     ('modules/transfers.js',        'TRANSFERS'),
     ('modules/potential.js',        'POTENTIAL'),
     ('modules/injuries.js',         'INJURIES'),
