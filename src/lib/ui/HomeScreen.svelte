@@ -1,338 +1,277 @@
-<script>
-  import { tick } from 'svelte';
-  import { getAllFixtures, getAllPlayers, getAllTeams, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
-  import { getUpcomingForTeam } from '../../modules/fixtures.js';
-  import { getTableSliceAroundTeam } from '../../modules/standings.js';
-  import { advanceTransferMarketWeek, isDeadlineDay } from '../../modules/transfers.js';
-  import { patchSave } from '../../modules/save.js';
-  import { getEffectiveTotalGW } from '../../modules/gameweek.js';
-  import { fmt, navigateTo, toast } from '../../ui/helpers.js';
-  import { handleEndOfSeason } from '../../ui/home_transfers.js';
-  import { _makeNewsItem, addNewsItem } from '../../ui/inbox.js';
-  import { screenTicks } from '../state/screens.svelte.js';
-  import { isSignedIn, startGoogleLogin } from '../../cloud/api.js';
-  import Button from './kit/Button.svelte';
-  import Crest from './kit/Crest.svelte';
-  import FormGuide from './kit/FormGuide.svelte';
-  import Icon from './kit/Icon.svelte';
-  import Money from './kit/Money.svelte';
+YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éíó]6é:-jZ.¶›­–)Ş³]ØÜš\‚ˆ[\ÜÈXÚÈHœ›ÛH	Üİ™[IÎÂˆ[\ÜÈÙ][š^\™\ËÙ][^Y\œËÙ][X[\ËÙ]^Y\œĞUX[KÙ]Ø]™KÙ]X[KÜ[‘ˆHœ›ÛH	Ë‹‹Ë‹‹Û[Ù[\ËÙ‹šœÉÎÂˆ[\ÜÈÙ]\ÛÛZ[™Ñ›Ü•X[HHœ›ÛH	Ë‹‹Ë‹‹Û[Ù[\ËÙš^\™\ËšœÉÎÂˆ[\ÜÈÙ]X›TÛXÙP\›İ[™X[HHœ›ÛH	Ë‹‹Ë‹‹Û[Ù[\ËÜİ[™[™ÜËšœÉÎÂˆ[\ÜÈY˜[˜ÙU˜[œÙ™\“X\šÙ]ÙYZË\ÑXY[™Q^HHœ›ÛH	Ë‹‹Ë‹‹Û[Ù[\Ëİ˜[œÙ™\œËšœÉÎÂˆ[\ÜÈ]ÚØ]™HHœ›ÛH	Ë‹‹Ë‹‹Û[Ù[\ËÜØ]™KšœÉÎÂˆ[\ÜÈÙ]Y™™Xİ]™Uİ[ÕÈHœ›ÛH	Ë‹‹Ë‹‹Û[Ù[\ËÙØ[Y]ÙYZËšœÉÎÂˆ[\ÜÈ›]˜]šYØ]UËØ\İHœ›ÛH	Ë‹‹Ë‹‹İZKÚ[\œËšœÉÎÂˆ[\ÜÈ[™Q[™Ù”ÙX\ÛÛˆHœ›ÛH	Ë‹‹Ë‹‹İZKÚÛYWİ˜[œÙ™\œËšœÉÎÂˆ[\ÜÈÛXZÙS™]ÜÒ][KY™]ÜÒ][HHœ›ÛH	Ë‹‹Ë‹‹İZKÚ[˜›ŞšœÉÎÂˆ[\ÜÈØÜ™Y[•XÚÜÈHœ›ÛH	Ë‹‹Üİ]KÜØÜ™Y[œËœİ™[KšœÉÎÂˆ[\ÜÈ\ÔÚYÛ™Y[‹İ\ÛÛÙÛSÙÚ[ˆHœ›ÛH	Ë‹‹Ë‹‹ØÛİYØ\KšœÉÎÂˆ[\Ü]Ûˆœ›ÛH	Ë‹ÚÚ]Ğ]Û‹œİ™[IÎÂˆ[\ÜÜ™\İœ›ÛH	Ë‹ÚÚ]ĞÜ™\İœİ™[IÎÂˆ[\Ü›Ü›QİZYHœ›ÛH	Ë‹ÚÚ]Ñ›Ü›QİZYKœİ™[IÎÂˆ[\ÜXÛÛˆœ›ÛH	Ë‹ÚÚ]ÒXÛÛ‹œİ™[IÎÂˆ[\Ü[Û™^Hœ›ÛH	Ë‹ÚÚ]Ó[Û™^Kœİ™[IÎÂ‚ˆ]ØYYH	İ]J˜[ÙJNÂˆ]ÛİYÚYÛ™Y[ˆH	İ]J˜[ÙJNÂˆ]Ø]™HH	İ]J[
+NÂˆ]X[HH	İ]J[
+NÂˆ]Ü]XYÚ^™HH	İ]J
+NÂˆ]RYH	İ]J™]ÈX\
 
-  let loaded = $state(false);
-  let cloudSignedIn = $state(false);
-  let save = $state(null);
-  let team = $state(null);
-  let squadSize = $state(0);
-  let byId = $state(new Map());
-  let playerById = $state(new Map());
-  let past = $state([]);
-  let upcoming = $state([]);
-  let railGameweeks = $state(38);
-  let slice = $state([]);
-  let railEl = $state(null);
-  let activeCardEl = $state(null);
+JNÂˆ]^Y\RYH	İ]J™]ÈX\
 
-  let isEnd = $state(false);
-  let ddInfo = $state({ isDeadline: false, window: null });
-  let onDeadlineDay = $state(false);
-  let windowLabel = $state('');
-  let hoursLeft = $state(10);
-  let eoyBusy = $state(false);
-  let deadlineBusy = $state(false);
+JNÂˆ]\İH	İ]J×JNÂˆ]\ÛÛZ[™ÈH	İ]J×JNÂˆ]˜Z[Ø[Y]ÙYZÜÈH	İ]JÎ
+NÂˆ]ÛXÙHH	İ]J×JNÂˆ]˜Z[[H	İ]J[
+NÂˆ]Xİ]™PØ\™[H	İ]J[
+NÂ‚ˆ]\Ñ[™H	İ]J˜[ÙJNÂˆ][™›ÈH	İ]JÈ\ÑXY[™Nˆ˜[ÙKÚ[™İÎˆ[JNÂˆ]Û‘XY[™Q^HH	İ]J˜[ÙJNÂˆ]Ú[™İÓX™[H	İ]J	ÉÊNÂˆ]İ\œÓYH	İ]JL
+NÂˆ][ŞP\ŞHH	İ]J˜[ÙJNÂˆ]XY[™P\ŞHH	İ]J˜[ÙJNÂ‚ˆÛÛœİ™^H	\š]™Y
+\ÛÛZ[™ÖÌHÏÈ[
+NÂˆÛÛœİ]\™HH	\š]™Y
+\ÛÛZ[™ËœÛXÙJK
+JNÂˆÛÛœİ^T›İÈH	\š]™Y
+ÛXÙK™š[™
 
-  const next = $derived(upcoming[0] ?? null);
-  const future = $derived(upcoming.slice(1, 4));
-  const myRow = $derived(slice.find((row) => row.isUserTeam) ?? null);
-  const form = $derived(myRow?.form ?? []);
-  const progress = $derived(save ? Math.min(100, Math.max(0, (save.currentGameweek / railGameweeks) * 100)) : 0);
-  const unread = $derived((save?.inbox ?? []).filter((item) => !item.read));
-  const pendingOffers = $derived((save?.inboundOffers ?? []).filter((offer) => offer.status === 'pending'));
-  const waitingItems = $derived.by(() => {
-    const items = pendingOffers.slice(0, 2).map((offer) => ({
-      id: `offer-${offer.playerId}`,
-      tone: 'good',
-      label: `${offer.clubName} bid ${fmt.money(offer.fee)} for ${playerById.get(offer.playerId)?.name ?? 'your player'}`,
-      destination: 'transfers',
-    }));
-    if (unread.length > 0) items.push({ id: `news-${unread[0].id}`, tone: 'neutral', label: unread[0].title, destination: 'inbox' });
-    if (!cloudSignedIn) items.push({ id: 'cloud-save', tone: 'warn', label: 'Progress is local-only on this browser', action: startGoogleLogin });
-    return items;
-  });
-  const board = $derived((() => {
-    const pct = Math.max(0, Math.min(100, save?.jobSecurity ?? 65));
-    const label = pct >= 75 ? 'Secure' : pct >= 45 ? 'Under scrutiny' : pct >= 20 ? 'On notice' : 'Facing the axe';
-    return { pct, label };
-  })());
-  const morale = $derived((() => {
-    const pct = Math.max(0, Math.min(100, team?.morale ?? 50));
-    return pct >= 75 ? 'Excellent' : pct >= 55 ? 'High' : pct >= 40 ? 'Good' : pct >= 20 ? 'Low' : 'Very low';
-  })());
+›İÊHOˆ›İËš\Õ\Ù\•X[JHÏÈ[
+NÂˆÛÛœİ›Ü›HH	\š]™Y
+^T›İÏË™›Ü›HÏÈ×JNÂˆÛÛœİ›ÙÜ™\ÜÈH	\š]™Y
+Ø]™HÈX]›Z[ŠLX]›X^
+
+Ø]™K˜İ\œ™[Ø[Y]ÙYZÈÈ˜Z[Ø[Y]ÙYZÜÊH
+ˆL
+JHˆ
+NÂˆÛÛœİ[œ™XYH	\š]™Y
 
-  function opponent(fixture) {
-    if (!fixture || !save) return null;
-    return byId.get(fixture.homeTeamId === save.userTeamId ? fixture.awayTeamId : fixture.homeTeamId);
-  }
+Ø]™OËš[˜›ŞÏÈ×JK™š[\Š
+][JHOˆZ][Kœ™XY
+JNÂˆÛÛœİ[™[™ÓÙ™™\œÈH	\š]™Y
 
-  function isHome(fixture) { return fixture?.homeTeamId === save?.userTeamId; }
+Ø]™OËš[˜›İ[™Ù™™\œÈÏÈ×JK™š[\Š
+Ù™™\ŠHOˆÙ™™\‹œİ]\ÈOOH	Ü[™[™ÉÊJNÂˆÛÛœİØZ][™Ò][\ÈH	\š]™Y˜J
 
-  function resultFor(fixture) {
-    const userGoals = isHome(fixture) ? fixture.homeGoals : fixture.awayGoals;
-    const opponentGoals = isHome(fixture) ? fixture.awayGoals : fixture.homeGoals;
-    return { score: `${userGoals}â€”${opponentGoals}`, tone: userGoals > opponentGoals ? 'win' : userGoals < opponentGoals ? 'loss' : 'draw' };
-  }
+HOˆÂˆÛÛœİ][\ÈH[™[™ÓÙ™™\œËœÛXÙJŠK›X\
 
-  function openWaiting(item) {
-    if (item.action) item.action();
-    else navigateTo(item.destination);
-  }
+Ù™™\ŠHOˆ
+ÂˆYˆÙ™™\‹IÛÙ™™\‹œ^Y\’YXˆÛ™Nˆ	ÙÛÛÙ	ËˆX™[ˆ	ÛÙ™™\‹˜ÛX“˜[Y_HšY	Ù›]›[Û™^JÙ™™\‹™™YJ_H›Üˆ	Ü^Y\RY™Ù]
+Ù™™\‹œ^Y\’Y
+OË›˜[YHÏÈ	Ş[İ\ˆ^Y\‰ßXˆ\İ[˜][Ûˆ	İ˜[œÙ™\œÉËˆJJNÂˆYˆ
+[œ™XY›[™İˆ
+H][\Ëœ\Ú
+ÈYˆ™]ÜËIİ[œ™XYÌKšYXÛ™Nˆ	Û™]]˜[	ËX™[ˆ[œ™XYÌK]K\İ[˜][Ûˆ	Ú[˜›Ş	ÈJNÂˆYˆ
+XÛİYÚYÛ™Y[ŠH][\Ëœ\Ú
+ÈYˆ	ØÛİY\Ø]™IËÛ™Nˆ	İØ\›‰ËX™[ˆ	Ô›ÙÜ™\ÜÈ\ÈØØ[[Û›HÛˆ\Èœ›İÜÙ\‰ËXİ[Ûˆİ\ÛÛÙÛSÙÚ[ˆJNÂˆ™]\›ˆ][\ÎÂˆJNÂˆÛÛœİ›Ø\™H	\š]™Y
 
-  async function centreRail() {
-    await tick();
-    if (!railEl || !activeCardEl) return;
-    railEl.scrollLeft = Math.max(0, activeCardEl.offsetLeft - (railEl.clientWidth - activeCardEl.offsetWidth) / 2);
-  }
 
-  async function closeWindow(dd) {
-    const s = await getSave();
-    const cur = new Date(s.currentDate);
-    const afterDeadline = dd.window === 'summer' ? new Date(cur.getFullYear(), 8, 2) : new Date(cur.getFullYear(), 1, 2);
-    const expiredCount = (s.transferMarket?.activeDeals ?? []).filter((deal) => !['completed','rejected','withdrawn','expired','hijacked'].includes(deal.state)).length;
-    const closedSave = await patchSave({ currentDate: afterDeadline.toISOString(), deadlineHoursUsed: null });
-    await advanceTransferMarketWeek(closedSave, `deadline-close:${s.season}:${dd.window}`);
-    toast(expiredCount > 0 ? `Transfer window closed â€” ${expiredCount} pending offer${expiredCount > 1 ? 's' : ''} expired.` : 'Transfer window closed. Back to business!', 'info', 5000);
-    screenTicks.home++;
-  }
 
-  async function skipHour() {
-    if (deadlineBusy) return;
-    deadlineBusy = true;
-    try {
-      const s = await getSave();
-      const used = s.deadlineHoursUsed || 0;
-      const newUsed = used + 1;
-      const marketResult = await advanceTransferMarketWeek(s, `deadline:${s.season}:${ddInfo.window}:${newUsed}`);
-      const deals = (marketResult.settled ?? []).filter((deal) => deal.success && !deal.idempotent);
-      const newOffers = marketResult.newOffers ?? [];
-      await patchSave({ deadlineHoursUsed: newUsed });
-      const parts = [];
-      if (deals.length) parts.push(`${deals.length} AI deal${deals.length > 1 ? 's' : ''}`);
-      if (newOffers.length) parts.push(`${newOffers.length} offer${newOffers.length > 1 ? 's' : ''} for your players`);
-      toast(parts.length ? `Hour ${newUsed}: ${parts.join(' Â· ')}!` : `Hour ${newUsed}: Quiet on the market. (${10 - newUsed} left)`, parts.length ? 'success' : 'info', 5000);
-      if (deals.length) {
-        const dealList = deals.slice(0, 5).map((result) => `${result.history?.playerName}: ${byId.get(result.history?.fromTeamId)?.name ?? 'Free agent'} â†’ ${byId.get(result.history?.toTeamId)?.name ?? 'club'}`).join('\n');
-        const extra = deals.length > 5 ? `\nâ€¦and ${deals.length - 5} more` : '';
-        await addNewsItem(_makeNewsItem('transfer_in', `Deadline Day â€” Hour ${newUsed}`, `${deals.length} deal${deals.length > 1 ? 's' : ''} completed:\n${dealList}${extra}`, { gw: s.currentGameweek, date: s.currentDate, icon: 'transfer' }));
-      }
-      if (newUsed >= 10) await closeWindow(ddInfo);
-      else screenTicks.home++;
-    } catch (error) {
-      console.error('Deadline hour error:', error);
-      toast('Error simulating deadline hour.', 'error');
-    } finally {
-      deadlineBusy = false;
-    }
-  }
+HOˆÂˆÛÛœİİHX]›X^
+X]›Z[ŠLØ]™OËš›Ø”ÙXİ\š]HÏÈJJNÂˆÛÛœİX™[HİHÍHÈ	ÔÙXİ\™IÈˆİHHÈ	Õ[™\ˆØÜ][IÈˆİHŒÈ	ÓÛˆ›İXÙIÈˆ	Ñ˜XÚ[™ÈH^IÎÂˆ™]\›ˆÈİX™[NÂˆJJ
+JNÂˆÛÛœİ[Ü˜[HH	\š]™Y
 
-  async function doEndOfSeason() {
-    if (eoyBusy) return;
-    eoyBusy = true;
-    try { await handleEndOfSeason(); }
-    finally { eoyBusy = false; }
-  }
 
-  async function load() {
-    await openDB();
-    const s = await getSave();
-    if (!s || s._deleted) return;
-    cloudSignedIn = isSignedIn();
-    save = s;
-    const [club, players, allTeams, allPlayers, allFixtures, nextFixtures, tableSlice] = await Promise.all([
-      getTeam(s.userTeamId), getPlayersByTeam(s.userTeamId), getAllTeams(), getAllPlayers(), getAllFixtures(),
-      getUpcomingForTeam(s.userTeamId), getTableSliceAroundTeam(s.userTeamId, 2),
-    ]);
-    team = club;
-    squadSize = players.length;
-    byId = new Map(allTeams.map((item) => [item.id, item]));
-    playerById = new Map(allPlayers.map((item) => [item.id, item]));
-    const userFixtures = allFixtures.filter((fixture) => fixture.homeTeamId === s.userTeamId || fixture.awayTeamId === s.userTeamId);
-    past = userFixtures.filter((fixture) => fixture.played).sort((a, b) => a.gameweek - b.gameweek).slice(-3);
-    upcoming = nextFixtures;
-    railGameweeks = Math.max(1, ...userFixtures.map((fixture) => fixture.gameweek));
-    slice = tableSlice;
 
-    const managerName = s.managerName || 'The Manager';
-    const managerAvatar = document.getElementById('mgr-av');
-    if (managerAvatar) managerAvatar.textContent = managerName.split(' ').map((word) => word[0]).join('').slice(0, 2).toUpperCase();
+HOˆÂˆÛÛœİİHX]›X^
+X]›Z[ŠLX[OË›[Ü˜[HÏÈL
+JNÂˆ™]\›ˆİHÍHÈ	Ñ^Ù[[	ÈˆİHMHÈ	ÒYÚ	ÈˆİHÈ	ÑÛÛÙ	ÈˆİHŒÈ	ÓİÉÈˆ	Õ™\HİÉÎÂˆJJ
+JNÂ‚ˆ[˜İ[ÛˆÜÛ™[
+š^\™JHÂˆYˆ
+Yš^\™H\Ø]™JH™]\›ˆ[Âˆ™]\›ˆRY™Ù]
+š^\™KšÛYUX[RYOOHØ]™K\Ù\•X[RYÈš^\™K˜]Ø^UX[RYˆš^\™KšÛYUX[RY
+NÂˆB‚ˆ[˜İ[Ûˆ\ÒÛYJš^\™JHÈ™]\›ˆš^\™OËšÛYUX[RYOOHØ]™OË\Ù\•X[RYÈB‚ˆ[˜İ[Ûˆ™\İ[›ÜŠš^\™JHÂˆÛÛœİ\Ù\‘ÛØ[ÈH\ÒÛYJš^\™JHÈš^\™KšÛYQÛØ[Èˆš^\™K˜]Ø^QÛØ[ÎÂˆÛÛœİÜÛ™[ÛØ[ÈH\ÒÛYJš^\™JHÈš^\™K˜]Ø^QÛØ[Èˆš^\™KšÛYQÛØ[ÎÂˆ™]\›ˆÈØÛÜ™Nˆ	İ\Ù\‘ÛØ[ßx %	ÛÜÛ™[ÛØ[ßXÛ™Nˆ\Ù\‘ÛØ[ÈˆÜÛ™[ÛØ[ÈÈ	İÚ[‰Èˆ\Ù\‘ÛØ[ÈÜÛ™[ÛØ[ÈÈ	ÛÜÜÉÈˆ	Ù˜]ÉÈNÂˆB‚ˆ[˜İ[ÛˆÜ[•ØZ][™Ê][JHÂˆYˆ
+][K˜Xİ[ÛŠH][K˜Xİ[ÛŠ
+NÂˆ[ÙH˜]šYØ]UÊ][K™\İ[˜][ÛŠNÂˆB‚ˆ\Ş[˜È[˜İ[ÛˆÙ[™T˜Z[
 
-    isEnd = s.currentGameweek > getEffectiveTotalGW(s);
-    ddInfo = isDeadlineDay(s);
-    onDeadlineDay = !isEnd && ddInfo.isDeadline;
-    windowLabel = ddInfo.window === 'summer' ? 'Summer' : 'Winter';
-    hoursLeft = 10 - (s.deadlineHoursUsed || 0);
-    loaded = true;
-    await centreRail();
-    if (onDeadlineDay && hoursLeft <= 0) { await closeWindow(ddInfo); return; }
-    if (onDeadlineDay) {
-      const notifyKey = `deadlineDayNotified_${windowLabel}_${s.season}`;
-      if (!s[notifyKey]) {
-        await patchSave({ [notifyKey]: true, deadlineHoursUsed: s.deadlineHoursUsed || 0 });
-        toast(`Transfer Deadline Day! The ${windowLabel} window closes after 10 hours.`, 'info', 7000);
-        await addNewsItem(_makeNewsItem('transfer_in', `${windowLabel} Transfer Deadline Day`, `The ${windowLabel} transfer window is about to close. Simulate up to 10 last-minute hours before it shuts.`, { gw: s.currentGameweek, date: s.currentDate, icon: 'transfer' }));
-      }
-    }
-  }
+HÂˆ]ØZ]XÚÊ
+NÂˆYˆ
+\˜Z[[XXİ]™PØ\™[
+H™]\›Âˆ˜Z[[œØÜ›ÛYHX]›X^
+Xİ]™PØ\™[›Ù™œÙ]YH
+˜Z[[˜ÛY[ÚYHXİ]™PØ\™[›Ù™œÙ]ÚY
+HÈŠNÂˆB‚ˆ\Ş[˜È[˜İ[ÛˆÛÜÙUÚ[™İÊ
+HÂˆÛÛœİÈH]ØZ]Ù]Ø]™J
+NÂˆÛÛœİİ\ˆH™]È]JË˜İ\œ™[]JNÂˆÛÛœİY\‘XY[™HHÚ[™İÈOOH	Üİ[[Y\‰ÈÈ™]È]Jİ\‹™Ù][YX\Š
+KŠHˆ™]È]Jİ\‹™Ù][YX\Š
+KKŠNÂˆÛÛœİ^\™YÛİ[H
+Ë˜[œÙ™\“X\šÙ]Ë˜Xİ]™QX[ÈÏÈ×JK™š[\Š
+X[
+HOˆVÉØÛÛ\]Y	Ë	Ü™Z™XİY	Ë	İÚ]˜]Û‰Ë	Ù^\™Y	Ë	ÚZ˜XÚÙY	×Kš[˜ÛY\ÊX[œİ]JJK›[™İÂˆÛÛœİÛÜÙYØ]™HH]ØZ]]ÚØ]™JÈİ\œ™[]NˆY\‘XY[™KÒTÓÔİš[™Ê
+KXY[™Rİ\œÕ\ÙYˆ[JNÂˆ]ØZ]Y˜[˜ÙU˜[œÙ™\“X\šÙ]ÙYZÊÛÜÙYØ]™KXY[™KXÛÜÙN‰ÜËœÙX\ÛÛŸN‰ÙÚ[™İßX
+NÂˆØ\İ
+^\™YÛİ[ˆÈ˜[œÙ™\ˆÚ[™İÈÛÜÙY8 %	Ù^\™YÛİ[H[™[™ÈÙ™™\‰Ù^\™YÛİ[ˆHÈ	ÜÉÈˆ	ÉßH^\™Y˜ˆ	Õ˜[œÙ™\ˆÚ[™İÈÛÜÙYˆ˜XÚÈÈ\Ú[™\ÜÈIË	Ú[™›ÉËL
+NÂˆØÜ™Y[•XÚÜËšÛYJÊÎÂˆB‚ˆ\Ş[˜È[˜İ[ÛˆÚÚ\İ\Š
+HÂˆYˆ
+XY[™P\ŞJH™]\›ÂˆXY[™P\ŞHHYNÂˆHÂˆÛÛœİÈH]ØZ]Ù]Ø]™J
+NÂˆÛÛœİ\ÙYHË™XY[™Rİ\œÕ\ÙYÂˆÛÛœİ™]Õ\ÙYH\ÙY
+ÈNÂˆÛÛœİX\šÙ]™\İ[H]ØZ]Y˜[˜ÙU˜[œÙ™\“X\šÙ]ÙYZÊËXY[™N‰ÜËœÙX\ÛÛŸN‰Ù[™›ËÚ[™İßN‰Û™]Õ\ÙYX
+NÂˆÛÛœİX[ÈH
+X\šÙ]™\İ[œÙ]YÏÈ×JK™š[\Š
+X[
+HOˆX[œİXØÙ\ÜÈ	‰ˆYX[šY[\İ[
+NÂˆÛÛœİ™]ÓÙ™™\œÈHX\šÙ]™\İ[›™]ÓÙ™™\œÈÏÈ×NÂˆÛÛœİ^Y\”™\ÜÛœÙ\ÈHX\šÙ]™\İ[œ^Y\”™\ÜÛœÙ\ÈÏÈ×NÂˆ]ØZ]]ÚØ]™JÈXY[™Rİ\œÕ\ÙYˆ™]Õ\ÙYJNÂˆÛÛœİ\ÈH×NÂˆYˆ
+X[Ë›[™İ
+H\Ëœ\Ú
+	ÙX[Ë›[™İHRHX[	ÙX[Ë›[™İˆHÈ	ÜÉÈˆ	ÉßX
+NÂˆYˆ
+™]ÓÙ™™\œË›[™İ
+H\Ëœ\Ú
+	Û™]ÓÙ™™\œË›[™İHÙ™™\‰Û™]ÓÙ™™\œË›[™İˆHÈ	ÜÉÈˆ	ÉßH›Üˆ[İ\ˆ^Y\œØ
+NÂˆØ\İ
+\Ë›[™İÈİ\ˆ	Û™]Õ\ÙYNˆ	Ü\Ëš›Ú[Š	È0­È	Ê_HXˆİ\ˆ	Û™]Õ\ÙYNˆ]ZY]ÛˆHX\šÙ]ˆ
+	ÌLH™]Õ\ÙYHY
+X\Ë›[™İÈ	ÜİXØÙ\ÜÉÈˆ	Ú[™›ÉËL
+NÂˆ›Üˆ
+ÛÛœİ™\ÜÛœÙHÙˆ^Y\”™\ÜÛœÙ\ÊHØ\İ
+™\ÜÛœÙK›Y\ÜØYÙK™\ÜÛœÙKÛ™KML
+NÂˆYˆ
+X[Ë›[™İ
+HÂˆÛÛœİX[\İHX[ËœÛXÙJJK›X\
 
-  $effect(() => {
-    // renderHome() remains an imperative bridge for match and squad events.
-    void screenTicks.home;
-    load();
-  });
-</script>
+™\İ[
+HOˆ	Ü™\İ[š\İÜOËœ^Y\“˜[Y_Nˆ	ØRY™Ù]
+™\İ[š\İÜOË™œ›ÛUX[RY
+OË›˜[YHÏÈ	Ñœ™YHYÙ[	ßH8¡¤ˆ	ØRY™Ù]
+™\İ[š\İÜOËÕX[RY
+OË›˜[YHÏÈ	ØÛX‰ßX
+Kš›Ú[Š	×‰ÊNÂˆÛÛœİ^˜HHX[Ë›[™İˆHÈ¸ )˜[™	ÙX[Ë›[™İH_H[Ü™Xˆ	ÉÎÂˆ]ØZ]Y™]ÜÒ][JÛXZÙS™]ÜÒ][J	İ˜[œÙ™\—Ú[‰ËXY[™H^H8 %İ\ˆ	Û™]Õ\ÙYX	ÙX[Ë›[™İHX[	ÙX[Ë›[™İˆHÈ	ÜÉÈˆ	ÉßHÛÛ\]Y—‰ÙX[\İIÙ^˜_XÈİÎˆË˜İ\œ™[Ø[Y]ÙYZË]NˆË˜İ\œ™[]KXÛÛˆ	İ˜[œÙ™\‰ÈJJNÂˆBˆYˆ
+™]Õ\ÙYHL
+H]ØZ]ÛÜÙUÚ[™İÊ[™›ÊNÂˆ[ÙHØÜ™Y[•XÚÜËšÛYJÊÎÂˆHØ]Ú
+\œ›ÜŠHÂˆÛÛœÛÛK™\œ›ÜŠ	ÑXY[™Hİ\ˆ\œ›Ü‰Ë\œ›ÜŠNÂˆØ\İ
+	Ñ\œ›ÜˆÚ[][][™ÈXY[™Hİ\‹‰Ë	Ù\œ›Ü‰ÊNÂˆHš[˜[HÂˆXY[™P\ŞHH˜[ÙNÂˆBˆB‚ˆ\Ş[˜È[˜İ[ÛˆÑ[™Ù”ÙX\ÛÛŠ
+HÂˆYˆ
+[ŞP\ŞJH™]\›Âˆ[ŞP\ŞHHYNÂˆHÈ]ØZ][™Q[™Ù”ÙX\ÛÛŠ
+NÈBˆš[˜[HÈ[ŞP\ŞHH˜[ÙNÈBˆB‚ˆ\Ş[˜È[˜İ[ÛˆØY
 
-<div class="home-screen">
-  {#if !loaded}
-    <div class="loading">Loading your seasonâ€¦</div>
-  {:else}
-    <header class="club-bar">
-      <Crest size={28} label={`${team?.name ?? 'Club'} crest`} />
-      <div class="club-copy">
-        <strong>{team?.name}</strong>
-        <span>{myRow?.displayPosition ?? myRow?.position ?? 'â€”'}{myRow ? positionSuffix(myRow.displayPosition ?? myRow.position) : ''} Â· {myRow?.points ?? 0} pts Â· <Money value={team?.budget ?? 0} size="sm" tone="muted" /></span>
-      </div>
-      <button id="btn-inbox-header" class="icon-button" aria-label="Inbox" onclick={() => navigateTo('inbox')}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 5h16v14H4zM4 7l8 6 8-6" /></svg>
-        <span id="h-inbox-badge" class="badge" style:display={unread.length ? 'grid' : 'none'}>{unread.length > 9 ? '9+' : unread.length}</span>
-      </button>
-    </header>
+HÂˆ]ØZ]Ü[‘Š
+NÂˆÛÛœİÈH]ØZ]Ù]Ø]™J
+NÂˆYˆ
+\ÈË—Ù[]Y
+H™]\›ÂˆÛİYÚYÛ™Y[ˆH\ÔÚYÛ™Y[Š
+NÂˆØ]™HHÎÂˆÛÛœİØÛX‹^Y\œË[X[\Ë[^Y\œË[š^\™\Ë™^š^\™\ËX›TÛXÙWHH]ØZ]›ÛZ\ÙK˜[
+ÂˆÙ]X[JË\Ù\•X[RY
+KÙ]^Y\œĞUX[JË\Ù\•X[RY
+KÙ][X[\Ê
+KÙ][^Y\œÊ
+KÙ][š^\™\Ê
+KˆÙ]\ÛÛZ[™Ñ›Ü•X[JË\Ù\•X[RY
+KÙ]X›TÛXÙP\›İ[™X[JË\Ù\•X[RYŠKˆJNÂˆX[HHÛXÂˆÜ]XYÚ^™HH^Y\œË›[™İÂˆRYH™]ÈX\
+[X[\Ë›X\
 
-    <main>
-      <section class="season-stage" aria-labelledby="season-title">
-        <div class="section-label" id="season-title">The season Â· swipe to move through it</div>
-        <div class="season-rail" bind:this={railEl}>
-          {#each past as fixture (fixture.id)}
-            {@const result = resultFor(fixture)}
-            <article class="rail-card result-card">
-              <span>GW{fixture.gameweek}</span><strong class={result.tone}>{result.score}</strong><small>{opponent(fixture)?.name ?? 'Opponent'}</small>
-            </article>
-          {/each}
-          {#if next}
-            <article class="rail-card active-card" bind:this={activeCardEl}>
-              <div class="next-meta"><span>Gameweek {next.gameweek}</span><span>{fmt.dateShort(next.date)}</span></div>
-              <strong>{opponent(next)?.name ?? 'Opponent'}</strong>
-              <p>{isHome(next) ? team?.stadium ?? 'Home ground' : opponent(next)?.stadium ?? 'Opponent ground'} Â· {isHome(next) ? 'Home' : 'Away'}</p>
-              <FormGuide form={form} />
-            </article>
-          {:else}
-            <article class="rail-card active-card complete" bind:this={activeCardEl}>
-              <span>Season complete</span><strong>Full time.</strong><p>Your final position is {myRow?.displayPosition ?? myRow?.position ?? 'â€”'}.</p>
-            </article>
-          {/if}
-          {#each future as fixture (fixture.id)}
-            <article class="rail-card future-card"><span>GW{fixture.gameweek}</span><strong>{opponent(fixture)?.name ?? 'Opponent'}</strong><small>{isHome(fixture) ? 'H' : 'A'} Â· {fmt.dateShort(fixture.date)}</small></article>
-          {/each}
-        </div>
-        <div class="season-progress"><div class="track"><span style:width={`${progress}%`}></span><i style:left={`${progress}%`}></i></div><span>{Math.min(save.currentGameweek, railGameweeks)} / {railGameweeks}</span></div>
-      </section>
+][JHOˆÚ][KšY][WJJNÂˆ^Y\RYH™]ÈX\
+[^Y\œË›X\
 
-      <section class="primary-action" aria-label="Next action">
-        {#if !isEnd && !onDeadlineDay}
-          <Button id="btn-adv-header" size="lg" full onclick={() => navigateTo('match')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7z" /></svg>Play gameweek {save.currentGameweek}</Button>
-        {:else if isEnd}
-          <Button id="btn-eoy-header" size="lg" full disabled={eoyBusy} onclick={doEndOfSeason}>{eoyBusy ? 'Preparing next seasonâ€¦' : 'Start next season'}</Button>
-        {:else}
-          <Button id="btn-deadline-header" size="lg" full disabled={deadlineBusy} onclick={skipHour}>{deadlineBusy ? 'Simulatingâ€¦' : `Skip one hour Â· ${hoursLeft} left`}</Button>
-        {/if}
-      </section>
+][JHOˆÚ][KšY][WJJNÂˆÛÛœİ\Ù\‘š^\™\ÈH[š^\™\Ë™š[\Š
+š^\™JHOˆš^\™KšÛYUX[RYOOHË\Ù\•X[RYš^\™K˜]Ø^UX[RYOOHË\Ù\•X[RY
+NÂˆ\İH\Ù\‘š^\™\Ë™š[\Š
+š^\™JHOˆš^\™Kœ^YY
+KœÛÜ
 
-      <section class="pulse-grid" aria-label="Club pulse">
-        <div><span>Form</span><FormGuide form={form} size="sm" /></div><div><span>Morale</span><strong>{morale}</strong></div><div><span>Board</span><strong>{board.label}</strong></div><div><span>Squad</span><strong>{squadSize} players</strong></div>
-      </section>
-      {#if save?.boardObjective}
-        <button class="objective" onclick={() => navigateTo('competitions')}><span>Board objective</span><strong>{save.boardObjective.label}</strong><i><b style:width={`${board.pct}%`}></b></i></button>
-      {/if}
-    </main>
+KŠHOˆK™Ø[Y]ÙYZÈH‹™Ø[Y]ÙYZÊKœÛXÙJLÊNÂˆ\ÛÛZ[™ÈH™^š^\™\ÎÂˆ˜Z[Ø[Y]ÙYZÜÈHX]›X^
+K‹‹\Ù\‘š^\™\Ë›X\
 
-    <section class="waiting-sheet" aria-labelledby="waiting-title">
-      <div class="grabber"></div><div class="waiting-heading"><span id="waiting-title">Waiting on you</span><b>{waitingItems.length}</b></div>
-      {#if waitingItems.length}
-        <div class="waiting-list">
-          {#each waitingItems as item (item.id)}
-            <button onclick={() => openWaiting(item)}><span class="waiting-icon {item.tone}"><Icon name={item.tone === 'good' ? 'transfer' : item.tone === 'warn' ? 'warning' : 'info'} size={16} /></span><strong>{item.label}</strong><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></button>
-          {/each}
-        </div>
-      {:else}<p class="all-clear">Nothing needs a decision. Your next match is ready.</p>{/if}
-    </section>
-  {/if}
-</div>
+š^\™JHOˆš^\™K™Ø[Y]ÙYZÊJNÂˆÛXÙHHX›TÛXÙNÂ‚ˆÛÛœİX[˜YÙ\“˜[YHHË›X[˜YÙ\“˜[YH	ÕHX[˜YÙ\‰ÎÂˆÛÛœİX[˜YÙ\]˜]\ˆHØİ[Y[™Ù][[Y[RY
+	ÛYÜ‹X]‰ÊNÂˆYˆ
+X[˜YÙ\]˜]\ŠHX[˜YÙ\]˜]\‹^ÛÛ[HX[˜YÙ\“˜[YKœÜ]
+	È	ÊK›X\
 
-<script module>
-  function positionSuffix(position) {
-    const n = Number(position);
-    if (n % 100 >= 11 && n % 100 <= 13) return 'th';
-    return n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
-  }
-</script>
+ÛÜ™
+HOˆÛÜ™ÌJKš›Ú[Š	ÉÊKœÛXÙJŠKÕ\\Ø\ÙJ
+NÂ‚ˆ\Ñ[™HË˜İ\œ™[Ø[Y]ÙYZÈˆÙ]Y™™Xİ]™Uİ[ÕÊÊNÂˆ[™›ÈH\ÑXY[™Q^JÊNÂˆÛ‘XY[™Q^HHZ\Ñ[™	‰ˆ[™›Ëš\ÑXY[™NÂˆÚ[™İÓX™[H[™›ËÚ[™İÈOOH	Üİ[[Y\‰ÈÈ	Ôİ[[Y\‰Èˆ	ÕÚ[\‰ÎÂˆİ\œÓYHLH
+Ë™XY[™Rİ\œÕ\ÙY
+NÂˆØYYHYNÂˆ]ØZ]Ù[™T˜Z[
 
-<style>
-  .home-screen { position: relative; min-height: 100%; display: flex; flex-direction: column; color: var(--color-tx); background: radial-gradient(circle at 50% 34%, color-mix(in oklch, var(--color-club) 11%, transparent), transparent 34rem), var(--color-ground); font-family: var(--font-body); }
-  .loading { min-height: 100dvh; display: grid; place-items: center; color: var(--color-tx-3); font-size: 13px; }
-  .club-bar { display: flex; align-items: center; gap: 11px; padding: 18px 20px 0; }
-  .club-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
-  .club-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
-  .club-copy span { margin-top: 2px; color: var(--color-tx-3); font: 600 10px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
-  .icon-button { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--color-tx-2); background: transparent; border: 1px solid var(--color-line); border-radius: 50%; cursor: pointer; }
-  .icon-button svg { width: 18px; }
-  .badge { position: absolute; top: -2px; right: -2px; min-width: 17px; height: 17px; padding: 0 4px; place-items: center; color: var(--color-on-accent); background: var(--color-accent); border: 2px solid var(--color-ground); border-radius: 999px; font: 700 8px/1 var(--font-mono); }
-  main { width: 100%; max-width: 1040px; margin: 0 auto; padding: 26px 0 24px; }
-  .section-label, .waiting-heading { color: var(--color-tx-3); font: 600 10px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; }
-  .section-label { padding: 0 20px 11px; }
-  .season-rail { display: flex; align-items: stretch; gap: 9px; padding: 0 max(20px, calc((100vw - 1040px) / 2)); overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-inline: contain; scrollbar-width: none; }
-  .season-rail::-webkit-scrollbar { display: none; }
-  .rail-card { flex: 0 0 78px; min-height: 116px; scroll-snap-align: center; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 10px; border-left: 1px solid var(--color-line); }
-  .rail-card > span, .rail-card small { color: var(--color-tx-3); font: 600 9px/1.25 var(--font-mono); letter-spacing: .07em; text-transform: uppercase; }
-  .result-card strong { font: 700 19px/1 var(--font-display); }
-  .result-card small, .future-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .win { color: var(--color-live); } .loss { color: var(--color-bad); } .draw { color: var(--color-tx-2); }
-  .active-card { position: relative; flex-basis: min(64vw, 320px); min-height: 174px; justify-content: flex-start; padding: 17px; overflow: hidden; background: linear-gradient(155deg, color-mix(in oklch, var(--color-club) 17%, transparent), color-mix(in oklch, var(--color-surface) 92%, transparent)); border: 1px solid color-mix(in oklch, var(--color-club) 45%, var(--color-line)); border-radius: var(--radius-card); box-shadow: 0 18px 52px rgba(0,0,0,.28); }
-  .active-card::after { content: ''; position: absolute; inset: 0 auto 0 -45%; width: 42%; background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--color-tx) 6%, transparent), transparent); animation: sweep 4.2s var(--ease-in-out) infinite; pointer-events: none; }
-  .next-meta { display: flex; justify-content: space-between; color: var(--color-tx-2); font: 600 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
-  .next-meta span:first-child { color: color-mix(in oklch, var(--color-club) 65%, var(--color-tx)); }
-  .active-card > strong { margin-top: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 clamp(28px, 7vw, 42px)/.95 var(--font-display); letter-spacing: -.025em; }
-  .active-card p { color: var(--color-tx-2); font-size: 12px; }
-  .active-card :global(.form) { margin-top: auto; }
-  .active-card.complete > span { color: var(--color-accent); }
-  .future-card { justify-content: center; }
-  .future-card strong { font-size: 12px; }
-  .season-progress { display: flex; align-items: center; gap: 10px; padding: 15px 20px 0; color: var(--color-tx-3); font: 600 10px/1 var(--font-mono); }
-  .track { position: relative; flex: 1; height: 2px; background: var(--color-line); }
-  .track span { display: block; height: 100%; background: var(--color-club); }
-  .track i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; background: var(--color-tx); border-radius: 50%; }
-  .primary-action { padding: 24px 20px 0; }
-  .primary-action :global(button) { border-radius: var(--radius-card); text-transform: uppercase; font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: .04em; box-shadow: 0 14px 40px color-mix(in oklch, var(--color-accent) 19%, transparent); }
-  .primary-action svg { width: 18px; fill: currentColor; }
-  .pulse-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 24px 20px 0; overflow: hidden; background: var(--color-line); border: 1px solid var(--color-line); border-radius: var(--radius-card); }
-  .pulse-grid > div { min-height: 62px; display: flex; flex-direction: column; justify-content: center; gap: 7px; padding: 11px 13px; background: color-mix(in oklch, var(--color-surface) 92%, transparent); }
-  .pulse-grid span, .objective span { color: var(--color-tx-3); font: 600 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
-  .pulse-grid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-  .objective { width: calc(100% - 40px); display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; margin: 12px 20px 0; padding: 13px; text-align: left; color: var(--color-tx); background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); cursor: pointer; }
-  .objective strong { font-size: 12px; }
-  .objective i { grid-column: 1 / -1; height: 3px; overflow: hidden; background: var(--color-raised); border-radius: 2px; }
-  .objective b { display: block; height: 100%; background: var(--color-club); }
-  .waiting-sheet { width: min(100% - 24px, 1016px); margin: auto auto 0; padding: 12px 16px calc(92px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, var(--color-raised), var(--color-surface)); border: 1px solid var(--color-line); border-bottom: 0; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: 0 -18px 48px rgba(0,0,0,.24); }
-  .grabber { width: 38px; height: 4px; margin: 0 auto 14px; background: color-mix(in oklch, var(--color-tx) 22%, transparent); border-radius: 3px; }
-  .waiting-heading { display: flex; align-items: center; gap: 7px; padding-bottom: 9px; }
-  .waiting-heading b { display: grid; min-width: 17px; height: 17px; place-items: center; color: var(--color-on-accent); background: var(--color-accent); border-radius: 99px; font-size: 9px; }
-  .waiting-list { max-height: 122px; overflow-y: auto; }
-  .waiting-list button { width: 100%; min-height: 54px; display: flex; align-items: center; gap: 11px; padding: 7px 0; text-align: left; color: var(--color-tx); background: transparent; border: 0; border-top: 1px solid var(--color-line); cursor: pointer; }
-  .waiting-list button:first-child { border-top: 0; }
-  .waiting-icon { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 10px; font: 700 14px/1 var(--font-mono); }
-  .waiting-icon.good { color: var(--color-live); background: color-mix(in oklch, var(--color-live) 12%, transparent); }
-  .waiting-icon.warn { color: var(--color-warn); background: color-mix(in oklch, var(--color-warn) 12%, transparent); }
-  .waiting-icon.neutral { color: var(--color-tx-2); background: var(--color-raised-2); }
-  .waiting-list strong { min-width: 0; flex: 1; font-size: 13px; font-weight: 500; }
-  .waiting-list svg { width: 16px; flex: 0 0 auto; fill: none; stroke: var(--color-tx-3); stroke-width: 2; }
-  .all-clear { padding: 7px 0 12px; color: var(--color-tx-2); font-size: 13px; }
-  button:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
-  @keyframes sweep { from { transform: translateX(0); } to { transform: translateX(360%); } }
-  @media (min-width: 769px) { .club-bar { max-width: 1040px; width: 100%; margin: 0 auto; padding-top: 24px; } .season-rail { padding-inline: 20px; } .active-card { flex-basis: 360px; } .pulse-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .waiting-sheet { padding-bottom: 24px; } }
-  @media (max-width: 420px) { main { padding-top: 22px; } .active-card { flex-basis: 68vw; } .waiting-sheet { width: calc(100% - 16px); } }
-</style>
+NÂˆYˆ
+Û‘XY[™Q^H	‰ˆİ\œÓYH
+HÈ]ØZ]ÛÜÙUÚ[™İÊ[™›ÊNÈ™]\›ÈBˆYˆ
+Û‘XY[™Q^JHÂˆÛÛœİ›İYRÙ^HHXY[™Q^S›İYšYYÉİÚ[™İÓX™[WÉÜËœÙX\ÛÛŸXÂˆYˆ
+\ÖÛ›İYRÙ^WJHÂˆ]ØZ]]ÚØ]™JÈÛ›İYRÙ^WNˆYKXY[™Rİ\œÕ\ÙYˆË™XY[™Rİ\œÕ\ÙYJNÂˆØ\İ
+˜[œÙ™\ˆXY[™H^HHH	İÚ[™İÓX™[HÚ[™İÈÛÜÙ\ÈY\ˆLİ\œË˜	Ú[™›ÉËÌ
+NÂˆ]ØZ]Y™]ÜÒ][JÛXZÙS™]ÜÒ][J	İ˜[œÙ™\—Ú[‰Ë	İÚ[™İÓX™[H˜[œÙ™\ˆXY[™H^XH	İÚ[™İÓX™[H˜[œÙ™\ˆÚ[™İÈ\ÈX›İ]ÈÛÜÙKˆÚ[][]H\ÈL\İ[Z[]Hİ\œÈ™Y›Ü™H]Ú]Ë˜ÈİÎˆË˜İ\œ™[Ø[Y]ÙYZË]NˆË˜İ\œ™[]KXÛÛˆ	İ˜[œÙ™\‰ÈJJNÂˆBˆBˆB‚ˆ	Y™™Xİ
+
+
+HOˆÂˆËÈ™[™\’ÛYJ
+H™[XZ[œÈ[ˆ[\\˜]]™HœšYÙH›ÜˆX]Ú[™Ü]XY]™[Ë‚ˆ›ÚYØÜ™Y[•XÚÜËšÛYNÂˆØY
+
+NÂˆJNÂÜØÜš\‚‚]ˆÛ\ÜÏHšÛYK\ØÜ™Y[ˆ‚ˆÈÚYˆ[ØYYBˆ]ˆÛ\ÜÏH›ØY[™È“ØY[™È[İ\ˆÙX\ÛÛ¸ )Ù]‚ˆÎ™[Ù_BˆXY\ˆÛ\ÜÏH˜ÛX‹X˜\ˆ‚ˆÜ™\İÚ^™O^ÌHX™[^Ø	İX[OË›˜[YHÏÈ	ĞÛX‰ßHÜ™\İHÏ‚ˆ]ˆÛ\ÜÏH˜ÛX‹XÛÜH‚ˆİ›Û™ÏİX[OË›˜[Y_OÜİ›Û™Ï‚ˆÜ[Û^T›İÏË™\Ü^TÜÚ][ÛˆÏÈ^T›İÏËœÜÚ][ÛˆÏÈ	ø %	ß^Û^T›İÈÈÜÚ][Û”İY™š^
+^T›İË™\Ü^TÜÚ][ÛˆÏÈ^T›İËœÜÚ][ÛŠHˆ	ÉßH0­ÈÛ^T›İÏËœÚ[ÈÏÈHÈ0­È[Û™^H˜[YO^İX[OË˜YÙ]ÏÈHÚ^™OHœÛHˆÛ™OH›]]YˆÏÜÜ[‚ˆÙ]‚ˆ]ÛˆYH˜‹Z[˜›ŞZXY\ˆˆÛ\ÜÏHšXÛÛ‹X]Ûˆˆ\šXK[X™[H’[˜›ŞˆÛ˜ÛXÚÏ^Ê
+HOˆ˜]šYØ]UÊ	Ú[˜›Ş	Ê_O‚ˆİ™ÈšY]Ğ›ŞHŒˆš[H››Û™Hˆİ›ÚÙOH˜İ\œ™[ÛÛÜˆˆİ›ÚÙK]ÚYHŒKH]H“MZMŒM“MÛˆMˆˆÏÜİ™Ï‚ˆÜ[ˆYHšZ[˜›ŞX˜YÙHˆÛ\ÜÏH˜˜YÙHˆİ[N™\Ü^O^İ[œ™XY›[™İÈ	ÙÜšY	Èˆ	Û›Û™IßOİ[œ™XY›[™İˆHÈ	ÎJÉÈˆ[œ™XY›[™İOÜÜ[‚ˆØ]Û‚ˆÚXY\‚‚ˆXZ[‚ˆÙXİ[ÛˆÛ\ÜÏHœÙX\ÛÛ‹\İYÙHˆ\šXK[X™[YOHœÙX\ÛÛ‹]]H‚ˆ]ˆÛ\ÜÏHœÙXİ[Û‹[X™[ˆYHœÙX\ÛÛ‹]]H•HÙX\ÛÛˆ0­ÈİÚ\HÈ[İ™H›İYÚ]Ù]‚ˆ]ˆÛ\ÜÏHœÙX\ÛÛ‹\˜Z[ˆš[™\Ï^Ü˜Z[[O‚ˆÈÙXXÚ\İ\Èš^\™H
+š^\™KšY
+_BˆĞÛÛœİ™\İ[H™\İ[›ÜŠš^\™J_Bˆ\XÛHÛ\ÜÏHœ˜Z[XØ\™™\İ[XØ\™‚ˆÜ[‘ÕŞÙš^\™K™Ø[Y]ÙYZßOÜÜ[İ›Û™ÈÛ\ÜÏ^Ü™\İ[Û™_OÜ™\İ[œØÛÜ™_OÜİ›Û™ÏÛX[ÛÜÛ™[
+š^\™JOË›˜[YHÏÈ	ÓÜÛ™[	ßOÜÛX[‚ˆØ\XÛO‚ˆËÙXXÚBˆÈÚYˆ™^Bˆ\XÛHÛ\ÜÏHœ˜Z[XØ\™Xİ]™KXØ\™ˆš[™\Ï^ØXİ]™PØ\™[O‚ˆ]ˆÛ\ÜÏH›™^[Y]HÜ[‘Ø[Y]ÙYZÈÛ™^™Ø[Y]ÙYZßOÜÜ[Ü[Ù›]™]TÚÜ
+™^™]J_OÜÜ[Ù]‚ˆİ›Û™ÏÛÜÛ™[
+™^
+OË›˜[YHÏÈ	ÓÜÛ™[	ßOÜİ›Û™Ï‚ˆÚ\ÒÛYJ™^
+HÈX[OËœİY][HÏÈ	ÒÛYHÜ›İ[™	ÈˆÜÛ™[
+™^
+OËœİY][HÏÈ	ÓÜÛ™[Ü›İ[™	ßH0­ÈÚ\ÒÛYJ™^
+HÈ	ÒÛYIÈˆ	Ğ]Ø^IßOÜ‚ˆ›Ü›QİZYH›Ü›O^Ù›Ü›_HÏ‚ˆØ\XÛO‚ˆÎ™[Ù_Bˆ\XÛHÛ\ÜÏHœ˜Z[XØ\™Xİ]™KXØ\™ÛÛ\]Hˆš[™\Ï^ØXİ]™PØ\™[O‚ˆÜ[”ÙX\ÛÛˆÛÛ\]OÜÜ[İ›Û™Ï‘[[YKÜİ›Û™Ï–[İ\ˆš[˜[ÜÚ][Ûˆ\ÈÛ^T›İÏË™\Ü^TÜÚ][ÛˆÏÈ^T›İÏËœÜÚ][ÛˆÏÈ	ø %	ßKÜ‚ˆØ\XÛO‚ˆËÚYŸBˆÈÙXXÚ]\™H\Èš^\™H
+š^\™KšY
+_Bˆ\XÛHÛ\ÜÏHœ˜Z[XØ\™]\™KXØ\™Ü[‘ÕŞÙš^\™K™Ø[Y]ÙYZßOÜÜ[İ›Û™ÏÛÜÛ™[
+š^\™JOË›˜[YHÏÈ	ÓÜÛ™[	ßOÜİ›Û™ÏÛX[Ú\ÒÛYJš^\™JHÈ	Ò	Èˆ	ĞIßH0­ÈÙ›]™]TÚÜ
+š^\™K™]J_OÜÛX[Ø\XÛO‚ˆËÙXXÚBˆÙ]‚ˆ]ˆÛ\ÜÏHœÙX\ÛÛ‹\›ÙÜ™\ÜÈ]ˆÛ\ÜÏH˜XÚÈÜ[ˆİ[NÚY^Ø	Ü›ÙÜ™\ÜßIXOÜÜ[Hİ[N›Y^Ø	Ü›ÙÜ™\ÜßIXOÚOÙ]Ü[ÓX]›Z[ŠØ]™K˜İ\œ™[Ø[Y]ÙYZË˜Z[Ø[Y]ÙYZÜÊ_HÈÜ˜Z[Ø[Y]ÙYZÜßOÜÜ[Ù]‚ˆÜÙXİ[Û‚‚ˆÙXİ[ÛˆÛ\ÜÏHœš[X\KXXİ[Ûˆˆ\šXK[X™[H“™^Xİ[Ûˆ‚ˆÈÚYˆZ\Ñ[™	‰ˆ[Û‘XY[™Q^_Bˆ]ÛˆYH˜‹XY‹ZXY\ˆˆÚ^™OH›Èˆ[Û˜ÛXÚÏ^Ê
+HOˆ˜]šYØ]UÊ	ÛX]Ú	Ê_Oİ™ÈšY]Ğ›ŞHŒˆ\šXKZY[HYH]H›NHHLËLLŞˆˆÏÜİ™Ï”^HØ[Y]ÙYZÈÜØ]™K˜İ\œ™[Ø[Y]ÙYZßOĞ]Û‚ˆÎ™[ÙHYˆ\Ñ[™Bˆ]ÛˆYH˜‹Y[ŞKZXY\ˆˆÚ^™OH›Èˆ[\ØX›Y^Ù[ŞP\Ş_HÛ˜ÛXÚÏ^ÙÑ[™Ù”ÙX\ÛÛŸOÙ[ŞP\ŞHÈ	Ô™\\š[™È™^ÙX\ÛÛ¸ )‰Èˆ	Ôİ\™^ÙX\ÛÛ‰ßOĞ]Û‚ˆÎ™[Ù_Bˆ]ÛˆYH˜‹YXY[™KZXY\ˆˆÚ^™OH›Èˆ[\ØX›Y^ÙXY[™P\Ş_HÛ˜ÛXÚÏ^ÜÚÚ\İ\ŸOÙXY[™P\ŞHÈ	ÔÚ[][][™ø )‰ÈˆÚÚ\Û™Hİ\ˆ0­È	Úİ\œÓYHYOĞ]Û‚ˆËÚYŸBˆÜÙXİ[Û‚‚ˆÙXİ[ÛˆÛ\ÜÏHœ[ÙKYÜšYˆ\šXK[X™[HÛXˆ[ÙH‚ˆ]Ü[‘›Ü›OÜÜ[›Ü›QİZYH›Ü›O^Ù›Ü›_HÚ^™OHœÛHˆÏÙ]]Ü[“[Ü˜[OÜÜ[İ›Û™ÏÛ[Ü˜[_OÜİ›Û™ÏÙ]]Ü[›Ø\™ÜÜ[İ›Û™ÏØ›Ø\™›X™[OÜİ›Û™ÏÙ]]Ü[”Ü]XYÜÜ[İ›Û™ÏÜÜ]XYÚ^™_H^Y\œÏÜİ›Û™ÏÙ]‚ˆÜÙXİ[Û‚ˆÈÚYˆØ]™OË˜›Ø\™Øš™Xİ]™_Bˆ]ÛˆÛ\ÜÏH›Øš™Xİ]™HˆÛ˜ÛXÚÏ^Ê
+HOˆ˜]šYØ]UÊ	ØÛÛ\]][ÛœÉÊ_OÜ[›Ø\™Øš™Xİ]™OÜÜ[İ›Û™ÏÜØ]™K˜›Ø\™Øš™Xİ]™K›X™[OÜİ›Û™ÏOˆİ[NÚY^Ø	Ø›Ø\™œİIXOØÚOØ]Û‚ˆËÚYŸBˆÛXZ[‚‚ˆÙXİ[ÛˆÛ\ÜÏHØZ][™Ë\ÚY]ˆ\šXK[X™[YOHØZ][™Ë]]H‚ˆ]ˆÛ\ÜÏH™Ü˜X˜™\ˆÙ]]ˆÛ\ÜÏHØZ][™ËZXY[™ÈÜ[ˆYHØZ][™Ë]]H•ØZ][™ÈÛˆ[İOÜÜ[İØZ][™Ò][\Ë›[™İOØÙ]‚ˆÈÚYˆØZ][™Ò][\Ë›[™İBˆ]ˆÛ\ÜÏHØZ][™Ë[\İ‚ˆÈÙXXÚØZ][™Ò][\È\È][H
+][KšY
+_Bˆ]ÛˆÛ˜ÛXÚÏ^Ê
+HOˆÜ[•ØZ][™Ê][J_OÜ[ˆÛ\ÜÏHØZ][™ËZXÛÛˆÚ][KÛ™_HXÛÛˆ˜[YO^Ú][KÛ™HOOH	ÙÛÛÙ	ÈÈ	İ˜[œÙ™\‰Èˆ][KÛ™HOOH	İØ\›‰ÈÈ	İØ\›š[™ÉÈˆ	Ú[™›ÉßHÚ^™O^ÌMŸHÏÜÜ[İ›Û™ÏÚ][K›X™[OÜİ›Û™Ïİ™ÈšY]Ğ›ŞHŒˆ\šXKZY[HYH]H›NHˆˆ‹MˆˆˆÏÜİ™ÏØ]Û‚ˆËÙXXÚBˆÙ]‚ˆÎ™[Ù_OÛ\ÜÏH˜[XÛX\ˆ“›İ[™È™YYÈHXÚ\Ú[Û‹ˆ[İ\ˆ™^X]Ú\È™XYKÜËÚYŸBˆÜÙXİ[Û‚ˆËÚYŸBÙ]‚‚ØÜš\[Ù[O‚ˆ[˜İ[ÛˆÜÚ][Û”İY™š^
+ÜÚ][ÛŠHÂˆÛÛœİˆH[X™\ŠÜÚ][ÛŠNÂˆYˆ
+ˆ	HLHLH	‰ˆˆ	HLHLÊH™]\›ˆ	İ	ÎÂˆ™]\›ˆˆ	HLOOHHÈ	Üİ	Èˆˆ	HLOOHˆÈ	Û™	Èˆˆ	HLOOHÈÈ	Ü™	Èˆ	İ	ÎÂˆBÜØÜš\‚‚İ[O‚ˆšÛYK\ØÜ™Y[ˆÈÜÚ][Ûˆ™[]]™NÈZ[‹ZZYÚˆL	NÈ\Ü^Nˆ›^È›^Y\™Xİ[ÛˆÛÛ[[ÈÛÛÜˆ˜\ŠKXÛÛÜ‹]
+NÈ˜XÚÙÜ›İ[™ˆ˜YX[YÜ˜YY[
+Ú\˜ÛH]L	HÍ	KÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹XÛXŠHLIK˜[œÜ\™[
+K˜[œÜ\™[Í™[JK˜\ŠKXÛÛÜ‹YÜ›İ[™
+NÈ›ÛY˜[Z[Nˆ˜\ŠKY›ÛX›ÙJNÈBˆ›ØY[™ÈÈZ[‹ZZYÚˆLšÈ\Ü^NˆÜšYÈXÙKZ][\ÎˆÙ[\ÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LÊNÈ›Û\Ú^™NˆLÜÈBˆ˜ÛX‹X˜\ˆÈ\Ü^Nˆ›^È[YÛ‹Z][\ÎˆÙ[\ÈØ\ˆL\ÈY[™ÎˆNŒÈBˆ˜ÛX‹XÛÜHÈZ[‹]ÚYˆÈ›^ˆNÈ\Ü^Nˆ›^È›^Y\™Xİ[ÛˆÛÛ[[ÈBˆ˜ÛX‹XÛÜHİ›Û™ÈÈİ™\™›İÎˆY[È^[İ™\™›İÎˆ[\Ú\ÎÈÚ]K\ÜXÙNˆ›İÜ˜\È›Û\Ú^™NˆM\ÈBˆ˜ÛX‹XÛÜHÜ[ˆÈX\™Ú[‹]ÜˆœÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LÊNÈ›ÛˆŒLÌK˜\ŠKY›Û[[Û›ÊNÈ]\‹\ÜXÚ[™ÎˆŒ[NÈ^]˜[œÙ›Ü›Nˆ\\˜Ø\ÙNÈBˆšXÛÛ‹X]ÛˆÈÜÚ][Ûˆ™[]]™NÈÚYˆÈZYÚˆÈ\Ü^NˆÜšYÈXÙKZ][\ÎˆÙ[\ÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LŠNÈ˜XÚÙÜ›İ[™ˆ˜[œÜ\™[È›Ü™\ˆ\ÛÛY˜\ŠKXÛÛÜ‹[[™JNÈ›Ü™\‹\˜Y]\ÎˆL	NÈİ\œÛÜˆÚ[\ÈBˆšXÛÛ‹X]Ûˆİ™ÈÈÚYˆNÈBˆ˜˜YÙHÈÜÚ][ÛˆXœÛÛ]NÈÜˆLœÈšYÚˆLœÈZ[‹]ÚYˆMÜÈZYÚˆMÜÈY[™ÎˆÈXÙKZ][\ÎˆÙ[\ÈÛÛÜˆ˜\ŠKXÛÛÜ‹[Û‹XXØÙ[
+NÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹XXØÙ[
+NÈ›Ü™\ˆœÛÛY˜\ŠKXÛÛÜ‹YÜ›İ[™
+NÈ›Ü™\‹\˜Y]\ÎˆNN\È›ÛˆÌÌH˜\ŠKY›Û[[Û›ÊNÈBˆXZ[ˆÈÚYˆL	NÈX^]ÚYˆLÈX\™Ú[ˆ]]ÎÈY[™ÎˆœÈBˆœÙXİ[Û‹[X™[ØZ][™ËZXY[™ÈÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LÊNÈ›ÛˆŒLÌH˜\ŠKY›Û[[Û›ÊNÈ]\‹\ÜXÚ[™ÎˆŒM™[NÈ^]˜[œÙ›Ü›Nˆ\\˜Ø\ÙNÈBˆœÙXİ[Û‹[X™[ÈY[™ÎˆŒL\ÈBˆœÙX\ÛÛ‹\˜Z[È\Ü^Nˆ›^È[YÛ‹Z][\Îˆİ™]ÚÈØ\ˆ\ÈY[™ÎˆX^
+ŒØ[Ê
+LÈHL
+HÈŠJNÈİ™\™›İË^ˆ]]ÎÈØÜ›Û\Û˜\]\NˆX[™]ÜNÈİ™\œØÜ›ÛX™Z]š[Ü‹Z[›[™NˆÛÛZ[ÈØÜ›Û˜\‹]ÚYˆ›Û™NÈBˆœÙX\ÛÛ‹\˜Z[‹]ÙXšÚ]\ØÜ›Û˜\ˆÈ\Ü^Nˆ›Û™NÈBˆœ˜Z[XØ\™È›^ˆÎÈZ[‹ZZYÚˆLMœÈØÜ›Û\Û˜\X[YÛˆÙ[\È\Ü^Nˆ›^È›^Y\™Xİ[ÛˆÛÛ[[È\İYKXÛÛ[ˆÙ[\ÈØ\ˆ\ÈY[™ÎˆLÈ›Ü™\‹[Yˆ\ÛÛY˜\ŠKXÛÛÜ‹[[™JNÈBˆœ˜Z[XØ\™ˆÜ[‹œ˜Z[XØ\™ÛX[ÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LÊNÈ›ÛˆŒ\ÌKŒH˜\ŠKY›Û[[Û›ÊNÈ]\‹\ÜXÚ[™ÎˆŒÙ[NÈ^]˜[œÙ›Ü›Nˆ\\˜Ø\ÙNÈBˆœ™\İ[XØ\™İ›Û™ÈÈ›ÛˆÌN\ÌH˜\ŠKY›ÛY\Ü^JNÈBˆœ™\İ[XØ\™ÛX[™]\™KXØ\™İ›Û™ÈÈİ™\™›İÎˆY[È^[İ™\™›İÎˆ[\Ú\ÎÈÚ]K\ÜXÙNˆ›İÜ˜\ÈBˆÚ[ˆÈÛÛÜˆ˜\ŠKXÛÛÜ‹[]™JNÈH›ÜÜÈÈÛÛÜˆ˜\ŠKXÛÛÜ‹X˜Y
+NÈH™˜]ÈÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LŠNÈBˆ˜Xİ]™KXØ\™ÈÜÚ][Ûˆ™[]]™NÈ›^X˜\Ú\ÎˆZ[ŠËÌŒ
+NÈZ[‹ZZYÚˆMÍÈ\İYKXÛÛ[ˆ›^\İ\ÈY[™ÎˆMÜÈİ™\™›İÎˆY[È˜XÚÙÜ›İ[™ˆ[™X\‹YÜ˜YY[
+MMYYËÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹XÛXŠHMÉK˜[œÜ\™[
+KÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹\İ\™˜XÙJHL‰K˜[œÜ\™[
+JNÈ›Ü™\ˆ\ÛÛYÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹XÛXŠHIK˜\ŠKXÛÛÜ‹[[™JJNÈ›Ü™\‹\˜Y]\Îˆ˜\ŠK\˜Y]\ËXØ\™
+NÈ›Ş\ÚYİÎˆNLœ™Ø˜JŒ
+NÈBˆ˜Xİ]™KXØ\™˜Y\ˆÈÛÛ[ˆ	ÉÎÈÜÚ][ÛˆXœÛÛ]NÈ[œÙ]ˆ]]ÈMINÈÚYˆ‰NÈ˜XÚÙÜ›İ[™ˆ[™X\‹YÜ˜YY[
+LYË˜[œÜ\™[ÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹]
+H‰K˜[œÜ\™[
+K˜[œÜ\™[
+NÈ[š[X][ÛˆİÙY\ŒœÈ˜\ŠKYX\ÙKZ[‹[İ]
+H[™š[š]NÈÚ[\‹Y]™[Îˆ›Û™NÈBˆ›™^[Y]HÈ\Ü^Nˆ›^È\İYKXÛÛ[ˆÜXÙKX™]ÙY[ÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LŠNÈ›ÛˆŒ\ÌH˜\ŠKY›Û[[Û›ÊNÈ]\‹\ÜXÚ[™ÎˆŒY[NÈ^]˜[œÙ›Ü›Nˆ\\˜Ø\ÙNÈBˆ›™^[Y]HÜ[™š\œİXÚ[ÈÛÛÜˆÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹XÛXŠHIK˜\ŠKXÛÛÜ‹]
+JNÈBˆ˜Xİ]™KXØ\™ˆİ›Û™ÈÈX\™Ú[‹]ÜˆLÜÈİ™\™›İÎˆY[È^[İ™\™›İÎˆ[\Ú\ÎÈÚ]K\ÜXÙNˆ›İÜ˜\È›ÛˆÛ[\
+İËœ
+KËMH˜\ŠKY›ÛY\Ü^JNÈ]\‹\ÜXÚ[™ÎˆKŒY[NÈBˆ˜Xİ]™KXØ\™ÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LŠNÈ›Û\Ú^™NˆLœÈBˆ˜Xİ]™KXØ\™™ÛØ˜[
+™›Ü›JHÈX\™Ú[‹]Üˆ]]ÎÈBˆ˜Xİ]™KXØ\™˜ÛÛ\]HˆÜ[ˆÈÛÛÜˆ˜\ŠKXÛÛÜ‹XXØÙ[
+NÈBˆ™]\™KXØ\™È\İYKXÛÛ[ˆÙ[\ÈBˆ™]\™KXØ\™İ›Û™ÈÈ›Û\Ú^™NˆLœÈBˆœÙX\ÛÛ‹\›ÙÜ™\ÜÈÈ\Ü^Nˆ›^È[YÛ‹Z][\ÎˆÙ[\ÈØ\ˆLÈY[™ÎˆM\ŒÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LÊNÈ›ÛˆŒLÌH˜\ŠKY›Û[[Û›ÊNÈBˆ˜XÚÈÈÜÚ][Ûˆ™[]]™NÈ›^ˆNÈZYÚˆœÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹[[™JNÈBˆ˜XÚÈÜ[ˆÈ\Ü^Nˆ›ØÚÎÈZYÚˆL	NÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹XÛXŠNÈBˆ˜XÚÈHÈÜÚ][ÛˆXœÛÛ]NÈÜˆL	NÈÚYˆÈZYÚˆÈX\™Ú[ˆMMÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹]
+NÈ›Ü™\‹\˜Y]\ÎˆL	NÈBˆœš[X\KXXİ[ÛˆÈY[™ÎˆŒÈBˆœš[X\KXXİ[Ûˆ™ÛØ˜[
+]ÛŠHÈ›Ü™\‹\˜Y]\Îˆ˜\ŠK\˜Y]\ËXØ\™
+NÈ^]˜[œÙ›Ü›Nˆ\\˜Ø\ÙNÈ›ÛY˜[Z[Nˆ˜\ŠKY›ÛY\Ü^JNÈ›Û\Ú^™NˆMÜÈ›Û]ÙZYÚˆÈ]\‹\ÜXÚ[™ÎˆŒ[NÈ›Ş\ÚYİÎˆMÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹XXØÙ[
+HNIK˜[œÜ\™[
+NÈBˆœš[X\KXXİ[Ûˆİ™ÈÈÚYˆNÈš[ˆİ\œ™[ÛÛÜÈBˆœ[ÙKYÜšYÈ\Ü^NˆÜšYÈÜšY][\]KXÛÛ[[œÎˆ™\X]
+‹Z[›X^
+YœŠJNÈØ\ˆ\ÈX\™Ú[ˆŒÈİ™\™›İÎˆY[È˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹[[™JNÈ›Ü™\ˆ\ÛÛY˜\ŠKXÛÛÜ‹[[™JNÈ›Ü™\‹\˜Y]\Îˆ˜\ŠK\˜Y]\ËXØ\™
+NÈBˆœ[ÙKYÜšYˆ]ˆÈZ[‹ZZYÚˆŒœÈ\Ü^Nˆ›^È›^Y\™Xİ[ÛˆÛÛ[[È\İYKXÛÛ[ˆÙ[\ÈØ\ˆÜÈY[™ÎˆL\LÜÈ˜XÚÙÜ›İ[™ˆÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹\İ\™˜XÙJHL‰K˜[œÜ\™[
+NÈBˆœ[ÙKYÜšYÜ[‹›Øš™Xİ]™HÜ[ˆÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LÊNÈ›ÛˆŒ\ÌH˜\ŠKY›Û[[Û›ÊNÈ]\‹\ÜXÚ[™ÎˆŒY[NÈ^]˜[œÙ›Ü›Nˆ\\˜Ø\ÙNÈBˆœ[ÙKYÜšYİ›Û™ÈÈİ™\™›İÎˆY[È^[İ™\™›İÎˆ[\Ú\ÎÈÚ]K\ÜXÙNˆ›İÜ˜\È›Û\Ú^™NˆLœÈBˆ›Øš™Xİ]™HÈÚYˆØ[ÊL	HH
+NÈ\Ü^NˆÜšYÈÜšY][\]KXÛÛ[[œÎˆYœˆ]]ÎÈØ\ˆÜLœÈX\™Ú[ˆLœŒÈY[™ÎˆLÜÈ^X[YÛˆYÈÛÛÜˆ˜\ŠKXÛÛÜ‹]
+NÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹\İ\™˜XÙJNÈ›Ü™\ˆ\ÛÛY˜\ŠKXÛÛÜ‹[[™JNÈ›Ü™\‹\˜Y]\Îˆ˜\ŠK\˜Y]\ËXØ\™
+NÈİ\œÛÜˆÚ[\ÈBˆ›Øš™Xİ]™Hİ›Û™ÈÈ›Û\Ú^™NˆLœÈBˆ›Øš™Xİ]™HHÈÜšYXÛÛ[[ˆHÈLNÈZYÚˆÜÈİ™\™›İÎˆY[È˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹\˜Z\ÙY
+NÈ›Ü™\‹\˜Y]\ÎˆœÈBˆ›Øš™Xİ]™HˆÈ\Ü^Nˆ›ØÚÎÈZYÚˆL	NÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹XÛXŠNÈBˆØZ][™Ë\ÚY]ÈÚYˆZ[ŠL	HHLMœ
+NÈX\™Ú[ˆ]]È]]ÈÈY[™ÎˆLœMœØ[ÊLœ
+È[ŠØY™KX\™XKZ[œÙ]X›İÛK
+JNÈ˜XÚÙÜ›İ[™ˆ[™X\‹YÜ˜YY[
+NYË˜\ŠKXÛÛÜ‹\˜Z\ÙY
+K˜\ŠKXÛÛÜ‹\İ\™˜XÙJJNÈ›Ü™\ˆ\ÛÛY˜\ŠKXÛÛÜ‹[[™JNÈ›Ü™\‹X›İÛNˆÈ›Ü™\‹\˜Y]\Îˆ˜\ŠK\˜Y]\Ë\ÚY]
+H˜\ŠK\˜Y]\Ë\ÚY]
+HÈ›Ş\ÚYİÎˆLN™Ø˜JŒ
+NÈBˆ™Ü˜X˜™\ˆÈÚYˆÎÈZYÚˆÈX\™Ú[ˆ]]ÈMÈ˜XÚÙÜ›İ[™ˆÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹]
+HŒ‰K˜[œÜ\™[
+NÈ›Ü™\‹\˜Y]\ÎˆÜÈBˆØZ][™ËZXY[™ÈÈ\Ü^Nˆ›^È[YÛ‹Z][\ÎˆÙ[\ÈØ\ˆÜÈY[™ËX›İÛNˆ\ÈBˆØZ][™ËZXY[™ÈˆÈ\Ü^NˆÜšYÈZ[‹]ÚYˆMÜÈZYÚˆMÜÈXÙKZ][\ÎˆÙ[\ÈÛÛÜˆ˜\ŠKXÛÛÜ‹[Û‹XXØÙ[
+NÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹XXØÙ[
+NÈ›Ü™\‹\˜Y]\ÎˆN\È›Û\Ú^™Nˆ\ÈBˆØZ][™Ë[\İÈX^ZZYÚˆLŒœÈİ™\™›İË^Nˆ]]ÎÈBˆØZ][™Ë[\İ]ÛˆÈÚYˆL	NÈZ[‹ZZYÚˆMÈ\Ü^Nˆ›^È[YÛ‹Z][\ÎˆÙ[\ÈØ\ˆL\ÈY[™ÎˆÜÈ^X[YÛˆYÈÛÛÜˆ˜\ŠKXÛÛÜ‹]
+NÈ˜XÚÙÜ›İ[™ˆ˜[œÜ\™[È›Ü™\ˆÈ›Ü™\‹]Üˆ\ÛÛY˜\ŠKXÛÛÜ‹[[™JNÈİ\œÛÜˆÚ[\ÈBˆØZ][™Ë[\İ]Û™š\œİXÚ[È›Ü™\‹]ÜˆÈBˆØZ][™ËZXÛÛˆÈÚYˆÍÈZYÚˆÍÈ›^ˆ]]ÎÈ\Ü^NˆÜšYÈXÙKZ][\ÎˆÙ[\È›Ü™\‹\˜Y]\ÎˆLÈ›ÛˆÌMÌH˜\ŠKY›Û[[Û›ÊNÈBˆØZ][™ËZXÛÛ‹™ÛÛÙÈÛÛÜˆ˜\ŠKXÛÛÜ‹[]™JNÈ˜XÚÙÜ›İ[™ˆÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹[]™JHL‰K˜[œÜ\™[
+NÈBˆØZ][™ËZXÛÛ‹Ø\›ˆÈÛÛÜˆ˜\ŠKXÛÛÜ‹]Ø\›ŠNÈ˜XÚÙÜ›İ[™ˆÛÛÜ‹[Z^
+[ˆÚÛÚ˜\ŠKXÛÛÜ‹]Ø\›ŠHL‰K˜[œÜ\™[
+NÈBˆØZ][™ËZXÛÛ‹›™]]˜[ÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LŠNÈ˜XÚÙÜ›İ[™ˆ˜\ŠKXÛÛÜ‹\˜Z\ÙYLŠNÈBˆØZ][™Ë[\İİ›Û™ÈÈZ[‹]ÚYˆÈ›^ˆNÈ›Û\Ú^™NˆLÜÈ›Û]ÙZYÚˆLÈBˆØZ][™Ë[\İİ™ÈÈÚYˆMœÈ›^ˆ]]ÎÈš[ˆ›Û™NÈİ›ÚÙNˆ˜\ŠKXÛÛÜ‹]LÊNÈİ›ÚÙK]ÚYˆÈBˆ˜[XÛX\ˆÈY[™ÎˆÜLœÈÛÛÜˆ˜\ŠKXÛÛÜ‹]LŠNÈ›Û\Ú^™NˆLÜÈBˆ]Û™›Øİ\Ë]š\ÚX›HÈİ][™NˆÜÛÛY˜\ŠKXÛÛÜ‹XXØÙ[
+NÈİ][™K[Ù™œÙ]ˆÜÈBˆÙ^Yœ˜[Y\ÈİÙY\Èœ›ÛHÈ˜[œÙ›Ü›Nˆ˜[œÛ]V
+
+NÈHÈÈ˜[œÙ›Ü›Nˆ˜[œÛ]V
+ÍŒ	JNÈHBˆYYXH
+Z[‹]ÚYˆÍ\
+HÈ˜ÛX‹X˜\ˆÈX^]ÚYˆLÈÚYˆL	NÈX\™Ú[ˆ]]ÎÈY[™Ë]ÜˆÈHœÙX\ÛÛ‹\˜Z[ÈY[™ËZ[›[™NˆŒÈH˜Xİ]™KXØ\™È›^X˜\Ú\ÎˆÍŒÈHœ[ÙKYÜšYÈÜšY][\]KXÛÛ[[œÎˆ™\X]
+Z[›X^
+YœŠJNÈHØZ][™Ë\ÚY]ÈY[™ËX›İÛNˆÈHBˆYYXH
+X^]ÚYˆŒ
+HÈXZ[ˆÈY[™Ë]ÜˆŒœÈH˜Xİ]™KXØ\™È›^X˜\Ú\ÎˆÎÈHØZ][™Ë\ÚY]ÈÚYˆØ[ÊL	HHMœ
+NÈHBÜİ[O‚

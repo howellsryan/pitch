@@ -705,6 +705,30 @@ export function isPlayerCounterAwaitingUser(deal) {
   return ['player_counter','player_contract_counter'].includes(deal.decisionLog?.at(-1)?.reasonCode);
 }
 
+/** Project player decisions from one market tick into UI-safe notifications. */
+export function projectPlayerDecisionNotifications(deals = [], userTeamId, tickKey) {
+  const userId = String(userTeamId ?? '');
+  if (!userId || !tickKey) return [];
+  const messages = {
+    player_accepts:{ outcome:'accepted', tone:'success', text:'accepted your contract offer.' },
+    player_rejects:{ outcome:'rejected', tone:'error', text:'rejected your contract offer.' },
+    player_counter:{ outcome:'countered', tone:'info', text:'has countered your contract offer.' },
+  };
+  return deals.flatMap(deal => {
+    if (String(deal?.buyerTeamId) !== userId && String(deal?.sellerTeamId) !== userId) return [];
+    const decision = deal?.decisionLog?.at(-1);
+    const response = messages[decision?.reasonCode];
+    if (!response || decision?.actor !== 'player' || decision?.weekKey !== tickKey) return [];
+    return [{
+      dealId:deal.id,
+      playerId:deal.playerId,
+      playerName:deal.playerName ?? 'The player',
+      ...response,
+      message:`${deal.playerName ?? 'The player'} ${response.text}`,
+    }];
+  });
+}
+
 /**
  * Advance one persisted deal for one unique market tick. Delegated deals may
  * traverse seller and player decisions in the same week, but every transition

@@ -14,6 +14,7 @@ import {
   isPlayerCounterAwaitingUser,
   markTransferMarketTick,
   normalizeDealTerms,
+  projectPlayerDecisionNotifications,
   projectLegacyInboundOffers,
   rebuildReservedCommitments,
   resolvePlayerContractDecision,
@@ -50,6 +51,28 @@ function deal(extra = {}) {
 }
 
 describe('P4 transfer-market contracts', () => {
+  it('projects each current-tick player accept, rejection and counter for the managed club', () => {
+    const tickKey = '2025/26:4';
+    const responseDeal = (id, playerName, reasonCode) => ({
+      id, playerId:id, playerName, buyerTeamId:'user', sellerTeamId:'seller',
+      decisionLog:[{ actor:'player', weekKey:tickKey, reasonCode }],
+    });
+    const responses = projectPlayerDecisionNotifications([
+      responseDeal('accepted', 'Alex Accepts', 'player_accepts'),
+      responseDeal('rejected', 'Rory Rejects', 'player_rejects'),
+      responseDeal('countered', 'Casey Counters', 'player_counter'),
+      { ...responseDeal('old', 'Old Response', 'player_accepts'), decisionLog:[{ actor:'player', weekKey:'2025/26:3', reasonCode:'player_accepts' }] },
+      { ...responseDeal('other', 'Other Club', 'player_accepts'), buyerTeamId:'other', sellerTeamId:'another' },
+    ], 'user', tickKey);
+
+    expect(responses.map(response => response.outcome)).toEqual(['accepted','rejected','countered']);
+    expect(responses.map(response => response.message)).toEqual([
+      'Alex Accepts accepted your contract offer.',
+      'Rory Rejects rejected your contract offer.',
+      'Casey Counters has countered your contract offer.',
+    ]);
+  });
+
   it('normalises structured priority terms and validates schedules', () => {
     const normalized = normalizeDealTerms(terms());
     expect(guaranteedFeeTotal(normalized)).toBe(20_000_000);

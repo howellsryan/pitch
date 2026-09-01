@@ -16,6 +16,7 @@ import {
   marketWeekKey,
   normalizeDealTerms,
   normalizeTransferMarket,
+  projectPlayerDecisionNotifications,
   projectLegacyInboundOffers,
   stableMarketHash,
   transitionMarketDeal,
@@ -1197,10 +1198,11 @@ function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
 /** Advance the market exactly once at a completed world-week boundary. */
 export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput = null) {
   const save = saveInput ?? await getSave();
-  if (!save) return { newOffers:[], settled:[] };
+  if (!save) return { newOffers:[], playerResponses:[], settled:[] };
   const tickKey = tickKeyInput ?? marketWeekKey(save);
   let market = normalizeTransferMarket(save.transferMarket);
   const alreadyProcessed = market.processedTickKeys.includes(tickKey);
+  let playerResponses = [];
   if (!alreadyProcessed) {
     const [teams, players] = await Promise.all([getAllTeams(), getAllPlayers()]);
     const teamById = new Map(teams.map(team => [team.id, team]));
@@ -1220,6 +1222,7 @@ export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput =
       return advanceMarketDeal(deal, { player, buyer, seller, buyerSquad:squads.get(buyer.id) ?? [], sellerSquad:squads.get(seller?.id) ?? [], marketValue:formAdjustedValue(player), interest, save, windowOpen:['renewal','free_agent'].includes(deal.type) || isTransferWindowOpen(save).open }, tickKey);
     });
     market = markTransferMarketTick(normalizeTransferMarket({ ...market, activeDeals }), tickKey);
+    playerResponses = projectPlayerDecisionNotifications(market.activeDeals, save.userTeamId, tickKey);
     await _p4PersistMarket(save, market);
   }
   const fresh = await getSave();
@@ -1234,7 +1237,7 @@ export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput =
     await _p4PersistMarket(finalSave, compacted);
     finalSave = await getSave();
   }
-  return { newOffers:projectLegacyInboundOffers(finalSave.transferMarket), settled, market:finalSave.transferMarket, alreadyProcessed };
+  return { newOffers:projectLegacyInboundOffers(finalSave.transferMarket), playerResponses, settled, market:finalSave.transferMarket, alreadyProcessed };
 }
 
 // ─── Buy-side counter: club comes back with price after rejection ──

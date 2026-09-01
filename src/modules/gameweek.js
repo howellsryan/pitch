@@ -312,11 +312,12 @@ async function runEndOfWorldGameweek(save, fixtures) {
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   // P4 advances transfers once per completed world week. The persisted tick key
   // makes retries safe and prevents one market step per pending fixture.
-  const marketResult = await advanceTransferMarketWeek(save).catch(() => ({ newOffers:[] }));
+  const marketResult = await advanceTransferMarketWeek(save).catch(() => ({ newOffers:[], playerResponses:[] }));
   const newOffers = marketResult.newOffers ?? [];
+  const playerResponses = marketResult.playerResponses ?? [];
   await payWeeklyWages().catch(() => {});
   await updateTeamMorale(save.userTeamId).catch(() => {});
-  return { recoveredPlayers, newOffers, personalStatePatches };
+  return { recoveredPlayers, newOffers, playerResponses, personalStatePatches };
 }
 
 export async function advanceOneFixture(overrideFormation) {
@@ -355,14 +356,14 @@ export async function advanceOneFixture(overrideFormation) {
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
     const latestAfterLeague = await getSave();
     const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
-    const { recoveredPlayers, newOffers } = await runEndOfWorldGameweek(competitionSave, gwFixtures);
+    const { recoveredPlayers, newOffers, playerResponses } = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     const freshSave = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
     await putSave({ ...freshSave, currentGameweek:gw + 1, currentDate:newDate.toISOString(), pendingEvents:[] });
     return {
       skipped:true, gameweek:gw, nextGW:gw + 1,
-      finished:gw + 1 > getEffectiveTotalGW(save), newOffers, recoveredPlayers,
+      finished:gw + 1 > getEffectiveTotalGW(save), newOffers, playerResponses, recoveredPlayers,
     };
   }
 
@@ -373,6 +374,7 @@ export async function advanceOneFixture(overrideFormation) {
   const updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
   let recoveredPlayers = [];
   let newOffers = [];
+  let playerResponses = [];
 
   if (event.type === 'league') {
     const fix = gwFixtures.find(f => f.id === event.fixtureId);
@@ -487,6 +489,7 @@ export async function advanceOneFixture(overrideFormation) {
     const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     recoveredPlayers = end.recoveredPlayers;
     newOffers = end.newOffers;
+    playerResponses = end.playerResponses;
     newDate.setDate(newDate.getDate() + 7);
   }
 
@@ -507,7 +510,7 @@ export async function advanceOneFixture(overrideFormation) {
   return {
     singleResult, eventType:event.type, cupResults, gameweek:gw, nextGW,
     finished:nextGW > getEffectiveTotalGW(save), eventsLeft:pending.length,
-    newOffers, recoveredPlayers,
+    newOffers, playerResponses, recoveredPlayers,
   };
 }
 
@@ -519,345 +522,144 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     await applyDevelopment(recoveredCompetition.results).catch(() => {});
   }
 
-  const gw = save.currentGameweek;
-  let [allTeams, allPlayers, gwFixtures] = await Promise.all([
-    getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
-  ]);
+  const gw = save.currentGamewe×Mº¶‰ËkºwµçUX[\ÊNÂˆH[ÙHÂˆÛÛœİİ\İ]HHØ]™K˜İ\ÏË–Ù]™[˜İ\YNÂˆÛÛœİÛÓYÈH\ÕÛÓYÔ›İ[™
+]™[˜İ\Y]™[œ›İ[™˜[YKJH\ÕÛÓYÔ›İ[™
+]™[˜İ\Y]™[œ›İ[™˜[YKŠNÂˆÛÛœİÛ›ØÚÛİ]HÛÓYÂˆÈÈ\Ù\•ÛÛ\Ù\‘ÛØ[ÈˆÜÛØ[Ë[˜[Y\Î™˜[ÙK^˜U[YN™˜[ÙHBˆˆ™\ÛÛ™TÚ[™ÛSYÒÛ›ØÚÛİ]
+\Ù\‘ÛØ[ËÜÛØ[ËX]Ú™\İ[œÙYY
+NÂˆÛÛœİ›ÙÜ™\ÜÈH™\ÛÛ™Pİ\›ÙÜ™\ÜÊˆ]™[˜İ\Yˆ]™[œ›İ[™˜[YKˆ]™[œ›İ[™YÏÈˆİ\İ]Kˆ\Ù\‘ÛØ[ËˆÜÛØ[ËˆÛ›ØÚÛİ]\Ù\•ÛÛ‹ˆ\Ù\’\ÒÛYKˆX]Ú™\İ[œÙYYˆ
+NÂˆYÙÜ™YØ]HH›ÙÜ™\ÜË˜YÙÜ™YØ]NÂˆ\]Yİ\ÖÙ]™[˜İ\YHHÂˆ‹‹˜İ\İ]Kˆ›İ[™[™^œ›ÙÜ™\ÜËœ›İ[™[™^ˆİ]\Îœ›ÙÜ™\ÜËœİ]\Ëˆœ˜XÚÙ]ÙYYš[š\š]œ˜XÚÙ]ÙYY
+]™[˜İ\Y]™[œ›İ[™˜[YKİ\İ]K]™[›ÜÛ™[ÙYY›ÙÜ™\ÜÊKˆ™\İ[Î–Âˆ‹‹Šİ\İ]OËœ™\İ[ÈÏÈ×JKˆÂˆ\Ù\‘ÛØ[ËÜÛØ[Ë\Ù\•ÛÛ˜YÙÜ™YØ]HÈYÙÜ™YØ]K\Ù\•ÛÛˆˆÛ›ØÚÛİ]\Ù\•ÛÛ‹ˆ\Ù\’\ÒÛYKÜÛ™[Y™]™[›ÜÛ™[YÜÛ™[˜[YN™]™[›ÜÛ™[˜[YKˆÜÛ™[ÙYY™]™[›ÜÛ™[ÙYYÏÈ[ˆ[˜[Y\Î˜YÙÜ™YØ]OËœ[˜[Y\ÈÏÈÛ›ØÚÛİ]œ[˜[Y\Ëˆ^˜U[YN˜YÙÜ™YØ]OË™^˜U[YHÏÈÛ›ØÚÛİ]™^˜U[YKˆÛYQ›Ü›X][Û›X]Ú™\İ[šÛYQ›Ü›X][Û‹ˆ]Ø^Q›Ü›X][Û›X]Ú™\İ[˜]Ø^Q›Ü›X][Û‹ˆÛYSY[[]N›X]Ú™\İ[šÛYSY[[]Kˆ]Ø^SY[[]N›X]Ú™\İ[˜]Ø^SY[[]KˆÛYUXİXÜÎ›X]Ú™\İ[šÛYUXİXÜËˆ]Ø^UXİXÜÎ›X]Ú™\İ[˜]Ø^UXİXÜËˆÙYY›X]Ú™\İ[œÙYYˆ‹‹ŠYÙÜ™YØ]HÈÈYÙÜ™YØ]HHˆßJKˆKˆKˆNÂˆÚ[™ÛT™\İ[HZ[İ\X]Ú™\İ[
+ˆÂˆ\Ù\‘ÛØ[ËÜÛØ[Ë\Ù\’\ÒÛYKˆÛYTØÛÜ™\œÎ›X]Ú™\İ[šÛYTØÛÜ™\œË]Ø^TØÛÜ™\œÎ›X]Ú™\İ[˜]Ø^TØÛÜ™\œËˆØÛÜ™\œÎŠX]Ú™\İ[šÛYTØÛÜ™\œÈÏÈ×JK˜ÛÛ˜Ø]
+X]Ú™\İ[˜]Ø^TØÛÜ™\œÈÏÈ×JKˆÜÛ™[Y™]™[›ÜÛ™[YÜÛ™[˜[YN™]™[›ÜÛ™[˜[YKˆÜÛ™[ÙYY™]™[›ÜÛ™[ÙYYÏÈ[ˆİ]Î›X]Ú™\İ[œİ]Ë]™[Î›X]Ú™\İ[™]™[Ëˆš]™\ÜÕ\]\Î›X]Ú™\İ[™š]™\ÜÕ\]\ËYÙÜ™YØ]Kˆ[˜[Y\Î˜YÙÜ™YØ]OËœ[˜[Y\ÈÏÈÛ›ØÚÛİ]œ[˜[Y\Ëˆ^˜U[YN˜YÙÜ™YØ]OË™^˜U[YHÏÈÛ›ØÚÛİ]™^˜U[YKˆÛYQ›Ü›X][Û›X]Ú™\İ[šÛYQ›Ü›X][Û‹ˆ]Ø^Q›Ü›X][Û›X]Ú™\İ[˜]Ø^Q›Ü›X][Û‹ˆÛYSY[[]N›X]Ú™\İ[šÛYSY[[]Kˆ]Ø^SY[[]N›X]Ú™\İ[˜]Ø^SY[[]KˆÛYUXİXÜÎ›X]Ú™\İ[šÛYUXİXÜËˆ]Ø^UXİXÜÎ›X]Ú™\İ[˜]Ø^UXİXÜËˆÙYY›X]Ú™\İ[œÙYYˆKˆØ]™K\Ù\•X[RY]™[[X[\Ëˆ
+NÂˆB‚ˆ]ØZ]\S›Û“XYİYT^Y\”™\İ[ÊÛX]Ú™\İ[JK˜Ø]Ú
 
-  const recoveredProjection = await applyPendingWorldLeagueProjections(gwFixtures);
-  if (recoveredProjection.length) {
-    allPlayers = await getAllPlayers();
-    gwFixtures = await getFixturesByGW(gw);
-  }
 
-  const teamsById = new Map(allTeams.map(t => [t.id, t]));
-  const playersByTeam = groupByTeam(allPlayers);
-  const pending = save.pendingEvents?.length
-    ? [...save.pendingEvents]
-    : buildPendingEvents(gw, save.userTeamId, gwFixtures, save.cups, allTeams);
-  const event0 = pending[0] ?? event;
-  const remaining = pending.slice(1);
-  const updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
-  let singleResult = null;
-  let recoveredPlayers = [];
-  let newOffers = [];
+HOˆßJNÂˆ]ØZ]\Q]™[ÜY[
+ÛX]Ú™\İ[JK˜Ø]Ú
 
-  if (event0?.type === 'league') {
-    const fix = gwFixtures.find(f => f.id === event0.fixtureId);
-    if (fix) {
-      await putFixture(toCanonicalLeagueRecord(fix, matchResult, save.season));
-      await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
-    }
-    singleResult = { ...matchResult, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
 
-  } else if (event0?.type === 'ucl_md' || event0?.type === 'cup') {
-    const userGoals = userIsHome ? matchResult.homeGoals : matchResult.awayGoals;
-    const oppGoals = userIsHome ? matchResult.awayGoals : matchResult.homeGoals;
-    let aggregate = null;
+HOˆßJNÂˆB‚ˆÛÛœİİÑÛ™HH™[XZ[š[™Ë›[™İOOHÂˆÛÛœİ™^ÕÈHİÑÛ™HÈİÈ
+ÈHˆİÎÂˆÛÛœİ™]Ñ]HH™]È]JØ]™K˜İ\œ™[]JNÂˆYˆ
+İÑÛ™JHÂˆ]ØZ]Ù]UÛÜ›XYİYQØ[Y]ÙYZÊİËØ]™KX[\ĞRY^Y\œĞUX[JNÂˆÛÛœİ]\İY\“XYİYHH]ØZ]Ù]Ø]™J
+NÂˆÛÛœİÛÛ\]][Û”Ø]™HH]ØZ]Ù]UÛÜ›ÛÛ\]][Û‘Ø[Y]ÙYZÊİË]\İY\“XYİYK[X[\ÊNÂˆÛÛœİ[™H]ØZ][‘[™Ù•ÛÜ›Ø[Y]ÙYZÊÛÛ\]][Û”Ø]™KİÑš^\™\ÊNÂˆ™XÛİ™\™Y^Y\œÈH[™œ™XÛİ™\™Y^Y\œÎÂˆ™]ÓÙ™™\œÈH[™›™]ÓÙ™™\œÎÂˆ^Y\”™\ÜÛœÙ\ÈH[™œ^Y\”™\ÜÛœÙ\ÎÂˆ™]Ñ]KœÙ]]J™]Ñ]K™Ù]]J
+H
+ÈÊNÂˆB‚ˆÛÛœİœ™\ÚØ]™HHİÑÛ™HÈ]ØZ]Ù]Ø]™J
+HˆØ]™NÂˆÛÛœİ\Ù\”^Y\œÑ›Ü‘HH^Y\œĞUX[K™Ù]
+Ø]™K\Ù\•X[RY
+HÏÈ×NÂˆÛÛœİØ]™UÚ]HHÚ[™ÛT™\İ[ˆÈ\SX[˜YÙ\‘T™\İ[
+œ™\ÚØ]™KÚ[™ÛT™\İ[]™[\Ù\’\ÒÛYK\Ù\”^Y\œÑ›Ü‘JBˆˆœ™\ÚØ]™NÂˆ]ØZ]]Ø]™JÂˆ‹‹œØ]™UÚ]Kˆİ\œ™[Ø[Y]ÙYZÎ›™^ÕËˆİ\œ™[]N™İÑÛ™HÈ™]Ñ]KÒTÓÔİš[™Ê
+HˆØ]™K˜İ\œ™[]Kˆİ\Î\]Yİ\Ëˆ[™[™Ñ]™[Îœ™[XZ[š[™ËˆJNÂ‚ˆ™]\›ˆÂˆÚ[™ÛT™\İ[]™[\N™]™[Ë\Kİ\™\İ[Î–×KØ[Y]ÙYZÎ™İË™^ÕËˆš[š\ÚY›™^ÕÈˆÙ]Y™™Xİ]™Uİ[ÕÊØ]™JK]™[ÓYœ™[XZ[š[™Ë›[™İˆ™]ÓÙ™™\œË^Y\”™\ÜÛœÙ\Ë™XÛİ™\™Y^Y\œËˆNÂŸB‚™^Ü[˜İ[ÛˆZ[İ\X]Ú™\İ[
+‹\Ù\•X[RY]™[[X[\ÊHÂˆÛÛœİX[\ĞRYH™]ÈX\
+[X[\Ë›X\
+OˆİšYJJNÂˆÛÛœİY˜][İ]ÈHÈÜÜÙ\ÜÚ[ÛÚÛYNL]Ø^NLKÚİÎÚÛYNŒ]Ø^NŒKÚİÓÛ•\™Ù]ÚÛYNŒ]Ø^NŒKÎÚÛYNŒ]Ø^NŒKÛÜ›™\œÎÚÛYNŒ]Ø^NŒK›İ[ÎÚÛYNŒ]Ø^NŒKY[İĞØ\™ÎÚÛYNŒ]Ø^NŒHNÂˆÛÛœİ]]Üš]]]™T[ˆHÂˆÛYQ›Ü›X][Ûœ‹šÛYQ›Ü›X][Û‹ˆ]Ø^Q›Ü›X][Ûœ‹˜]Ø^Q›Ü›X][Û‹ˆÛYSY[[]Nœ‹šÛYSY[[]Kˆ]Ø^SY[[]Nœ‹˜]Ø^SY[[]KˆÛYUXİXÜÎœ‹šÛYUXİXÜËˆ]Ø^UXİXÜÎœ‹˜]Ø^UXİXÜËˆÙYYœ‹œÙYYˆ[˜[Y\Îœ‹œ[˜[Y\ÈÏÈ‹˜YÙÜ™YØ]OËœ[˜[Y\ÈÏÈ˜[ÙKˆ^˜U[YNœ‹™^˜U[YHÏÈ‹˜YÙÜ™YØ]OË™^˜U[YHÏÈ˜[ÙKˆNÂˆYˆ
+]™[\HOOH	İXÛÛY	È]™[›XYİYT\ÙJHÂˆÛÛœİ\Ù\’\ÒÛYHH‹\Ù\’\ÒÛYHÏÈYNÂˆÛÛœİ\Ù\“˜[YHHX[\ĞRY™Ù]
+\Ù\•X[RY
+OË›˜[YHÏÈ	Ö[İ\ˆX[IÎÂˆÛÛœİ\Ù\Ü™\İHX[\ĞRY™Ù]
+\Ù\•X[RY
+OË˜Ü™\İÏÈ	ø¦¯IÎÂˆÛÛœİÜYH‹›ÜÛ™[YÏÈ]™[›ÜÛ™[YÏÈ	ÛÜ	ÎÂˆ™]\›ˆÂˆ\Ğİ\X]ÚYKİ\Y™]™[˜İ\YÏÈ	İXÛ	Ëİ\˜[YN™]™[˜İ\˜[YHÏÈ	ĞÚ[\[ÛœÈXYİYIËİ\XÛÛ™]™[˜İ\XÛÛˆÏÈ	ø«d	Ëˆ\ÕPÓX]Ú^N™]™[\HOOH	İXÛÛY	ËX]Ú^Nœ‹›X]Ú^KˆÜÛ™[˜[YNœ‹›ÜÛ™[˜[YKÜÛ™[˜][Ûœ‹›ÜÛ™[˜][Û‹ˆ\Ù\‘ÛØ[Îœ‹\Ù\‘ÛØ[ËÜÛØ[Îœ‹›ÜÛØ[ËÚ[Îœ‹œÚ[Ë™\İ[œ‹œ™\İ[ˆØÛÜ™\œÎœ‹œØÛÜ™\œÈÏÈ×KˆÛYUX[RY\Ù\’\ÒÛYHÈ\Ù\•X[RYˆÜYˆ]Ø^UX[RY\Ù\’\ÒÛYHÈÜYˆ\Ù\•X[RYˆÛYQÛØ[Î\Ù\’\ÒÛYHÈ‹\Ù\‘ÛØ[Èˆ‹›ÜÛØ[Ëˆ]Ø^QÛØ[Î\Ù\’\ÒÛYHÈ‹›ÜÛØ[Èˆ‹\Ù\‘ÛØ[ËˆÛYUX[S˜[YN\Ù\’\ÒÛYHÈ\Ù\“˜[YHˆ‹›ÜÛ™[˜[YKˆ]Ø^UX[S˜[YN\Ù\’\ÒÛYHÈ‹›ÜÛ™[˜[YHˆ\Ù\“˜[YKˆÛYUX[PÜ™\İ\Ù\’\ÒÛYHÈ\Ù\Ü™\İˆ
+‹›ÜÛ™[˜][ÛˆÏÈ]™[›ÜÛ™[Ü™\İÏÈ	ø¦¯IÊKˆ]Ø^UX[PÜ™\İ\Ù\’\ÒÛYHÈ
+‹›ÜÛ™[˜][ÛˆÏÈ]™[›ÜÛ™[Ü™\İÏÈ	ø¦¯IÊHˆ\Ù\Ü™\İˆÛYTØÛÜ™\œÎœ‹šÛYTØÛÜ™\œÈÏÈ
+\Ù\’\ÒÛYHÈ
+‹œØÛÜ™\œÈÏÈ×JHˆ×JKˆ]Ø^TØÛÜ™\œÎœ‹˜]Ø^TØÛÜ™\œÈÏÈ
+\Ù\’\ÒÛYHÈ×Hˆ
+‹œØÛÜ™\œÈÏÈ×JJKˆ]™[Îœ‹™]™[ÈÏÈ×Kİ]Îœ‹œİ]ÈÏÈY˜][İ]Ëˆš]™\ÜÕ\]\Îœ‹™š]™\ÜÕ\]\ÈÏÈ×K\Õ\Ù\“X]ÚYK\Ù\•X[RYØ[Y]ÙYZÎ™]™[™İËˆ‹‹˜]]Üš]]]™T[‹ˆNÂˆB‚ˆÛÛœİ\Ù\’\ÒÛYHH‹\Ù\’\ÒÛYHÏÈYNÂˆÛÛœİÜYH‹›ÜÛ™[YÏÈ]™[›ÜÛ™[YÏÈ	ÛÜ	ÎÂˆ™]\›ˆÂˆ\Ğİ\X]ÚYKİ\Y™]™[˜İ\Yİ\˜[YN™]™[˜İ\˜[YKİ\XÛÛ™]™[˜İ\XÛÛ‹ˆ›İ[™˜[YN™]™[œ›İ[™˜[YKˆÛYUX[RY\Ù\’\ÒÛYHÈ\Ù\•X[RYˆÜYˆ]Ø^UX[RY\Ù\’\ÒÛYHÈÜYˆ\Ù\•X[RYˆÛYQÛØ[Î\Ù\’\ÒÛYHÈ‹\Ù\‘ÛØ[Èˆ‹›ÜÛØ[Ëˆ]Ø^QÛØ[Î\Ù\’\ÒÛYHÈ‹›ÜÛØ[Èˆ‹\Ù\‘ÛØ[ËˆÛYUX[S˜[YN\Ù\’\ÒÛYHÈ
+X[\ĞRY™Ù]
+\Ù\•X[RY
+OË›˜[YHÏÈ	Ö[İ\ˆX[IÊHˆ
+‹›ÜÛ™[˜[YHÏÈ]™[›ÜÛ™[˜[YHÏÈ	ÓÜÛ™[	ÊKˆ]Ø^UX[S˜[YN\Ù\’\ÒÛYHÈ
+‹›ÜÛ™[˜[YHÏÈ]™[›ÜÛ™[˜[YHÏÈ	ÓÜÛ™[	ÊHˆ
+X[\ĞRY™Ù]
+\Ù\•X[RY
+OË›˜[YHÏÈ	Ö[İ\ˆX[IÊKˆÛYUX[PÜ™\İ\Ù\’\ÒÛYHÈ
+X[\ĞRY™Ù]
+\Ù\•X[RY
+OË˜Ü™\İÏÈ	ø¦¯IÊHˆ
+]™[›ÜÛ™[Ü™\İÏÈ	ø¦¯IÊKˆ]Ø^UX[PÜ™\İ\Ù\’\ÒÛYHÈ
+]™[›ÜÛ™[Ü™\İÏÈ	ø¦¯IÊHˆ
+X[\ĞRY™Ù]
+\Ù\•X[RY
+OË˜Ü™\İÏÈ	ø¦¯IÊKˆÛYTØÛÜ™\œÎœ‹šÛYTØÛÜ™\œÈÏÈ
+\Ù\’\ÒÛYHÈ
+‹œØÛÜ™\œÈÏÈ×JHˆ
+‹›ÜØÛÜ™\œÈÏÈ×JJKˆ]Ø^TØÛÜ™\œÎœ‹˜]Ø^TØÛÜ™\œÈÏÈ
+\Ù\’\ÒÛYHÈ
+‹›ÜØÛÜ™\œÈÏÈ×JHˆ
+‹œØÛÜ™\œÈÏÈ×JJKˆ]™[Îœ‹™]™[ÈÏÈ×Kİ]Îœ‹œİ]ÈÏÈY˜][İ]Ëˆš]™\ÜÕ\]\Îœ‹™š]™\ÜÕ\]\ÈÏÈ×K\Õ\Ù\“X]ÚYK\Ù\•X[RYˆØ[Y]ÙYZÎ™]™[™İËYÙÜ™YØ]Nœ‹˜YÙÜ™YØ]HÏÈ[ˆ‹‹˜]]Üš]]]™T[‹ˆNÂŸB‚™^Ü\Ş[˜È[˜İ[ÛˆÚ[][]Qš^\™\Êš^\™\ËX[\ĞRY^Y\œĞUX[KØ]™JHÂˆÛÛœİ™\İ[ÈH×NÂˆÛÛœİÕÜš]HH×NÂˆ›Üˆ
+][™^HÈ[™^š^\™\Ë›[™İÈ[™^
+ÊÊHÂˆÛÛœİš^\™HHš^\™\ÖÚ[™^NÂˆÛÛœİÛYHHX[\ĞRY™Ù]
+š^\™KšÛYUX[RY
+HÏÈÈY™š^\™KšÛYUX[RY˜[YN™š^\™KšÛYUX[RYÜ™\İ‰ø¦¯IÈNÂˆÛÛœİ]Ø^HHX[\ĞRY™Ù]
+š^\™K˜]Ø^UX[RY
+HÏÈÈY™š^\™K˜]Ø^UX[RY˜[YN™š^\™K˜]Ø^UX[RYÜ™\İ‰ø¦¯IÈNÂˆÛÛœİ™\İ[HÚ[][]SX]Ú
+ˆÛYK]Ø^Kˆ^Y\œĞUX[K™Ù]
+š^\™KšÛYUX[RY
+HÏÈ×Kˆ^Y\œĞUX[K™Ù]
+š^\™K˜]Ø^UX[RY
+HÏÈ×Kˆ
+NÂˆÛÛœİÚ]ÛÛ^HÈ‹‹œ™\İ[Ø[Y]ÙYZÎ™š^\™K™Ø[Y]ÙYZËXYİYN™š^\™K›XYİYHNÂˆÕÜš]Kœ\Ú
+ĞØ[›ÛšXØ[XYİYT™XÛÜ™
+š^\™KÚ]ÛÛ^Ø]™KœÙX\ÛÛŠJNÂˆ™\İ[Ëœ\Ú
+Ú]ÛÛ^
+NÂˆËÈÙY\H˜XÚÙÜ›İ[™[™Ú[™H™\ÜÛœÚ]™HÚ]İ]XZÚ[™Èœ›ØYØ\İHÛÜ›[™Ú[™K‚ˆYˆ
 
-    if (event0.type === 'ucl_md' || event0.leaguePhase) {
-      const cupId = event0.cupId ?? 'ucl';
-      const cupState = save.cups?.[cupId];
-      const points = userGoals > oppGoals ? 3 : userGoals === oppGoals ? 1 : 0;
-      const mdResult = {
-        cupId,
-        matchday:(cupState?.leaguePhase?.matchday ?? 0) + 1,
-        opponentId:event0.opponentId,
-        opponentName:event0.opponentName ?? event0.oppName,
-        opponentNation:event0.opponentCrest ?? event0.oppNation,
-        userGoals, oppGoals, userIsHome, points,
-        gd:userGoals - oppGoals,
-        result:points === 3 ? 'W' : points === 1 ? 'D' : 'L',
-        homeTeamId:matchResult.homeTeamId,
-        awayTeamId:matchResult.awayTeamId,
-        homeGoals:matchResult.homeGoals,
-        awayGoals:matchResult.awayGoals,
-        homeScorers:matchResult.homeScorers,
-        awayScorers:matchResult.awayScorers,
-        scorers:userIsHome ? matchResult.homeScorers : matchResult.awayScorers,
-        stats:matchResult.stats,
-        events:matchResult.events,
-        fitnessUpdates:matchResult.fitnessUpdates,
-        homeFormation:matchResult.homeFormation,
-        awayFormation:matchResult.awayFormation,
-        homeMentality:matchResult.homeMentality,
-        awayMentality:matchResult.awayMentality,
-        homeTactics:matchResult.homeTactics,
-        awayTactics:matchResult.awayTactics,
-        seed:matchResult.seed,
-      };
-      updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, mdResult, save.userTeamId);
-      singleResult = buildCupMatchResult(mdResult, save.userTeamId, event0, allTeams);
-    } else {
-      const cupState = save.cups?.[event0.cupId];
-      const twoLeg = isTwoLegRound(event0.cupId, event0.roundName, 1) || isTwoLegRound(event0.cupId, event0.roundName, 2);
-      const knockout = twoLeg
-        ? { userWon:userGoals > oppGoals, penalties:false, extraTime:false }
-        : resolveSingleLegKnockout(userGoals, oppGoals, matchResult.seed);
-      const progress = resolveCupProgress(
-        event0.cupId,
-        event0.roundName,
-        event0.roundIdx ?? 0,
-        cupState,
-        userGoals,
-        oppGoals,
-        knockout.userWon,
-        userIsHome,
-        matchResult.seed,
-      );
-      aggregate = progress.aggregate;
-      updatedCups[event0.cupId] = {
-        ...cupState,
-        roundIndex:progress.roundIndex,
-        status:progress.status,
-        bracketSeed:inheritBracketSeed(event0.cupId, event0.roundName, cupState, event0.opponentSeed, progress),
-        results:[
-          ...(cupState?.results ?? []),
-          {
-            userGoals, oppGoals, userWon:aggregate ? aggregate.userWon : knockout.userWon,
-            userIsHome, opponentId:event0.opponentId, opponentName:event0.opponentName,
-            opponentSeed:event0.opponentSeed ?? null,
-            penalties:aggregate?.penalties ?? knockout.penalties,
-            extraTime:aggregate?.extraTime ?? knockout.extraTime,
-            homeFormation:matchResult.homeFormation,
-            awayFormation:matchResult.awayFormation,
-            homeMentality:matchResult.homeMentality,
-            awayMentality:matchResult.awayMentality,
-            homeTactics:matchResult.homeTactics,
-            awayTactics:matchResult.awayTactics,
-            seed:matchResult.seed,
-            ...(aggregate ? { aggregate } : {}),
-          },
-        ],
-      };
-      singleResult = buildCupMatchResult(
-        {
-          userGoals, oppGoals, userIsHome,
-          homeScorers:matchResult.homeScorers, awayScorers:matchResult.awayScorers,
-          scorers:(matchResult.homeScorers ?? []).concat(matchResult.awayScorers ?? []),
-          opponentId:event0.opponentId, opponentName:event0.opponentName,
-          opponentSeed:event0.opponentSeed ?? null,
-          stats:matchResult.stats, events:matchResult.events,
-          fitnessUpdates:matchResult.fitnessUpdates, aggregate,
-          penalties:aggregate?.penalties ?? knockout.penalties,
-          extraTime:aggregate?.extraTime ?? knockout.extraTime,
-          homeFormation:matchResult.homeFormation,
-          awayFormation:matchResult.awayFormation,
-          homeMentality:matchResult.homeMentality,
-          awayMentality:matchResult.awayMentality,
-          homeTactics:matchResult.homeTactics,
-          awayTactics:matchResult.awayTactics,
-          seed:matchResult.seed,
-        },
-        save.userTeamId, event0, allTeams,
-      );
-    }
+[™^
+ÈJH	HÓÔ“ÔÒSWĞUÒÔÒV‘HOOH
+H]ØZ]›ÛZ\ÙKœ™\ÛÛ™J
+NÂˆBˆYˆ
+ÕÜš]K›[™İ
+H]ØZ]]š^\™\Ğ[ÊÕÜš]JNÂˆ™]\›ˆ™\İ[ÎÂŸB‚‹ËÈÛÛ\]Xš[]H[\œÈ™[XZ[ˆ^ÜY›ÜˆHYØXŞH˜[Y]Üˆ[™›Øİ\ÙY\İË‚™^Ü[˜İ[ÛˆZ[X]SÜÜÓX\
+™\İ[ÊHÂˆÛÛœİX\H™]ÈX\
 
-    await applyNonLeaguePlayerResults([matchResult]).catch(() => {});
-    await applyDevelopment([matchResult]).catch(() => {});
-  }
+NÂˆ›Üˆ
+ÛÛœİˆÙˆ™\İ[ÊHÂˆÛÛœİHH‹˜]Ø^QÛØ[ÈH‹šÛYQÛØ[ÎÂˆÛÛœİ[HH‹šÛYQÛØ[ÈH‹˜]Ø^QÛØ[ÎÂˆYˆ
+HHÊHX\œÙ]
+‹šÛYUX[RYJNÂˆYˆ
+[HHÊHX\œÙ]
+‹˜]Ø^UX[RY[JNÂˆBˆ™]\›ˆX\ÂŸB‚™^Ü\Ş[˜È[˜İ[Ûˆ\]PØXÚJ[^Y\œÒYÛ›Ü™Y™\İ[ÊHÂˆ]ØZ]\S›Û“XYİYT^Y\”™\İ[Ê™\İ[ÊNÂŸB‚‹ÊŠ‚ˆ
+ˆÛ›H^Y\œÈÚÜÙHYYXØ[ÛØÚÈØ[ˆY˜[˜ÙH™[Û™È[ˆHÙYZÛH™XÛİ™\Bˆ
+ˆÜš]HÙ]ˆÙY\[™È\È\™HXZÙ\ÈH›ËY[]ÛÜ›\™]Üš]HÛÛ˜XİX\ŞHÂˆ
+ˆ™\šYH[™\[™[HÙˆ[™^Y‹‚ˆ
+‹Â™^Ü[˜İ[Ûˆ[š\T™XÛİ™\UÜš]TÙ]
+[^Y\œÊHÂˆ™]\›ˆ
+[^Y\œÈÏÈ×JK™š[\Š^Y\ˆOˆ^Y\Ëš[š\™Y
+NÂŸB‚™^Ü\Ş[˜È[˜İ[Ûˆ›ØÙ\ÜÒ[š\T™XÛİ™\J
+HÂˆYˆ
+\[ÙˆXÚÒ[š\T™XÛİ™\HOOH	Ù[˜İ[Û‰ÊH™]\›ˆ×NÂˆÛÛœİ[^Y\œÈH]ØZ]Ù][^Y\œÊ
+NÂˆÛÛœİØ]™HH]ØZ]Ù]Ø]™J
+NÂˆÛÛœİY[š\™YH[^Y\œËœÛÛYJOˆš[š\™Y
+NÂˆYˆ
+ZY[š\™Y
+H™]\›ˆ×NÂˆÛÛœİ™XÛİ™\T›İÜÈH[š\T™XÛİ™\UÜš]TÙ]
+[^Y\œÊNÂˆÛÛœİ™XÛİ™\™YHXÚÒ[š\T™XÛİ™\J™XÛİ™\T›İÜÊNÂˆ]ØZ]]^Y\œĞ[Ê™XÛİ™\T›İÜÊNÂˆ™]\›ˆ™XÛİ™\™Y™š[\ŠOˆX[RYOOHØ]™K\Ù\•X[RY
+NÂŸB‚™^Ü[˜İ[ÛˆÜ›İ\UX[J^Y\œÊHÂˆÛÛœİX\H™]ÈX\
 
-  const gwDone = remaining.length === 0;
-  const nextGW = gwDone ? gw + 1 : gw;
-  const newDate = new Date(save.currentDate);
-  if (gwDone) {
-    await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
-    const latestAfterLeague = await getSave();
-    const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
-    const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
-    recoveredPlayers = end.recoveredPlayers;
-    newOffers = end.newOffers;
-    newDate.setDate(newDate.getDate() + 7);
-  }
-
-  const freshSave = gwDone ? await getSave() : save;
-  const userPlayersForDNA = playersByTeam.get(save.userTeamId) ?? [];
-  const saveWithDNA = singleResult
-    ? applyManagerDNAResult(freshSave, singleResult, event0, userIsHome, userPlayersForDNA)
-    : freshSave;
-  await putSave({
-    ...saveWithDNA,
-    currentGameweek:nextGW,
-    currentDate:gwDone ? newDate.toISOString() : save.currentDate,
-    cups:updatedCups,
-    pendingEvents:remaining,
-  });
-
-  return {
-    singleResult, eventType:event0?.type, cupResults:[], gameweek:gw, nextGW,
-    finished:nextGW > getEffectiveTotalGW(save), eventsLeft:remaining.length,
-    newOffers, recoveredPlayers,
-  };
-}
-
-export function buildCupMatchResult(r, userTeamId, event, allTeams) {
-  const teamsById = new Map(allTeams.map(t => [t.id, t]));
-  const defaultStats = { possession:{home:50,away:50}, shots:{home:0,away:0}, shotsOnTarget:{home:0,away:0}, xG:{home:0,away:0}, corners:{home:0,away:0}, fouls:{home:0,away:0}, yellowCards:{home:0,away:0} };
-  const authoritativePlan = {
-    homeFormation:r.homeFormation,
-    awayFormation:r.awayFormation,
-    homeMentality:r.homeMentality,
-    awayMentality:r.awayMentality,
-    homeTactics:r.homeTactics,
-    awayTactics:r.awayTactics,
-    seed:r.seed,
-    penalties:r.penalties ?? r.aggregate?.penalties ?? false,
-    extraTime:r.extraTime ?? r.aggregate?.extraTime ?? false,
-  };
-  if (event.type === 'ucl_md' || event.leaguePhase) {
-    const userIsHome = r.userIsHome ?? true;
-    const userName = teamsById.get(userTeamId)?.name ?? 'Your Team';
-    const userCrest = teamsById.get(userTeamId)?.crest ?? 'âš½';
-    const oppId = r.opponentId ?? event.opponentId ?? 'opp';
-    return {
-      isCupMatch:true, cupId:event.cupId ?? 'ucl', cupName:event.cupName ?? 'Champions League', cupIcon:event.cupIcon ?? 'â­',
-      isUCLMatchday:event.type === 'ucl_md', matchday:r.matchday,
-      opponentName:r.opponentName, opponentNation:r.opponentNation,
-      userGoals:r.userGoals, oppGoals:r.oppGoals, points:r.points, result:r.result,
-      scorers:r.scorers ?? [],
-      homeTeamId:userIsHome ? userTeamId : oppId,
-      awayTeamId:userIsHome ? oppId : userTeamId,
-      homeGoals:userIsHome ? r.userGoals : r.oppGoals,
-      awayGoals:userIsHome ? r.oppGoals : r.userGoals,
-      homeTeamName:userIsHome ? userName : r.opponentName,
-      awayTeamName:userIsHome ? r.opponentName : userName,
-      homeTeamCrest:userIsHome ? userCrest : (r.opponentNation ?? event.opponentCrest ?? 'âš½'),
-      awayTeamCrest:userIsHome ? (r.opponentNation ?? event.opponentCrest ?? 'âš½') : userCrest,
-      homeScorers:r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : []),
-      awayScorers:r.awayScorers ?? (userIsHome ? [] : (r.scorers ?? [])),
-      events:r.events ?? [], stats:r.stats ?? defaultStats,
-      fitnessUpdates:r.fitnessUpdates ?? [], isUserMatch:true, userTeamId, gameweek:event.gw,
-      ...authoritativePlan,
-    };
-  }
-
-  const userIsHome = r.userIsHome ?? true;
-  const oppId = r.opponentId ?? event.opponentId ?? 'opp';
-  return {
-    isCupMatch:true, cupId:event.cupId, cupName:event.cupName, cupIcon:event.cupIcon,
-    roundName:event.roundName,
-    homeTeamId:userIsHome ? userTeamId : oppId,
-    awayTeamId:userIsHome ? oppId : userTeamId,
-    homeGoals:userIsHome ? r.userGoals : r.oppGoals,
-    awayGoals:userIsHome ? r.oppGoals : r.userGoals,
-    homeTeamName:userIsHome ? (teamsById.get(userTeamId)?.name ?? 'Your Team') : (r.opponentName ?? event.opponentName ?? 'Opponent'),
-    awayTeamName:userIsHome ? (r.opponentName ?? event.opponentName ?? 'Opponent') : (teamsById.get(userTeamId)?.name ?? 'Your Team'),
-    homeTeamCrest:userIsHome ? (teamsById.get(userTeamId)?.crest ?? 'âš½') : (event.opponentCrest ?? 'âš½'),
-    awayTeamCrest:userIsHome ? (event.opponentCrest ?? 'âš½') : (teamsById.get(userTeamId)?.crest ?? 'âš½'),
-    homeScorers:r.homeScorers ?? (userIsHome ? (r.scorers ?? []) : (r.oppScorers ?? [])),
-    awayScorers:r.awayScorers ?? (userIsHome ? (r.oppScorers ?? []) : (r.scorers ?? [])),
-    events:r.events ?? [], stats:r.stats ?? defaultStats,
-    fitnessUpdates:r.fitnessUpdates ?? [], isUserMatch:true, userTeamId,
-    gameweek:event.gw, aggregate:r.aggregate ?? null,
-    ...authoritativePlan,
-  };
-}
-
-export async function simulateFixtures(fixtures, teamsById, playersByTeam, save) {
-  const results = [];
-  const toWrite = [];
-  for (let index = 0; index < fixtures.length; index++) {
-    const fixture = fixtures[index];
-    const home = teamsById.get(fixture.homeTeamId) ?? { id:fixture.homeTeamId, name:fixture.homeTeamId, crest:'âš½' };
-    const away = teamsById.get(fixture.awayTeamId) ?? { id:fixture.awayTeamId, name:fixture.awayTeamId, crest:'âš½' };
-    const result = simulateMatch(
-      home, away,
-      playersByTeam.get(fixture.homeTeamId) ?? [],
-      playersByTeam.get(fixture.awayTeamId) ?? [],
-    );
-    const withContext = { ...result, gameweek:fixture.gameweek, league:fixture.league };
-    toWrite.push(toCanonicalLeagueRecord(fixture, withContext, save.season));
-    results.push(withContext);
-    // Keep the background engine responsive without making Broadcast the world engine.
-    if ((index + 1) % WORLD_SIM_BATCH_SIZE === 0) await Promise.resolve();
-  }
-  if (toWrite.length) await putFixturesBulk(toWrite);
-  return results;
-}
-
-// Compatibility helpers remain exported for the legacy validator and focused tests.
-export function buildHeavyLossMap(results) {
-  const map = new Map();
-  for (const r of results) {
-    const hm = r.awayGoals - r.homeGoals;
-    const am = r.homeGoals - r.awayGoals;
-    if (hm >= 3) map.set(r.homeTeamId, hm);
-    if (am >= 3) map.set(r.awayTeamId, am);
-  }
-  return map;
-}
-
-export async function updateCache(allPlayersIgnored, results) {
-  await applyNonLeaguePlayerResults(results);
-}
-
-/**
- * Only players whose medical clock can advance belong in the weekly recovery
- * write set. Keeping this pure makes the no-full-world-rewrite contract easy to
- * verify independently of IndexedDB.
- */
-export function injuryRecoveryWriteSet(allPlayers) {
-  return (allPlayers ?? []).filter(player => player?.injured);
-}
-
-export async function processInjuryRecovery() {
-  if (typeof tickInjuryRecovery !== 'function') return [];
-  const allPlayers = await getAllPlayers();
-  const save = await getSave();
-  const hadInjured = allPlayers.some(p => p.injured);
-  if (!hadInjured) return [];
-  const recoveryRows = injuryRecoveryWriteSet(allPlayers);
-  const recovered = tickInjuryRecovery(recoveryRows);
-  await putPlayersBulk(recoveryRows);
-  return recovered.filter(p => p.teamId === save.userTeamId);
-}
-
-export function groupByTeam(players) {
-  const map = new Map();
-  for (const player of players) {
-    if (!map.has(player.teamId)) map.set(player.teamId, []);
-    map.get(player.teamId).push(player);
-  }
-  return map;
-}
-
-export function updatePlayerStats(cache, results) {
-  applyWorldPlayerStats(cache, results);
-}
-
-export function awardCS(cache, teamId) {
-  for (const p of cache.values()) {
-    if (p.teamId === teamId && p.position === 'GK' && p.inSquad !== false && !p.injured) {
-      p.cleanSheets = (p.cleanSheets ?? 0) + 1;
-      p._played = true;
-      p._cleanSheet = true;
-      break;
-    }
-  }
-}
-
-export function applyFitnessUpdates(cache, results) {
-  for (const r of results) {
-    for (const fu of r.fitnessUpdates ?? []) {
-      const p = cache.get(fu.id);
-      if (p) { p.fitness = fu.newFitness; p._played = true; }
-    }
-  }
-}
-
-export function applyInjuryUpdates(cache, results) {
-  if (typeof applyInjury !== 'function') return;
-  for (const r of results) {
-    for (const evt of r.events ?? []) {
-      if (evt.type !== 'injury') continue;
-      const p = cache.get(evt.playerId);
-      if (!p) continue;
-      applyInjury(p, {
-        injuryName:evt.injuryName,
-        injuryType:evt.injuryType ?? 'unknown',
-        injuryGWsLeft:evt.injuryGWsLeft,
-        injuryGWsTotal:evt.injuryGWsLeft,
-      });
-    }
-  }
-}
+NÂˆ›Üˆ
+ÛÛœİ^Y\ˆÙˆ^Y\œÊHÂˆYˆ
+[X\š\Ê^Y\‹X[RY
+JHX\œÙ]
+^Y\‹X[RY×JNÂˆX\™Ù]
+^Y\‹X[RY
+Kœ\Ú
+^Y\ŠNÂˆBˆ™]\›ˆX\ÂŸB‚™^Ü[˜İ[Ûˆ\]T^Y\”İ]ÊØXÚK™\İ[ÊHÂˆ\UÛÜ›^Y\”İ]ÊØXÚK™\İ[ÊNÂŸB‚™^Ü[˜İ[Ûˆ]Ø\™ÔÊØXÚKX[RY
+HÂˆ›Üˆ
+ÛÛœİÙˆØXÚK˜[Y\Ê
+JHÂˆYˆ
+X[RYOOHX[RY	‰ˆœÜÚ][ÛˆOOH	ÑÒÉÈ	‰ˆš[”Ü]XYOOH˜[ÙH	‰ˆ\š[š\™Y
+HÂˆ˜ÛX[”ÚY]ÈH
+˜ÛX[”ÚY]ÈÏÈ
+H
+ÈNÂˆ—Ü^YYHYNÂˆ—ØÛX[”ÚY]HYNÂˆœ™XZÎÂˆBˆBŸB‚™^Ü[˜İ[Ûˆ\Qš]™\ÜÕ\]\ÊØXÚK™\İ[ÊHÂˆ›Üˆ
+ÛÛœİˆÙˆ™\İ[ÊHÂˆ›Üˆ
+ÛÛœİHÙˆ‹™š]™\ÜÕ\]\ÈÏÈ×JHÂˆÛÛœİHØXÚK™Ù]
+KšY
+NÂˆYˆ
+
+HÈ™š]™\ÜÈHK›™]Ñš]™\ÜÎÈ—Ü^YYHYNÈBˆBˆBŸB‚™^Ü[˜İ[Ûˆ\R[š\U\]\ÊØXÚK™\İ[ÊHÂˆYˆ
+\[Ùˆ\R[š\HOOH	Ù[˜İ[Û‰ÊH™]\›Âˆ›Üˆ
+ÛÛœİˆÙˆ™\İ[ÊHÂˆ›Üˆ
+ÛÛœİ]Ùˆ‹™]™[ÈÏÈ×JHÂˆYˆ
+]\HOOH	Ú[š\IÊHÛÛ[YNÂˆÛÛœİHØXÚK™Ù]
+]œ^Y\’Y
+NÂˆYˆ
+\
+HÛÛ[YNÂˆ\R[š\JÂˆ[š\S˜[YN™]š[š\S˜[YKˆ[š\U\N™]š[š\U\HÏÈ	İ[šÛ›İÛ‰Ëˆ[š\QÕÜÓY™]š[š\QÕÜÓYˆ[š\QÕÜÕİ[™]š[š\QÕÜÓYˆJNÂˆBˆBŸB
