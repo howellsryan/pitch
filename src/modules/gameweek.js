@@ -5,7 +5,7 @@ import { buildPersonalStatePatches } from './playerModel.js';
 import { updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
-import { generateAIOffers, simulateAILoans, simulateAITransfers } from './transfers.js';
+import { advanceTransferMarketWeek } from './transfers.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
@@ -310,12 +310,14 @@ async function runEndOfWorldGameweek(save, fixtures) {
     fixtures,
   );
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
-  const newOffers = await generateAIOffers().catch(() => []) ?? [];
-  await simulateAITransfers(save).catch(() => {});
-  await simulateAILoans(save).catch(() => {});
+  // P4 advances transfers once per completed world week. The persisted tick key
+  // makes retries safe and prevents one market step per pending fixture.
+  const marketResult = await advanceTransferMarketWeek(save).catch(() => ({ newOffers:[], playerResponses:[] }));
+  const newOffers = marketResult.newOffers ?? [];
+  const playerResponses = marketResult.playerResponses ?? [];
   await payWeeklyWages().catch(() => {});
   await updateTeamMorale(save.userTeamId).catch(() => {});
-  return { recoveredPlayers, newOffers, personalStatePatches };
+  return { recoveredPlayers, newOffers, playerResponses, personalStatePatches };
 }
 
 export async function advanceOneFixture(overrideFormation) {
@@ -354,14 +356,14 @@ export async function advanceOneFixture(overrideFormation) {
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
     const latestAfterLeague = await getSave();
     const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
-    const { recoveredPlayers, newOffers } = await runEndOfWorldGameweek(competitionSave, gwFixtures);
+    const { recoveredPlayers, newOffers, playerResponses } = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     const freshSave = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
     await putSave({ ...freshSave, currentGameweek:gw + 1, currentDate:newDate.toISOString(), pendingEvents:[] });
     return {
       skipped:true, gameweek:gw, nextGW:gw + 1,
-      finished:gw + 1 > getEffectiveTotalGW(save), newOffers, recoveredPlayers,
+      finished:gw + 1 > getEffectiveTotalGW(save), newOffers, playerResponses, recoveredPlayers,
     };
   }
 
@@ -372,6 +374,7 @@ export async function advanceOneFixture(overrideFormation) {
   const updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
   let recoveredPlayers = [];
   let newOffers = [];
+  let playerResponses = [];
 
   if (event.type === 'league') {
     const fix = gwFixtures.find(f => f.id === event.fixtureId);
@@ -486,6 +489,7 @@ export async function advanceOneFixture(overrideFormation) {
     const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     recoveredPlayers = end.recoveredPlayers;
     newOffers = end.newOffers;
+    playerResponses = end.playerResponses;
     newDate.setDate(newDate.getDate() + 7);
   }
 
@@ -506,7 +510,7 @@ export async function advanceOneFixture(overrideFormation) {
   return {
     singleResult, eventType:event.type, cupResults, gameweek:gw, nextGW,
     finished:nextGW > getEffectiveTotalGW(save), eventsLeft:pending.length,
-    newOffers, recoveredPlayers,
+    newOffers, playerResponses, recoveredPlayers,
   };
 }
 
@@ -540,6 +544,7 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
   let singleResult = null;
   let recoveredPlayers = [];
   let newOffers = [];
+  let playerResponses = [];
 
   if (event0?.type === 'league') {
     const fix = gwFixtures.find(f => f.id === event0.fixtureId);
@@ -666,6 +671,7 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     const end = await runEndOfWorldGameweek(competitionSave, gwFixtures);
     recoveredPlayers = end.recoveredPlayers;
     newOffers = end.newOffers;
+    playerResponses = end.playerResponses;
     newDate.setDate(newDate.getDate() + 7);
   }
 
@@ -685,7 +691,7 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
   return {
     singleResult, eventType:event0?.type, cupResults:[], gameweek:gw, nextGW,
     finished:nextGW > getEffectiveTotalGW(save), eventsLeft:remaining.length,
-    newOffers, recoveredPlayers,
+    newOffers, playerResponses, recoveredPlayers,
   };
 }
 

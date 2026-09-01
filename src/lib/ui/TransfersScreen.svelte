@@ -1,22 +1,24 @@
 <script>
-  import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, openDB, putSave } from '../../modules/db.js';
+  import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
   import { primaryRating } from '../../modules/matchEngine.js';
+  import { counterMarketDeal, isUserClubDeal, reconcileManagedClubInboundOffers, submitContractTerms } from '../../modules/transferDealActions.js';
   import {
-    _loanFee, _loanWageCost, buyPlayer, canClubSignPlayer, formAdjustedValue, generateBuyCounter,
-    getLoanableInPlayers, loanInPlayer, loanOutPlayer, playerMinRepToSign, sellPlayer, signFreeAgent, transferWindowStatus,
+    _loanFee, _loanWageCost, acceptMarketDeal, canClubSignPlayer, contractYearsRemaining, createUserMarketDeal, formAdjustedValue,
+    getLoanableInPlayers, loanOutPlayer, playerMinRepToSign, transferWindowStatus, withdrawMarketDeal,
+    setManagedPlayerTransferListing,
   } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
   import { fmt, formLabel, playerNationality, posGroup, toast } from '../../ui/helpers.js';
-  import { newsPlayerSigned, newsPlayerSold } from '../../ui/inbox.js';
-  import { _updateOffersBadge, showOffersModal } from '../../ui/squad_tactics_offers.js';
+  import { _updateOffersBadge } from '../../ui/squad_tactics_offers.js';
   import { screenTicks } from '../state/screens.svelte.js';
 
   const POT_COLORS = ['', '#8a9ab0', 'var(--color-live)', '#3b82f6', 'var(--color-warn)', 'var(--color-bad)'];
   const LEAGUE_NATION = { 'Premier League': 'ENG', 'Championship': 'ENG', 'League One': 'ENG', 'League Two': 'ENG', 'La Liga': 'ESP', 'Bundesliga': 'GER', 'Serie A': 'ITA', 'Ligue 1': 'FRA', 'Eredivisie': 'NED' };
   const BUY_MSGS = { INSUFFICIENT_FUNDS: 'Not enough budget.', ALREADY_IN_SQUAD: 'Already in your squad.', REP_TOO_LOW: "Your club's reputation is too low to attract this calibre of player.", WINDOW_CLOSED: 'The transfer window is closed. You can only sign players in the summer (Aug) or winter (Jan) windows.', SIGNED_THIS_SEASON: 'This player has already transferred once this season and cannot move again until next season.' };
-  const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.' };
+  const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.', SIGNED_THIS_SEASON: 'This player joined during the current season and cannot be sold until next season.', ALREADY_ON_LOAN: 'A player on loan cannot be transfer listed.' };
   const LOAN_IN_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Player is already out on loan.', SIGNED_THIS_SEASON: 'Player already moved this season.', INSUFFICIENT_FUNDS: 'Not enough budget.', CLUB_WONT_LOAN: "This club won't loan out this player." };
   const LOAN_OUT_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Already on loan.', SIGNED_THIS_SEASON: 'Already moved this season.', NO_LOAN_TAKERS: 'No clubs interested in this player right now.' };
+  const TERMINAL_DEAL_STATES = new Set(['completed','rejected','withdrawn','expired','hijacked']);
 
   const ROW_H = 68;
   const OVERSCAN = 6;
@@ -31,7 +33,7 @@
   let freeAgents = $state([]);
   let winStatus = $state({ open: true, label: '' });
 
-  let tab = $state('buy'); // 'buy' | 'sell' | 'loans' | 'free'
+  let tab = $state('deals'); // 'deals' | 'buy' | 'sell' | 'loans' | 'free'
   let loanTab = $state('in'); // 'in' | 'out'
   let loanInList = $state([]);
   let loanOutList = $state([]);
@@ -44,8 +46,9 @@
 
   async function load() {
     await openDB();
-    const s = await getSave();
+    let s = await getSave();
     if (!s || s._deleted) return;
+    s = await reconcileManagedClubInboundOffers(s).catch(() => s);
     save = s;
     team = await getTeam(s.userTeamId);
     const allTeams = await getAllTeams();
@@ -81,9 +84,8 @@
   const FREE_AGENT_MSGS = { REP_TOO_LOW: "Your club's reputation is too low to attract this player.", NOT_A_FREE_AGENT: 'This player has already been signed.' };
   async function signFree(p) {
     try {
-      await signFreeAgent(p.id);
-      newsPlayerSigned(p, 0, save).catch(() => {});
-      toast(`${p.name} signed on a free transfer`, 'success', 3000);
+      await createUserMarketDeal(p.id, { type:'free_agent', terms:{ contract:{ wage:Math.round((p.wage ?? 10_000) * 1.08), duration:3, squadRole:'rotation' } } });
+      toast(`Contract talks opened with ${p.name}`, 'success', 3000);
       screenTicks.transfers++;
     } catch (e) {
       toast(FREE_AGENT_MSGS[e.message] || 'Could not sign this player.', 'error', 2800);
@@ -146,12 +148,16 @@
   let detailPlayer = $state(null);
   let detailFresh = $state(null); // re-fetched fresh copy, avoids stale closures
   let offerAmount = $state(0);
+  let offerInstallment = $state(0);
+  let offerSellOn = $state(0);
 
   async function openDetail(p) {
     detailPlayer = p;
     detailFresh = await getPlayer(p.id) ?? p;
     const fv = formAdjustedValue(detailFresh);
     offerAmount = Math.floor(fv * 0.95);
+    offerInstallment = 0;
+    offerSellOn = 0;
   }
   function closeDetail() { detailPlayer = null; detailFresh = null; }
 
@@ -169,7 +175,6 @@
 
   // ── Offer confirm / counter-offer flow ──────────────────────
   let confirmOffer = $state(null); // { player, offer }
-  let counterState = $state(null); // { player, counter, revised }
 
   function openConfirmOffer() {
     confirmOffer = { player: detailFresh, offer: offerAmount };
@@ -179,65 +184,17 @@
   async function sendOffer() {
     const { player, offer } = confirmOffer;
     try {
-      await buyPlayer(player.id, offer);
-      toast(`${player.name} signed for ${fmt.money(offer)}!`, 'success', 5000);
-      newsPlayerSigned(player, offer, await getSave()).catch(() => {});
+      await createUserMarketDeal(player.id, { type:'transfer', terms:{ fee:{ upfront:offer, installments:offerInstallment > 0 ? [{ amount:offerInstallment, dueSeason:save.season, dueGameweek:(save.currentGameweek ?? 1) + 8 }]:[], sellOnPercentage:offerSellOn } } });
+      toast(`Enquiry sent for ${player.name}. The club will respond at the next market update.`, 'success', 5000);
       confirmOffer = null;
       closeDetail();
       screenTicks.transfers++;
       load();
     } catch (err) {
-      if (err.message === 'OFFER_REJECTED') {
-        const counter = generateBuyCounter(player, offer);
-        confirmOffer = null;
-        if (counter) {
-          const cMax = Math.min(budget, Math.floor(counter.fee * 1.3));
-          counterState = { player, counter, revised: Math.min(budget, counter.fee), cMin: offer, cMax };
-        } else {
-          const sv = await getSave();
-          await putSave({ ...sv, collapsedDeals: [...(sv.collapsedDeals || []), player.id] });
-          toast(`${byId.get(player.teamId)?.name || 'The club'} rejected and won't negotiate further`, 'error', 5000);
-          save = sv;
-        }
-      } else {
-        toast(BUY_MSGS[err.message] || err.message, 'error', 6000);
-      }
+      toast(BUY_MSGS[err.message] || err.message, 'error', 6000);
     }
   }
 
-  const counterHint = $derived.by(() => {
-    if (!counterState) return null;
-    const { revised, counter } = counterState;
-    const ratio = revised / counter.fee;
-    if (ratio >= 1) return { text: 'Meets their asking price', cls: 'good' };
-    if (ratio >= 0.95) return { text: 'Very close — likely accepted', cls: 'good' };
-    if (ratio >= 0.85) return { text: 'Below asking — they may accept', cls: 'warn' };
-    return { text: 'Too low — will probably be rejected', cls: 'bad' };
-  });
-
-  async function sendRevisedOffer() {
-    const { player, revised } = counterState;
-    try {
-      await buyPlayer(player.id, revised);
-      toast(`${player.name} signed for ${fmt.money(revised)}!`, 'success', 5000);
-      newsPlayerSigned(player, revised, await getSave()).catch(() => {});
-      counterState = null;
-      closeDetail();
-      screenTicks.transfers++;
-      load();
-    } catch (err) {
-      if (err.message === 'OFFER_REJECTED') {
-        const sv = await getSave();
-        await putSave({ ...sv, collapsedDeals: [...(sv.collapsedDeals || []), player.id] });
-        toast(`${byId.get(player.teamId)?.name || 'The club'} still not satisfied — deal collapsed`, 'error', 4000);
-        save = sv;
-        counterState = null;
-      } else {
-        toast(err.message, 'error', 4000);
-      }
-    }
-  }
-  function walkAway() { counterState = null; }
 
   // ── Sell tab ─────────────────────────────────────────────────
   let sellConfirm = $state(null); // { player, est }
@@ -254,9 +211,8 @@
     const { player } = sellConfirm;
     sellBusy = true;
     try {
-      const { fee, buyerName } = await sellPlayer(player.id);
-      toast(`${player.name} sold to ${buyerName} for ${fmt.money(fee)}!`, 'success', 5000);
-      newsPlayerSold(player, fee, buyerName, await getSave()).catch(() => {});
+      await setManagedPlayerTransferListing(player.id, true);
+      toast(`${player.name} is transfer listed. Interested clubs can now submit staged bids.`, 'success', 5000);
       sellConfirm = null;
       screenTicks.transfers++;
       load();
@@ -284,8 +240,9 @@
     const { player } = loanDetail;
     loanBusy = true;
     try {
-      const res = await loanInPlayer(player.id);
-      toast(`${player.name} joined on loan from ${res.parentClubName}!`, 'success', 5000);
+      const cost = loanCost(player);
+      await createUserMarketDeal(player.id, { type:'loan', terms:{ loan:{ fee:cost.fee, wageContributionPercentage:100, recall:false, optionToBuy:Math.round(formAdjustedValue(player) * .9) }, contract:{ wage:player.wage ?? 10_000, duration:1, squadRole:'rotation' } } });
+      toast(`Loan enquiry sent for ${player.name}`, 'success', 5000);
       loanDetail = null;
       screenTicks.transfers++;
       load();
@@ -315,6 +272,144 @@
   function fitnessColor(fit) {
     return fit >= 75 ? 'var(--color-live)' : fit >= 50 ? 'var(--color-warn)' : 'var(--color-bad)';
   }
+
+  const activeDeals = $derived((save?.transferMarket?.activeDeals ?? []).filter(deal => isUserClubDeal(deal, save?.userTeamId) && !TERMINAL_DEAL_STATES.has(deal.state)));
+  const dealHistory = $derived([...(save?.transferMarket?.terminalSummaries ?? []), ...(save?.transferMarket?.activeDeals ?? []).filter(deal => TERMINAL_DEAL_STATES.has(deal.state))].filter(deal => isUserClubDeal(deal, save?.userTeamId)).slice(-30).reverse());
+  const stageLabel = state => ({ interest:'Interest', seller_terms:'Seller terms', club_negotiation:'Club negotiation', player_negotiation:'Player negotiation', agreed:'Agreed', completed:'Completed', rejected:'Rejected', withdrawn:'Withdrawn', expired:'Expired', hijacked:'Hijacked' })[state] ?? state;
+  let counterDeal = $state(null);
+  let counterAmount = $state(0);
+  let counterBusy = $state(false);
+  let contractSheet = $state(null); // { player, deal }
+  let contractWage = $state(10_000);
+  let contractDuration = $state(3);
+  let contractRole = $state('rotation');
+  let contractSigningBonus = $state(0);
+  let contractReleaseClause = $state(0);
+  let contractBusy = $state(false);
+
+  async function acceptDeal(deal) {
+    try {
+      const result = await acceptMarketDeal(deal.id);
+      screenTicks.transfers++;
+      await load();
+      if (result?.state === 'player_negotiation' && result.awaiting === 'user' && String(result.buyerTeamId) === String(save?.userTeamId)) {
+        toast(`${deal.playerName}: fee agreed. Now negotiate the player's contract.`, 'success', 4000);
+        await openContractDeal(result);
+      } else toast(`${deal.playerName}: terms accepted`, 'success', 3200);
+    }
+    catch (error) { toast(error.message, 'error', 3500); }
+  }
+  function openCounterDeal(deal) {
+    counterDeal = deal;
+    counterAmount = Math.max(100_000, deal.terms?.fee?.upfront ?? 0);
+  }
+  function closeCounterDeal() { if (!counterBusy) counterDeal = null; }
+  async function submitCounterDeal() {
+    if (!counterDeal) return;
+    counterBusy = true;
+    try {
+      const result = await counterMarketDeal(counterDeal.id, counterAmount);
+      const lastReason = result.decisionLog?.at(-1)?.reasonCode;
+      const buyerName = byId.get(result.buyerTeamId)?.name || 'The buying club';
+      const message = lastReason === 'buyer_counter'
+        ? `${result.playerName}: ${buyerName} countered at ${fmt.money(result.terms.fee.upfront)}.`
+        : lastReason === 'buyer_accepts_counter'
+          ? `${result.playerName}: your counter was accepted.`
+          : lastReason === 'buyer_walks_away'
+            ? `${result.playerName}: ${buyerName} walked away.`
+            : `${result.playerName}: counter offer sent.`;
+      toast(message, lastReason === 'buyer_walks_away' ? 'error' : 'success', 4000);
+      counterDeal = null;
+      screenTicks.transfers++;
+      await load();
+    } catch (error) {
+      const message = error.message === 'INSUFFICIENT_FUNDS' ? 'That counter is above your available transfer budget.' : error.message;
+      toast(message, 'error', 3500);
+    } finally {
+      counterBusy = false;
+    }
+  }
+
+  function isInitialContractStep(deal) {
+    if (!deal || deal.state !== 'player_negotiation' || deal.awaiting !== 'user') return false;
+    return ['seller_accepts','release_clause_met','club_terms_accepted'].includes(deal.decisionLog?.at(-1)?.reasonCode);
+  }
+
+  function fillContractSheet(player, deal = null) {
+    const terms = deal && !isInitialContractStep(deal) ? deal.terms?.contract ?? {} : {};
+    contractSheet = { player, deal };
+    contractWage = Math.max(1_000, terms.wage ?? Math.round((player.wage ?? 10_000) * 1.1));
+    contractDuration = terms.duration ?? 3;
+    contractRole = terms.squadRole ?? player.squadRole ?? 'rotation';
+    contractSigningBonus = terms.signingBonus ?? Math.round((player.wage ?? 10_000) * 4);
+    contractReleaseClause = terms.releaseClause ?? 0;
+  }
+
+  async function openContractDeal(deal) {
+    const player = await getPlayer(deal.playerId);
+    if (!player) { toast('Player not found.', 'error', 3000); return; }
+    fillContractSheet(player, deal);
+  }
+
+  function openRenewal(p) {
+    const existing = activeDeals.find(deal => deal.type === 'renewal' && deal.playerId === String(p.id));
+    if (existing) {
+      if (existing.awaiting === 'user') void openContractDeal(existing);
+      else {
+        tab = 'deals';
+        toast(`${p.name}: waiting for the player's response.`, 'info', 3000);
+      }
+      return;
+    }
+    fillContractSheet(p, null);
+  }
+
+  function closeContractSheet() { if (!contractBusy) contractSheet = null; }
+
+  async function submitContractOffer() {
+    if (!contractSheet) return;
+    contractBusy = true;
+    try {
+      const result = await submitContractTerms({
+        playerId:contractSheet.player.id,
+        dealId:contractSheet.deal?.id ?? null,
+        contract:{
+          wage:contractWage,
+          duration:contractDuration,
+          squadRole:contractRole,
+          signingBonus:contractSigningBonus,
+          releaseClause:contractReleaseClause,
+        },
+      });
+      const deal = result.deal;
+      screenTicks.transfers++;
+      await load();
+      if (result.settlement?.success || deal.state === 'agreed') {
+        toast(`${deal.playerName}: contract agreed.`, 'success', 4000);
+        contractSheet = null;
+      } else if (deal.state === 'rejected') {
+        toast(`${deal.playerName} rejected the contract offer. ${deal.interest?.strongestConcern ?? ''}`.trim(), 'error', 5000);
+        contractSheet = null;
+      } else if (deal.awaiting === 'user') {
+        const player = await getPlayer(deal.playerId) ?? contractSheet.player;
+        fillContractSheet(player, deal);
+        toast(`${deal.playerName} has countered your contract offer.`, 'info', 4000);
+      } else {
+        toast(`${deal.playerName}: revised contract terms sent.`, 'success', 3200);
+        contractSheet = null;
+      }
+    } catch (error) {
+      const message = error.message === 'INSUFFICIENT_FUNDS' ? 'The signing bonus is above your available transfer budget.' : error.message;
+      toast(message, 'error', 3500);
+    } finally {
+      contractBusy = false;
+    }
+  }
+
+  async function withdrawDeal(deal) {
+    try { await withdrawMarketDeal(deal.id); toast(`${deal.playerName}: negotiation withdrawn`, 'success', 2600); screenTicks.transfers++; }
+    catch (error) { toast(error.message, 'error', 3500); }
+  }
 </script>
 
 <div class="transfers-screen">
@@ -339,17 +434,69 @@
     <div class="tr-empty">Loading…</div>
   {:else}
     <div class="tr-tabs">
+      <button class="tr-tab {tab === 'deals' ? 'on' : ''}" onclick={() => selectTab('deals')}>Deals{#if activeDeals.length}<span class="offers-badge">{activeDeals.length}</span>{/if}</button>
       <button class="tr-tab {tab === 'buy' ? 'on' : ''}" onclick={() => selectTab('buy')}>Buy</button>
       <button class="tr-tab {tab === 'sell' ? 'on' : ''}" onclick={() => selectTab('sell')}>Sell</button>
       <button class="tr-tab {tab === 'loans' ? 'on' : ''}" onclick={() => selectTab('loans')}>Loans</button>
+      <button class="tr-tab {tab === 'contracts' ? 'on' : ''}" onclick={() => selectTab('contracts')}>Contracts</button>
       <button class="tr-tab {tab === 'free' ? 'on' : ''}" onclick={() => selectTab('free')}>Free Agents{#if freeAgents.length}<span class="offers-badge">{freeAgents.length}</span>{/if}</button>
-      <div class="tr-tabs-spacer"></div>
-      <button class="tr-tab-offers" onclick={() => showOffersModal()}>
-        Offers <span id="tt-offers-badge" class="offers-badge" style="display:none">0</span>
-      </button>
     </div>
 
-    {#if tab === 'buy'}
+    {#if tab === 'deals'}
+      <div class="tr-panel">
+        <div class="tr-panel-title">Active Negotiations &amp; Offers</div>
+        {#if !activeDeals.length}
+          <div class="tr-empty-inline">No active deals.<br><span>Open an enquiry from Buy, list a player from Sell, or start contract talks from Contracts.</span></div>
+        {:else}
+          <div class="sell-scroll">
+            {#each activeDeals as deal (deal.id)}
+              <div class="sell-row deal-row">
+                <div class="pl-flag-sm">{deal.userSide === 'seller' && deal.type === 'transfer' ? 'OF' : deal.type === 'loan' ? 'LN' : deal.type === 'renewal' ? 'CT' : 'TR'}</div>
+                <div class="pl-info">
+                  <div class="pl-name">{deal.playerName || deal.playerId}</div>
+                  <div class="pl-meta">
+                    <span class="pl-tag">{stageLabel(deal.state)}</span>
+                    {#if deal.userSide === 'seller' && deal.type === 'transfer'}<span class="pl-tag">Offer from {byId.get(deal.buyerTeamId)?.shortName || byId.get(deal.buyerTeamId)?.name || deal.buyerTeamId}</span>{/if}
+                    <span>{deal.awaiting === 'user' ? 'Your decision' : `Awaiting ${deal.awaiting || 'completion'}`}</span>
+                    {#if deal.state === 'player_negotiation'}<span>{fmt.wage(deal.terms?.contract?.wage)} · {deal.terms?.contract?.duration ?? 3}y · {deal.terms?.contract?.squadRole ?? 'rotation'}</span>{/if}
+                    {#if deal.competingOffers?.length}<span>{deal.competingOffers.length} rival bid{deal.competingOffers.length === 1 ? '' : 's'}</span>{/if}
+                  </div>
+                  {#if deal.interest?.strongestConcern}<div class="pl-meta">Concern: {deal.interest.strongestConcern}</div>{/if}
+                </div>
+                <div class="pl-right">
+                  <div class="pl-val">
+                    {deal.type === 'renewal' || deal.type === 'free_agent' ? fmt.wage(deal.terms?.contract?.wage) : fmt.money(deal.type === 'loan' ? deal.terms.loan.fee : deal.terms.fee.upfront)}
+                  </div>
+                </div>
+                <div class="deal-actions">
+                  {#if deal.awaiting === 'user'}
+                    {#if deal.state === 'player_negotiation' && String(deal.buyerTeamId) === String(save?.userTeamId)}
+                      {@const playerHasCountered = ['player_counter','player_contract_counter'].includes(deal.decisionLog?.at(-1)?.reasonCode)}
+                      {#if playerHasCountered}<button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>{/if}
+                      <button class="sell-btn btn-secondary" onclick={() => openContractDeal(deal)}>{playerHasCountered ? 'Counter Terms' : 'Negotiate Contract'}</button>
+                    {:else}
+                      <button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>
+                    {/if}
+                    {#if deal.state === 'club_negotiation' && deal.type === 'transfer'}
+                      <button class="sell-btn btn-secondary" onclick={() => openCounterDeal(deal)}>Counter</button>
+                    {/if}
+                  {/if}
+                  <button class="sell-btn btn-secondary" onclick={() => withdrawDeal(deal)}>Walk away</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+        <div class="tr-panel-title" style="margin-top:18px">Recent Market History</div>
+        {#if !dealHistory.length}<div class="tr-empty-inline">Completed and collapsed negotiations will appear here.</div>{:else}
+          <div class="sell-scroll">
+            {#each dealHistory as deal (deal.id)}
+              <div class="sell-row"><div class="pl-info"><div class="pl-name">{deal.playerName || deal.playerId}</div><div class="pl-meta"><span class="pl-tag">{stageLabel(deal.state)}</span><span>{deal.reasonCode || deal.type}</span></div></div><div class="pl-val">{fmt.money(deal.total ?? deal.terms?.fee?.upfront ?? 0)}</div></div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {:else if tab === 'buy'}
       <div class="tr-panel">
         <div class="tr-search-row">
           <input class="tr-search" type="text" placeholder="Search name or club…" bind:value={filters.query} />
@@ -473,7 +620,22 @@
               </div>
               <div class="pl-val">{fmt.money(fv)}</div>
               <div class="pl-rat">{r}</div>
-              <button class="sell-btn" disabled={!winStatus.open} onclick={() => openSellConfirm(p)}>Sell</button>
+              <button class="sell-btn" disabled={!winStatus.open} onclick={() => openSellConfirm(p)}>List</button>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {:else if tab === 'contracts'}
+      <div class="tr-panel">
+        <div class="tr-panel-title">Squad Contracts</div>
+        <div class="sell-scroll">
+          {#each [...squadPlayers].sort((a, b) => contractYearsRemaining(a, save) - contractYearsRemaining(b, save)) as p (p.id)}
+            {@const years = contractYearsRemaining(p, save)}
+            {@const renewal = activeDeals.find(deal => deal.type === 'renewal' && deal.playerId === String(p.id))}
+            <div class="sell-row">
+              <div class="pl-flag-sm">CT</div>
+              <div class="pl-info"><div class="pl-name">{p.name}</div><div class="pl-meta"><span>{years} year{years === 1 ? '' : 's'} remaining</span><span>{fmt.wage(p.wage)}</span><span>{p.squadRole ?? 'rotation'}</span>{#if renewal}<span class="pl-tag">{renewal.awaiting === 'user' ? 'Counter received' : 'Negotiating'}</span>{/if}</div></div>
+              <button class="sell-btn" disabled={p.onLoan} onclick={() => openRenewal(p)}>{renewal?.awaiting === 'user' ? 'Review' : renewal ? 'View' : 'Negotiate'}</button>
             </div>
           {/each}
         </div>
@@ -643,6 +805,15 @@
           <div class="offer-val">{fmt.money(offerAmount)}</div>
         </div>
         <div class="offer-hint {offerLikelihood.cls}">{offerLikelihood.text}</div>
+        <details class="tr-adv">
+          <summary>Structure fee</summary>
+          <div class="tr-adv-body">
+            <div class="tr-adv-grid">
+              <label><span class="tr-adv-lbl-inline">Installment</span><input type="number" min="0" step="100000" bind:value={offerInstallment} /></label>
+              <label><span class="tr-adv-lbl-inline">Sell-on %</span><input type="number" min="0" max="50" bind:value={offerSellOn} /></label>
+            </div>
+          </div>
+        </details>
         <button class="btn-full btn-primary" onclick={openConfirmOffer}>Make Offer</button>
       {/if}
     </div>
@@ -673,30 +844,53 @@
   </div>
 {/if}
 
-<!-- ── Counter-offer sheet ──────────────────────────────────── -->
-{#if counterState}
-  {@const p = counterState.player}
-  {@const g = posGroup(p.position)}
-  {@const teamRec = byId.get(p.teamId)}
-  <button class="sheet-backdrop" onclick={walkAway} aria-label="Close"></button>
+<!-- ── Deal counter sheet ───────────────────────────────────── -->
+{#if counterDeal}
+  {@const otherClubId = String(counterDeal.sellerTeamId) === String(save?.userTeamId) ? counterDeal.buyerTeamId : counterDeal.sellerTeamId}
+  {@const otherClub = byId.get(otherClubId)}
+  <button class="sheet-backdrop" onclick={closeCounterDeal} aria-label="Close"></button>
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">{teamRec?.name || 'Club'} Counter-Offer</div>
+    <div class="sheet-title">Counter Offer</div>
     <div class="confirm-body">
-      <div class="confirm-row"><span>{p.name}</span><span class="pos-badge pos-{g}">{p.position}</span></div>
-      <div class="confirm-row"><span>Your Offer</span><strong style="color:var(--color-bad)">{fmt.money(counterState.cMin)}</strong></div>
-      <div class="confirm-row"><span>They Want</span><strong style="color:var(--color-warn)">{fmt.money(counterState.counter.fee)}</strong></div>
-      <div class="confirm-row"><span>Budget</span><strong>{fmt.money(budget)}</strong></div>
+      <div class="confirm-row"><span>Player</span><strong>{counterDeal.playerName || counterDeal.playerId}</strong></div>
+      <div class="confirm-row"><span>Club</span><strong>{otherClub?.name || otherClubId}</strong></div>
+      <div class="confirm-row"><span>Current offer</span><strong>{fmt.money(counterDeal.terms?.fee?.upfront ?? 0)}</strong></div>
+      <label class="counter-field">
+        <span>Counter fee</span>
+        <input class="tr-search" type="number" min="100000" step="100000" bind:value={counterAmount} />
+      </label>
     </div>
-    <div class="offer-lbl-row" style="margin-top:8px"><span>Your Revised Offer</span></div>
-    <div class="offer-slider-row">
-      <input type="range" min={counterState.cMin} max={counterState.cMax} step="100000" bind:value={counterState.revised} />
-      <div class="offer-val">{fmt.money(counterState.revised)}</div>
-    </div>
-    {#if counterHint}<div class="offer-hint {counterHint.cls}">{counterHint.text}</div>{/if}
     <div class="sheet-actions">
-      <button class="btn-full btn-primary" onclick={sendRevisedOffer}>Send Revised Offer</button>
-      <button class="btn-full btn-secondary" onclick={walkAway}>Walk Away</button>
+      <button class="btn-full btn-primary" disabled={counterBusy || counterAmount <= 0} onclick={submitCounterDeal}>{counterBusy ? 'Sending…' : 'Send Counter'}</button>
+      <button class="btn-full btn-secondary" disabled={counterBusy} onclick={closeCounterDeal}>Cancel</button>
+    </div>
+  </div>
+{/if}
+
+<!-- ── Contract negotiation sheet ───────────────────────────── -->
+{#if contractSheet}
+  {@const p = contractSheet.player}
+  {@const initialContract = isInitialContractStep(contractSheet.deal)}
+  <button class="sheet-backdrop" onclick={closeContractSheet} aria-label="Close"></button>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">{contractSheet.deal ? initialContract ? `Negotiate with ${p.name}` : 'Contract Counter' : `Renew ${p.name}`}</div>
+    <div class="confirm-body">
+      <div class="confirm-row"><span>Player</span><strong>{p.name}</strong></div>
+      <div class="confirm-row"><span>Current wage</span><strong>{fmt.wage(p.wage)}</strong></div>
+      {#if contractSheet.deal?.interest?.strongestConcern}<div class="contract-concern">{contractSheet.deal.interest.strongestConcern}</div>{/if}
+      <div class="contract-grid">
+        <label><span>Weekly wage</span><input type="number" min="1000" step="1000" bind:value={contractWage} /></label>
+        <label><span>Length</span><select bind:value={contractDuration}><option value={1}>1 year</option><option value={2}>2 years</option><option value={3}>3 years</option><option value={4}>4 years</option><option value={5}>5 years</option></select></label>
+        <label><span>Squad role</span><select bind:value={contractRole}><option value="crucial">Crucial</option><option value="important">Important</option><option value="rotation">Rotation</option><option value="squad">Squad</option><option value="prospect">Prospect</option></select></label>
+        <label><span>Signing bonus</span><input type="number" min="0" step="10000" bind:value={contractSigningBonus} /></label>
+        <label class="contract-wide"><span>Release clause</span><input type="number" min="0" step="100000" bind:value={contractReleaseClause} /></label>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-full btn-primary" disabled={contractBusy || contractWage <= 0} onclick={submitContractOffer}>{contractBusy ? 'Sending…' : contractSheet.deal && !initialContract ? 'Send Revised Terms' : 'Make Contract Offer'}</button>
+      <button class="btn-full btn-secondary" disabled={contractBusy} onclick={closeContractSheet}>Cancel</button>
     </div>
   </div>
 {/if}
@@ -715,7 +909,7 @@
       <div class="confirm-row"><span>Form Value</span><strong>{fmt.money(sellConfirm.fv)}</strong></div>
     </div>
     <div class="sheet-actions">
-      <button class="btn-full btn-primary" disabled={sellBusy} onclick={confirmSell}>{sellBusy ? 'Selling…' : 'Accept Best Offer'}</button>
+      <button class="btn-full btn-primary" disabled={sellBusy} onclick={confirmSell}>{sellBusy ? 'Listing…' : 'List Player'}</button>
       <button class="btn-full btn-secondary" disabled={sellBusy} onclick={closeSellConfirm}>Cancel</button>
     </div>
   </div>
@@ -785,7 +979,8 @@
   .tr-empty-inline { color: var(--color-tx-3); font-size: 12px; padding: 24px; text-align: center; }
   .tr-empty-inline span { font-size: 11px; color: var(--color-tx-3); }
 
-  .tr-tabs { display: flex; align-items: center; gap: 6px; padding: 0 16px 10px; flex-shrink: 0; }
+  .tr-tabs { display: flex; align-items: center; gap: 6px; padding: 0 16px 10px; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
+  .tr-tabs::-webkit-scrollbar { display: none; }
   .tr-tab {
     padding: 7px 16px; border-radius: 8px; border: 1px solid var(--color-line);
     background: var(--color-surface); color: var(--color-tx-2); font-size: 12px; font-weight: 600; cursor: pointer;
@@ -827,6 +1022,8 @@
     color: var(--color-tx); border-radius: 7px; padding: 6px 8px; font-size: 11px;
   }
   .tr-adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tr-adv-grid label { display: grid; gap: 5px; min-width: 0; }
+  .tr-adv-grid input { width: 100%; min-width: 0; }
   .tr-adv-lbl { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-tx-2); font-family: var(--font-mono); margin-bottom: 3px; }
   .tr-adv-lbl-inline { font-size: 10px; color: var(--color-tx-2); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.5px; }
   .tr-adv-sliders { display: flex; gap: 6px; align-items: center; }
@@ -850,6 +1047,8 @@
     padding: 8px 10px; cursor: pointer;
   }
   .sell-row.is-locked { opacity: 0.5; }
+  .deal-row { cursor: default; flex-wrap: wrap; }
+  .deal-actions { width: 100%; display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 
   .pl-flag { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 22px; color: var(--color-tx-3); font: 700 8px/1 var(--font-mono); letter-spacing: .06em; }
   .pl-flag-sm {
@@ -955,6 +1154,13 @@
   .confirm-body { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
   .confirm-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--color-tx-2); padding: 4px 0; }
   .confirm-row strong { color: var(--color-tx); }
+  .counter-field { display: grid; gap: 6px; padding-top: 8px; font-size: 11px; color: var(--color-tx-2); }
+  .counter-field .tr-search { width: 100%; box-sizing: border-box; }
+  .contract-concern { margin: 8px 0; padding: 9px 10px; border-radius: 8px; background: var(--color-raised); border: 1px solid var(--color-line); color: var(--color-warn); font-size: 11px; }
+  .contract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .contract-grid label { display: grid; gap: 5px; min-width: 0; font-size: 10px; color: var(--color-tx-2); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .5px; }
+  .contract-grid input, .contract-grid select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 38px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); padding: 0 9px; font-family: var(--font-body); }
+  .contract-wide { grid-column: 1 / -1; }
   .loan-breakdown { background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
   .loan-breakdown-title { font-size: 9px; font-weight: 700; color: var(--color-tx-3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
   .loan-total { border-top: 1px solid var(--color-line); margin-top: 4px; padding-top: 6px; }
@@ -966,6 +1172,10 @@
   .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
   .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }
 
+  @media (min-width: 720px) {
+    .deal-row { flex-wrap: nowrap; }
+    .deal-actions { width: auto; flex-wrap: nowrap; flex-shrink: 0; }
+  }
   @media (min-width: 900px) {
     .sheet { left: auto; width: 420px; right: 0; border-radius: 18px 0 0 0; }
   }

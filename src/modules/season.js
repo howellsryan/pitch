@@ -15,6 +15,7 @@ import {
   worldPopulationReport,
 } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
+import { rolloverTransferMarket } from './transferMarket.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -362,6 +363,7 @@ export async function processEndOfSeason() {
     sacked,
     inboundOffers:[],
     collapsedDeals:[],
+    transferMarket:rolloverTransferMarket(save.transferMarket, nextSeason),
     pendingEvents:[],
   };
   await putSave(newSave);

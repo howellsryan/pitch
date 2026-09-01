@@ -1,6 +1,6 @@
 # P4 Implementation Guide — Transfer Market and Contracts 2.0
 
-> Planning document only. This guide assumes P3 is complete and defines a persisted, staged market. It does not implement P4.
+> **Implemented 1 September 2026.** This guide records the accepted P4 contracts and remains the handoff boundary for P5 expansion.
 
 ## Outcome
 

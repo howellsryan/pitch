@@ -627,6 +627,9 @@
         newsAIBid({ name: o.playerName, id: o.playerId }, o.fee, o.clubName, matchCtx.save).catch(() => {});
       }
     }
+    for (const response of res.playerResponses ?? []) {
+      toast(response.message, response.tone, 5500);
+    }
     const userInjEvts = (result?.events ?? []).filter(e => e.type === 'injury' && e.teamId === matchCtx.save.userTeamId);
     for (const inj of userInjEvts) {
       const wks = inj.injuryGWsLeft ?? 1;

@@ -37,6 +37,7 @@ import { generateBoardObjective } from './season.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
+import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -221,6 +222,15 @@ export async function ensureP3PlayerModel(save) {
   return migration.save;
 }
 
+/** One-time additive P4 migration. Legacy inbound offers remain as a derived
+ * compatibility projection while the persisted market becomes authoritative. */
+export async function ensureP4TransferMarket(save) {
+  if (!save || !transferMarketNeedsBackfill(save)) return save;
+  const migration = buildTransferMarketBackfill(save);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -229,6 +239,7 @@ export async function initApp() {
     save = await ensureLivingWorld(save);
     save = await ensureP2Tactics(save);
     save = await ensureP3PlayerModel(save);
+    save = await ensureP4TransferMarket(save);
   }
   return save ?? null;
 }
@@ -288,6 +299,7 @@ export async function startNewGame(userTeamId, managerName) {
     playerModelVersion: PLAYER_MODEL_VERSION,
     inboundOffers:   [],
     collapsedDeals:  [],
+    transferMarket:  createEmptyTransferMarket(),
     inbox:           [],
     youthCohort:     initialCohort,
     boardObjective:  generateBoardObjective(userTeamData, userLeague),

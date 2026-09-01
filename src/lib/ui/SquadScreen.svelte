@@ -23,7 +23,7 @@
     summarizeManagerDNA,
   } from '../../modules/tactics.js';
   import { SLOT_LAYOUT } from '../../game/formationLayout.js';
-  import { contractYearsRemaining, renewContract } from '../../modules/transfers.js';
+  import { contractYearsRemaining, renewContract, setManagedPlayerTransferListing } from '../../modules/transfers.js';
   import { fmt, posGroup, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
 
@@ -213,9 +213,13 @@
   }
   async function toggleListed(p) {
     const isListed = p.transferListed === true;
-    await putPlayer({ ...p, transferListed: !isListed });
-    toast(isListed ? `${p.name} removed from transfer list` : `${p.name} listed — AI clubs will bid`, isListed ? 'info' : 'success', 2500);
-    screenTicks.squad++;
+    try {
+      await setManagedPlayerTransferListing(p.id, !isListed);
+      toast(isListed ? `${p.name} removed from transfer list` : `${p.name} listed — AI clubs will bid`, isListed ? 'info' : 'success', 2500);
+      screenTicks.squad++;
+    } catch (error) {
+      toast(error.message === 'SIGNED_THIS_SEASON' ? 'This player joined during the current season and cannot be sold until next season.' : error.message, 'error', 4000);
+    }
   }
   async function renewPlayerContract(p) {
     try {

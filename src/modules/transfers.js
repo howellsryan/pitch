@@ -1,7 +1,27 @@
-import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
+import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam, settleTransferMarketDealAtomic } from './db.js';
 import { baselineLevel, currentEffectiveLevel } from './playerModel.js';
 import { patchSave } from './save.js';
 import { bumpMorale } from './standings.js';
+import { buildSquadNeeds, rankRecruitmentCandidates, rankStandoutRecruitmentCandidates, selectAIRecruitmentTarget } from './squadPlanning.js';
+import {
+  MAX_ACTIVE_MARKET_DEALS,
+  advanceMarketDeal,
+  compactTransferMarket,
+  createMarketDeal,
+  evaluatePlayerInterest,
+  guaranteedFeeTotal,
+  isTerminalDeal,
+  isPlayerCounterAwaitingUser,
+  markTransferMarketTick,
+  marketWeekKey,
+  normalizeDealTerms,
+  normalizeTransferMarket,
+  projectPlayerDecisionNotifications,
+  projectLegacyInboundOffers,
+  stableMarketHash,
+  transitionMarketDeal,
+  upsertMarketDeal,
+} from './transferMarket.js';
 
 /** modules/transfers.js — buyPlayer, sellPlayer, generateAIOffers, formAdjustedValue */
 
@@ -218,6 +238,31 @@ function canClubSignPlayerAtRating(team, player, rating) {
 
 export function canClubSignPlayer(team, player) {
   return canClubSignPlayerAtRating(team, player, _fav_primaryRating(player));
+}
+
+/** A player may be listed only when their current club can still sell them. */
+export function transferListingEligibility(player) {
+  if (!player) return { ok:false, reason:'PLAYER_NOT_FOUND' };
+  if (player.onLoan || player.loanedFrom) return { ok:false, reason:'ALREADY_ON_LOAN' };
+  if (player.signedThisSeason) return { ok:false, reason:'SIGNED_THIS_SEASON' };
+  return { ok:true, reason:null };
+}
+
+/**
+ * Persist a managed-club transfer listing from a plain database record.
+ * UI player rows are Svelte proxies and cannot be written directly to
+ * IndexedDB, so this boundary deliberately re-reads the authoritative player.
+ */
+export async function setManagedPlayerTransferListing(playerId, listed) {
+  const [save, player] = await Promise.all([getSave(), getPlayer(playerId)]);
+  if (!save || !player || String(player.teamId) !== String(save.userTeamId)) throw new Error('PLAYER_NOT_IN_SQUAD');
+  if (listed) {
+    const eligibility = transferListingEligibility(player);
+    if (!eligibility.ok) throw new Error(eligibility.reason);
+  }
+  const updated = { ...player, transferListed:Boolean(listed) };
+  await putPlayer(updated);
+  return updated;
 }
 
 // Human-readable reason why a signing is blocked (shown in UI).
@@ -1003,6 +1048,221 @@ export async function simulateAILoans(save) {
   if (teamsToWrite.length) await bulkPut('teams', teamsToWrite);
 
   return deals;
+}
+
+// ─── P4 persisted market runtime ─────────────────────────────
+
+function _p4ExpiryKey(save, weeks = 3) {
+  return `${save.season}:${(save.currentGameweek ?? 1) + weeks}`;
+}
+
+function _p4PersistMarket(save, market) {
+  const normalized = normalizeTransferMarket(market);
+  return putSave({ ...save, transferMarket:normalized, inboundOffers:projectLegacyInboundOffers(normalized) });
+}
+
+/** Open a staged user negotiation. No money or ownership changes here. */
+export async function createUserMarketDeal(playerId, { type = 'transfer', terms = {}, delegated = false } = {}) {
+  const [save, player] = await Promise.all([getSave(), getPlayer(playerId)]);
+  if (!save || !player) throw new Error('PLAYER_NOT_FOUND');
+  if (type !== 'renewal' && !isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
+  if (player.signedThisSeason && type !== 'renewal') throw new Error('SIGNED_THIS_SEASON');
+  const isRenewal = type === 'renewal';
+  const isFree = type === 'free_agent';
+  if (isRenewal && player.teamId !== save.userTeamId) throw new Error('PLAYER_NOT_IN_SQUAD');
+  if (isFree && player.teamId !== 'free_agents') throw new Error('NOT_A_FREE_AGENT');
+  const market = normalizeTransferMarket(save.transferMarket);
+  const duplicate = market.activeDeals.find(deal => deal.playerId === String(playerId) && !isTerminalDeal(deal));
+  if (duplicate) return duplicate;
+  if (market.activeDeals.filter(deal => !isTerminalDeal(deal)).length >= MAX_ACTIVE_MARKET_DEALS) throw new Error('MARKET_CAP_REACHED');
+  const buyerTeamId = save.userTeamId;
+  const sellerTeamId = isRenewal ? save.userTeamId : player.teamId;
+  const weekKey = marketWeekKey(save);
+  const initialState = isRenewal || isFree ? 'player_negotiation' : 'seller_terms';
+  const deal = createMarketDeal({
+    type,
+    state:initialState,
+    playerId:player.id,
+    playerName:player.name,
+    buyerTeamId,
+    sellerTeamId,
+    createdBy:'user',
+    userSide:isRenewal ? 'club' : 'buyer',
+    stateOwner:'system',
+    awaiting:initialState === 'seller_terms' ? 'seller' : 'player',
+    delegated,
+    createdWeekKey:weekKey,
+    expiresWeekKey:_p4ExpiryKey(save),
+    terms:normalizeDealTerms(terms, { player }),
+  }, market);
+  await _p4PersistMarket(save, upsertMarketDeal(market, deal));
+  return deal;
+}
+
+export async function withdrawMarketDeal(dealId) {
+  const save = await getSave();
+  const market = normalizeTransferMarket(save?.transferMarket);
+  const deal = market.activeDeals.find(item => item.id === dealId);
+  if (!deal) throw new Error('DEAL_NOT_FOUND');
+  const withdrawn = transitionMarketDeal(deal, 'withdrawn', { weekKey:marketWeekKey(save), actor:'user', reasonCode:'user_withdrew', awaiting:null, stateOwner:'system' });
+  await _p4PersistMarket(save, upsertMarketDeal(market, withdrawn));
+  return withdrawn;
+}
+
+/** Accept a seller/player counter or an inbound bid; completion remains atomic. */
+export async function acceptMarketDeal(dealId, terms = null) {
+  const save = await getSave();
+  const market = normalizeTransferMarket(save?.transferMarket);
+  const deal = market.activeDeals.find(item => item.id === dealId);
+  if (!deal) throw new Error('DEAL_NOT_FOUND');
+  if (deal.awaiting !== 'user') throw new Error('DEAL_NOT_AWAITING_ACCEPTANCE');
+  const weekKey = marketWeekKey(save);
+  let accepted;
+  if (deal.state === 'club_negotiation') {
+    const userIsBuyer = String(deal.buyerTeamId) === String(save.userTeamId);
+    accepted = transitionMarketDeal(deal, 'player_negotiation', {
+      weekKey,
+      actor:'user',
+      reasonCode:'club_terms_accepted',
+      awaiting:userIsBuyer ? 'user' : 'player',
+      stateOwner:userIsBuyer ? 'user' : 'player',
+      terms:terms ?? deal.terms,
+    });
+  } else if (deal.state === 'player_negotiation') {
+    if (!isPlayerCounterAwaitingUser(deal)) throw new Error('DEAL_REQUIRES_CONTRACT_OFFER');
+    accepted = transitionMarketDeal(deal, 'agreed', { weekKey, actor:'user', reasonCode:'player_terms_accepted', awaiting:'completion', stateOwner:'system', terms:terms ?? deal.terms });
+  } else throw new Error('DEAL_NOT_AWAITING_ACCEPTANCE');
+  await _p4PersistMarket(save, upsertMarketDeal(market, accepted));
+  if (accepted.state === 'agreed') return settleTransferMarketDealAtomic(accepted.id);
+  return accepted;
+}
+
+function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
+  let market = normalizeTransferMarket(marketInput);
+  const teamById = new Map(teams.map(team => [team.id, team]));
+  const squads = new Map();
+  for (const player of players) {
+    if (!squads.has(player.teamId)) squads.set(player.teamId, []);
+    squads.get(player.teamId).push(player);
+  }
+  const activeByBuyer = new Map();
+  for (const deal of market.activeDeals.filter(item => !isTerminalDeal(item))) activeByBuyer.set(deal.buyerTeamId, (activeByBuyer.get(deal.buyerTeamId) ?? 0) + 1);
+  let activeManagedInbound = market.activeDeals.filter(item =>
+    !isTerminalDeal(item) && String(item.sellerTeamId) === String(save.userTeamId) && item.createdBy === 'ai'
+  ).length;
+  let createdManagedInbound = false;
+  const orderedTeams = teams
+    .filter(team => team.id !== save.userTeamId)
+    .sort((a, b) => stableMarketHash(`${tickKey}:${a.id}`) - stableMarketHash(`${tickKey}:${b.id}`));
+  for (const buyer of orderedTeams.slice(0, 10)) {
+    if ((activeByBuyer.get(buyer.id) ?? 0) >= 2 || market.activeDeals.length >= MAX_ACTIVE_MARKET_DEALS) continue;
+    const needs = buildSquadNeeds(buyer, squads.get(buyer.id) ?? [], { season:save.season });
+    const need = needs[0];
+    const candidateOptions = {
+      need,
+      buyer,
+      teamsById:teamById,
+      marketValueFor:formAdjustedValue,
+      canSign:canClubSignPlayer,
+      likelihoodFor:(player, club) => 50 + Math.min(30, (club.reputation ?? 60) - (teamById.get(player.teamId)?.reputation ?? 60)),
+    };
+    const candidates = need ? rankRecruitmentCandidates({
+      ...candidateOptions,
+      players:players.filter(player => String(player.teamId) !== String(save.userTeamId)),
+      limit:4,
+    }) : [];
+    const managedPlayers = squads.get(save.userTeamId) ?? [];
+    const canCreateManagedInbound = activeManagedInbound < 2 && !createdManagedInbound;
+    const listedCandidates = canCreateManagedInbound && need ? rankRecruitmentCandidates({
+      ...candidateOptions,
+      players:managedPlayers.filter(player => player.transferListed === true),
+      limit:8,
+    }) : [];
+    // Do not pass unlisted players through the immediate-need filter.  A
+    // buyer can scout a high-quality or high-potential player as an
+    // opportunity even if that position is not its most urgent shortage.
+    const unlistedCandidates = canCreateManagedInbound ? rankStandoutRecruitmentCandidates({
+      buyer,
+      buyerSquad:squads.get(buyer.id) ?? [],
+      players:managedPlayers.filter(player => player.transferListed !== true),
+      teamsById:teamById,
+      marketValueFor:formAdjustedValue,
+      canSign:canClubSignPlayer,
+      likelihoodFor:candidateOptions.likelihoodFor,
+      limit:8,
+    }) : [];
+    const target = selectAIRecruitmentTarget({
+      candidates,
+      listedCandidates,
+      unlistedCandidates,
+      managedRoll:stableMarketHash(`${tickKey}:${buyer.id}:managed-target`) % 100,
+      targetIndex:stableMarketHash(`${tickKey}:${buyer.id}:target`),
+    });
+    if (!target) continue;
+    const player = target.player;
+    const fee = Math.round(target.value * (0.94 + (stableMarketHash(`${tickKey}:${player.id}:fee`) % 14) / 100));
+    const userSide = player.teamId === save.userTeamId ? 'seller' : null;
+    const deal = createMarketDeal({
+      type:'transfer', state:userSide ? 'club_negotiation' : 'seller_terms', playerId:player.id, playerName:player.name,
+      buyerTeamId:buyer.id, sellerTeamId:player.teamId, createdBy:'ai', userSide,
+      stateOwner:userSide ? 'user' : 'system', awaiting:userSide ? 'user' : 'seller', delegated:!userSide,
+      createdWeekKey:tickKey, expiresWeekKey:_p4ExpiryKey(save),
+      terms:{ fee:{ upfront:fee }, contract:{ wage:Math.round((player.wage ?? 10_000) * 1.12), duration:3, squadRole:'rotation' } },
+      legacyOffer:userSide ? { date:save.currentDate, clubName:buyer.name, status:'pending' } : null,
+    }, market);
+    market = upsertMarketDeal(market, deal);
+    activeByBuyer.set(buyer.id, (activeByBuyer.get(buyer.id) ?? 0) + 1);
+    if (userSide) {
+      activeManagedInbound++;
+      createdManagedInbound = true;
+    }
+  }
+  return market;
+}
+
+/** Advance the market exactly once at a completed world-week boundary. */
+export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput = null) {
+  const save = saveInput ?? await getSave();
+  if (!save) return { newOffers:[], playerResponses:[], settled:[] };
+  const tickKey = tickKeyInput ?? marketWeekKey(save);
+  let market = normalizeTransferMarket(save.transferMarket);
+  const alreadyProcessed = market.processedTickKeys.includes(tickKey);
+  let playerResponses = [];
+  if (!alreadyProcessed) {
+    const [teams, players] = await Promise.all([getAllTeams(), getAllPlayers()]);
+    const teamById = new Map(teams.map(team => [team.id, team]));
+    const playerById = new Map(players.map(player => [String(player.id), player]));
+    const squads = new Map();
+    for (const player of players) {
+      if (!squads.has(player.teamId)) squads.set(player.teamId, []);
+      squads.get(player.teamId).push(player);
+    }
+    if (isTransferWindowOpen(save).open) market = _p4GenerateAIDeals(save, market, teams, players, tickKey);
+    const activeDeals = market.activeDeals.map(deal => {
+      const player = playerById.get(String(deal.playerId));
+      const buyer = teamById.get(deal.buyerTeamId);
+      const seller = teamById.get(deal.sellerTeamId);
+      if (!player || !buyer || deal.awaiting === 'user') return deal;
+      const interest = deal.state === 'player_negotiation' ? evaluatePlayerInterest({ player, buyer, seller, buyerSquad:squads.get(buyer.id) ?? [], terms:deal.terms, save }) : null;
+      return advanceMarketDeal(deal, { player, buyer, seller, buyerSquad:squads.get(buyer.id) ?? [], sellerSquad:squads.get(seller?.id) ?? [], marketValue:formAdjustedValue(player), interest, save, windowOpen:['renewal','free_agent'].includes(deal.type) || isTransferWindowOpen(save).open }, tickKey);
+    });
+    market = markTransferMarketTick(normalizeTransferMarket({ ...market, activeDeals }), tickKey);
+    playerResponses = projectPlayerDecisionNotifications(market.activeDeals, save.userTeamId, tickKey);
+    await _p4PersistMarket(save, market);
+  }
+  const fresh = await getSave();
+  const agreedIds = normalizeTransferMarket(fresh.transferMarket).activeDeals.filter(deal => deal.state === 'agreed').map(deal => deal.id);
+  const settled = [];
+  for (const dealId of agreedIds) {
+    try { settled.push(await settleTransferMarketDealAtomic(dealId)); } catch (error) { settled.push({ success:false, dealId, error:error.message }); }
+  }
+  let finalSave = await getSave();
+  const compacted = compactTransferMarket(finalSave.transferMarket);
+  if (compacted.activeDeals.length !== (finalSave.transferMarket?.activeDeals?.length ?? 0)) {
+    await _p4PersistMarket(finalSave, compacted);
+    finalSave = await getSave();
+  }
+  return { newOffers:projectLegacyInboundOffers(finalSave.transferMarket), playerResponses, settled, market:finalSave.transferMarket, alreadyProcessed };
 }
 
 // ─── Buy-side counter: club comes back with price after rejection ──
