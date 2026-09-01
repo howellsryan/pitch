@@ -130,6 +130,18 @@ function observedRange(actual, confidence, seed, { minimum = 1, maximum = 99, ba
   };
 }
 
+function observedFinancialRange(actual, confidence, seed) {
+  const value = Math.max(0, Number(actual) || 0);
+  if (value === 0) return { min:0, max:0 };
+  const width = scoutingClamp(.24 - confidence * .16, .06, .22);
+  const bias = (scoutingUnit(`${seed}:financial-bias`) - .5) * width * 1.1;
+  const centre = Math.max(0, value * (1 + bias));
+  return {
+    min:Math.max(0, Math.round(centre * (1 - width))),
+    max:Math.round(centre * (1 + width)),
+  };
+}
+
 function statusInterest(player, userTeam, seller) {
   const buyerRep = Number(userTeam?.reputation ?? 60);
   const sellerRep = Number(seller?.reputation ?? 60);
@@ -158,7 +170,8 @@ export function buildScoutingReport(player, context = {}) {
   const fit = roleId ? roleSuitability(player, roleId) : .8;
   const value = Math.max(0, Number(context.valueFor?.(player) ?? player.value ?? 0));
   const wage = Math.max(0, Number(player.wage ?? 0));
-  const financialWidth = scoutingClamp(.24 - adjustedConfidence * .16, .06, .22);
+  const feeRange = observedFinancialRange(value, adjustedConfidence, `${seed}:fee`);
+  const wageRange = observedFinancialRange(wage, adjustedConfidence, `${seed}:wage`);
   return {
     version:SCOUTING_VERSION,
     playerId:String(player.id),
@@ -173,10 +186,10 @@ export function buildScoutingReport(player, context = {}) {
     tactical:{ roleId, fit:fit >= 1.02 ? 'Strong' : fit >= .91 ? 'Good' : 'Stretch', confidence:confidenceLabel(adjustedConfidence) },
     future:{ min:future.min, max:future.max, growthProfileConfidence:confidenceLabel(adjustedConfidence) },
     financial:{
-      feeMin:Math.max(0, Math.round(value * (1 - financialWidth))),
-      feeMax:Math.round(value * (1 + financialWidth)),
-      wageMin:Math.max(0, Math.round(wage * (1 - financialWidth))),
-      wageMax:Math.round(wage * (1 + financialWidth)),
+      feeMin:feeRange.min,
+      feeMax:feeRange.max,
+      wageMin:wageRange.min,
+      wageMax:wageRange.max,
     },
     status:{
       availability:player.signedThisSeason ? 'Moved recently' : player.transferListed ? 'Listed' : 'Under contract',
