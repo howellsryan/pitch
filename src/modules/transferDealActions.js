@@ -218,11 +218,13 @@ function renewalRequirements(deal, player) {
   const currentWage = Math.max(1_000, Number(player?.wage) || 10_000);
   const morale = Number(player?.individualMorale ?? 50);
   const age = Number(player?.age ?? 25);
-  const round = deal?.decisionLog?.length ?? 0;
-  const wageLift = 1.04 + deterministicMarketUnit(deal?.seed, `renewal:wage:${round}`) * .08 + (morale < 35 ? .03 : 0);
+  // Keep the player's underlying expectations stable for this negotiation.
+  // Decision-log length changes after each counter and must not silently move
+  // the goalposts after the manager responds to the requested terms.
+  const wageLift = 1.04 + deterministicMarketUnit(deal?.seed, 'renewal:wage') * .08 + (morale < 35 ? .03 : 0);
   const requiredWage = roundWage(currentWage * wageLift);
   const preferredDuration = age >= 33 ? 2 : age >= 29 ? 3 : age <= 23 ? 4 : 3;
-  const bonusWeeks = 2 + Math.round(deterministicMarketUnit(deal?.seed, `renewal:bonus:${round}`) * 2);
+  const bonusWeeks = 2 + Math.round(deterministicMarketUnit(deal?.seed, 'renewal:bonus') * 2);
   const requiredSigningBonus = roundWage(requiredWage * bonusWeeks);
   const currentRole = CONTRACT_ROLE_RANK[player?.squadRole] == null ? 'rotation' : player.squadRole;
   return { currentWage, requiredWage, preferredDuration, requiredSigningBonus, currentRole };
