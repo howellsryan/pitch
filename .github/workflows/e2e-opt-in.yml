@@ -26,9 +26,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p3-player-model-responsive
+          name: p5-career-depth-responsive
           path: |
             test-results/p3-player-detail-390x844.png
             test-results/p3-player-detail-1280x800.png
+            test-results/p5-development-390x844.png
+            test-results/p5-planning-390x844.png
+            test-results/p5-scouting-390x844.png
+            test-results/p5-planning-1280x800.png
           if-no-files-found: error
           retention-days: 7
