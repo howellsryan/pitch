@@ -26,6 +26,8 @@
   import { contractYearsRemaining, renewContract, setManagedPlayerTransferListing } from '../../modules/transfers.js';
   import { fmt, posGroup, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
+  import DevelopmentPlanPanel from './DevelopmentPlanPanel.svelte';
+  import SquadPlanningPanel from './SquadPlanningPanel.svelte';
 
   const MENTALITIES = [
     { id: 'defensive', label: 'DEF', fullLabel: 'Defensive', desc: 'Compact & hard to break down' },
@@ -47,6 +49,7 @@
   let formationOpen = $state(false);
   let mentalityOpen = $state(false);
   let instructionsOpen = $state(false);
+  let planningOpen = $state(false);
   let swapSlotIdx = $state(null);
   let swapPreselectId = $state(null);
   let rosterOpen = $state(false);
@@ -192,6 +195,12 @@
     toast(`${player.name}: ${SQUAD_ROLE_DEFS[roleId]?.label ?? roleId} playing-time role`, 'info', 2200);
   }
 
+  function refreshPlayer(updated) {
+    if (!updated) return;
+    playerSheet = updated;
+    players = players.map(player => player.id === updated.id ? updated : player);
+  }
+
   function fitnessColor(fit) {
     return fit >= 75 ? 'var(--color-live)' : fit >= 50 ? 'var(--color-warn)' : 'var(--color-bad)';
   }
@@ -300,7 +309,10 @@
   {:else}
     <header class="chalk-header">
       <div><span>Squad · tactics</span><strong>{team?.name ?? 'Your XI'}</strong></div>
-      <button class="roster-button" onclick={() => rosterOpen = true}>{players.length} players</button>
+      <div class="header-actions">
+        <button class="roster-button" onclick={() => planningOpen = true}>Plan</button>
+        <button class="roster-button" onclick={() => rosterOpen = true}>{players.length} players</button>
+      </div>
     </header>
     <div class="tac-controls">
       <div class="tac-dd-half">
@@ -441,6 +453,18 @@
   </div>
 {/if}
 
+{#if planningOpen}
+  <button class="sheet-backdrop" onclick={() => planningOpen = false} aria-label="Close squad planning"></button>
+  <div class="sheet planning-sheet">
+    <div class="sheet-handle"></div>
+    <div class="swap-hdr">
+      <div><span class="swap-title">Squad planning</span><div class="sheet-subtitle">Current depth, future gaps and club coaching staff.</div></div>
+      <button class="sheet-close" onclick={() => planningOpen = false} aria-label="Close">✕</button>
+    </div>
+    <div class="planning-sheet-body"><SquadPlanningPanel /></div>
+  </div>
+{/if}
+
 {#if swapSections}
   <button class="sheet-backdrop" onclick={closeSwap} aria-label="Close"></button>
   <div class="sheet">
@@ -538,6 +562,8 @@
 
     <div class="player-attributes"><div><span>GK</span><strong>{p.goalkeeping ?? 0}</strong></div><div><span>DEF</span><strong>{p.defence ?? 0}</strong></div><div><span>MID</span><strong>{p.midfield ?? 0}</strong></div><div><span>ATT</span><strong>{p.attack ?? 0}</strong></div></div>
 
+    <div class="development-wrap"><DevelopmentPlanPanel player={p} onchange={refreshPlayer} /></div>
+
     <section class="p3-section" aria-label="Position and traits">
       <div class="p3-section-head"><div><span>Position fit</span><strong>{p.position} · Natural</strong></div><small>{p.positionConversion ? `Converting to ${p.positionConversion.targetPosition} · ${Math.round((p.positionConversion.progress ?? 0) * 100)}%` : 'Primary position remains unchanged until you choose a pathway.'}</small></div>
       <div class="p3-chip-row">
@@ -582,6 +608,7 @@
   .chalk-header { display:flex; justify-content:space-between; align-items:end; padding:16px 16px 0; flex-shrink:0; }
   .chalk-header span { display:block; color:var(--color-club); font:700 9px/1 var(--font-mono); letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; }
   .chalk-header strong { display:block; font:700 25px/1 var(--font-display); letter-spacing:.03em; }
+  .header-actions { display:flex; gap:7px; align-items:center; }
   .roster-button { min-height:44px; padding:0 12px; color:var(--color-tx-2); background:var(--color-surface); border:1px solid var(--color-line); border-radius:999px; cursor:pointer; font:600 11px var(--font-mono); }
 
   .tac-controls { display: flex; gap: 10px; padding: 14px 16px 8px; flex-shrink: 0; position: relative; z-index: 10; }
@@ -661,7 +688,9 @@
   .swap-title { font-family: var(--font-display); font-size: 17px; letter-spacing: 0.5px; }
   .sheet-subtitle { margin-top:4px; color:var(--color-tx-3); font-size:10px; }
   .sheet-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); cursor: pointer; font-size: 14px; flex-shrink: 0; }
-  .instructions-sheet { max-height:88dvh; }
+  .instructions-sheet, .planning-sheet { max-height:88dvh; }
+  .planning-sheet-body { min-height:0; overflow:auto; overscroll-behavior:contain; }
+  .development-wrap { margin-top:12px; }
   .instruction-list { min-height:0; overflow-y:auto; overscroll-behavior:contain; display:grid; gap:10px; padding-bottom:4px; }
   .instruction-row { display:grid; gap:6px; } .instruction-row > span { color:var(--color-tx-2); font:700 9px/1 var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
   .instruction-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:3px; background:var(--color-raised); border:1px solid var(--color-line); border-radius:9px; }
@@ -704,5 +733,8 @@
   .player-finance { display:flex; justify-content:space-between; gap:12px; margin-top:12px; padding:0 2px; color:var(--color-tx-3); font:10px var(--font-mono); }
   .player-actions { display:grid; gap:8px; margin-top:14px; } .player-actions button { min-height:44px; color:var(--color-tx); background:var(--color-raised); border:1px solid var(--color-line); border-radius:9px; cursor:pointer; font:600 12px var(--font-body); } .player-actions .player-primary { color:var(--color-on-accent); background:var(--color-accent); border-color:var(--color-accent); }
 
-  @media (min-width: 720px) { .sheet { left:50%; right:auto; width:min(560px,calc(100vw - 32px)); transform:translateX(-50%); } }
+  @media (min-width: 720px) {
+    .sheet { left:50%; right:auto; width:min(560px,calc(100vw - 32px)); transform:translateX(-50%); }
+    .sheet.planning-sheet { width:min(920px,calc(100vw - 32px)); }
+  }
 </style>
