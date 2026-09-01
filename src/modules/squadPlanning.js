@@ -11,6 +11,9 @@ import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.j
 
 export const SQUAD_PLANNING_VERSION = 1;
 
+export const MANAGED_LISTED_TARGET_PERCENT = 22;
+export const MANAGED_UNLISTED_TARGET_PERCENT = 5;
+
 export const SQUAD_GROUP_TARGETS = Object.freeze({
   GK:2,
   DEF:7,
@@ -199,4 +202,28 @@ export function rankRecruitmentCandidates({
   return ranked
     .sort((a, b) => b.score - a.score || b.likelihood - a.likelihood || a.value - b.value || String(a.player.id).localeCompare(String(b.player.id)))
     .slice(0, Math.max(0, limit));
+}
+
+/**
+ * Choose one AI recruitment target while giving the managed club an explicit,
+ * bounded route into the market. Listed players are targeted much more often;
+ * eligible unlisted players remain possible without flooding the user with bids.
+ */
+export function selectAIRecruitmentTarget({
+  candidates = [],
+  managedCandidates = [],
+  managedRoll = 99,
+  targetIndex = 0,
+} = {}) {
+  const listed = managedCandidates.filter(item => item?.player?.transferListed === true);
+  const unlisted = managedCandidates.filter(item => item?.player?.transferListed !== true);
+  const roll = Math.max(0, Math.min(99, Math.floor(Number(managedRoll) || 0)));
+  const choose = rows => rows.length ? rows[Math.abs(Math.floor(Number(targetIndex) || 0)) % rows.length] : null;
+
+  if (listed.length && roll < MANAGED_LISTED_TARGET_PERCENT) return choose(listed);
+  const unlistedStart = listed.length ? MANAGED_LISTED_TARGET_PERCENT : 0;
+  if (unlisted.length && roll >= unlistedStart && roll < unlistedStart + MANAGED_UNLISTED_TARGET_PERCENT) {
+    return choose(unlisted);
+  }
+  return choose(candidates);
 }

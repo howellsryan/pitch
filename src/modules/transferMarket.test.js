@@ -11,10 +11,12 @@ import {
   deterministicMarketUnit,
   evaluatePlayerInterest,
   guaranteedFeeTotal,
+  isPlayerCounterAwaitingUser,
   markTransferMarketTick,
   normalizeDealTerms,
   projectLegacyInboundOffers,
   rebuildReservedCommitments,
+  resolvePlayerContractDecision,
   rolloverTransferMarket,
   transitionMarketDeal,
   validateDealTerms,
@@ -94,6 +96,71 @@ describe('P4 transfer-market contracts', () => {
     expect(first.decisionLog.map(entry => entry.to)).toEqual(['player_negotiation','agreed']);
     expect(advanceMarketDeal(first, context, '2025/26:3')).toBe(first);
     expect(deterministicMarketUnit('fixed', 'x')).toBe(deterministicMarketUnit('fixed', 'x'));
+  });
+
+  it('stops a managed purchase after fee agreement so personal terms are mandatory', () => {
+    const subject = deal({ delegated:false, userSide:'buyer', seed:'managed-purchase' });
+    const context = {
+      player:player(),
+      buyer:{ id:'buyer', reputation:82, league:'Premier League' },
+      seller:{ id:'seller', reputation:72, league:'Championship' },
+      buyerSquad:[], marketValue:19_000_000, windowOpen:true,
+    };
+
+    const result = advanceMarketDeal(subject, context, '2025/26:3');
+
+    expect(result.state).toBe('player_negotiation');
+    expect(result.awaiting).toBe('user');
+    expect(result.stateOwner).toBe('user');
+    expect(result.decisionLog.map(entry => entry.reasonCode)).toEqual(['seller_accepts']);
+  });
+
+  it('returns the player contract decision immediately after personal terms are submitted', () => {
+    const subject = transitionMarketDeal(deal({ userSide:'buyer' }), 'player_negotiation', {
+      weekKey:'2025/26:3', actor:'seller', reasonCode:'seller_accepts', awaiting:'user', stateOwner:'user',
+    });
+    const offered = transitionMarketDeal(subject, 'player_negotiation', {
+      weekKey:'2025/26:3', actor:'user', reasonCode:'user_contract_offer', awaiting:'player', stateOwner:'player',
+      terms:terms({ contract:{ wage:65_000, duration:4, squadRole:'important', signingBonus:500_000 } }),
+    });
+    const context = {
+      player:player(),
+      buyer:{ id:'buyer', reputation:86, league:'Premier League' },
+      seller:{ id:'seller', reputation:68, league:'Championship' },
+      buyerSquad:[], save:{ season:'2025/26' }, windowOpen:true,
+    };
+
+    const result = resolvePlayerContractDecision(offered, context, '2025/26:3');
+
+    expect(result.state).toBe('agreed');
+    expect(result.awaiting).toBe('completion');
+    expect(result.decisionLog.at(-1).reasonCode).toBe('player_accepts');
+    expect(isPlayerCounterAwaitingUser(subject)).toBe(false);
+  });
+
+  it('returns editable wage, length, role and bonus terms when the player counters', () => {
+    const subject = transitionMarketDeal(deal({ userSide:'buyer' }), 'player_negotiation', {
+      weekKey:'2025/26:3', actor:'seller', reasonCode:'seller_accepts', awaiting:'user', stateOwner:'user',
+    });
+    const offered = transitionMarketDeal(subject, 'player_negotiation', {
+      weekKey:'2025/26:3', actor:'user', reasonCode:'user_contract_offer', awaiting:'player', stateOwner:'player',
+      terms:terms({ contract:{ wage:40_000, duration:1, squadRole:'squad', signingBonus:0 } }),
+    });
+    const result = resolvePlayerContractDecision(offered, {
+      player:player({ age:30, individualMorale:50 }),
+      buyer:{ id:'buyer', reputation:75, league:'Championship' },
+      seller:{ id:'seller', reputation:72, league:'Championship' },
+      buyerSquad:Array.from({ length:5 }, (_, index) => player({ id:`buyer-${index}`, teamId:'buyer', midfield:82 })),
+      save:{ season:'2025/26' }, windowOpen:true,
+    }, '2025/26:3');
+
+    expect(result.state).toBe('player_negotiation');
+    expect(result.awaiting).toBe('user');
+    expect(isPlayerCounterAwaitingUser(result)).toBe(true);
+    expect(result.terms.contract.wage).toBeGreaterThan(40_000);
+    expect(result.terms.contract.duration).toBeGreaterThanOrEqual(3);
+    expect(result.terms.contract.squadRole).toBe('rotation');
+    expect(result.terms.contract.signingBonus).toBeGreaterThan(0);
   });
 
   it('returns an explainable player decision with hard blockers', () => {

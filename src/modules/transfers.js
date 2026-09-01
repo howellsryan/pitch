@@ -2,7 +2,7 @@ import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, g
 import { baselineLevel, currentEffectiveLevel } from './playerModel.js';
 import { patchSave } from './save.js';
 import { bumpMorale } from './standings.js';
-import { buildSquadNeeds, rankRecruitmentCandidates } from './squadPlanning.js';
+import { buildSquadNeeds, rankRecruitmentCandidates, selectAIRecruitmentTarget } from './squadPlanning.js';
 import {
   MAX_ACTIVE_MARKET_DEALS,
   advanceMarketDeal,
@@ -11,6 +11,7 @@ import {
   evaluatePlayerInterest,
   guaranteedFeeTotal,
   isTerminalDeal,
+  isPlayerCounterAwaitingUser,
   markTransferMarketTick,
   marketWeekKey,
   normalizeDealTerms,
@@ -1088,11 +1089,21 @@ export async function acceptMarketDeal(dealId, terms = null) {
   const market = normalizeTransferMarket(save?.transferMarket);
   const deal = market.activeDeals.find(item => item.id === dealId);
   if (!deal) throw new Error('DEAL_NOT_FOUND');
+  if (deal.awaiting !== 'user') throw new Error('DEAL_NOT_AWAITING_ACCEPTANCE');
   const weekKey = marketWeekKey(save);
   let accepted;
   if (deal.state === 'club_negotiation') {
-    accepted = transitionMarketDeal(deal, 'player_negotiation', { weekKey, actor:'user', reasonCode:'club_terms_accepted', awaiting:'player', stateOwner:'player', terms:terms ?? deal.terms });
+    const userIsBuyer = String(deal.buyerTeamId) === String(save.userTeamId);
+    accepted = transitionMarketDeal(deal, 'player_negotiation', {
+      weekKey,
+      actor:'user',
+      reasonCode:'club_terms_accepted',
+      awaiting:userIsBuyer ? 'user' : 'player',
+      stateOwner:userIsBuyer ? 'user' : 'player',
+      terms:terms ?? deal.terms,
+    });
   } else if (deal.state === 'player_negotiation') {
+    if (!isPlayerCounterAwaitingUser(deal)) throw new Error('DEAL_REQUIRES_CONTRACT_OFFER');
     accepted = transitionMarketDeal(deal, 'agreed', { weekKey, actor:'user', reasonCode:'player_terms_accepted', awaiting:'completion', stateOwner:'system', terms:terms ?? deal.terms });
   } else throw new Error('DEAL_NOT_AWAITING_ACCEPTANCE');
   await _p4PersistMarket(save, upsertMarketDeal(market, accepted));
@@ -1110,6 +1121,10 @@ function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
   }
   const activeByBuyer = new Map();
   for (const deal of market.activeDeals.filter(item => !isTerminalDeal(item))) activeByBuyer.set(deal.buyerTeamId, (activeByBuyer.get(deal.buyerTeamId) ?? 0) + 1);
+  let activeManagedInbound = market.activeDeals.filter(item =>
+    !isTerminalDeal(item) && String(item.sellerTeamId) === String(save.userTeamId) && item.createdBy === 'ai'
+  ).length;
+  let createdManagedInbound = false;
   const orderedTeams = teams
     .filter(team => team.id !== save.userTeamId)
     .sort((a, b) => stableMarketHash(`${tickKey}:${a.id}`) - stableMarketHash(`${tickKey}:${b.id}`));
@@ -1118,18 +1133,33 @@ function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
     const needs = buildSquadNeeds(buyer, squads.get(buyer.id) ?? [], { season:save.season });
     const need = needs[0];
     if (!need) continue;
-    const candidates = rankRecruitmentCandidates({
+    const candidateOptions = {
       need,
       buyer,
-      players,
       teamsById:teamById,
       marketValueFor:formAdjustedValue,
       canSign:canClubSignPlayer,
       likelihoodFor:(player, club) => 50 + Math.min(30, (club.reputation ?? 60) - (teamById.get(player.teamId)?.reputation ?? 60)),
+    };
+    const candidates = rankRecruitmentCandidates({
+      ...candidateOptions,
+      players:players.filter(player => String(player.teamId) !== String(save.userTeamId)),
       limit:4,
     });
-    if (!candidates.length) continue;
-    const target = candidates[stableMarketHash(`${tickKey}:${buyer.id}:target`) % candidates.length];
+    const managedCandidates = activeManagedInbound < 2 && !createdManagedInbound
+      ? rankRecruitmentCandidates({
+        ...candidateOptions,
+        players:squads.get(save.userTeamId) ?? [],
+        limit:8,
+      })
+      : [];
+    const target = selectAIRecruitmentTarget({
+      candidates,
+      managedCandidates,
+      managedRoll:stableMarketHash(`${tickKey}:${buyer.id}:managed-target`) % 100,
+      targetIndex:stableMarketHash(`${tickKey}:${buyer.id}:target`),
+    });
+    if (!target) continue;
     const player = target.player;
     const fee = Math.round(target.value * (0.94 + (stableMarketHash(`${tickKey}:${player.id}:fee`) % 14) / 100));
     const userSide = player.teamId === save.userTeamId ? 'seller' : null;
@@ -1143,6 +1173,10 @@ function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
     }, market);
     market = upsertMarketDeal(market, deal);
     activeByBuyer.set(buyer.id, (activeByBuyer.get(buyer.id) ?? 0) + 1);
+    if (userSide) {
+      activeManagedInbound++;
+      createdManagedInbound = true;
+    }
   }
   return market;
 }

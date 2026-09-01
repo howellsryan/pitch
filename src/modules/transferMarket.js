@@ -640,10 +640,14 @@ function advanceSeller(deal, context, weekKey) {
   const offered = guaranteedFeeTotal(deal.terms);
   const releaseClause = Number(context.player?.contract?.releaseClause ?? context.player?.releaseClause) || 0;
   const ratio = offered / marketValue;
+  const managedBuyerNeedsContract = deal.userSide === 'buyer' && !deal.delegated;
+  const playerStep = managedBuyerNeedsContract
+    ? { awaiting:'user', stateOwner:'user' }
+    : { awaiting:'player', stateOwner:'player' };
   if (releaseClause > 0 && offered >= releaseClause) {
-    return transitionMarketDeal(deal, 'player_negotiation', { weekKey, actor:'seller', reasonCode:'release_clause_met', awaiting:'player', stateOwner:'player' });
+    return transitionMarketDeal(deal, 'player_negotiation', { weekKey, actor:'seller', reasonCode:'release_clause_met', ...playerStep });
   }
-  if (ratio >= .98) return transitionMarketDeal(deal, 'player_negotiation', { weekKey, actor:'seller', reasonCode:'seller_accepts', awaiting:'player', stateOwner:'player' });
+  if (ratio >= .98) return transitionMarketDeal(deal, 'player_negotiation', { weekKey, actor:'seller', reasonCode:'seller_accepts', ...playerStep });
   if (ratio < .68) return transitionMarketDeal(deal, 'rejected', { weekKey, actor:'seller', reasonCode:'offer_far_too_low', awaiting:null, stateOwner:'system' });
   return withSellerCounter(deal, marketValue, weekKey);
 }
@@ -674,9 +678,31 @@ function advancePlayer(deal, context, weekKey) {
   if (interest.score >= 43 && interest.negotiableTerms?.length) {
     const terms = normalizeDealTerms(deal.terms);
     terms.contract.wage = Math.max(terms.contract.wage, interest.requiredWage);
+    if (interest.negotiableTerms.includes('duration')) terms.contract.duration = Math.max(terms.contract.duration, 3);
+    if (interest.negotiableTerms.includes('squadRole')) {
+      const nextRole = { prospect:'squad', squad:'rotation', rotation:'important', important:'crucial', crucial:'crucial' }[terms.contract.squadRole];
+      terms.contract.squadRole = nextRole ?? 'rotation';
+    }
+    if (interest.negotiableTerms.includes('signingBonus')) {
+      terms.contract.signingBonus = Math.max(terms.contract.signingBonus, terms.contract.wage * 3);
+    }
     return transitionMarketDeal(deal, 'player_negotiation', { weekKey, actor:'player', reasonCode:'player_counter', interest, awaiting:'user', stateOwner:'user', terms });
   }
   return transitionMarketDeal(deal, 'rejected', { weekKey, actor:'player', reasonCode:'player_rejects', interest, awaiting:null, stateOwner:'system' });
+}
+
+/** Resolve a submitted personal-terms offer synchronously, independent of a market tick. */
+export function resolvePlayerContractDecision(dealInput, context, weekKey) {
+  const deal = createMarketDeal(dealInput);
+  if (deal.state !== 'player_negotiation' || deal.awaiting !== 'player') {
+    throw new Error('DEAL_NOT_AWAITING_PLAYER');
+  }
+  return advancePlayer(deal, context, weekKey);
+}
+
+export function isPlayerCounterAwaitingUser(deal) {
+  if (deal?.state !== 'player_negotiation' || deal?.awaiting !== 'user') return false;
+  return ['player_counter','player_contract_counter'].includes(deal.decisionLog?.at(-1)?.reasonCode);
 }
 
 /**

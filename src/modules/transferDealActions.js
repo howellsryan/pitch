@@ -1,4 +1,4 @@
-import { getPlayer, getSave, getTeam, putSave, settleTransferMarketDealAtomic } from './db.js';
+import { getPlayer, getPlayersByTeam, getSave, getTeam, putSave, settleTransferMarketDealAtomic } from './db.js';
 import { formAdjustedValue } from './transfers.js';
 import {
   MAX_ACTIVE_MARKET_DEALS,
@@ -11,6 +11,7 @@ import {
   normalizeDealTerms,
   normalizeTransferMarket,
   projectLegacyInboundOffers,
+  resolvePlayerContractDecision,
   transitionMarketDeal,
   upsertMarketDeal,
 } from './transferMarket.js';
@@ -361,9 +362,8 @@ export async function counterMarketDeal(dealId, feeAmount) {
 }
 
 /**
- * Start a renewal or counter player contract terms. Renewals resolve immediately
- * to either an agreement or a player counter; transfer/free-agent player-term
- * counters go back to the player on the next market update.
+ * Start or counter player contract terms. The player responds immediately so
+ * the fee and personal terms can both be completed inside one game week.
  */
 export async function submitContractTerms({ playerId = null, dealId = null, contract = {} } = {}) {
   const save = await getSave();
@@ -403,11 +403,13 @@ export async function submitContractTerms({ playerId = null, dealId = null, cont
     if (String(deal.buyerTeamId) !== String(save.userTeamId) && deal.type !== 'renewal') throw new Error('DEAL_NOT_CONTRACT_COUNTERABLE');
     const updatedTerms = normalizeDealTerms(deal.terms, { player });
     updatedTerms.contract = normalizeDealTerms({ contract:{ ...updatedTerms.contract, ...contract } }, { player }).contract;
+    const previousReason = deal.decisionLog?.at(-1)?.reasonCode;
+    const isInitialTransferOffer = ['seller_accepts','release_clause_met','club_terms_accepted'].includes(previousReason);
     deal = transitionMarketDeal(deal, 'player_negotiation', {
       eventKey:contractEventKey(deal, weekKey, 'user', updatedTerms.contract),
       weekKey,
       actor:'user',
-      reasonCode:'user_contract_counter',
+      reasonCode:isInitialTransferOffer ? 'user_contract_offer' : 'user_contract_counter',
       awaiting:'player',
       stateOwner:'player',
       terms:updatedTerms,
@@ -416,16 +418,31 @@ export async function submitContractTerms({ playerId = null, dealId = null, cont
 
   let offeredTerms = normalizeDealTerms(deal.terms, { player });
   offeredTerms.contract = normalizeDealTerms({ contract:{ ...offeredTerms.contract, ...contract } }, { player }).contract;
-  if (deal.type === 'renewal' && deal.awaiting === 'player') {
-    deal = resolveRenewalContractOffer(deal, { player, terms:offeredTerms, weekKey });
-  } else if (deal.awaiting === 'player') {
-    deal = { ...deal, terms:offeredTerms };
-  }
+  deal = { ...deal, terms:offeredTerms };
 
   const userTeam = await getTeam(save.userTeamId);
   if (userTeam && String(deal.buyerTeamId) === String(save.userTeamId)) {
     const commitment = dealCommitmentAmount(deal);
     if (commitment > availableBudgetForDeal(market, userTeam, deal.id)) throw new Error('INSUFFICIENT_FUNDS');
+  }
+
+  if (deal.type === 'renewal' && deal.awaiting === 'player') {
+    deal = resolveRenewalContractOffer(deal, { player, terms:offeredTerms, weekKey });
+  } else if (deal.awaiting === 'player') {
+    const [buyer, seller, buyerSquad] = await Promise.all([
+      getTeam(deal.buyerTeamId),
+      getTeam(deal.sellerTeamId),
+      getPlayersByTeam(deal.buyerTeamId),
+    ]);
+    deal = resolvePlayerContractDecision(deal, {
+      player,
+      buyer,
+      seller,
+      buyerSquad,
+      terms:offeredTerms,
+      save,
+      windowOpen:true,
+    }, weekKey);
   }
 
   market = upsertMarketDeal(market, deal);

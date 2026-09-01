@@ -149,11 +149,6 @@
   let offerAmount = $state(0);
   let offerInstallment = $state(0);
   let offerSellOn = $state(0);
-  let offerWage = $state(10_000);
-  let offerDuration = $state(3);
-  let offerRole = $state('rotation');
-  let offerSigningBonus = $state(0);
-  let offerReleaseClause = $state(0);
 
   async function openDetail(p) {
     detailPlayer = p;
@@ -162,11 +157,6 @@
     offerAmount = Math.floor(fv * 0.95);
     offerInstallment = 0;
     offerSellOn = 0;
-    offerWage = Math.round((detailFresh.wage ?? 10_000) * 1.12);
-    offerDuration = 3;
-    offerRole = 'rotation';
-    offerSigningBonus = Math.round((detailFresh.wage ?? 10_000) * 4);
-    offerReleaseClause = 0;
   }
   function closeDetail() { detailPlayer = null; detailFresh = null; }
 
@@ -193,7 +183,7 @@
   async function sendOffer() {
     const { player, offer } = confirmOffer;
     try {
-      await createUserMarketDeal(player.id, { type:'transfer', terms:{ fee:{ upfront:offer, installments:offerInstallment > 0 ? [{ amount:offerInstallment, dueSeason:save.season, dueGameweek:(save.currentGameweek ?? 1) + 8 }]:[], sellOnPercentage:offerSellOn }, contract:{ wage:offerWage, duration:offerDuration, squadRole:offerRole, signingBonus:offerSigningBonus, releaseClause:offerReleaseClause } } });
+      await createUserMarketDeal(player.id, { type:'transfer', terms:{ fee:{ upfront:offer, installments:offerInstallment > 0 ? [{ amount:offerInstallment, dueSeason:save.season, dueGameweek:(save.currentGameweek ?? 1) + 8 }]:[], sellOnPercentage:offerSellOn } } });
       toast(`Enquiry sent for ${player.name}. The club will respond at the next market update.`, 'success', 5000);
       confirmOffer = null;
       closeDetail();
@@ -297,7 +287,15 @@
   let contractBusy = $state(false);
 
   async function acceptDeal(deal) {
-    try { await acceptMarketDeal(deal.id); toast(`${deal.playerName}: terms accepted`, 'success', 3200); screenTicks.transfers++; }
+    try {
+      const result = await acceptMarketDeal(deal.id);
+      screenTicks.transfers++;
+      await load();
+      if (result?.state === 'player_negotiation' && result.awaiting === 'user' && String(result.buyerTeamId) === String(save?.userTeamId)) {
+        toast(`${deal.playerName}: fee agreed. Now negotiate the player's contract.`, 'success', 4000);
+        await openContractDeal(result);
+      } else toast(`${deal.playerName}: terms accepted`, 'success', 3200);
+    }
     catch (error) { toast(error.message, 'error', 3500); }
   }
   function openCounterDeal(deal) {
@@ -331,8 +329,13 @@
     }
   }
 
+  function isInitialContractStep(deal) {
+    if (!deal || deal.state !== 'player_negotiation' || deal.awaiting !== 'user') return false;
+    return ['seller_accepts','release_clause_met','club_terms_accepted'].includes(deal.decisionLog?.at(-1)?.reasonCode);
+  }
+
   function fillContractSheet(player, deal = null) {
-    const terms = deal?.terms?.contract ?? {};
+    const terms = deal && !isInitialContractStep(deal) ? deal.terms?.contract ?? {} : {};
     contractSheet = { player, deal };
     contractWage = Math.max(1_000, terms.wage ?? Math.round((player.wage ?? 10_000) * 1.1));
     contractDuration = terms.duration ?? 3;
@@ -382,6 +385,9 @@
       await load();
       if (result.settlement?.success || deal.state === 'agreed') {
         toast(`${deal.playerName}: contract agreed.`, 'success', 4000);
+        contractSheet = null;
+      } else if (deal.state === 'rejected') {
+        toast(`${deal.playerName} rejected the contract offer. ${deal.interest?.strongestConcern ?? ''}`.trim(), 'error', 5000);
         contractSheet = null;
       } else if (deal.awaiting === 'user') {
         const player = await getPlayer(deal.playerId) ?? contractSheet.player;
@@ -463,11 +469,15 @@
                 </div>
                 <div class="deal-actions">
                   {#if deal.awaiting === 'user'}
-                    <button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>
+                    {#if deal.state === 'player_negotiation' && String(deal.buyerTeamId) === String(save?.userTeamId)}
+                      {@const playerHasCountered = ['player_counter','player_contract_counter'].includes(deal.decisionLog?.at(-1)?.reasonCode)}
+                      {#if playerHasCountered}<button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>{/if}
+                      <button class="sell-btn btn-secondary" onclick={() => openContractDeal(deal)}>{playerHasCountered ? 'Counter Terms' : 'Negotiate Contract'}</button>
+                    {:else}
+                      <button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>
+                    {/if}
                     {#if deal.state === 'club_negotiation' && deal.type === 'transfer'}
                       <button class="sell-btn btn-secondary" onclick={() => openCounterDeal(deal)}>Counter</button>
-                    {:else if deal.state === 'player_negotiation' && String(deal.buyerTeamId) === String(save?.userTeamId)}
-                      <button class="sell-btn btn-secondary" onclick={() => openContractDeal(deal)}>Counter Terms</button>
                     {/if}
                   {/if}
                   <button class="sell-btn btn-secondary" onclick={() => withdrawDeal(deal)}>Walk away</button>
@@ -795,17 +805,12 @@
         </div>
         <div class="offer-hint {offerLikelihood.cls}">{offerLikelihood.text}</div>
         <details class="tr-adv">
-          <summary>Structure fee &amp; player terms</summary>
+          <summary>Structure fee</summary>
           <div class="tr-adv-body">
             <div class="tr-adv-grid">
               <label><span class="tr-adv-lbl-inline">Installment</span><input type="number" min="0" step="100000" bind:value={offerInstallment} /></label>
               <label><span class="tr-adv-lbl-inline">Sell-on %</span><input type="number" min="0" max="50" bind:value={offerSellOn} /></label>
-              <label><span class="tr-adv-lbl-inline">Wage / wk</span><input type="number" min="1000" step="1000" bind:value={offerWage} /></label>
-              <label><span class="tr-adv-lbl-inline">Signing bonus</span><input type="number" min="0" step="10000" bind:value={offerSigningBonus} /></label>
-              <label><span class="tr-adv-lbl-inline">Duration</span><select bind:value={offerDuration}><option value={1}>1 year</option><option value={2}>2 years</option><option value={3}>3 years</option><option value={4}>4 years</option><option value={5}>5 years</option></select></label>
-              <label><span class="tr-adv-lbl-inline">Squad role</span><select bind:value={offerRole}><option value="crucial">Crucial</option><option value="important">Important</option><option value="rotation">Rotation</option><option value="squad">Squad</option><option value="prospect">Prospect</option></select></label>
             </div>
-            <label><span class="tr-adv-lbl-inline">Release clause</span><input type="number" min="0" step="100000" bind:value={offerReleaseClause} /></label>
           </div>
         </details>
         <button class="btn-full btn-primary" onclick={openConfirmOffer}>Make Offer</button>
@@ -865,10 +870,11 @@
 <!-- ── Contract negotiation sheet ───────────────────────────── -->
 {#if contractSheet}
   {@const p = contractSheet.player}
+  {@const initialContract = isInitialContractStep(contractSheet.deal)}
   <button class="sheet-backdrop" onclick={closeContractSheet} aria-label="Close"></button>
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">{contractSheet.deal ? 'Contract Counter' : `Renew ${p.name}`}</div>
+    <div class="sheet-title">{contractSheet.deal ? initialContract ? `Negotiate with ${p.name}` : 'Contract Counter' : `Renew ${p.name}`}</div>
     <div class="confirm-body">
       <div class="confirm-row"><span>Player</span><strong>{p.name}</strong></div>
       <div class="confirm-row"><span>Current wage</span><strong>{fmt.wage(p.wage)}</strong></div>
@@ -882,7 +888,7 @@
       </div>
     </div>
     <div class="sheet-actions">
-      <button class="btn-full btn-primary" disabled={contractBusy || contractWage <= 0} onclick={submitContractOffer}>{contractBusy ? 'Sending…' : contractSheet.deal ? 'Send Revised Terms' : 'Make Contract Offer'}</button>
+      <button class="btn-full btn-primary" disabled={contractBusy || contractWage <= 0} onclick={submitContractOffer}>{contractBusy ? 'Sending…' : contractSheet.deal && !initialContract ? 'Send Revised Terms' : 'Make Contract Offer'}</button>
       <button class="btn-full btn-secondary" disabled={contractBusy} onclick={closeContractSheet}>Cancel</button>
     </div>
   </div>
@@ -1015,8 +1021,8 @@
     color: var(--color-tx); border-radius: 7px; padding: 6px 8px; font-size: 11px;
   }
   .tr-adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .tr-adv-grid label, .tr-adv-body > label { display: grid; gap: 5px; min-width: 0; }
-  .tr-adv-grid input, .tr-adv-body > label input { width: 100%; min-width: 0; }
+  .tr-adv-grid label { display: grid; gap: 5px; min-width: 0; }
+  .tr-adv-grid input { width: 100%; min-width: 0; }
   .tr-adv-lbl { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-tx-2); font-family: var(--font-mono); margin-bottom: 3px; }
   .tr-adv-lbl-inline { font-size: 10px; color: var(--color-tx-2); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.5px; }
   .tr-adv-sliders { display: flex; gap: 6px; align-items: center; }
