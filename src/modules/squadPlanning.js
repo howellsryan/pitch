@@ -1,4 +1,5 @@
 import { currentEffectiveLevel, playerPositionGroup } from './playerModel.js';
+import { aiRecruitmentObservation } from './scouting.js';
 import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
 
 /**
@@ -165,17 +166,26 @@ function observedPotentialLevel(player, observation, current) {
   if (observation?.future) return (Number(observation.future.min ?? current) + Number(observation.future.max ?? current)) / 2;
   return Math.max(current, Number(player.potentialRating) || current);
 }
+function recruitmentObservation(player, buyer, teamsById, observationFor) {
+  if (observationFor) return observationFor(player, buyer);
+  if (!teamsById?.size) return null;
+  return aiRecruitmentObservation(player, buyer, {
+    teamsById,
+    weekKey:buyer.coachingPaidWeekKey ?? `initial:${buyer.id}`,
+  });
+}
 
 export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById = new Map(), marketValueFor = player => Number(player?.value) || 0, canSign = () => true, likelihoodFor = () => 50, observationFor = null, limit = 12 } = {}) {
   if (!need || !buyer) return [];
   const profile = getAITacticalProfile(buyer);
   const maxBudget = Math.min(need.maxBudget, Number(buyer.budget) || need.maxBudget);
   const ranked = [];
+  const requiresObservation = Boolean(observationFor || teamsById?.size);
   for (const player of players) {
     if (!player || player.teamId === buyer.id || player.teamId === 'free_agents' || player.onLoan || player.signedThisSeason) continue;
     if (squadPlanningGroup(player) !== need.group || !canSign(buyer, player)) continue;
-    const observation = observationFor ? observationFor(player, buyer) : null;
-    if (observationFor && !observation) continue;
+    const observation = recruitmentObservation(player, buyer, teamsById, observationFor);
+    if (requiresObservation && !observation) continue;
     const value = Math.max(0, Number(marketValueFor(player)) || 0);
     if (value > maxBudget || value <= 0) continue;
     const rating = observedCurrentLevel(player, observation);
@@ -200,10 +210,11 @@ export function rankStandoutRecruitmentCandidates({ buyer, buyerSquad = [], play
   const squadAverage = squadPlanningAverage(buyerSquad.filter(player => !player?.onLoan || player?.loanedFrom).map(player => Number(currentEffectiveLevel(player)) || 50), Number(buyer.reputation) || 60);
   const availableBudget = Math.max(0, Number(buyer.budget) || 0);
   const ranked = [];
+  const requiresObservation = Boolean(observationFor || teamsById?.size);
   for (const player of players) {
     if (!player || player.teamId === buyer.id || player.teamId === 'free_agents' || player.onLoan || player.signedThisSeason || !canSign(buyer, player)) continue;
-    const observation = observationFor ? observationFor(player, buyer) : null;
-    if (observationFor && !observation) continue;
+    const observation = recruitmentObservation(player, buyer, teamsById, observationFor);
+    if (requiresObservation && !observation) continue;
     const value = Math.max(0, Number(marketValueFor(player)) || 0);
     if (value <= 0 || value > availableBudget * .88) continue;
     const rating = observedCurrentLevel(player, observation);
