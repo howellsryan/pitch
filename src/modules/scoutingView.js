@@ -22,6 +22,10 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
   const confidence = Math.max(.2, Math.min(.96, Number(report.confidence ?? .42)));
   const step = confidence >= .82 ? 2 : confidence >= .56 ? 5 : 10;
   const coarse = (value) => Math.max(1, Math.min(99, Math.round((Number(value) || 1) / step) * step));
+  const feeMin = Math.max(0, Number(report.financial?.feeMin ?? player.value ?? 0));
+  const feeMax = Math.max(feeMin, Number(report.financial?.feeMax ?? feeMin));
+  const wageMin = Math.max(0, Number(report.financial?.wageMin ?? player.wage ?? 0));
+  const wageMax = Math.max(wageMin, Number(report.financial?.wageMax ?? wageMin));
 
   const projected = {
     ...player,
@@ -29,6 +33,8 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
     midfield:coarse(player.midfield),
     defence:coarse(player.defence),
     goalkeeping:coarse(player.goalkeeping),
+    value:Math.round((feeMin + feeMax) / 2),
+    wage:Math.round((wageMin + wageMax) / 2),
     potentialRating:futureMid,
     potentialKnowledge:confidence,
     isWonderkid:Number(player.age ?? 25) <= 21 && confidence >= .56 && futureMid >= 85,
