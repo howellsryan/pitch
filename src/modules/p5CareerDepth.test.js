@@ -4,6 +4,7 @@ import { buildCoachCandidates, coachingEffects, withDefaultCoaching } from './co
 import { settlePlayerDevelopment } from './playerDevelopment.js';
 import { buildP5CareerDepthBackfill } from './p5Runtime.js';
 import { advanceScoutingState, createScoutingAssignment, createScoutingState, latestScoutingReport } from './scouting.js';
+import { projectScoutedPlayerView } from './scoutingView.js';
 import { buildSquadNeeds, rankStandoutRecruitmentCandidates } from './squadPlanning.js';
 import { createDevelopmentPlan, developmentPlanAttributePreference, developmentPlanProgressMultiplier, effectiveDevelopmentPlan } from './training.js';
 
@@ -66,6 +67,8 @@ describe('P5 coaching, training, scouting and squad planning', () => {
     expect(first.alreadyProcessed).toBe(false);
     expect(report.current.min).toBeLessThanOrEqual(report.current.max);
     expect(report.future.min).toBeLessThanOrEqual(report.future.max);
+    expect(report.financial.feeMin).toBeLessThan(report.financial.feeMax);
+    expect((report.financial.feeMin + report.financial.feeMax) / 2).not.toBe(target.value);
     expect(report).not.toHaveProperty('attack');
     expect(report).not.toHaveProperty('potentialRating');
     const replay = advanceScoutingState(first.state, context);
@@ -103,6 +106,37 @@ describe('P5 coaching, training, scouting and squad planning', () => {
       canSign:() => true, likelihoodFor:() => 70, observationFor:p => observations[p.id],
     });
     expect(ranked.map(item => item.player.id)).toEqual(['observed']);
+  });
+
+  it('gives runtime AI recruitment bounded observations when world context is present', () => {
+    const buyer = { id:'buyer', reputation:95, budget:80_000_000, league:'Premier League' };
+    const seller = { id:'seller', reputation:72, league:'Premier League' };
+    const buyerSquad = Array.from({ length:20 }, (_, i) => player(`runtime-b${i}`, 'buyer', 'CM', 70));
+    const candidate = player('runtime', 'seller', 'ST', 82, { age:20, transferListed:true, potentialRating:98 });
+    const ranked = rankStandoutRecruitmentCandidates({
+      buyer, buyerSquad, players:[candidate], teamsById:new Map([['buyer',buyer],['seller',seller]]),
+      marketValueFor:p => p.value, canSign:() => true, likelihoodFor:() => 80,
+    });
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].observation).toBeTruthy();
+    expect(ranked[0].observation.confidence).toBeLessThan(1);
+    expect(ranked[0].observation.current.min).toBeLessThan(ranked[0].observation.current.max);
+  });
+
+  it('projects the user market from scouting ranges without mutating the canonical player', () => {
+    const userTeam = withDefaultCoaching({ id:'user', reputation:75, league:'Premier League' });
+    const seller = { id:'seller', reputation:70, league:'Premier League' };
+    const canonical = player('projection', 'seller', 'ST', 76, { potentialRating:94, value:24_000_000, wage:63_000 });
+    const projected = projectScoutedPlayerView(canonical, createScoutingState(), {
+      season:'2025/26', gameweek:5, userTeam,
+      teamsById:new Map([['user',userTeam],['seller',seller]]), valueFor:p => p.value,
+    });
+    expect(projected.scoutingView).toBe(true);
+    expect(projected.scoutingReport.current.min).toBeLessThan(projected.scoutingReport.current.max);
+    expect(projected.scoutingReport.financial.feeMin).toBeLessThan(projected.scoutingReport.financial.feeMax);
+    expect(projected.value).not.toBe(canonical.value);
+    expect(projected.potentialRating).not.toBe(canonical.potentialRating);
+    expect(canonical).not.toHaveProperty('scoutingView');
   });
 
   it('backfills existing careers with usable knowledge and club coaching without changing DB schema', () => {
