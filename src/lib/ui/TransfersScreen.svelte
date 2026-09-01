@@ -498,7 +498,7 @@
             {@const years = contractYearsRemaining(p, save)}
             <div class="sell-row">
               <div class="pl-flag-sm">CT</div>
-              <div class="pl-info"><div class="pl-name">{p.name}</div><div class="pl-meta"><span>{years} year{years === 1 ? '' : 's'} remaining</span><span>{fmt.wage(p.wage)}/wk</span><span>{p.squadRole ?? 'rotation'}</span></div></div>
+              <div class="pl-info"><div class="pl-name">{p.name}</div><div class="pl-meta"><span>{years} year{years === 1 ? '' : 's'} remaining</span><span>{fmt.wage(p.wage)}</span><span>{p.squadRole ?? 'rotation'}</span></div></div>
               <button class="sell-btn" disabled={p.onLoan} onclick={() => openRenewal(p)}>Negotiate</button>
             </div>
           {/each}
