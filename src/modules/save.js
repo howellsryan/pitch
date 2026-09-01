@@ -38,6 +38,8 @@ import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from '
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
+import { withDefaultCoaching } from './coaching.js';
+import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -94,10 +96,6 @@ function backfillP1PlayerStats(player) {
   };
 }
 
-/**
- * Lazy P0 -> P1 domain migration. No IndexedDB store or save-envelope version
- * changes: all new state is additive inside rows already covered by schema V2.
- */
 export async function ensureLivingWorld(save) {
   if (!save) return save;
   const [teams, fixtures, standings, players] = await Promise.all([
@@ -129,11 +127,6 @@ export async function ensureLivingWorld(save) {
   return save;
 }
 
-/**
- * Pure P2 save backfill. Tactical instructions, role assignments and Manager
- * DNA are manager/career state, so they live on the existing save row rather
- * than mutating universal player/team data or introducing another DB store.
- */
 export function buildP2SaveBackfill(save) {
   if (!save) return save;
   return {
@@ -146,10 +139,6 @@ export function buildP2SaveBackfill(save) {
   };
 }
 
-/**
- * Lazy P1 -> P2 migration. Existing formation, mentality and lineup are spread
- * through untouched. The V2 save envelope and IndexedDB schema remain valid.
- */
 export async function ensureP2Tactics(save) {
   if (!save) return save;
   const migrated = buildP2SaveBackfill(save);
@@ -171,10 +160,6 @@ function roleContractChanged(before, after) {
     || JSON.stringify(before?.playingTimeAgreement ?? null) !== JSON.stringify(after?.playingTimeAgreement ?? null);
 }
 
-/**
- * Pure P3 migration plan. The save-level marker is the single contract version
- * for this domain. Player/team rows intentionally carry no second version tag.
- */
 export function buildP3PlayerModelBackfill(save, players = [], teams = []) {
   if (!save || Number(save.playerModelVersion ?? 0) >= PLAYER_MODEL_VERSION) {
     return { save, playerPatches:[], teamPatches:[] };
@@ -207,11 +192,6 @@ export function buildP3PlayerModelBackfill(save, players = [], teams = []) {
   return { save:migratedSave, playerPatches, teamPatches };
 }
 
-/**
- * One-time additive P2 -> P3 migration. The marker is persisted last: if any
- * preceding write is interrupted, the next load safely rebuilds the plan and
- * rewrites only rows that still need normalisation.
- */
 export async function ensureP3PlayerModel(save) {
   if (!save || Number(save.playerModelVersion ?? 0) >= PLAYER_MODEL_VERSION) return save;
   const [players, teams] = await Promise.all([getAllPlayers(), getAllTeams()]);
@@ -222,8 +202,6 @@ export async function ensureP3PlayerModel(save) {
   return migration.save;
 }
 
-/** One-time additive P4 migration. Legacy inbound offers remain as a derived
- * compatibility projection while the persisted market becomes authoritative. */
 export async function ensureP4TransferMarket(save) {
   if (!save || !transferMarketNeedsBackfill(save)) return save;
   const migration = buildTransferMarketBackfill(save);
@@ -240,6 +218,7 @@ export async function initApp() {
     save = await ensureP2Tactics(save);
     save = await ensureP3PlayerModel(save);
     save = await ensureP4TransferMarket(save);
+    save = await ensureP5CareerDepth(save);
   }
   return save ?? null;
 }
@@ -273,7 +252,7 @@ export async function startNewGame(userTeamId, managerName) {
   const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague)
     .map(normalizePlayerModel);
 
-  const teams = allTeamData.map(({ players: _, ...rest }) => ({
+  const teams = allTeamData.map(({ players: _, ...rest }) => withDefaultCoaching({
     ...rest,
     budget: startingBudget(rest.reputation ?? 70),
     academyInvestment: 0,
@@ -300,6 +279,7 @@ export async function startNewGame(userTeamId, managerName) {
     inboundOffers:   [],
     collapsedDeals:  [],
     transferMarket:  createEmptyTransferMarket(),
+    ...createFreshP5SaveFields(),
     inbox:           [],
     youthCohort:     initialCohort,
     boardObjective:  generateBoardObjective(userTeamData, userLeague),
