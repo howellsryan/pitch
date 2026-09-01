@@ -81,12 +81,12 @@
                   <div><strong>{need.position}</strong><span>{need.group} · {urgencyLabel(need.urgency)} priority</span></div>
                   <span class="ability">{need.targetAbilityBand.min}–{need.targetAbilityBand.max}</span>
                 </div>
-                <div class="chips">{#each need.reasons as reason}<span>{reasonLabels[reason] ?? reason}</span>{/each}</div>
+                <div class="chips">{#each need.reasons as reason (reason)}<span>{reasonLabels[reason] ?? reason}</span>{/each}</div>
                 <div class="coverage">
                   <div><span>XI</span><strong>{need.coverage.xi}</strong></div>
                   <div><span>Rotation</span><strong>{need.coverage.rotation}</strong></div>
                   <div><span>Depth</span><strong>{need.coverage.depth}</strong></div>
-                  {#each need.future as horizon}
+                  {#each need.future as horizon (horizon.seasons)}
                     <div><span>Y{horizon.seasons}</span><strong class:warning={horizon.shortfall > 0}>{horizon.shortfall ? `-${horizon.shortfall}` : 'OK'}</strong></div>
                   {/each}
                 </div>
@@ -100,7 +100,7 @@
       <section>
         <div class="section-head"><span>Coaching staff</span><strong>Four departments</strong></div>
         <div class="coach-list">
-          {#each departments as department}
+          {#each departments as department (department)}
             {@const coach = team?.coaching?.[department]}
             {@const effect = coachingEffects(team, department === 'goalkeeping' ? 'GK' : department === 'defence' ? 'CB' : department === 'midfield' ? 'CM' : 'ST')}
             <article class="coach-card">
