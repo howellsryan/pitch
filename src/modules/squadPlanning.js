@@ -11,8 +11,11 @@ import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.j
 
 export const SQUAD_PLANNING_VERSION = 1;
 
-export const MANAGED_LISTED_TARGET_PERCENT = 22;
-export const MANAGED_UNLISTED_TARGET_PERCENT = 5;
+// A listed player is deliberately the clearest route to a bid.  Exceptional
+// unlisted players still draw attention, but at a lower rate so listing a
+// player remains meaningful to the user.
+export const MANAGED_LISTED_TARGET_PERCENT = 35;
+export const MANAGED_UNLISTED_TARGET_PERCENT = 15;
 
 export const SQUAD_GROUP_TARGETS = Object.freeze({
   GK:2,
@@ -205,18 +208,88 @@ export function rankRecruitmentCandidates({
 }
 
 /**
+ * Find affordable standout players outside a club's immediate squad need.
+ *
+ * This is intentionally separate from rankRecruitmentCandidates: the normal
+ * route must remain need-led, while clubs should also scout a small number of
+ * high-current-ability and high-potential opportunities.  That is how an
+ * unlisted star can attract interest without turning every ordinary squad
+ * player into a transfer target.
+ */
+export function rankStandoutRecruitmentCandidates({
+  buyer,
+  buyerSquad = [],
+  players = [],
+  teamsById = new Map(),
+  marketValueFor = player => Number(player?.value) || 0,
+  canSign = () => true,
+  likelihoodFor = () => 50,
+  limit = 12,
+} = {}) {
+  if (!buyer) return [];
+  const squadAverage = squadPlanningAverage(
+    buyerSquad.filter(player => !player?.onLoan).map(player => Number(currentEffectiveLevel(player)) || 50),
+    Number(buyer.reputation) || 60,
+  );
+  const availableBudget = Math.max(0, Number(buyer.budget) || 0);
+  const ranked = [];
+
+  for (const player of players) {
+    if (!player || player.teamId === buyer.id || player.teamId === 'free_agents' || player.onLoan || player.signedThisSeason) continue;
+    if (!canSign(buyer, player)) continue;
+    const value = Math.max(0, Number(marketValueFor(player)) || 0);
+    // Leave enough headroom for the offer premium and existing commitments.
+    if (value <= 0 || value > availableBudget * .88) continue;
+    const rating = Number(currentEffectiveLevel(player)) || 50;
+    const potential = Math.max(rating, Number(player.potentialRating) || rating);
+    const age = Number(player.age ?? 25);
+    const currentStandout = rating >= Math.max(68, squadAverage + 2);
+    const futureStandout = age <= 24
+      && potential >= Math.max(76, squadAverage + 6)
+      && potential - rating >= 6;
+    if (!currentStandout && !futureStandout) continue;
+
+    const likelihood = squadPlanningClamp(Number(likelihoodFor(player, buyer, teamsById.get(player.teamId))) || 0, 0, 100);
+    if (likelihood < 30) continue;
+    const affordability = 1 - value / Math.max(1, availableBudget);
+    const currentEdge = Math.max(0, rating - squadAverage);
+    const potentialEdge = Math.max(0, potential - Math.max(rating, squadAverage));
+    const youthBonus = age <= 21 ? 8 : age <= 24 ? 4 : 0;
+    const score = Math.round((
+      currentEdge * 4
+      + potentialEdge * 3
+      + (currentStandout ? 18 : 0)
+      + (futureStandout ? 20 : 0)
+      + youthBonus
+      + affordability * 16
+      + likelihood / 100 * 12
+    ) * 10) / 10;
+    const reasons = [];
+    if (currentStandout) reasons.push('standout_current_ability');
+    if (futureStandout) reasons.push('elite_potential');
+    if (affordability >= .35) reasons.push('affordable_opportunity');
+    ranked.push({ player, score, value, likelihood, reasons });
+  }
+
+  return ranked
+    .sort((a, b) => b.score - a.score || b.likelihood - a.likelihood || a.value - b.value || String(a.player.id).localeCompare(String(b.player.id)))
+    .slice(0, Math.max(0, limit));
+}
+
+/**
  * Choose one AI recruitment target while giving the managed club an explicit,
  * bounded route into the market. Listed players are targeted much more often;
  * eligible unlisted players remain possible without flooding the user with bids.
  */
 export function selectAIRecruitmentTarget({
   candidates = [],
-  managedCandidates = [],
+  listedCandidates = [],
+  unlistedCandidates = [],
   managedRoll = 99,
   targetIndex = 0,
 } = {}) {
-  const listed = managedCandidates.filter(item => item?.player?.transferListed === true);
-  const unlisted = managedCandidates.filter(item => item?.player?.transferListed !== true);
+  const listed = listedCandidates.filter(item => item?.player?.transferListed === true);
+  const unlisted = unlistedCandidates.filter(item => item?.player?.transferListed !== true);
   const roll = Math.max(0, Math.min(99, Math.floor(Number(managedRoll) || 0)));
   const choose = rows => rows.length ? rows[Math.abs(Math.floor(Number(targetIndex) || 0)) % rows.length] : null;
 

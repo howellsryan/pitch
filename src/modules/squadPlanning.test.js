@@ -4,6 +4,7 @@ import {
   assessSquadSafety,
   buildSquadNeeds,
   rankRecruitmentCandidates,
+  rankStandoutRecruitmentCandidates,
   selectAIRecruitmentTarget,
   transferAvailableBudget,
 } from './squadPlanning.js';
@@ -75,23 +76,41 @@ describe('P4 shared squad planning', () => {
     expect(assessSquadSafety({ buyerSquad, sellerSquad, player:movingKeeper })).toEqual({ ok:false, reason:'seller_no_goalkeeper' });
   });
 
+  it('scouts an affordable high-potential unlisted player outside the immediate need', () => {
+    const buyer = { id:'buyer', reputation:74, budget:45_000_000, league:'Premier League' };
+    const buyerSquad = Array.from({ length:20 }, (_, i) => player(`buyer-${i}`, 'buyer', 'CM', 70));
+    const wonderkid = player('wonderkid', 'user', 'ST', 68, {
+      age:20, potentialRating:88, value:18_000_000, transferListed:false,
+    });
+    const ordinary = player('ordinary', 'user', 'CB', 66, {
+      age:25, potentialRating:68, value:12_000_000, transferListed:false,
+    });
+
+    const ranked = rankStandoutRecruitmentCandidates({
+      buyer, buyerSquad, players:[ordinary, wonderkid], marketValueFor:item => item.value,
+      canSign:() => true, likelihoodFor:() => 70,
+    });
+
+    expect(ranked.map(item => item.player.id)).toEqual(['wonderkid']);
+    expect(ranked[0].reasons).toContain('elite_potential');
+  });
+
   it('prefers listed managed players but still sometimes selects an unlisted one', () => {
     const listed = { player:player('listed', 'user', 'CM', 70, { transferListed:true }), score:90, value:10_000_000 };
     const unlisted = { player:player('unlisted', 'user', 'CM', 71), score:91, value:11_000_000 };
     const background = { player:player('background', 'other', 'CM', 72), score:92, value:12_000_000 };
     const candidates = [background];
-    const managedCandidates = [unlisted, listed];
 
-    expect(selectAIRecruitmentTarget({ candidates, managedCandidates, managedRoll:5, targetIndex:0 })?.player.id).toBe('listed');
-    expect(selectAIRecruitmentTarget({ candidates, managedCandidates, managedRoll:23, targetIndex:0 })?.player.id).toBe('unlisted');
-    expect(selectAIRecruitmentTarget({ candidates, managedCandidates, managedRoll:50, targetIndex:0 })?.player.id).toBe('background');
+    expect(selectAIRecruitmentTarget({ candidates, listedCandidates:[listed], unlistedCandidates:[unlisted], managedRoll:5, targetIndex:0 })?.player.id).toBe('listed');
+    expect(selectAIRecruitmentTarget({ candidates, listedCandidates:[listed], unlistedCandidates:[unlisted], managedRoll:37, targetIndex:0 })?.player.id).toBe('unlisted');
+    expect(selectAIRecruitmentTarget({ candidates, listedCandidates:[listed], unlistedCandidates:[unlisted], managedRoll:50, targetIndex:0 })?.player.id).toBe('background');
   });
 
   it('uses the lower unlisted chance when no managed player is listed', () => {
     const unlisted = { player:player('unlisted', 'user', 'CM', 71), score:91, value:11_000_000 };
     const background = { player:player('background', 'other', 'CM', 72), score:92, value:12_000_000 };
 
-    expect(selectAIRecruitmentTarget({ candidates:[background], managedCandidates:[unlisted], managedRoll:1, targetIndex:0 })?.player.id).toBe('unlisted');
-    expect(selectAIRecruitmentTarget({ candidates:[background], managedCandidates:[unlisted], managedRoll:6, targetIndex:0 })?.player.id).toBe('background');
+    expect(selectAIRecruitmentTarget({ candidates:[background], unlistedCandidates:[unlisted], managedRoll:1, targetIndex:0 })?.player.id).toBe('unlisted');
+    expect(selectAIRecruitmentTarget({ candidates:[background], unlistedCandidates:[unlisted], managedRoll:16, targetIndex:0 })?.player.id).toBe('background');
   });
 });

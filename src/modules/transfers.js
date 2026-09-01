@@ -2,7 +2,7 @@ import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, g
 import { baselineLevel, currentEffectiveLevel } from './playerModel.js';
 import { patchSave } from './save.js';
 import { bumpMorale } from './standings.js';
-import { buildSquadNeeds, rankRecruitmentCandidates, selectAIRecruitmentTarget } from './squadPlanning.js';
+import { buildSquadNeeds, rankRecruitmentCandidates, rankStandoutRecruitmentCandidates, selectAIRecruitmentTarget } from './squadPlanning.js';
 import {
   MAX_ACTIVE_MARKET_DEALS,
   advanceMarketDeal,
@@ -1132,7 +1132,6 @@ function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
     if ((activeByBuyer.get(buyer.id) ?? 0) >= 2 || market.activeDeals.length >= MAX_ACTIVE_MARKET_DEALS) continue;
     const needs = buildSquadNeeds(buyer, squads.get(buyer.id) ?? [], { season:save.season });
     const need = needs[0];
-    if (!need) continue;
     const candidateOptions = {
       need,
       buyer,
@@ -1141,21 +1140,35 @@ function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
       canSign:canClubSignPlayer,
       likelihoodFor:(player, club) => 50 + Math.min(30, (club.reputation ?? 60) - (teamById.get(player.teamId)?.reputation ?? 60)),
     };
-    const candidates = rankRecruitmentCandidates({
+    const candidates = need ? rankRecruitmentCandidates({
       ...candidateOptions,
       players:players.filter(player => String(player.teamId) !== String(save.userTeamId)),
       limit:4,
-    });
-    const managedCandidates = activeManagedInbound < 2 && !createdManagedInbound
-      ? rankRecruitmentCandidates({
-        ...candidateOptions,
-        players:squads.get(save.userTeamId) ?? [],
-        limit:8,
-      })
-      : [];
+    }) : [];
+    const managedPlayers = squads.get(save.userTeamId) ?? [];
+    const canCreateManagedInbound = activeManagedInbound < 2 && !createdManagedInbound;
+    const listedCandidates = canCreateManagedInbound && need ? rankRecruitmentCandidates({
+      ...candidateOptions,
+      players:managedPlayers.filter(player => player.transferListed === true),
+      limit:8,
+    }) : [];
+    // Do not pass unlisted players through the immediate-need filter.  A
+    // buyer can scout a high-quality or high-potential player as an
+    // opportunity even if that position is not its most urgent shortage.
+    const unlistedCandidates = canCreateManagedInbound ? rankStandoutRecruitmentCandidates({
+      buyer,
+      buyerSquad:squads.get(buyer.id) ?? [],
+      players:managedPlayers.filter(player => player.transferListed !== true),
+      teamsById:teamById,
+      marketValueFor:formAdjustedValue,
+      canSign:canClubSignPlayer,
+      likelihoodFor:candidateOptions.likelihoodFor,
+      limit:8,
+    }) : [];
     const target = selectAIRecruitmentTarget({
       candidates,
-      managedCandidates,
+      listedCandidates,
+      unlistedCandidates,
       managedRoll:stableMarketHash(`${tickKey}:${buyer.id}:managed-target`) % 100,
       targetIndex:stableMarketHash(`${tickKey}:${buyer.id}:target`),
     });
