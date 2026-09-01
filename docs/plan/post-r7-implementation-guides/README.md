@@ -4,7 +4,7 @@
 
 ## Purpose
 
-The strategic roadmap explains why the phases exist and their order. This guide set explains how a future agent should safely deliver each phase against the repository that exists after P2.
+The strategic roadmap explains why the phases exist and their order. This guide set explains how a future agent should safely deliver each phase against the latest completed programme baseline.
 
 The guides are deliberately separate so each phase can be revised, reviewed and implemented without turning the roadmap into a monolith.
 
@@ -50,12 +50,28 @@ P3 should treat these contracts as the stable foundation. If a later rebase or m
 
 If any invariant regresses later, close the regression before building P3 on top of it.
 
+## P3 baseline closed for P4
+
+P3 was closed on branch `roadmap/post-r7-career-depth` on 1 September 2026. The verified baseline adds:
+
+- one additive v4 player contract and shared baseline/effective-level selectors in `playerModel.js`;
+- pure pathway, seeded development and rehabilitation modules shared by user and AI players;
+- idempotent roles/promises, position suitability, traits, potential ranges and weekly player-state settlement;
+- canonical selectors in match selection, transfer valuation, Squad and Academy, with exact XI/bench ordering locked by regression tests;
+- bounded P3 world-week persistence: completed background clubs settle during league/competition projection, ordinary final P3 settlement reads only the managed squad, and league-less/cup-only weeks retain the full-world P3 fallback;
+- 242/242 Vitest, 186/186 accent checks and 21/21 Playwright tests green;
+- mobile/wide P3 player-detail evidence inspected;
+- the unchanged P1 performance guards green at 13.108s load, 7.301s world week and 3.41 MiB storage at 4× CPU throttle;
+- GitHub Actions and Cloudflare Workers green on the final promoted roadmap SHA.
+
+P4 must consume these contracts rather than rebuilding a transfer-only rating, role or player-interest model.
+
 ## Guide index
 
 | Phase | Guide | Depends on | Main result |
 |---:|---|---|---|
-| P3 | [Player Model 2.0](p3-player-model-2.md) | P1, P2 | One coherent durable/effective player state |
-| P4 | [Transfer Market and Contracts 2.0](p4-transfer-market-and-contracts-2.md) | P3 | Persisted staged deals and need-led AI recruitment |
+| P3 ✅ | [Player Model 2.0](p3-player-model-2.md) | P1, P2 | One coherent durable/effective player state |
+| P4 — NEXT | [Transfer Market and Contracts 2.0](p4-transfer-market-and-contracts-2.md) | P3 | Persisted staged deals and need-led AI recruitment |
 | P5 | [Scouting, Coaching, Training and Squad Planning](p5-scouting-coaching-training.md) | P3, P4 | Uncertain knowledge and one shared squad planner |
 | P6 | [Manager Career and Living Manager Market](p6-manager-career-and-market.md) | P1–P5 | Manager entities and club movement in one world |
 | P7 | [Club Identity, Finance, Board and Facilities](p7-club-finance-board-facilities.md) | P4–P6 | Persistent club identity and lightweight economy |
@@ -67,7 +83,7 @@ If any invariant regresses later, close the regression before building P3 on top
 
 ## Programme dependency rules
 
-- P3 must centralise player selectors before P4/P5 consume dynamic ability and suitability.
+- P3 centralises player selectors; P4/P5 must consume them for dynamic ability and suitability.
 - P4 owns the first squad-needs service; P5 expands it rather than replacing it.
 - P6 must solve transfer of controlled-club competition state before mid-season job movement.
 - P7 sends dismissal consequences to P6; it never creates a second manager/job system.
@@ -207,7 +223,7 @@ The P1 shared-runner baseline was:
 - 18.50s authoritative full-world week at 4× CPU throttle;
 - 2.76 MiB storage after a fresh career plus world week.
 
-P2 closeout remained inside the guardrails at 12.57s / 18.93s / 2.61 MiB. The existing conservative CI ceilings remain regression guards, not targets. When a later phase regresses them:
+P2 closeout remained inside the guardrails at 12.57s / 18.93s / 2.61 MiB. P3 closeout passed at 13.108s / 7.301s / 3.41 MiB after removing a duplicate full-world final scan. The existing conservative CI ceilings remain regression guards, not targets. When a later phase regresses them:
 
 1. inspect full-world scans/writes;
 2. bound retained detail;

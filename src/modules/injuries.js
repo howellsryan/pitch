@@ -1,3 +1,9 @@
+import {
+  ensureRehabilitation,
+  markMedicallyAvailable,
+  rehabilitationReinjuryMultiplier,
+} from './playerRehabilitation.js';
+
 /** modules/injuries.js — Realistic injury system.
  *  Target: ~20 injuries per team per season (~0.4 per match across ~50 games).
  *  Duration skewed toward short injuries; long-term injuries are rare.
@@ -42,9 +48,9 @@ export function _pickInjuryType(rng = Math.random) {
 }
 
 /**
- * Roll whether a player gets injured. `rng` is injectable so Match Engine 2.0
- * can keep Quick Sim and segmented Broadcast on the exact same random stream.
- * Older callers may continue to omit it and receive Math.random behaviour.
+ * Roll whether a player gets injured. `rng` is injectable so the match engine
+ * keeps Quick Sim and Broadcast on the same random stream. Rehabilitation
+ * raises the same base risk rather than creating a second injury pipeline.
  */
 export function rollInjuryCheck(player, isHighIntensity, forceRoll, rng = Math.random) {
   if (player.injured) return null;
@@ -61,6 +67,7 @@ export function rollInjuryCheck(player, isHighIntensity, forceRoll, rng = Math.r
     else if (age >= 34) baseChance *= 1.25;
     else if (age >= 32) baseChance *= 1.10;
     if (isHighIntensity) baseChance *= 1.15;
+    baseChance *= rehabilitationReinjuryMultiplier(player);
     if (_injuryRandomValue(rng) > baseChance) return null;
   }
 
@@ -83,15 +90,23 @@ export function tickInjuryRecovery(allPlayers) {
     if (!player.injured) continue;
     const gwLeft = (player.injuryGWsLeft ?? 1) - 1;
     if (gwLeft <= 0) {
+      const injurySnapshot = {
+        injuryName:player.injuryName,
+        injuryType:player.injuryType,
+        injuryGWsLeft:player.injuryGWsLeft,
+        injuryGWsTotal:player.injuryGWsTotal,
+      };
       player.injured = false;
       player.injuryName = null;
       player.injuryType = null;
       player.injuryGWsLeft = 0;
       player.injuryGWsTotal = 0;
       player.fitness = 60;
+      Object.assign(player, markMedicallyAvailable(player, injurySnapshot));
       recovered.push(player);
     } else {
       player.injuryGWsLeft = gwLeft;
+      Object.assign(player, ensureRehabilitation(player));
     }
   }
   return recovered;
@@ -103,6 +118,9 @@ export function applyInjury(player, injData) {
   player.injuryType = injData.injuryType;
   player.injuryGWsLeft = injData.injuryGWsLeft;
   player.injuryGWsTotal = injData.injuryGWsTotal;
+  // A reinjury starts a fresh recovery path. Previous readiness cannot carry
+  // through a new medical absence.
+  player.rehabilitation = null;
 }
 
 export function injuryDurationLabel(gwsLeft) {

@@ -37,8 +37,8 @@ function player(position, overrides = {}) {
 }
 
 describe('P3 canonical player-model selectors', () => {
-  it('versions the additive player-model contract', () => {
-    expect(PLAYER_MODEL_VERSION).toBe(3);
+  it('versions the final additive player-model contract', () => {
+    expect(PLAYER_MODEL_VERSION).toBe(4);
   });
 
   it.each(CASES)('preserves established %s grouping and neutral baseline parity', (position, group, attribute) => {
@@ -61,11 +61,12 @@ describe('P3 canonical player-model selectors', () => {
     expect(striker.position).toBe('ST');
   });
 
-  it('keeps neutral or absent P3 state default-equivalent and pure', () => {
+  it('keeps neutral primary-position state baseline-equivalent while target slots pay explicit fit costs', () => {
     const subject = player('CB');
     const before = { ...subject };
     expect(currentEffectiveLevel(subject)).toBe(baselineLevel(subject));
-    expect(currentEffectiveLevel(subject, { position:'CM' })).toBe(subject.midfield);
+    expect(positionSuitabilityFor(subject, 'CM')).toBe(.28);
+    expect(currentEffectiveLevel(subject, { position:'CM' })).toBe(76.2);
     expect(subject).toEqual(before);
     expect(currentEffectiveLevel(undefined)).toBeUndefined();
     expect(effectiveLevelBreakdown(null)).toBeUndefined();
@@ -74,12 +75,12 @@ describe('P3 canonical player-model selectors', () => {
 });
 
 describe('P3 bounded effective level', () => {
-  it('applies explicit position fit without penalising missing WP4 secondary data', () => {
+  it('applies explicit persisted and deterministic fallback position fit', () => {
     const subject = normalizePlayerModel(player('CM', { positionSuitability:{ CM:1, CDM:.5 } }));
     expect(positionSuitabilityFor(subject, 'CM')).toBe(1);
     expect(positionSuitabilityFor(subject, 'CDM')).toBe(.5);
-    expect(positionSuitabilityFor(subject, 'CAM')).toBe(1);
-    expect(currentEffectiveLevel(subject, { position:'CDM' })).toBe(78);
+    expect(positionSuitabilityFor(subject, 'CAM')).toBe(.72);
+    expect(currentEffectiveLevel(subject, { position:'CDM' })).toBeGreaterThanOrEqual(78);
   });
 
   it('bounds each short-term contribution and the combined swing', () => {
@@ -99,13 +100,14 @@ describe('P3 bounded effective level', () => {
     expect(currentEffectiveLevel(depleted, { position:'CDM' })).toBe(RATINGS.midfield - EFFECTIVE_LEVEL_LIMITS.maxDrop);
   });
 
-  it('exposes one explainable breakdown and reuses its non-positional delta for attributes', () => {
-    const subject = normalizePlayerModel(player('CM', { form:100, sharpness:100, fitness:100 }));
+  it('exposes one explainable breakdown and reuses non-positional state for raw attributes', () => {
+    const subject = player('CM', { form:100, sharpness:100, fitness:100 });
     const before = structuredClone(subject);
     const breakdown = effectiveLevelBreakdown(subject);
     expect(Object.keys(breakdown.contributions)).toEqual([
-      'positionFit', 'form', 'morale', 'sharpness', 'fitness', 'rehabilitation',
+      'positionFit', 'form', 'morale', 'sharpness', 'fitness', 'rehabilitation', 'traits',
     ]);
+    expect(breakdown.contributions.traits).toBe(0);
     expect(breakdown.effectiveLevel).toBe(currentEffectiveLevel(subject));
     const delta = currentEffectiveLevel(subject) - baselineLevel(subject);
     expect(effectiveAttribute(subject, 'attack')).toBe(RATINGS.attack + delta);
@@ -157,7 +159,7 @@ describe('P3 once-per-world-week personal state', () => {
 });
 
 describe('P3 player-model normalisation', () => {
-  it('adds neutral state without changing durable/career fields', () => {
+  it('adds final P3 state without changing durable/career fields', () => {
     const legacy = player('CM', {
       teamId:'club', onLoan:true, loanOriginalTeamId:'parent', appearances:19, minutes:1211,
       potentialRating:88, injuryName:'Hamstring strain', transferHistory:[{ from:'a', to:'b' }],
@@ -165,19 +167,22 @@ describe('P3 player-model normalisation', () => {
     const migrated = normalizePlayerModel(legacy);
     expect(migrated).toMatchObject(legacy);
     expect(migrated.positionSuitability).toEqual({ CM:1 });
-    expect(migrated.traits).toEqual([]);
+    expect(migrated.traits.length).toBeGreaterThan(0);
+    expect(migrated.traits.length).toBeLessThanOrEqual(MAX_PLAYER_TRAITS);
     expect(migrated.individualMorale).toBe(DEFAULT_INDIVIDUAL_MORALE);
     expect(migrated.sharpness).toBe(DEFAULT_SHARPNESS);
     expect(migrated.squadRole).toBeNull();
     expect(migrated.squadRoleSource).toBeNull();
     expect(migrated.squadRoleTeamId).toBeNull();
     expect(migrated.playingTimeAgreement).toBeNull();
+    expect(migrated.growthProfile).toBeTruthy();
+    expect(migrated.potentialKnowledge).toBeGreaterThan(0);
     expect(migrated.personalStateAppearances).toBe(19);
     expect(migrated.personalStateMinutes).toBe(1211);
     expect(baselineLevel(migrated)).toBe(baselineLevel(legacy));
   });
 
-  it('preserves valid position suitability and bounds/sanitises personal state and traits', () => {
+  it('preserves valid position suitability and keeps only configured traits', () => {
     expect(normalizePositionSuitability({ CM:.7, CAM:.84, RW:2, GK:-1, BAD:'x' }, 'CM')).toEqual({
       CM:1, CAM:.84, RW:1, GK:0,
     });
@@ -185,8 +190,8 @@ describe('P3 player-model normalisation', () => {
     const migrated = normalizePlayerModel(player('ST', { individualMorale:200, sharpness:-25, traits }));
     expect(migrated.individualMorale).toBe(100);
     expect(migrated.sharpness).toBe(0);
-    expect(migrated.traits[0]).toBe('creator');
-    expect(migrated.traits).toHaveLength(MAX_PLAYER_TRAITS);
+    expect(migrated.traits).toEqual(['creator']);
+    expect(migrated.traits.length).toBeLessThanOrEqual(MAX_PLAYER_TRAITS);
     expect(normalizePlayerTraits(migrated.traits)).toEqual(migrated.traits);
   });
 

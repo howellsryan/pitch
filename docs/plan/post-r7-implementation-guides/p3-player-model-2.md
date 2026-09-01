@@ -1,6 +1,8 @@
 # P3 Implementation Guide — Player Model 2.0
 
-> Planning document only. This guide defines the execution route after P2. It does not implement P3.
+> Delivered reference. P3 completed on 1 September 2026; this guide preserves the implemented contracts and historical execution route for later phases.
+
+**Status: ✅ COMPLETE — 1 September 2026. P4 is next.**
 
 ## Outcome
 
@@ -8,7 +10,16 @@ P3 makes selection, rotation, development, morale, playing time and injury retur
 
 P3 is complete when a player's baseline quality, effective level, potential uncertainty, growth path, morale, sharpness, squad role, positional suitability, traits and rehabilitation state survive save/import/season rollover and materially affect both managed and background matches.
 
-## Entry gate
+## Delivered architecture
+
+- `playerModel.js` owns player-model version 4, additive normalisation, squad roles/promises and the shared baseline/effective-level selectors. Current effective level remains derived, never persisted.
+- `playerPathways.js`, `playerDevelopment.js` and `playerRehabilitation.js` are pure, seeded domain dependencies loaded before `playerModel.js` in both ES modules and the legacy bundle.
+- Match selection, transfer valuation/ranking, Squad and Academy consume the shared selector. The hot effective-level cache is player-object/snapshot scoped, and lineup-order regression coverage proves optimisation does not reorder the XI or bench.
+- Existing player rows, youth cohorts and embedded academy players backfill idempotently without a `DB_VERSION` or save-envelope bump.
+- League projection coalesces weekly P3 settlement for completed background clubs into its existing changed-row write. Domestic/European projections settle deferred participants; ordinary final P3 settlement loads only the managed squad. The full-world P3 path remains only for genuine league-less/cup-only weeks.
+- The previous 41.66s throttled world-week regression was the combination of a duplicate final full-world read/scan and repeated hot-selector work. Removing both brought the authoritative week to 7.301s without changing the existing 25s ceiling.
+
+## Entry gate (historical)
 
 Do not start P3 until the P2 closeout confirms all of the following on the latest green main:
 
@@ -21,7 +32,7 @@ Do not start P3 until the P2 closeout confirms all of the following on the lates
 
 If any item is incomplete, finish P2 first. Do not build P3 around a temporary P2 adapter.
 
-## Current repository baseline
+## P2 repository baseline (historical)
 
 | Concern | Current owner | P3 implication |
 |---|---|---|
@@ -218,7 +229,7 @@ Retain and inspect screenshots for the changed Squad and player-detail states. A
 
 Every pushed slice must remain playable. Do not defer migration or Quick Sim/Broadcast parity to a cleanup commit.
 
-## Exit criteria
+## Exit criteria — satisfied
 
 P3 is done only when:
 
@@ -229,6 +240,8 @@ P3 is done only when:
 - no full-world rewrite was added to ordinary screen loads;
 - mobile and wide affected journeys were rendered and inspected;
 - the complete repository verification suite and Cloudflare preview are green on the final SHA.
+
+Closeout evidence: 242/242 Vitest tests across 41 files plus the UI emoji audit; 186/186 club accent checks; 21/21 Playwright tests; retained/inspected 390×844 and 1280×800 player-detail screenshots; and the unchanged 4×-CPU guards green at 13.108s load, 7.301s world week and 3.41 MiB storage. GitHub Actions and Cloudflare Workers were required to be green on the final promoted roadmap SHA before handoff.
 
 ## Explicit deferrals
 

@@ -2,6 +2,16 @@
   import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
   import { FORMATIONS, primaryRating, selectEleven } from '../../modules/matchEngine.js';
   import {
+    SQUAD_ROLE_DEFS,
+    baselineLevel,
+    currentEffectiveLevel,
+    positionSuitabilityFor,
+    setPlayerSquadRole,
+  } from '../../modules/playerModel.js';
+  import { positionFitLabel, traitRecruitmentLabels } from '../../modules/playerPathways.js';
+  import { getPotentialEstimate } from '../../modules/potential.js';
+  import { rehabilitationSelectionWarning } from '../../modules/playerRehabilitation.js';
+  import {
     DEFAULT_TEAM_INSTRUCTIONS,
     TEAM_INSTRUCTION_DEFS,
     createUserTacticalPlan,
@@ -12,7 +22,7 @@
     roleSuitability,
     summarizeManagerDNA,
   } from '../../modules/tactics.js';
-  import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
+  import { SLOT_LAYOUT } from '../../game/formationLayout.js';
   import { contractYearsRemaining, renewContract } from '../../modules/transfers.js';
   import { fmt, posGroup, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -24,10 +34,7 @@
     { id: 'attacking', label: 'ATK', fullLabel: 'Attacking', desc: 'High press & direct, more exposed' },
   ];
 
-  // R4's Chalk screen uses the shared formation layout from src/game/formationLayout.js (Phase 5,
-  // docs/plan/04-migration-phases.md) — shared verbatim with MatchScreen.svelte's
-  // Team News beat so the two pitch views can't drift out of sync.
-  const SWAP_POS_MAP = { GK:['GK'], RB:['RB','LB'], LB:['LB','RB'], CB:['CB'], RM:['RM','CM','CAM'], LM:['LM','CM','CAM'], CDM:['CDM','CM'], CM:['CM','CDM','CAM'], CAM:['CAM','CM','RW','LW'], RW:['RW','CAM','LW'], LW:['LW','CAM','RW'], ST:['ST','CF','LW','RW','CAM'] };
+  const SQUAD_ROLE_ORDER = ['crucial', 'important', 'rotation', 'squad', 'prospect'];
 
   let loaded = $state(false);
   let team = $state(null);
@@ -76,28 +83,31 @@
       + (changedInstructions.length > 2 ? ` +${changedInstructions.length - 2}` : '');
   });
 
+  function slotLevel(player, position) {
+    return Number(currentEffectiveLevel(player, { position }) ?? primaryRating(player) ?? 0);
+  }
+
+  function slotFit(player, position) {
+    return Number(positionSuitabilityFor(player, position) ?? 0);
+  }
+
   const assignment = $derived.by(() => {
-    const avail = players.filter(p => p.inSquad !== false && !p.injured && !p.suspended).sort((a, b) => primaryRating(b) - primaryRating(a));
+    const avail = players.filter(p => p.inSquad !== false && !p.injured && !p.suspended);
     const out = new Array(slots.length).fill(null);
     const usedIds = [];
-    const use = (id) => usedIds.push(id);
-    const isUsed = (id) => usedIds.includes(id);
     if (savedLineup.length === 11) {
       savedLineup.forEach((pid, i) => {
         const pl = players.find(p => p.id === pid);
-        if (pl) { out[i] = pl; use(pl.id); }
+        if (pl) { out[i] = pl; usedIds.push(pl.id); }
       });
       return out;
     }
     slots.forEach((slot, i) => {
-      const acceptable = SLOT_POS_MAP[slot.p] ?? [slot.p];
-      const cand = avail.find(p => !isUsed(p.id) && acceptable.includes(p.position));
-      if (cand) { out[i] = cand; use(cand.id); }
-    });
-    slots.forEach((slot, i) => {
-      if (out[i]) return;
-      const cand = avail.find(p => !isUsed(p.id) && p.position !== 'GK');
-      if (cand) { out[i] = cand; use(cand.id); }
+      const candidates = avail
+        .filter(p => !usedIds.includes(p.id) && (slot.p === 'GK' ? p.position === 'GK' : p.position !== 'GK'))
+        .sort((a, b) => slotLevel(b, slot.p) - slotLevel(a, slot.p) || slotFit(b, slot.p) - slotFit(a, slot.p));
+      const cand = candidates[0];
+      if (cand) { out[i] = cand; usedIds.push(cand.id); }
     });
     return out;
   });
@@ -127,6 +137,15 @@
   function roleFitLabel(player, roleId) {
     const fit = roleSuitability(player, roleId);
     return fit >= 1.02 ? 'Strong fit' : fit >= .92 ? 'Good fit' : 'Stretch';
+  }
+
+  function promiseLabel(player) {
+    const agreement = player?.playingTimeAgreement;
+    if (!agreement) return 'No active promise';
+    if (agreement.status === 'fulfilled') return 'Fulfilled';
+    if (agreement.status === 'at_risk') return 'At risk';
+    if (agreement.status === 'broken') return 'Broken';
+    return 'Settling';
   }
 
   async function pickFormation(f) {
@@ -162,6 +181,15 @@
     save = updated;
     const role = roleId ? getRoleDefinition(roleId) : defaultRoleForPosition(player.position);
     toast(`${player.name}: ${role?.label ?? 'Automatic role'}`, 'info', 2000);
+  }
+
+  async function pickSquadRole(player, roleId) {
+    const updated = setPlayerSquadRole(player, roleId, { source:'manager', teamId:save?.userTeamId ?? player.teamId });
+    if (updated === player) return;
+    await putPlayer(updated);
+    playerSheet = updated;
+    players = players.map(p => p.id === updated.id ? updated : p);
+    toast(`${player.name}: ${SQUAD_ROLE_DEFS[roleId]?.label ?? roleId} playing-time role`, 'info', 2200);
   }
 
   function fitnessColor(fit) {
@@ -207,12 +235,9 @@
 
   function openSlotSwap(idx) { swapSlotIdx = idx; swapPreselectId = null; }
   function openBenchSwap(benchPlayer) {
-    let bestIdx = 0, bestScore = -1;
+    let bestIdx = 0, bestScore = -Infinity;
     slots.forEach((slot, i) => {
-      const acceptable = SWAP_POS_MAP[slot.p] ?? [slot.p];
-      const isNatural = acceptable.includes(benchPlayer.position);
-      const isEmpty = !assignment[i];
-      const score = (isNatural ? 2 : 0) + (isEmpty ? 1 : 0);
+      const score = slotLevel(benchPlayer, slot.p) + slotFit(benchPlayer, slot.p) * 3 + (!assignment[i] ? 1 : 0);
       if (score > bestScore) { bestScore = score; bestIdx = i; }
     });
     swapSlotIdx = bestIdx;
@@ -224,21 +249,19 @@
     if (swapSlotIdx === null) return null;
     const slot = slots[swapSlotIdx];
     const currentPlayer = assignment[swapSlotIdx];
-    const naturalPositions = SWAP_POS_MAP[slot.p] ?? [slot.p];
-    const slotGroup = posGroup(slot.p);
     const candidates = players.filter(p => p.inSquad !== false && !p.injured && !p.suspended && p.id !== currentPlayer?.id);
 
     const naturalFit = [], versatile = [], outOfPos = [];
     candidates.forEach(p => {
       const isInXI = assignment.some((ap, i) => ap?.id === p.id && i !== swapSlotIdx);
-      const isNatural = naturalPositions.includes(p.position);
-      const pGroup = posGroup(p.position);
-      const entry = { player: p, isInXI, isNatural };
-      if (isNatural) naturalFit.push(entry);
-      else if (pGroup === slotGroup || (slotGroup === 'MID' && pGroup === 'ATT') || (slotGroup === 'ATT' && pGroup === 'MID')) versatile.push(entry);
+      const fitScore = slotFit(p, slot.p);
+      const effective = slotLevel(p, slot.p);
+      const entry = { player:p, isInXI, fitScore, effective };
+      if (fitScore >= .75) naturalFit.push(entry);
+      else if (fitScore >= .45) versatile.push(entry);
       else outOfPos.push(entry);
     });
-    const sortGroup = arr => arr.sort((a, b) => (a.isInXI !== b.isInXI ? (a.isInXI ? 1 : -1) : primaryRating(b.player) - primaryRating(a.player)));
+    const sortGroup = arr => arr.sort((a, b) => (a.isInXI !== b.isInXI ? (a.isInXI ? 1 : -1) : b.effective - a.effective || b.fitScore - a.fitScore));
     sortGroup(naturalFit); sortGroup(versatile); sortGroup(outOfPos);
 
     return { slot, currentPlayer, naturalFit, versatile, outOfPos };
@@ -259,7 +282,8 @@
     const sv = await getSave();
     const lineup = newAssignment.filter(Boolean).map(p => p.id);
     await putSave({ ...sv, lineup, formation });
-    toast(`${newPlayer.name} → ${slots[idx].p} slot`, 'success', 2000);
+    const fit = positionFitLabel(slotFit(newPlayer, slots[idx].p));
+    toast(`${newPlayer.name} → ${slots[idx].p} · ${fit}`, slotFit(newPlayer, slots[idx].p) < .55 ? 'warning' : 'success', 2300);
     screenTicks.squad++;
   }
 </script>
@@ -350,12 +374,15 @@
             {@const pl = assignment[i]}
             {@const g = pl ? posGroup(pl.position) : posGroup(slot.p)}
             {@const role = activeRoleFor(pl)}
-            <button class="pitch-slot" style="left:{slot.x}%;top:{slot.y}%" draggable={!!pl} onclick={() => openSlotSwap(i)} ondragstart={() => beginDrag(pl)} ondragover={(e) => e.preventDefault()} ondrop={() => dropOnSlot(i)} aria-label="{slot.p} slot{pl && role ? ` · ${pl.name} · ${role.label}` : ''}">
-              <div class="slot-inner pos-{g} {!pl ? 'pos-empty' : ''} {pl?.injured ? 'slot-injured' : ''}">
+            {@const fitScore = pl ? slotFit(pl, slot.p) : 1}
+            {@const fitLabel = pl ? positionFitLabel(fitScore) : ''}
+            <button class="pitch-slot" style="left:{slot.x}%;top:{slot.y}%" draggable={!!pl} onclick={() => openSlotSwap(i)} ondragstart={() => beginDrag(pl)} ondragover={(e) => e.preventDefault()} ondrop={() => dropOnSlot(i)} aria-label="{slot.p} slot{pl ? ` · ${pl.name} · ${fitLabel}${role ? ` · ${role.label}` : ''}` : ''}">
+              <div class="slot-inner pos-{g} {!pl ? 'pos-empty' : ''} {pl?.injured ? 'slot-injured' : ''} {fitScore < .55 ? 'slot-mismatch' : ''}">
                 {#if pl}
-                  <div class="slot-rating">{primaryRating(pl)}</div>
+                  <div class="slot-rating">{Math.round(slotLevel(pl, slot.p))}</div>
                   <div class="slot-pos">{pl.position}</div>
                   {#if role}<div class="slot-role">{role.short}</div>{/if}
+                  {#if fitScore < .75}<div class="slot-fit-tag">{fitScore < .55 ? '!' : 'FIT'}</div>{/if}
                   {#if pl.injured}<div class="slot-inj-tag">INJ</div>{/if}
                 {:else}
                   <div class="slot-pos slot-empty-lbl">{slot.p}</div>
@@ -420,11 +447,12 @@
     </div>
     {#if swapSections.currentPlayer}
       {@const cp = swapSections.currentPlayer}
+      {@const cpFit = positionFitLabel(slotFit(cp, swapSections.slot.p))}
       <div class="swap-current">
         <span class="pos-badge pos-{posGroup(cp.position)}">{cp.position}</span>
         <div>
           <div class="swap-current-name">{cp.name}</div>
-          <div class="swap-current-meta">Current · Rating {primaryRating(cp)} · Fitness {Math.round(cp.fitness ?? 90)}%</div>
+          <div class="swap-current-meta">Current · Level {Math.round(slotLevel(cp, swapSections.slot.p))} · {cpFit} · Fitness {Math.round(cp.fitness ?? 90)}%</div>
         </div>
       </div>
     {/if}
@@ -439,11 +467,11 @@
               <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
               <span class="swap-row-info">
                 <span class="swap-row-name">{p.name}</span>
-                <span class="swap-row-meta">Age {p.age}{#if p.goals}{' · ' + p.goals + 'G'}{/if}{#if p.assists}{' · ' + p.assists + 'A'}{/if}</span>
+                <span class="swap-row-meta">{positionFitLabel(entry.fitScore)} · Age {p.age}{#if p.goals}{' · ' + p.goals + 'G'}{/if}{#if p.assists}{' · ' + p.assists + 'A'}{/if}</span>
               </span>
               {#if entry.isInXI}<span class="swap-row-badge">IN XI</span>{/if}
               <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span>
-              <span class="swap-row-rat" style="color:{entry.isNatural ? 'var(--color-live)' : 'var(--color-tx-2)'}">{primaryRating(p)}</span>
+              <span class="swap-row-rat" style="color:{entry.fitScore >= .75 ? 'var(--color-live)' : entry.fitScore < .45 ? 'var(--color-bad)' : 'var(--color-tx-2)'}">{Math.round(entry.effective)}</span>
             </button>
           {/each}
         {/if}
@@ -463,7 +491,7 @@
         {@const role = activeRoleFor(p)}
         <button class="swap-row" onclick={() => openPlayer(p)}>
           <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
-          <span class="swap-row-info"><span class="swap-row-name">{p.name}</span><span class="swap-row-meta">Age {p.age}{role ? ` · ${role.label}` : ''}{p.injured ? ' · Injured' : ''}{p.transferListed ? ' · Listed' : ''}</span></span>
+          <span class="swap-row-info"><span class="swap-row-name">{p.name}</span><span class="swap-row-meta">Age {p.age}{role ? ` · ${role.label}` : ''}{p.squadRole ? ` · ${SQUAD_ROLE_DEFS[p.squadRole]?.label ?? p.squadRole}` : ''}{p.injured ? ' · Injured' : ''}{p.transferListed ? ' · Listed' : ''}</span></span>
           <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span><span class="swap-row-rat">{primaryRating(p)}</span>
         </button>
       {/each}
@@ -477,12 +505,54 @@
   {@const yearsLeft = save ? contractYearsRemaining(p, save) : null}
   {@const explicitRole = getRoleDefinition(save?.playerRoles?.[p.id])}
   {@const currentRole = explicitRole ?? defaultRoleForPosition(p.position)}
+  {@const baseRating = Math.round(Number(baselineLevel(p) ?? 0))}
+  {@const currentRating = Math.round(Number(currentEffectiveLevel(p) ?? baseRating))}
+  {@const potential = getPotentialEstimate(p)}
+  {@const traits = traitRecruitmentLabels(p)}
+  {@const rehabWarning = rehabilitationSelectionWarning(p)}
+  {@const squadRole = SQUAD_ROLE_DEFS[p.squadRole]}
   <button class="sheet-backdrop" onclick={closePlayer} aria-label="Close player"></button>
   <div class="sheet player-sheet">
     <div class="sheet-handle"></div>
     <div class="swap-hdr"><div><span class="swap-title">{p.name}</span><div class="player-sub"><span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span> Age {p.age} · {fit}% fit</div></div><button class="sheet-close" onclick={closePlayer} aria-label="Close">✕</button></div>
-    <div class="player-metrics"><div><span>Rating</span><strong>{primaryRating(p)}</strong></div><div><span>Value</span><strong>{fmt.money(p.value)}</strong></div><div><span>Wage</span><strong>{fmt.wage(p.wage)}</strong></div>{#if yearsLeft !== null}<div><span>Contract</span><strong>{yearsLeft <= 0 ? 'Expiring' : yearsLeft + ' yrs'}</strong></div>{/if}</div>
+
+    {#if rehabWarning}<div class="p3-warning">{rehabWarning}</div>{/if}
+
+    <div class="player-metrics">
+      <div><span>Current</span><strong>{currentRating}</strong></div>
+      <div><span>Baseline</span><strong>{baseRating}</strong></div>
+      <div><span>Potential</span><strong>{potential.min}–{potential.max}</strong><small>{potential.confidence}</small></div>
+      {#if yearsLeft !== null}<div><span>Contract</span><strong>{yearsLeft <= 0 ? 'Expiring' : yearsLeft + ' yrs'}</strong></div>{:else}<div><span>Value</span><strong>{fmt.money(p.value)}</strong></div>{/if}
+    </div>
+
+    <div class="p3-state-grid" aria-label="Current player state">
+      <div><span>Form</span><strong>{Math.round(p.form ?? 50)}</strong></div>
+      <div><span>Morale</span><strong>{Math.round(p.individualMorale ?? 50)}</strong></div>
+      <div><span>Sharpness</span><strong>{Math.round(p.sharpness ?? 50)}</strong></div>
+      <div><span>Fitness</span><strong>{fit}</strong></div>
+    </div>
+
     <div class="player-attributes"><div><span>GK</span><strong>{p.goalkeeping ?? 0}</strong></div><div><span>DEF</span><strong>{p.defence ?? 0}</strong></div><div><span>MID</span><strong>{p.midfield ?? 0}</strong></div><div><span>ATT</span><strong>{p.attack ?? 0}</strong></div></div>
+
+    <section class="p3-section" aria-label="Position and traits">
+      <div class="p3-section-head"><div><span>Position fit</span><strong>{p.position} · Natural</strong></div><small>{p.positionConversion ? `Converting to ${p.positionConversion.targetPosition} · ${Math.round((p.positionConversion.progress ?? 0) * 100)}%` : 'Primary position remains unchanged until you choose a pathway.'}</small></div>
+      <div class="p3-chip-row">
+        {#if traits.length}
+          {#each traits as trait (trait)}<span class="p3-chip">{trait}</span>{/each}
+        {:else}<span class="p3-muted">No standout trait yet</span>{/if}
+      </div>
+    </section>
+
+    <section class="p3-section" aria-label="Playing time role">
+      <div class="p3-section-head"><div><span>Playing-time role</span><strong>{squadRole?.label ?? 'Automatic'}</strong></div><small class:at-risk={p.playingTimeAgreement?.status === 'at_risk'} class:broken={p.playingTimeAgreement?.status === 'broken'}>{promiseLabel(p)}</small></div>
+      <div class="squad-role-options">
+        {#each SQUAD_ROLE_ORDER as roleId (roleId)}
+          {@const def = SQUAD_ROLE_DEFS[roleId]}
+          <button class:active={p.squadRole === roleId} onclick={() => pickSquadRole(p, roleId)}><strong>{def.label}</strong><small>{Math.round(def.appearanceShare * 100)}% apps</small></button>
+        {/each}
+      </div>
+    </section>
+
     <section class="role-section" aria-label="Tactical role">
       <div class="role-heading"><div><span>Tactical role</span><strong>{currentRole?.label ?? 'Automatic'}</strong></div><small>Role fit changes how effectively this player executes the team plan.</small></div>
       <div class="role-options">
@@ -492,6 +562,8 @@
         {/each}
       </div>
     </section>
+
+    <div class="player-finance"><span>{fmt.money(p.value)}</span><span>{fmt.wage(p.wage)}/wk</span></div>
     <div class="player-actions">
       {#if yearsLeft !== null && !p.onLoan}<button class="player-primary" onclick={() => renewPlayerContract(p)}>Renew contract</button>{/if}
       <button onclick={() => toggleSquad(p)}>{p.inSquad === false ? 'Add to squad' : 'Exclude from squad'}</button>
@@ -512,29 +584,14 @@
   .tac-dd-half { flex: 1; position: relative; }
   .tac-dd-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 4px; }
   .tac-dropdown { position: relative; }
-  .tac-dd-btn {
-    width: 100%; display: flex; align-items: center; gap: 8px;
-    background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px;
-    padding: 10px 12px; min-height: 44px; color: var(--color-tx); cursor: pointer;
-  }
+  .tac-dd-btn { width: 100%; display: flex; align-items: center; gap: 8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px; min-height: 44px; color: var(--color-tx); cursor: pointer; }
   .tac-dd-val { flex: 1; text-align: left; font-family: var(--font-display); font-size: 15px; letter-spacing: 0.5px; }
   .tac-dd-arrow { color: var(--color-tx-3); transition: transform 0.15s; }
   .tac-dd-arrow.open { transform: rotate(180deg); }
-  .m-pill-tag {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px;
-    background: var(--color-raised); color: var(--color-club); flex-shrink: 0;
-  }
-  .tac-dd-list {
-    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-    background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 10px;
-    max-height: 320px; overflow-y: auto; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  }
+  .m-pill-tag { font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px; background: var(--color-raised); color: var(--color-club); flex-shrink: 0; }
+  .tac-dd-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50; background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 10px; max-height: 320px; overflow-y: auto; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
   .tac-dd-group-hdr { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--color-tx-3); padding: 6px 8px 2px; }
-  .tac-dd-option, .m-option {
-    width: 100%; display: flex; align-items: center; gap: 8px; text-align: left;
-    background: none; border: none; color: var(--color-tx); font-size: 12px;
-    padding: 8px; border-radius: 7px; cursor: pointer; min-height: 36px;
-  }
+  .tac-dd-option, .m-option { width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; background: none; border: none; color: var(--color-tx); font-size: 12px; padding: 8px; border-radius: 7px; cursor: pointer; min-height: 36px; }
   .tac-dd-option:hover, .m-option:hover { background: var(--color-surface); }
   .tac-dd-option.tac-dd-active { color: var(--color-club); }
   .tac-dd-check { margin-left: auto; color: var(--color-club); }
@@ -553,93 +610,48 @@
 
   .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 12px; }
   .pitch-wrap { width: 100%; max-width: 420px; aspect-ratio: 68/100; margin: 0 auto; }
-  .pitch-bg {
-    position: relative; width: 100%; height: 100%;
-    background: linear-gradient(180deg, var(--color-turf), var(--color-turf-2));
-    border: 2px solid rgba(255,255,255,0.18); border-radius: 8px; overflow: hidden;
-  }
+  .pitch-bg { position: relative; width: 100%; height: 100%; background: linear-gradient(180deg, var(--color-turf), var(--color-turf-2)); border: 2px solid rgba(255,255,255,0.18); border-radius: 8px; overflow: hidden; }
   .pitch-line.half { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.18); }
   .pitch-circle { position: absolute; top: 50%; left: 50%; width: 22%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.18); border-radius: 50%; transform: translate(-50%, -50%); }
   .pitch-spot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.3); left: 50%; transform: translate(-50%, -50%); }
-  .pitch-spot.mid { top: 50%; }
-  .pitch-spot.top { top: 15%; }
-  .pitch-spot.bot { top: 85%; }
+  .pitch-spot.mid { top: 50%; } .pitch-spot.top { top: 15%; } .pitch-spot.bot { top: 85%; }
   .pitch-box { position: absolute; left: 21%; width: 58%; height: 16%; border: 1px solid rgba(255,255,255,0.18); }
-  .pitch-box.top { top: 0; border-top: none; }
-  .pitch-box.bot { bottom: 0; border-bottom: none; }
+  .pitch-box.top { top: 0; border-top: none; } .pitch-box.bot { bottom: 0; border-bottom: none; }
   .pitch-six { position: absolute; left: 36%; width: 28%; height: 7%; border: 1px solid rgba(255,255,255,0.18); }
-  .pitch-six.top { top: 0; border-top: none; }
-  .pitch-six.bot { bottom: 0; border-bottom: none; }
+  .pitch-six.top { top: 0; border-top: none; } .pitch-six.bot { bottom: 0; border-bottom: none; }
   .pitch-arc { position: absolute; left: 36%; width: 28%; height: 6%; border: 1px solid rgba(255,255,255,0.18); border-radius: 0 0 50% 50% / 0 0 100% 100%; }
-  .pitch-arc.top { top: 16%; border-top: none; }
-  .pitch-arc.bot { bottom: 16%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-bottom: none; }
+  .pitch-arc.top { top: 16%; border-top: none; } .pitch-arc.bot { bottom: 16%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-bottom: none; }
 
-  .pitch-slot {
-    position: absolute; transform: translate(-50%, -50%);
-    width: 44px; min-height: 58px; display: flex; flex-direction: column; align-items: center; gap: 2px;
-    background: none; border: none; cursor: pointer; padding: 0;
-  }
-  .slot-inner {
-    width: 44px; height: 44px; border-radius: 50%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border: 2px solid; background: var(--color-surface);
-  }
-  .slot-inner.pos-GK { border-color: #7c83e8; }
-  .slot-inner.pos-DEF { border-color: var(--color-live); }
-  .slot-inner.pos-MID { border-color: var(--color-warn); }
-  .slot-inner.pos-ATT { border-color: var(--color-bad); }
+  .pitch-slot { position: absolute; transform: translate(-50%, -50%); width: 44px; min-height: 58px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; cursor: pointer; padding: 0; }
+  .slot-inner { width: 44px; height: 44px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid; background: var(--color-surface); }
+  .slot-inner.pos-GK { border-color: #7c83e8; } .slot-inner.pos-DEF { border-color: var(--color-live); } .slot-inner.pos-MID { border-color: var(--color-warn); } .slot-inner.pos-ATT { border-color: var(--color-bad); }
   .slot-inner.pos-empty { border-color: var(--color-line); border-style: dashed; background: rgba(255,255,255,0.04); }
   .slot-inner.slot-injured { box-shadow: 0 0 0 2px var(--color-bad); }
+  .slot-inner.slot-mismatch { border-color:var(--color-bad); }
   .slot-rating { font-family: var(--font-display); font-size: 14px; line-height: .95; color: var(--color-tx); }
   .slot-pos { font-family: var(--font-mono); font-size: 7px; line-height:1; color: var(--color-tx-2); }
   .slot-role { margin-top:1px; color:var(--color-club); font:700 6px/1 var(--font-mono); letter-spacing:.2px; }
   .slot-empty-lbl { color: var(--color-tx-3); font-size: 9px; }
-  .slot-inj-tag { position: absolute; top: -6px; font-size: 7px; font-family: var(--font-mono); font-weight: 700; color: var(--color-bad); background: var(--color-surface); padding: 0 3px; border-radius: 3px; }
+  .slot-inj-tag, .slot-fit-tag { position:absolute; top:-6px; font:700 7px/1 var(--font-mono); background:var(--color-surface); padding:2px 3px; border-radius:3px; }
+  .slot-inj-tag { color:var(--color-bad); }
+  .slot-fit-tag { color:var(--color-warn); left:-2px; }
   .slot-name { font-size: 9px; color: var(--color-tx); background: rgba(0,0,0,0.55); padding: 1px 5px; border-radius: 4px; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
 
   .tac-bench-strip { flex-shrink: 0; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); }
   .tac-bench-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 8px; }
   .tac-bench-players { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior: contain; padding-bottom: 4px; }
-  .tac-bench-card {
-    flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; gap: 3px;
-    background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; padding: 8px 4px;
-    cursor: pointer; color: var(--color-tx);
-  }
-  .tac-bench-avatar {
-    width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-mono); font-size: 10px; font-weight: 700; border: 1px solid; background: var(--color-raised);
-  }
-  .tac-bench-avatar.pos-GK { color: #7c83e8; border-color: #7c83e8; }
-  .tac-bench-avatar.pos-DEF { color: var(--color-live); border-color: var(--color-live); }
-  .tac-bench-avatar.pos-MID { color: var(--color-warn); border-color: var(--color-warn); }
-  .tac-bench-avatar.pos-ATT { color: var(--color-bad); border-color: var(--color-bad); }
-  .tac-bench-pos { font-size: 8px; color: var(--color-tx-3); font-family: var(--font-mono); }
-  .tac-bench-name { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
-  .tac-bench-rat { font-family: var(--font-display); font-size: 13px; }
-  .tac-bench-fit { font-size: 8px; font-family: var(--font-mono); }
+  .tac-bench-card { flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; padding: 8px 4px; cursor: pointer; color: var(--color-tx); }
+  .tac-bench-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 10px; font-weight: 700; border: 1px solid; background: var(--color-raised); }
+  .tac-bench-avatar.pos-GK { color: #7c83e8; border-color: #7c83e8; } .tac-bench-avatar.pos-DEF { color: var(--color-live); border-color: var(--color-live); } .tac-bench-avatar.pos-MID { color: var(--color-warn); border-color: var(--color-warn); } .tac-bench-avatar.pos-ATT { color: var(--color-bad); border-color: var(--color-bad); }
+  .tac-bench-pos { font-size: 8px; color: var(--color-tx-3); font-family: var(--font-mono); } .tac-bench-name { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; } .tac-bench-rat { font-family: var(--font-display); font-size: 13px; } .tac-bench-fit { font-size: 8px; font-family: var(--font-mono); }
 
-  .pos-badge {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-    padding: 2px 6px; border-radius: 5px; flex-shrink: 0;
-    background: var(--color-raised); color: var(--color-tx-2); border: 1px solid var(--color-line);
-  }
-  .pos-badge.pos-GK { color: #7c83e8; }
-  .pos-badge.pos-DEF { color: var(--color-live); }
-  .pos-badge.pos-MID { color: var(--color-warn); }
-  .pos-badge.pos-ATT { color: var(--color-bad); }
+  .pos-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 5px; flex-shrink: 0; background: var(--color-raised); color: var(--color-tx-2); border: 1px solid var(--color-line); }
+  .pos-badge.pos-GK { color: #7c83e8; } .pos-badge.pos-DEF { color: var(--color-live); } .pos-badge.pos-MID { color: var(--color-warn); } .pos-badge.pos-ATT { color: var(--color-bad); }
 
-  /* ── Bottom sheets ────────────────────────────────────────── */
   .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 900; animation: fade-in 0.2s ease; border: none; padding: 0; cursor: default; }
-  .sheet {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 901;
-    max-height: 80dvh; display: flex; flex-direction: column;
-    background: var(--color-surface); border: 1px solid var(--color-line); border-bottom: none;
-    border-radius: 18px 18px 0 0; padding: 10px 18px calc(16px + env(safe-area-inset-bottom));
-    animation: slide-up 0.22s ease; font-family: var(--font-body); color: var(--color-tx);
-  }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 901; max-height: 80dvh; display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-line); border-bottom: none; border-radius: 18px 18px 0 0; padding: 10px 18px calc(16px + env(safe-area-inset-bottom)); animation: slide-up 0.22s ease; font-family: var(--font-body); color: var(--color-tx); }
   @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet { animation: none; } }
-  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--color-line); margin: 4px auto 12px; flex-shrink: 0; }
   .swap-hdr { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; margin-bottom: 10px; }
   .swap-title { font-family: var(--font-display); font-size: 17px; letter-spacing: 0.5px; }
@@ -647,51 +659,46 @@
   .sheet-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); cursor: pointer; font-size: 14px; flex-shrink: 0; }
   .instructions-sheet { max-height:88dvh; }
   .instruction-list { min-height:0; overflow-y:auto; overscroll-behavior:contain; display:grid; gap:10px; padding-bottom:4px; }
-  .instruction-row { display:grid; gap:6px; }
-  .instruction-row > span { color:var(--color-tx-2); font:700 9px/1 var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
+  .instruction-row { display:grid; gap:6px; } .instruction-row > span { color:var(--color-tx-2); font:700 9px/1 var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
   .instruction-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:3px; background:var(--color-raised); border:1px solid var(--color-line); border-radius:9px; }
   .instruction-options button { min-height:38px; padding:5px 4px; border:0; border-radius:7px; background:transparent; color:var(--color-tx-3); cursor:pointer; font:600 10px/1.15 var(--font-body); }
   .instruction-options button.active { background:var(--color-club); color:var(--color-on-club,#fff); box-shadow:0 3px 12px color-mix(in oklch,var(--color-club) 22%,transparent); }
   .swap-current { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--color-raised); border-radius: 10px; margin-bottom: 8px; flex-shrink: 0; }
-  .swap-current-name { font-size: 13px; font-weight: 600; }
-  .swap-current-meta { font-size: 10px; color: var(--color-tx-3); }
+  .swap-current-name { font-size: 13px; font-weight: 600; } .swap-current-meta { font-size: 10px; color: var(--color-tx-3); }
   .swap-list { overflow-y: auto; overscroll-behavior: contain; }
   .swap-section-hdr { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); padding: 10px 4px 4px; }
-  .swap-row {
-    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
-    background: none; border: 1px solid transparent; border-radius: 10px; padding: 8px; cursor: pointer;
-    color: var(--color-tx); min-height: 44px;
-  }
-  .swap-row:hover { background: var(--color-raised); }
-  .swap-row.dimmed { opacity: 0.55; }
-  .swap-row.swap-presel { border-color: var(--color-club); }
-  .swap-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .swap-row-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .swap-row-meta { font-size: 10px; color: var(--color-tx-3); }
+  .swap-row { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: none; border: 1px solid transparent; border-radius: 10px; padding: 8px; cursor: pointer; color: var(--color-tx); min-height: 44px; }
+  .swap-row:hover { background: var(--color-raised); } .swap-row.dimmed { opacity: 0.55; } .swap-row.swap-presel { border-color: var(--color-club); }
+  .swap-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; } .swap-row-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .swap-row-meta { font-size: 10px; color: var(--color-tx-3); }
   .swap-row-badge { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); background: var(--color-raised); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
-  .swap-row-fit { font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; }
-  .swap-row-rat { font-family: var(--font-display); font-size: 15px; min-width: 24px; text-align: right; flex-shrink: 0; }
+  .swap-row-fit { font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; } .swap-row-rat { font-family: var(--font-display); font-size: 15px; min-width: 24px; text-align: right; flex-shrink: 0; }
   .roster-sheet { max-height:86dvh; }
-  .player-sheet { max-height:82dvh; overflow-y:auto; }
+  .player-sheet { max-height:88dvh; overflow-y:auto; }
   .player-sub { display:flex; align-items:center; gap:7px; margin-top:7px; font-size:11px; color:var(--color-tx-3); }
+  .p3-warning { margin:0 0 10px; padding:9px 10px; border:1px solid color-mix(in oklch,var(--color-warn) 55%,var(--color-line)); border-radius:9px; background:color-mix(in oklch,var(--color-warn) 10%,var(--color-raised)); color:var(--color-warn); font:600 10px/1.35 var(--font-body); }
   .player-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--color-line); border:1px solid var(--color-line); border-radius:10px; overflow:hidden; }
-  .player-metrics div { background:var(--color-raised); padding:10px; } .player-metrics span { display:block; color:var(--color-tx-3); font:9px var(--font-mono); letter-spacing:1px; text-transform:uppercase; } .player-metrics strong { display:block; margin-top:4px; font:17px var(--font-display); }
+  .player-metrics div { background:var(--color-raised); padding:10px; min-width:0; } .player-metrics span { display:block; color:var(--color-tx-3); font:9px var(--font-mono); letter-spacing:1px; text-transform:uppercase; } .player-metrics strong { display:block; margin-top:4px; font:17px var(--font-display); } .player-metrics small { display:block; margin-top:2px; color:var(--color-tx-3); font:8px var(--font-mono); }
+  .p3-state-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; }
+  .p3-state-grid div { min-width:0; padding:8px 4px; text-align:center; background:var(--color-raised); border:1px solid var(--color-line); border-radius:8px; }
+  .p3-state-grid span { display:block; color:var(--color-tx-3); font:8px var(--font-mono); text-transform:uppercase; } .p3-state-grid strong { display:block; margin-top:3px; font:14px var(--font-display); }
   .player-attributes { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; } .player-attributes div { padding:9px 4px; text-align:center; background:var(--color-raised); border:1px solid var(--color-line); border-radius:8px; } .player-attributes span { display:block; color:var(--color-tx-3); font:8px var(--font-mono); } .player-attributes strong { display:block; margin-top:3px; font:15px var(--font-display); }
-  .role-section { margin-top:12px; padding:11px; border:1px solid var(--color-line); border-radius:10px; background:var(--color-raised); }
-  .role-heading { display:flex; align-items:end; justify-content:space-between; gap:12px; }
-  .role-heading div span { display:block; color:var(--color-tx-3); font:700 8px var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
-  .role-heading div strong { display:block; margin-top:3px; font:700 13px var(--font-body); }
-  .role-heading > small { max-width:52%; color:var(--color-tx-3); font:9px/1.25 var(--font-body); text-align:right; }
+  .p3-section, .role-section { margin-top:12px; padding:11px; border:1px solid var(--color-line); border-radius:10px; background:var(--color-raised); }
+  .p3-section-head, .role-heading { display:flex; align-items:end; justify-content:space-between; gap:12px; }
+  .p3-section-head div span, .role-heading div span { display:block; color:var(--color-tx-3); font:700 8px var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
+  .p3-section-head div strong, .role-heading div strong { display:block; margin-top:3px; font:700 13px var(--font-body); }
+  .p3-section-head > small, .role-heading > small { max-width:52%; color:var(--color-tx-3); font:9px/1.25 var(--font-body); text-align:right; }
+  .p3-section-head > small.at-risk { color:var(--color-warn); } .p3-section-head > small.broken { color:var(--color-bad); }
+  .p3-chip-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+  .p3-chip { padding:5px 7px; border:1px solid var(--color-line); border-radius:999px; color:var(--color-tx-2); background:var(--color-surface); font:600 9px var(--font-body); }
+  .p3-muted { color:var(--color-tx-3); font:9px var(--font-body); }
+  .squad-role-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:9px; }
+  .squad-role-options button, .role-options button { min-height:48px; padding:7px 8px; text-align:left; border:1px solid var(--color-line); border-radius:8px; background:var(--color-surface); color:var(--color-tx); cursor:pointer; }
+  .squad-role-options button.active, .role-options button.active { border-color:var(--color-club); background:color-mix(in oklch,var(--color-club) 12%,var(--color-surface)); }
+  .squad-role-options strong, .squad-role-options small, .role-options strong, .role-options small { display:block; }
+  .squad-role-options strong, .role-options strong { font-size:11px; } .squad-role-options small, .role-options small { margin-top:3px; color:var(--color-tx-3); font:9px var(--font-mono); } .squad-role-options button.active small, .role-options button.active small { color:var(--color-club); }
   .role-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:9px; }
-  .role-options button { min-height:48px; padding:7px 8px; text-align:left; border:1px solid var(--color-line); border-radius:8px; background:var(--color-surface); color:var(--color-tx); cursor:pointer; }
-  .role-options button.active { border-color:var(--color-club); background:color-mix(in oklch,var(--color-club) 12%,var(--color-surface)); }
-  .role-options strong, .role-options small { display:block; }
-  .role-options strong { font-size:11px; }
-  .role-options small { margin-top:3px; color:var(--color-tx-3); font:9px var(--font-mono); }
-  .role-options button.active small { color:var(--color-club); }
+  .player-finance { display:flex; justify-content:space-between; gap:12px; margin-top:12px; padding:0 2px; color:var(--color-tx-3); font:10px var(--font-mono); }
   .player-actions { display:grid; gap:8px; margin-top:14px; } .player-actions button { min-height:44px; color:var(--color-tx); background:var(--color-raised); border:1px solid var(--color-line); border-radius:9px; cursor:pointer; font:600 12px var(--font-body); } .player-actions .player-primary { color:var(--color-on-accent); background:var(--color-accent); border-color:var(--color-accent); }
 
-  @media (min-width: 720px) {
-    .sheet { left:50%; right:auto; width:min(560px,calc(100vw - 32px)); transform:translateX(-50%); }
-  }
+  @media (min-width: 720px) { .sheet { left:50%; right:auto; width:min(560px,calc(100vw - 32px)); transform:translateX(-50%); } }
 </style>

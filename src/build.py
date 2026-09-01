@@ -25,17 +25,19 @@ for df in _data_files:
     label = df.stem.upper().replace('_', ' ')
     MODULES.append((f'data/{df.name}', label))
 
-# Core modules (dependencies first). P3's pure player-model selectors are
-# loaded before every simulation/domain consumer. P2's tactics domain and
-# manager-facing adapter follow immediately before matchEngine.js so the
-# stripped legacy bundle has the same schema/functions available before
-# authoritative simulation/gameweek code is evaluated. P0's
-# competitionRules.js is immediately before cups.js. P1's world helpers sit
-# after youthAcademy because they consume fixtures, match/standing helpers and
-# youth/newgen generation. worldRuntime/save/season/gameweek consume the
-# living-world contracts afterwards.
+# Core modules (dependencies first). P3's pure pathway, development and
+# rehabilitation contracts load before the canonical player model that
+# composes them. P2's tactics domain and manager-facing adapter follow before
+# matchEngine.js so the stripped legacy bundle exposes the same contracts as
+# the ES-module build. P0's competitionRules.js is immediately before cups.js.
+# P1's world helpers sit after youthAcademy because they consume fixtures,
+# match/standing helpers and youth/newgen generation. worldRuntime/save/season/
+# gameweek consume the living-world contracts afterwards.
 MODULES += [
     ('modules/db.js',               'DATABASE'),
+    ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
+    ('modules/playerDevelopment.js', 'PLAYER DEVELOPMENT'),
+    ('modules/playerRehabilitation.js', 'PLAYER REHABILITATION'),
     ('modules/playerModel.js',      'PLAYER MODEL'),
     ('modules/tactics.js',          'TACTICS'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),

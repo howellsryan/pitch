@@ -1,5 +1,11 @@
 import { rollInjuryCheck } from './injuries.js';
-import { currentEffectiveLevel, effectiveAttribute, playerPositionGroup } from './playerModel.js';
+import {
+  currentEffectiveLevel,
+  effectiveAttribute,
+  playerPositionGroup,
+  positionSuitabilityFor,
+} from './playerModel.js';
+import { rehabilitationReinjuryMultiplier } from './playerRehabilitation.js';
 import {
   DEFAULT_TEAM_INSTRUCTIONS,
   chooseAIRole,
@@ -13,7 +19,7 @@ import {
 } from './tactics.js';
 
 /**
- * modules/matchEngine.js — authoritative P2 simulation core.
+ * modules/matchEngine.js — authoritative P2/P3 simulation core.
  *
  * Quick Sim and Watch Match both construct the same live state and call the
  * same phased runner. The RNG state is serialisable and travels inside the
@@ -30,7 +36,6 @@ export function matchInjuryIntervalRate(perPhaseRate, interval = MATCH_INJURY_CH
   return 1 - Math.pow(1 - perPhaseRate, interval);
 }
 
-// Compatibility exports retained while P3 migrates existing callers.
 export function positionGroup(pos) {
   return playerPositionGroup(pos);
 }
@@ -64,48 +69,109 @@ export function pickAIFormation(rng = Math.random) {
   return keys[Math.floor(_matchRandomValue(rng) * keys.length)];
 }
 
+function formationSlots(formation) {
+  const shape = FORMATIONS[formation] ?? FORMATIONS['4-3-3'];
+  return Object.entries(shape).flatMap(([position, count]) => Array.from({ length:count }, () => position));
+}
+
+function slotEligible(player, slot) {
+  if (slot === 'GK') return player.position === 'GK';
+  return player.position !== 'GK';
+}
+
+function slotRating(player, slot) {
+  const level = currentEffectiveLevel(player, { position:slot });
+  return Number.isFinite(level) ? level : -Infinity;
+}
+
+function createSlotRatingLookup() {
+  const cache = new WeakMap();
+  return (player, slot) => {
+    let ratings = cache.get(player);
+    if (!ratings) {
+      ratings = new Map();
+      cache.set(player, ratings);
+    }
+    if (!ratings.has(slot)) ratings.set(slot, slotRating(player, slot));
+    return ratings.get(slot);
+  };
+}
+
+function createPrimaryRatingLookup() {
+  const cache = new WeakMap();
+  return player => {
+    if (!cache.has(player)) cache.set(player, primaryRating(player) ?? 0);
+    return cache.get(player);
+  };
+}
+
+function bestPlayerForSlot(players, slot, isAvailable, ratingFor) {
+  let best = null;
+  let bestRating = -Infinity;
+  for (const player of players) {
+    if (!isAvailable(player) || !slotEligible(player, slot)) continue;
+    const rating = ratingFor(player, slot);
+    if (best === null || rating > bestRating || (rating === bestRating && String(player.id).localeCompare(String(best.id)) < 0)) {
+      best = player;
+      bestRating = rating;
+    }
+  }
+  return best;
+}
+
+function withMatchPosition(player, position) {
+  return { ...player, matchPosition:position ?? player.position };
+}
+
+function assignRequestedLineup(players, formation) {
+  const remaining = [...players];
+  const assigned = [];
+  const ratingFor = createSlotRatingLookup();
+  for (const slot of formationSlots(formation)) {
+    const player = bestPlayerForSlot(remaining, slot, () => true, ratingFor);
+    if (!player) continue;
+    assigned.push(withMatchPosition(player, slot));
+    remaining.splice(remaining.findIndex(item => item.id === player.id), 1);
+  }
+  for (const player of remaining) assigned.push(withMatchPosition(player, player.position));
+  return assigned.slice(0, 11);
+}
+
 export function selectEleven(players, formation = '4-3-3', lineup = null) {
   const avail = players.filter(p => !p.injured && !p.suspended && p.inSquad !== false);
-  const slots = { ...(FORMATIONS[formation] ?? FORMATIONS['4-3-3']) };
-  const chosen = [];
   const used = new Set();
 
   if (lineup && lineup.length === 11) {
-    const allById = new Map(players.map(p => [p.id, p]));
+    const availableById = new Map(avail.map(p => [p.id, p]));
+    const requested = [];
     for (const pid of lineup) {
-      const pl = allById.get(pid);
-      if (pl && !used.has(pl.id)) { chosen.push(pl); used.add(pl.id); }
+      const player = availableById.get(pid);
+      if (player && !used.has(player.id)) {
+        requested.push(player);
+        used.add(player.id);
+      }
     }
-    if (chosen.length === 11) return chosen;
+    if (requested.length === 11) return assignRequestedLineup(requested, formation);
+    used.clear();
   }
 
-  if (!chosen.some(p => p.position === 'GK')) {
-    const gks = avail.filter(p => p.position === 'GK' && !used.has(p.id))
-      .sort((a,b) => (primaryRating(b) ?? 0) - (primaryRating(a) ?? 0));
-    if (gks[0]) { chosen.push(gks[0]); used.add(gks[0].id); }
-  }
-
-  const posMap = {
-    ST:['ST','CF'], CF:['CF','ST'], RW:['RW','LW','CAM'], LW:['LW','RW','CAM'],
-    CAM:['CAM','CM'], CM:['CM','CDM','CAM'], CDM:['CDM','CM'], RM:['RM','CM'], LM:['LM','CM'],
-    CB:['CB'], RB:['RB','CB'], LB:['LB','CB'],
-  };
-
-  for (const [pos, count] of Object.entries(slots)) {
-    if (pos === 'GK') continue;
-    const acceptable = posMap[pos] ?? [pos];
-    for (let n = 0; n < count; n++) {
-      const cand = avail.find(p => !used.has(p.id) && acceptable.includes(p.position));
-      if (cand) { chosen.push(cand); used.add(cand.id); }
-    }
+  const chosen = [];
+  const ratingFor = createSlotRatingLookup();
+  for (const slot of formationSlots(formation)) {
+    const pick = bestPlayerForSlot(avail, slot, player => !used.has(player.id), ratingFor);
+    if (!pick) continue;
+    chosen.push(withMatchPosition(pick, slot));
+    used.add(pick.id);
   }
 
   if (chosen.length < 11) {
-    const rem = avail.filter(p => !used.has(p.id) && p.position !== 'GK')
-      .sort((a,b) => (primaryRating(b) ?? 0) - (primaryRating(a) ?? 0));
-    for (const p of rem) {
+    const primaryFor = createPrimaryRatingLookup();
+    const rem = avail.filter(p => !used.has(p.id))
+      .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
+    for (const player of rem) {
       if (chosen.length >= 11) break;
-      chosen.push(p); used.add(p.id);
+      chosen.push(withMatchPosition(player, player.position));
+      used.add(player.id);
     }
   }
   return chosen.slice(0, 11);
@@ -113,9 +179,18 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
 
 export function selectBench(players, eleven) {
   const usedIds = new Set(eleven.map(p => p.id));
+  const primaryFor = createPrimaryRatingLookup();
   return players
     .filter(p => !p.injured && !p.suspended && p.inSquad !== false && !usedIds.has(p.id))
-    .sort((a,b) => (primaryRating(b) ?? 0) - (primaryRating(a) ?? 0));
+    .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
+}
+
+function matchAttribute(player, attribute) {
+  const value = Number(effectiveAttribute(player, attribute) ?? player?.[attribute] ?? 50);
+  const slot = player?.matchPosition ?? player?.position;
+  const suitability = positionSuitabilityFor(player, slot);
+  const fitPenalty = (1 - suitability) * 8;
+  return Math.max(1, Math.min(99, value - fitPenalty));
 }
 
 export function teamStrength(eleven) {
@@ -125,18 +200,19 @@ export function teamStrength(eleven) {
   function weightedAvg(attr, weights) {
     let sum = 0, wt = 0;
     for (const p of eleven) {
-      const w = weights[p.position] ?? .1;
-      sum += Number(effectiveAttribute(p, attr) ?? p?.[attr] ?? 50) * w;
+      const slot = p.matchPosition ?? p.position;
+      const w = weights[slot] ?? .1;
+      sum += matchAttribute(p, attr) * w;
       wt += w;
     }
     return wt > 0 ? sum / wt : 50;
   }
-  const gk = eleven.find(p => p.position === 'GK');
+  const gk = eleven.find(p => (p.matchPosition ?? p.position) === 'GK');
   return {
     attack:weightedAvg('attack', ATTACK_W),
     midfield:weightedAvg('midfield', MIDFIELD_W),
     defence:weightedAvg('defence', DEFENCE_W),
-    goalkeeping:gk ? Number(effectiveAttribute(gk, 'goalkeeping') ?? gk.goalkeeping ?? 50) : 50,
+    goalkeeping:gk ? matchAttribute(gk, 'goalkeeping') : 50,
     eleven,
   };
 }
@@ -178,13 +254,14 @@ export function pickScorer(eleven, rng = Math.random) {
     'GK': 0,
   };
   const weights = eleven.map(p => {
-    const base = POS_WEIGHTS[p.position] ?? 1;
+    const slot = p.matchPosition ?? p.position;
+    const base = POS_WEIGHTS[slot] ?? 1;
     if (!base) return 0;
-    const norm = Number(effectiveAttribute(p, 'attack') ?? p.attack ?? 50) / 99;
+    const norm = matchAttribute(p, 'attack') / 99;
     return base * (norm * norm * 1.5 + .5);
   });
   const total = weights.reduce((a,b) => a + b, 0);
-  if (!total) return eleven.find(p => p.position !== 'GK') ?? eleven[0];
+  if (!total) return eleven.find(p => (p.matchPosition ?? p.position) !== 'GK') ?? eleven[0];
   let roll = _matchRandomValue(rng) * total;
   for (let i = 0; i < eleven.length; i++) {
     roll -= weights[i];
@@ -198,9 +275,10 @@ export function pickAssister(eleven, scorerId, rng = Math.random) {
   if (!cands.length) return null;
   const POS_WEIGHTS = { CAM:30, CM:22, CDM:8, RM:20, LM:20, RW:18, LW:18, RB:8, LB:8, ST:10, CF:12, CB:2, GK:0 };
   const weights = cands.map(p => {
-    const base = POS_WEIGHTS[p.position] ?? 5;
+    const slot = p.matchPosition ?? p.position;
+    const base = POS_WEIGHTS[slot] ?? 5;
     if (!base) return 0;
-    return base * ((Number(effectiveAttribute(p, 'midfield') ?? p.midfield ?? 50) / 99) * .6 + .4);
+    return base * ((matchAttribute(p, 'midfield') / 99) * .6 + .4);
   });
   const total = weights.reduce((a,b) => a + b, 0);
   if (!total) return cands[0];
@@ -266,7 +344,12 @@ function cursorFrom(state) {
 function playerSeedSignature(players) {
   return [...(players ?? [])]
     .sort((a,b) => String(a.id).localeCompare(String(b.id)))
-    .map(p => [p.id, p.position, Math.round(Number(p.fitness ?? 90)), Number(p.appearances ?? 0), Number(p.goals ?? 0), Number(p.assists ?? 0), p.tacticalRole ?? ''].join(':'))
+    .map(p => [
+      p.id, p.position, Math.round(Number(p.fitness ?? 90)),
+      Math.round(Number(currentEffectiveLevel(p) ?? 0) * 10),
+      Number(p.appearances ?? 0), Number(p.goals ?? 0), Number(p.assists ?? 0),
+      p.tacticalRole ?? '', (p.traits ?? []).join(','), p.rehabilitation?.status ?? '',
+    ].join(':'))
     .join(',');
 }
 
@@ -457,7 +540,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       defFitMap.set(p.id, Math.max(0, next));
     }
 
-    const attOutfield = attActive.filter(p => p.position !== 'GK');
+    const attOutfield = attActive.filter(p => (p.matchPosition ?? p.position) !== 'GK');
     const avgAttFit = attOutfield.reduce((sum,p) => sum + (attFitMap.get(p.id) ?? 90), 0) / Math.max(1, attOutfield.length);
     const attStr = isHome ? hStr : aStr;
     const defStr = isHome ? aStr : hStr;
@@ -477,9 +560,12 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     }
 
     if (cursor.next() < .004 * defMods.yellowRiskMult && defActive.length) {
-      const candidates = defActive.filter(p => p.position !== 'GK');
+      const candidates = defActive.filter(p => (p.matchPosition ?? p.position) !== 'GK');
       if (candidates.length) {
-        const weights = candidates.map(p => DEF.has(p.position) ? 4 : p.position === 'CDM' ? 3 : 1);
+        const weights = candidates.map(p => {
+          const slot = p.matchPosition ?? p.position;
+          return DEF.has(slot) ? 4 : slot === 'CDM' ? 3 : 1;
+        });
         const total = weights.reduce((a,b) => a + b, 0);
         let roll = cursor.next() * total;
         let target = candidates[0];
@@ -498,8 +584,10 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       ]) {
         for (const player of side.active) {
           if (player.injured || player._injuredThisMatch) continue;
-          const perPhaseRate = player.position === 'GK' ? .000120 : .000333;
-          const intervalRate = matchInjuryIntervalRate(perPhaseRate) * side.mods.injuryRiskMult;
+          const perPhaseRate = (player.matchPosition ?? player.position) === 'GK' ? .000120 : .000333;
+          const intervalRate = matchInjuryIntervalRate(perPhaseRate)
+            * side.mods.injuryRiskMult
+            * rehabilitationReinjuryMultiplier(player);
           if (cursor.next() > intervalRate) continue;
           const injury = rollInjuryCheck(player, side.mods.fitnessDrainMult > 1.1, true, () => cursor.next());
           if (!injury) continue;
@@ -515,26 +603,30 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     if (phase % 10 === 0) {
       const trailH = curAGoals - curHGoals;
       const trailA = curHGoals - curAGoals;
+      let hChanged = false;
+      let aChanged = false;
       if (curHSubs > 0 && homeTeam.id !== inferredControlled) {
-        const tired = curHActive.filter(p => p.position !== 'GK' && shouldSub(hFitness.get(p.id) ?? 90, minute, trailH));
+        const tired = curHActive.filter(p => (p.matchPosition ?? p.position) !== 'GK' && shouldSub(hFitness.get(p.id) ?? 90, minute, trailH));
         for (const out of tired.slice(0, curHSubs)) {
           const sub = curHBench.shift(); if (!sub) break;
-          curHActive = curHActive.map(p => p.id === out.id ? sub : p);
-          hFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curHSubs--;
+          const replacement = withMatchPosition(sub, out.matchPosition ?? out.position);
+          curHActive = curHActive.map(p => p.id === out.id ? replacement : p);
+          hFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curHSubs--; hChanged = true;
           segEvents.push({ type:'sub', minute, teamId:homeTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
       if (curASubs > 0 && awayTeam.id !== inferredControlled) {
-        const tired = curAActive.filter(p => p.position !== 'GK' && shouldSub(aFitness.get(p.id) ?? 90, minute, trailA));
+        const tired = curAActive.filter(p => (p.matchPosition ?? p.position) !== 'GK' && shouldSub(aFitness.get(p.id) ?? 90, minute, trailA));
         for (const out of tired.slice(0, curASubs)) {
           const sub = curABench.shift(); if (!sub) break;
-          curAActive = curAActive.map(p => p.id === out.id ? sub : p);
-          aFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curASubs--;
+          const replacement = withMatchPosition(sub, out.matchPosition ?? out.position);
+          curAActive = curAActive.map(p => p.id === out.id ? replacement : p);
+          aFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curASubs--; aChanged = true;
           segEvents.push({ type:'sub', minute, teamId:awayTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
-      hStr = effectiveTeamStrength(curHActive, state.homeRoles, state.homeTactics);
-      aStr = effectiveTeamStrength(curAActive, state.awayRoles, state.awayTactics);
+      if (hChanged) hStr = effectiveTeamStrength(curHActive, state.homeRoles, state.homeTactics);
+      if (aChanged) aStr = effectiveTeamStrength(curAActive, state.awayRoles, state.awayTactics);
     }
   }
 

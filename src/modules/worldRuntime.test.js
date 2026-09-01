@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { projectNonLeaguePlayers, projectWorldBatch } from './worldRuntime.js';
+import { assignDefaultSquadRoles, buildPersonalStatePatches, normalizePlayerModel } from './playerModel.js';
+import {
+  coalescePersonalStateProjection,
+  projectNonLeaguePlayers,
+  projectWorldBatch,
+  scheduledWorldCompetitionTeamIds,
+} from './worldRuntime.js';
 
 function player(id, teamId, position = 'CM', extras = {}) {
   return {
@@ -45,6 +51,20 @@ function standing(teamId, league) {
   };
 }
 
+function result(homeTeamId, awayTeamId, gameweek = 1, extras = {}) {
+  return {
+    homeTeamId,
+    awayTeamId,
+    homeGoals:0,
+    awayGoals:0,
+    gameweek,
+    season:'2025/26',
+    events:[],
+    fitnessUpdates:[],
+    ...extras,
+  };
+}
+
 describe('P1 world projection runtime', () => {
   it('projects player statistics and league standings from the same match result', () => {
     const players = [
@@ -54,7 +74,7 @@ describe('P1 world projection runtime', () => {
       player('b_st', 'b', 'ST'),
     ];
     const standings = [standing('a', 'League A'), standing('b', 'League A')];
-    const result = {
+    const match = {
       fixtureId:'gw1_a_b',
       gameweek:1,
       homeTeamId:'a',
@@ -73,7 +93,7 @@ describe('P1 world projection runtime', () => {
       ],
     };
 
-    const projected = projectWorldBatch(players, standings, [result]);
+    const projected = projectWorldBatch(players, standings, [match]);
     const byId = new Map(projected.players.map(p => [p.id, p]));
     const table = new Map(projected.standings.map(row => [row.teamId, row]));
 
@@ -110,7 +130,7 @@ describe('P1 world projection runtime', () => {
     const played = player('played', 'a', 'CM', { fitness:65, form:55, age:24 });
     const rested = player('rested', 'a', 'CM', { fitness:62, form:65, age:24 });
     const opponent = player('opp', 'b', 'CM', { fitness:80, form:50, age:24 });
-    const result = {
+    const match = {
       homeTeamId:'a', awayTeamId:'b', homeGoals:0, awayGoals:0, events:[],
       fitnessUpdates:[
         { id:'played', teamId:'a', newFitness:60 },
@@ -121,7 +141,7 @@ describe('P1 world projection runtime', () => {
     const projected = projectWorldBatch(
       [played, rested, opponent],
       [standing('a', 'League A'), standing('b', 'League A')],
-      [result],
+      [match],
     );
     const byId = new Map(projected.players.map(p => [p.id, p]));
 
@@ -135,7 +155,7 @@ describe('P1 world projection runtime', () => {
     const alreadyNeutralRested = player('neutral', 'a', 'CM');
     const recoveringRested = player('recovering', 'a', 'CM', { fitness:73, form:56 });
     const opponent = player('opp', 'b', 'CM');
-    const result = {
+    const match = {
       homeTeamId:'a', awayTeamId:'b', homeGoals:0, awayGoals:0, events:[],
       fitnessUpdates:[
         { id:'starter', teamId:'a', newFitness:70 },
@@ -146,7 +166,7 @@ describe('P1 world projection runtime', () => {
     const projected = projectWorldBatch(
       [starter, alreadyNeutralRested, recoveringRested, opponent],
       [standing('a', 'League A'), standing('b', 'League A')],
-      [result],
+      [match],
     );
     const changedIds = projected.changedPlayers.map(row => row.id).sort();
 
@@ -154,11 +174,152 @@ describe('P1 world projection runtime', () => {
     expect(projected.players).toHaveLength(4);
   });
 
+  it('coalesces P3 weekly state into the existing changed-row projection', () => {
+    const prepared = assignDefaultSquadRoles([
+      player('starter', 'a', 'CM'),
+      player('p3-rested', 'a', 'CM', { individualMorale:60, sharpness:70 }),
+      player('opp', 'b', 'CM'),
+    ].map(normalizePlayerModel), { currentYear:2025, managedTeamId:null });
+    const match = {
+      homeTeamId:'a', awayTeamId:'b', homeGoals:0, awayGoals:0, events:[],
+      fitnessUpdates:[
+        { id:'starter', teamId:'a', newFitness:70 },
+        { id:'opp', teamId:'b', newFitness:70 },
+      ],
+    };
+    const projected = projectWorldBatch(
+      prepared,
+      [standing('a', 'League A'), standing('b', 'League A')],
+      [match],
+    );
+    expect(projected.changedPlayers.map(row => row.id).sort()).toEqual(['opp', 'starter']);
+
+    const coalesced = coalescePersonalStateProjection(
+      projected.players,
+      projected.changedPlayers,
+      1,
+      '2025/26',
+    );
+    const changedIds = coalesced.changedPlayers.map(row => row.id).sort();
+    const rested = coalesced.players.find(row => row.id === 'p3-rested');
+    const starter = coalesced.players.find(row => row.id === 'starter');
+
+    expect(changedIds).toEqual(['opp', 'p3-rested', 'starter']);
+    expect(rested).toMatchObject({ individualMorale:58, sharpness:66, personalStateSettledKey:'2025/26:1' });
+    expect(starter).toMatchObject({ personalStateSettledKey:'2025/26:1', developmentSettledKey:'2025/26:1' });
+  });
+
+  it('defers a managed club until the completed world-week boundary', () => {
+    const prepared = assignDefaultSquadRoles([
+      player('user-starter', 'user', 'CM'),
+      player('user-rested', 'user', 'CM', { individualMorale:60, sharpness:70 }),
+      player('opp', 'b', 'CM'),
+    ].map(normalizePlayerModel), { currentYear:2025, managedTeamId:'user' });
+    const projected = projectWorldBatch(
+      prepared,
+      [standing('user', 'League A'), standing('b', 'League A')],
+      [result('user', 'b', 1, { fitnessUpdates:[
+        { id:'user-starter', teamId:'user', newFitness:70 },
+        { id:'opp', teamId:'b', newFitness:70 },
+      ] })],
+    );
+
+    const coalesced = coalescePersonalStateProjection(projected.players, projected.changedPlayers, 1, '2025/26');
+    expect(coalesced.players.find(row => row.id === 'user-starter').personalStateSettledKey).toBeNull();
+    expect(coalesced.players.find(row => row.id === 'user-rested').personalStateSettledKey).toBeNull();
+    expect(coalesced.players.find(row => row.id === 'opp').personalStateSettledKey).toBe('2025/26:1');
+
+    const finalPatches = buildPersonalStatePatches(coalesced.players, 1, '2025/26');
+    const userPatches = finalPatches.filter(row => row.teamId === 'user');
+    expect(userPatches).toHaveLength(2);
+    expect(userPatches.every(row => row.personalStateSettledKey === '2025/26:1')).toBe(true);
+    expect(userPatches.every(row => row.playingTimeAgreement?.history?.filter(sample => sample.key === '2025/26:1').length === 1)).toBe(true);
+  });
+
+  it('defers league + domestic cup participation and settles once after total exposure is known', () => {
+    const prepared = [
+      normalizePlayerModel(player('cup-starter', 'a', 'CM')),
+      normalizePlayerModel(player('cup-rested', 'a', 'CM', { individualMorale:60, sharpness:70 })),
+      normalizePlayerModel(player('opp', 'b', 'CM')),
+    ];
+    const league = projectWorldBatch(
+      prepared,
+      [standing('a', 'League A'), standing('b', 'League A')],
+      [result('a', 'b', 1, { fitnessUpdates:[
+        { id:'cup-starter', teamId:'a', newFitness:70 },
+        { id:'opp', teamId:'b', newFitness:70 },
+      ] })],
+    );
+    const afterLeague = coalescePersonalStateProjection(
+      league.players,
+      league.changedPlayers,
+      1,
+      '2025/26',
+      { deferTeamIds:new Set(['a']) },
+    );
+    expect(afterLeague.players.find(row => row.id === 'cup-starter').personalStateSettledKey).toBeNull();
+
+    const cupProjected = projectNonLeaguePlayers(afterLeague.players, [result('a', 'b', 1, {
+      competition:'cup',
+      fitnessUpdates:[{ id:'cup-starter', teamId:'a', newFitness:66 }],
+    })]);
+    const afterCup = coalescePersonalStateProjection(cupProjected, cupProjected, 1, '2025/26');
+    const starter = afterCup.players.find(row => row.id === 'cup-starter');
+    expect(starter).toMatchObject({ appearances:2, minutes:180, personalStateSettledKey:'2025/26:1', developmentSettledKey:'2025/26:1' });
+    expect(buildPersonalStatePatches(afterCup.players, 1, '2025/26')).toEqual([]);
+  });
+
+  it('recognises scheduled domestic and European background participants before league settlement', () => {
+    const state = {
+      competitions:{
+        league_cup:{
+          id:'league_cup',
+          format:'knockout',
+          roundIndex:0,
+          activeTeamIds:['cup-a','cup-b'],
+          entrantsByRound:{ 0:['cup-c'] },
+          processedGameweeks:[],
+          results:[],
+        },
+        ucl:{
+          id:'ucl',
+          format:'uefa_league_phase',
+          phase:'league_phase',
+          leaguePhaseMatchday:0,
+          activeTeamIds:['euro-a','euro-b'],
+          processedGameweeks:[],
+          results:[],
+        },
+      },
+    };
+
+    // cup-c receives the odd-team bye, so its world week is already complete
+    // after league projection and must not be deferred for nonexistent exposure.
+    expect([...scheduledWorldCompetitionTeamIds(state, 1)].sort()).toEqual(['cup-a','cup-b']);
+    expect([...scheduledWorldCompetitionTeamIds(state, 5)].sort()).toEqual(['euro-a','euro-b']);
+  });
+
+  it('keeps the defer decision stable after a background competition record is persisted', () => {
+    const state = {
+      competitions:{
+        league_cup:{
+          id:'league_cup',
+          format:'knockout',
+          roundIndex:1,
+          activeTeamIds:['winner'],
+          processedGameweeks:[1],
+          results:[result('cup-a', 'cup-b', 1, { id:'world:cup', competitionId:'league_cup' })],
+        },
+      },
+    };
+    expect([...scheduledWorldCompetitionTeamIds(state, 1)].sort()).toEqual(['cup-a','cup-b']);
+  });
+
   it('projects and returns only clubs participating in a cup batch', () => {
     const cupPlayer = player('cup', 'a', 'CM', { fitness:68, form:55 });
     const idleElsewhere = player('idle', 'other', 'CM', { fitness:61, form:67 });
     const opponent = player('opp', 'b', 'CM', { fitness:80, form:50 });
-    const result = {
+    const match = {
       homeTeamId:'a', awayTeamId:'b', homeGoals:1, awayGoals:0,
       events:[{ type:'goal', minute:30, teamId:'a', playerId:'cup' }],
       fitnessUpdates:[
@@ -167,7 +328,7 @@ describe('P1 world projection runtime', () => {
       ],
     };
 
-    const projected = projectNonLeaguePlayers([cupPlayer, idleElsewhere, opponent], [result]);
+    const projected = projectNonLeaguePlayers([cupPlayer, idleElsewhere, opponent], [match]);
     const byId = new Map(projected.map(p => [p.id, p]));
 
     expect(byId.get('cup')).toMatchObject({ appearances:1, goals:1, fitness:80 });
@@ -178,7 +339,7 @@ describe('P1 world projection runtime', () => {
   it('ticks a prior suspension before applying a new card threshold', () => {
     const suspended = player('p', 'a', 'CM', { yellowCards:4, suspensionGWsLeft:1, suspended:true });
     const opponent = player('o', 'b');
-    const result = {
+    const match = {
       homeTeamId:'a', awayTeamId:'b', homeGoals:0, awayGoals:0,
       fitnessUpdates:[{ id:'p', teamId:'a', newFitness:70 }, { id:'o', teamId:'b', newFitness:70 }],
       events:[{ type:'yellow', minute:20, teamId:'a', playerId:'p' }],
@@ -187,7 +348,7 @@ describe('P1 world projection runtime', () => {
     const projected = projectWorldBatch(
       [suspended, opponent],
       [standing('a', 'League A'), standing('b', 'League A')],
-      [result],
+      [match],
     );
     const p = projected.players.find(row => row.id === 'p');
 

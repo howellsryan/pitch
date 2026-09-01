@@ -7,7 +7,7 @@
 - **Product:** free browser-first football career simulator, 9 leagues / 186 clubs, mobile-first, no forced account. It is **simulator-only**: do not add manual/on-pitch football controls. Broadcast is a watchable presentation of simulated football, not a playable match mode.
 - **Live product:** `pitch-sim.com`. The app is built with Vite/Svelte 5 and deployed by **Cloudflare Workers Builds**, not GitHub Actions.
 - **R0-R7 redesign is complete.** `docs/plan/07-redesign.md` remains the historical redesign reference. R8 quality/light-mode/PWA work remains a separate parallel quality stream.
-- **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is NEXT / ACTIVE.**
+- **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is COMPLETE (1 Sep 2026). P4 — Transfer Market and Contracts 2.0 is NEXT.**
 - Detailed P3-P12 execution guides live under `docs/plan/post-r7-implementation-guides/`; use the roadmap for product priority and the phase guide for execution seams.
 - Read the live roadmap before non-trivial work. If this guide and the roadmap disagree, fix this guide in the same change.
 
@@ -27,6 +27,14 @@
 - `matchEngine.js` has seeded/serialisable RNG. Whole-match Quick Sim and segmented Broadcast must remain reproducible from the same seed and inputs.
 - Tactical effects are bounded trade-offs, never hidden universal rating boosts. Preserve the statistical regression envelope when adding P3 player-state inputs.
 - Existing P2 careers backfill tactic defaults, player-role assignments and Manager DNA without changing formation, mentality or lineup.
+
+### Player Model 2.0 — P3 foundation
+
+- `src/modules/playerModel.js` owns the additive v4 player contract and shared baseline/effective-level selectors. Durable ability remains attack/midfield/defence/goalkeeping; effective level is derived and must not be persisted as a competing rating.
+- `src/modules/playerPathways.js`, `playerDevelopment.js` and `playerRehabilitation.js` own position suitability/traits, seeded growth profiles and the explicit injury-return state machine. They are pure, DOM/DB-free dependencies loaded immediately before `playerModel.js` in the legacy bundle.
+- Match selection, transfers, Squad and Academy consume the canonical selectors. Preserve exact XI/bench ordering when optimising hot rating paths; caches must be scoped to the player object/snapshot because world projection creates same-ID copies at different lifecycle states.
+- P3 personal state and development settle once per completed world week. League projection settles completed background clubs, competition projection settles deferred cup/European clubs, and ordinary final P3 settlement loads only the managed squad. League-less/cup-only weeks retain the full-world P3 fallback.
+- Existing careers receive an idempotent player-row/domain backfill without a `DB_VERSION` change, preserving baseline ability, IDs, ownership, loans, history, formation and lineup.
 
 ### Gameweek event queue
 
@@ -67,7 +75,7 @@
 - Local export/import and cloud save use the same versioned envelope/slot metadata contract.
 - Cloud save API/D1 is slot-aware: rows are keyed by `(user_id, slot_id)`; pre-P0 cloud rows migrate to `legacy`.
 - P1 legacy/current careers backfill living-world state through the existing migration/backfill path; do not require users to destroy a P0 career to gain the world model.
-- P3 should prefer additive, idempotent player-row/domain backfills and must not increment `DB_VERSION` merely to add fields to existing rows.
+- P3 uses additive, idempotent player-row/domain backfills and does not increment `DB_VERSION` merely to add fields to existing rows. Preserve that pattern for compatible player-contract extensions.
 
 ## 2) UI / product boundaries
 
@@ -77,7 +85,7 @@
 - Mobile navigation and the main game surfaces are already redesigned. Do not reopen R0-R7 visual decisions incidentally during gameplay-system work.
 - Any new/restyled surface must be verified from an actual rendered screenshot at the affected viewport; CSS reading correctly is not visual verification.
 - Preserve accessibility basics: 44px touch targets where applicable, focus-visible states, reduced-motion support, readable contrast, safe-area spacing.
-- P3 player state should enrich existing Squad/Market/Academy surfaces rather than creating permanent dashboard clutter.
+- P3 player state enriches existing Squad/Market/Academy surfaces rather than creating permanent dashboard clutter.
 
 ## 3) Build, validation and deployment
 
@@ -96,7 +104,7 @@ npm run lint             # ESLint + eslint-plugin-svelte
 
 - Vite `dist/` is the deployed artifact.
 - `src/build.py` remains because the legacy validator asserts against concatenated raw source. P0+ route that gate through `src/validate_p0.py`, which permits only an explicit allow-list of superseded source-shape assertions and requires deterministic replacement contracts. Do not interpret the legacy validator's allow-listed failure count as a green-by-itself result; the bridge must pass.
-- CI (`.github/workflows/deploy.yml`) **does not deploy**. It runs both builds, lint, Vitest, accent audit and Playwright. Cloudflare's Git integration owns production and branch previews.
+- CI (`.github/workflows/deploy.yml`) **does not deploy**. Its per-commit gate runs both builds, lint, Vitest and the accent audit. Full Playwright remains mandatory at phase closeout through `.github/workflows/e2e-opt-in.yml`, but is deliberately opt-in to bound free-tier Actions usage. Cloudflare's Git integration owns production and branch previews.
 - Do not re-add a GitHub Actions deploy step; two deploy systems racing the same Worker is a known failure mode.
 - Cloudflare build command is `npm run build:app`; `wrangler.jsonc` serves `./dist`.
 
@@ -114,8 +122,8 @@ npm run lint             # ESLint + eslint-plugin-svelte
 - Preserve licensing/provenance discipline. Do not copy protected game assets/data to close content gaps.
 - P1 onward must be benchmarked for long-career IndexedDB growth, gameweek processing and mobile load time. A 15-season career must remain practical on a phone.
 - Avoid full-world writes when only a bounded subset changed. P1 deliberately narrows cup persistence to participating clubs and league persistence to changed player rows.
-- P2 established seeded/injectable RNG and statistical regression coverage. P3 development, decline, position conversion and reinjury randomness must extend that discipline rather than reintroducing unseeded balance paths.
-- P3's player-model module must be pure/DOM-free and must not import `matchEngine.js`, IndexedDB or UI. Durable baseline ability remains the existing attack/midfield/defence/goalkeeping data; derived effective level must not be separately persisted.
+- P2 established seeded/injectable RNG and statistical regression coverage; P3 extends it through development, decline, position conversion and reinjury. Later balance paths must not reintroduce unseeded randomness.
+- P3's player-model modules are pure/DOM-free and must not import `matchEngine.js`, IndexedDB or UI. Durable baseline ability remains the existing attack/midfield/defence/goalkeeping data; derived effective level must not be separately persisted.
 
 ## 6) Required skills / workflow
 
@@ -185,6 +193,19 @@ P2 adds the simulator-depth safety floor; do not weaken it to make P3 pass:
 - P1 performance regression still within guardrails at **12.57s / 18.93s / 2.61 MiB**;
 - GitHub Actions and Cloudflare Workers successful on the same exact head SHA.
 
+### P3 completion baseline
+
+P3 adds the player-state safety floor; do not fork these contracts in P4/P5:
+
+- additive player-model v4 backfill plus canonical baseline/effective-level, potential-range, position/trait, role/promise and rehabilitation contracts;
+- idempotent weekly personal-state/development settlement coalesced into bounded league/competition projection writes;
+- match selection and transfer valuation consume the shared selector, with regression coverage preserving the previous XI/bench ordering exactly;
+- **242/242 Vitest tests** green across 41 files, plus the UI emoji audit;
+- **186/186 club accent checks** green;
+- **21/21 Playwright tests** green, including 390×844 and 1280×800 P3 player-detail journeys with retained/inspected screenshots;
+- throttled P1 regression at **13.108s career load, 7.301s authoritative world week and 3.41 MiB storage**, inside the unchanged ceilings;
+- GitHub Actions and Cloudflare Workers successful on the final promoted roadmap SHA.
+
 ## 8) End-of-session handoff
 
 Whenever code is committed/pushed:
@@ -194,4 +215,4 @@ Whenever code is committed/pushed:
 - visually inspect changed UI rather than inferring it from source;
 - report: what changed, verification/test counts, PR link, direct live preview link, next milestone, and any check that could not be completed.
 
-**Next roadmap milestone after P2:** `P3 — Player Model 2.0`, starting with the canonical player contract/selectors and additive compatibility path in `docs/plan/post-r7-implementation-guides/p3-player-model-2.md`.
+**Next roadmap milestone after P3:** `P4 — Transfer Market and Contracts 2.0`, beginning from the canonical P3 player quality/role contracts in `docs/plan/post-r7-implementation-guides/p4-transfer-market-and-contracts-2.md`. Do not begin P4 until the P3 roadmap PR is merged or otherwise accepted as the green baseline.

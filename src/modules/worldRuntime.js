@@ -1,5 +1,7 @@
-import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, putPlayersBulk } from './db.js';
+import { getCompetitionRules, isTwoLegRound } from './competitionRules.js';
+import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getSave, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
+import { buildPersonalStatePatches } from './playerModel.js';
 import { mutateRow, sortTable } from './standings.js';
 import {
   WORLD_RECORD_VERSION,
@@ -12,7 +14,7 @@ import {
   pendingWorldCompetitionRecords,
 } from './worldCompetitions.js';
 
-/** modules/worldRuntime.js — atomic P1 projection of canonical world match records */
+/** modules/worldRuntime.js — atomic P1/P3 projection of canonical world match records */
 
 function heavyLossMap(results) {
   const map = new Map();
@@ -165,6 +167,129 @@ export function projectWorldBatch(players, standings, results) {
   };
 }
 
+function roundRobinPlayingTeamIds(teamIds, roundIndex) {
+  const list = [...new Set(teamIds ?? [])].sort();
+  if (list.length % 2) list.push(null);
+  if (list.length < 2) return new Set();
+
+  let rotation = [...list];
+  for (let round = 0; round < roundIndex; round++) {
+    rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, -1)];
+  }
+
+  const ids = new Set();
+  for (let index = 0; index < rotation.length / 2; index++) {
+    const home = rotation[index];
+    const away = rotation[rotation.length - 1 - index];
+    if (!home || !away) continue;
+    ids.add(home);
+    ids.add(away);
+  }
+  return ids;
+}
+
+function knockoutPlayingTeamIds(teamIds) {
+  const ids = [...new Set(teamIds ?? [])].sort();
+  const playing = new Set();
+  for (let index = 0; index < ids.length; index += 2) {
+    if (!ids[index + 1]) continue;
+    playing.add(ids[index]);
+    playing.add(ids[index + 1]);
+  }
+  return playing;
+}
+
+/**
+ * Return background clubs whose world week is not complete after league
+ * projection because they will actually play a domestic/European fixture in
+ * this GW. Competition byes are deliberately excluded: a bye adds no exposure,
+ * so that club's week is already complete at league projection. Existing
+ * canonical records are included so crash recovery preserves the same defer
+ * decision after the competition state itself has advanced.
+ */
+export function scheduledWorldCompetitionTeamIds(worldState, gameweek) {
+  const gw = Number(gameweek);
+  const ids = new Set();
+  if (!Number.isInteger(gw) || gw < 0) return ids;
+
+  for (const comp of Object.values(worldState?.competitions ?? {})) {
+    for (const record of comp.results ?? []) {
+      if (Number(record?.gameweek) !== gw) continue;
+      if (record.homeTeamId) ids.add(record.homeTeamId);
+      if (record.awayTeamId) ids.add(record.awayTeamId);
+    }
+
+    if (comp.processedGameweeks?.includes(gw)) continue;
+    const rules = getCompetitionRules(comp.id);
+    if (!rules) continue;
+
+    if (comp.format === 'uefa_league_phase' && comp.phase === 'league_phase') {
+      const matchday = Number(comp.leaguePhaseMatchday ?? 0);
+      if (rules.leaguePhase?.gws?.[matchday] !== gw) continue;
+      for (const teamId of roundRobinPlayingTeamIds(comp.activeTeamIds, matchday)) ids.add(teamId);
+      continue;
+    }
+
+    const roundIndex = Number(comp.roundIndex ?? 0);
+    if (rules.roundGWs?.[roundIndex] !== gw) continue;
+    const roundName = rules.rounds?.[roundIndex];
+    if (isTwoLegRound(comp.id, roundName, 2)) {
+      for (const tie of comp.pendingTies ?? []) {
+        if (tie.teamAId) ids.add(tie.teamAId);
+        if (tie.teamBId) ids.add(tie.teamBId);
+      }
+      continue;
+    }
+
+    const participants = [
+      ...(comp.activeTeamIds ?? []),
+      ...(comp.entrantsByRound?.[roundIndex] ?? []),
+    ];
+    for (const teamId of knockoutPlayingTeamIds(participants)) ids.add(teamId);
+  }
+
+  return ids;
+}
+
+function managedPersonalStateTeamIds(players) {
+  const ids = new Set();
+  for (const player of players ?? []) {
+    if (player?.playingTimeAgreement?.scope === 'managed' && player.teamId) ids.add(player.teamId);
+  }
+  return ids;
+}
+
+/**
+ * Fold completed-club P3 weekly settlement into an already-required projection
+ * transaction. Clubs with another background competition fixture are deferred,
+ * and the managed club is always deferred until the pending-event queue is
+ * empty. That preserves one settlement per player after total weekly exposure
+ * is known without restoring a redundant ordinary full-world write.
+ */
+export function coalescePersonalStateProjection(projectedPlayers, changedPlayers, gameweek, season, { deferTeamIds = [] } = {}) {
+  const gw = Number(gameweek);
+  if (!Number.isInteger(gw) || gw < 0 || !season) {
+    return { players:projectedPlayers, changedPlayers };
+  }
+
+  const deferred = new Set(deferTeamIds);
+  for (const teamId of managedPersonalStateTeamIds(projectedPlayers)) deferred.add(teamId);
+  const settlementCandidates = deferred.size
+    ? projectedPlayers.filter(player => !deferred.has(player.teamId))
+    : projectedPlayers;
+  const personalStatePatches = buildPersonalStatePatches(settlementCandidates, gw, season);
+  if (!personalStatePatches.length) return { players:projectedPlayers, changedPlayers };
+
+  const patchById = new Map(personalStatePatches.map(player => [player.id, player]));
+  const players = projectedPlayers.map(player => patchById.get(player.id) ?? player);
+  const changedById = new Map();
+  for (const player of changedPlayers) {
+    changedById.set(player.id, patchById.get(player.id) ?? player);
+  }
+  for (const player of personalStatePatches) changedById.set(player.id, player);
+  return { players, changedPlayers:[...changedById.values()] };
+}
+
 export function projectNonLeaguePlayers(players, results) {
   const participantTeams = nonLeagueParticipantTeamIds(results);
   const participantPlayers = players.filter(player => participantTeams.has(player.teamId));
@@ -214,7 +339,8 @@ function commitWorldCompetitionProjection(save, worldCompetitions, players) {
  * Apply every persisted-but-unprojected canonical fixture in one transaction.
  * A crash before commit leaves all records pending; a crash after commit leaves
  * all records applied. There is no state in which standings/player stats move
- * but the fixture still advertises itself as pending.
+ * but the fixture still advertises itself as pending. P3 settlement is folded
+ * into this transaction only for clubs whose world week is complete here.
  */
 export async function applyPendingWorldLeagueProjections(fixtures) {
   const pending = fixtures.filter(fixture =>
@@ -225,32 +351,57 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
   if (!pending.length) return [];
 
   const results = pending.map(resultFromCanonicalLeagueRecord);
-  const [players, standings] = await Promise.all([getAllPlayers(), getAllStandings()]);
+  const [players, standings, save] = await Promise.all([getAllPlayers(), getAllStandings(), getSave()]);
   const projected = projectWorldBatch(players, standings, results);
+  const weekKeys = new Set(pending.map(fixture => `${fixture.season ?? ''}:${fixture.gameweek ?? ''}`));
+  const singleWeek = weekKeys.size === 1 ? pending[0] : null;
+  const deferredTeams = singleWeek
+    ? scheduledWorldCompetitionTeamIds(save?.worldCompetitions, singleWeek.gameweek)
+    : new Set();
+  const withPersonalState = singleWeek
+    ? coalescePersonalStateProjection(
+      projected.players,
+      projected.changedPlayers,
+      singleWeek.gameweek,
+      singleWeek.season,
+      { deferTeamIds:deferredTeams },
+    )
+    : { players:projected.players, changedPlayers:projected.changedPlayers };
   const appliedFixtures = pending.map(fixture => ({ ...fixture, projectionsApplied:true }));
-  // Keep fixture apply-once flags, standings and every changed player in one
-  // transaction, but avoid rewriting thousands of byte-identical player rows.
-  await commitWorldProjection(appliedFixtures, projected.standings, projected.changedPlayers);
+  // Keep fixture apply-once flags, standings and every changed/P3-settled player
+  // in one transaction, but avoid rewriting thousands of byte-identical rows.
+  await commitWorldProjection(appliedFixtures, projected.standings, withPersonalState.changedPlayers);
   return results;
 }
 
 /**
  * Background cup records live inside the save row, so their apply-once flag and
- * participant player mutations commit together. A tab close can leave the whole
- * batch pending, or the whole batch applied, but never half-project a tournament.
- * Players from clubs outside the batch are intentionally not rewritten.
+ * participant player mutations commit together. P3 settlement is coalesced only
+ * after every pending background result for that world week has been projected,
+ * so league + domestic/European exposure is consumed once in total. Clubs
+ * outside the batch are intentionally not rewritten.
  */
 export async function applyPendingWorldCompetitionProjections(save) {
   const pending = pendingWorldCompetitionRecords(save?.worldCompetitions);
   if (!pending.length) return { save, results:[] };
   const players = await getAllPlayers();
   const projectedPlayers = projectNonLeaguePlayers(players, pending);
+  const weekKeys = new Set(pending.map(record => `${record.season ?? ''}:${record.gameweek ?? ''}`));
+  const singleWeek = weekKeys.size === 1 ? pending[0] : null;
+  const withPersonalState = singleWeek
+    ? coalescePersonalStateProjection(
+      projectedPlayers,
+      projectedPlayers,
+      singleWeek.gameweek,
+      singleWeek.season,
+    )
+    : { players:projectedPlayers };
   const worldCompetitions = markWorldCompetitionRecordsApplied(
     save.worldCompetitions,
     pending.map(record => record.id),
   );
   const nextSave = { ...save, worldCompetitions };
-  await commitWorldCompetitionProjection(nextSave, worldCompetitions, projectedPlayers);
+  await commitWorldCompetitionProjection(nextSave, worldCompetitions, withPersonalState.players);
   return { save:nextSave, results:pending };
 }
 
