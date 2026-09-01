@@ -71,11 +71,11 @@
     </div>
     {#if assignmentType === 'position'}
       <select bind:value={position} aria-label="Scouting position">
-        {#each ['GK','CB','RB','LB','CDM','CM','CAM','RW','LW','ST'] as option}<option value={option}>{option}</option>{/each}
+        {#each ['GK','CB','RB','LB','CDM','CM','CAM','RW','LW','ST'] as option (option)}<option value={option}>{option}</option>{/each}
       </select>
     {:else}
       <select bind:value={league} aria-label="Scouting league">
-        {#each leagueOptions as option}<option value={option}>{option}</option>{/each}
+        {#each leagueOptions as option (option)}<option value={option}>{option}</option>{/each}
       </select>
     {/if}
     <button class="primary" disabled={busy || activeCount >= MAX_SCOUTING_ASSIGNMENTS} onclick={addAssignment}>Add assignment</button>
