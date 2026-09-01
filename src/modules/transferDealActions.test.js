@@ -113,6 +113,8 @@ describe('P4 user transfer-deal actions', () => {
     expect(result.decisionLog.map(entry => entry.reasonCode)).toEqual(['user_counter', 'buyer_accepts_counter']);
   });
 
+  // Renewals use a dedicated negotiation path. They must never go through the
+  // normal transfer-interest blocker that says a player is already at the club.
   it('counters a weak renewal instead of rejecting a player for already being at the club', () => {
     const result = resolveRenewalContractOffer(renewalDeal(), {
       player:renewalPlayer,
