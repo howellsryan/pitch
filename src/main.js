@@ -16,6 +16,7 @@ import './r6.css';
 import './mobile-ux.css';
 import './r7.css';
 import './r7-mobile-fixes.css';
+import './p5.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
@@ -29,6 +30,7 @@ import AcademyScreen from './lib/ui/AcademyScreen.svelte';
 import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
 import SettingsScreen from './lib/ui/SettingsScreen.svelte';
 import TransfersScreen from './lib/ui/TransfersScreen.svelte';
+import ScoutingDrawer from './lib/ui/ScoutingDrawer.svelte';
 import MatchScreen from './lib/ui/MatchScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
@@ -85,7 +87,10 @@ const settingsMount = document.getElementById('screen-settings');
 if (settingsMount) mount(SettingsScreen, { target: settingsMount });
 
 const transfersMount = document.getElementById('screen-transfers');
-if (transfersMount) mount(TransfersScreen, { target: transfersMount });
+if (transfersMount) {
+  mount(TransfersScreen, { target: transfersMount });
+  mount(ScoutingDrawer, { target: transfersMount });
+}
 
 const matchMount = document.getElementById('screen-match');
 if (matchMount) mount(MatchScreen, { target: matchMount });

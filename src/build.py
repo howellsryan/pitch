@@ -25,19 +25,18 @@ for df in _data_files:
     label = df.stem.upper().replace('_', ' ')
     MODULES.append((f'data/{df.name}', label))
 
-# Core modules (dependencies first). P3's pure pathway, development and
-# rehabilitation contracts load before the canonical player model that
-# composes them. P2's tactics domain and manager-facing adapter follow before
-# matchEngine.js so the stripped legacy bundle exposes the same contracts as
-# the ES-module build. P0's competitionRules.js is immediately before cups.js.
-# P4's shared squad planner and pure market state machine load after the P2/P3
-# selectors they consume and immediately before transfers.js, whose runtime
-# facade persists/settles those contracts. P1's world helpers sit after youthAcademy because they consume fixtures,
-# match/standing helpers and youth/newgen generation. worldRuntime/save/season/
-# gameweek consume the living-world contracts afterwards.
+# Core modules (dependencies first). P5 training is consumed by P3 development,
+# while coaching is dependency-free and is shared by scouting/runtime. Scouting
+# loads after player/tactics selectors and before the shared P4/P5 squad planner.
+# P3 rehabilitation/player model then compose the canonical weekly player state.
+# P4's market state/facade follow the shared planner. P5 runtime sits after those
+# pure contracts and before save/gameweek, where migration and closeout consume
+# it. P1 world helpers remain after youthAcademy and before worldRuntime/save.
 MODULES += [
     ('modules/db.js',               'DATABASE'),
     ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
+    ('modules/training.js',         'TRAINING'),
+    ('modules/coaching.js',         'COACHING'),
     ('modules/playerDevelopment.js', 'PLAYER DEVELOPMENT'),
     ('modules/playerRehabilitation.js', 'PLAYER REHABILITATION'),
     ('modules/playerModel.js',      'PLAYER MODEL'),
@@ -48,9 +47,11 @@ MODULES += [
     ('modules/fixtures.js',         'FIXTURES'),
     ('modules/competitionRules.js', 'COMPETITION RULES'),
     ('modules/cups.js',             'CUPS'),
+    ('modules/scouting.js',         'SCOUTING'),
     ('modules/squadPlanning.js',    'SQUAD PLANNING'),
     ('modules/transferMarket.js',   'TRANSFER MARKET'),
     ('modules/transfers.js',        'TRANSFERS'),
+    ('modules/p5Runtime.js',        'P5 CAREER DEPTH RUNTIME'),
     ('modules/potential.js',        'POTENTIAL'),
     ('modules/injuries.js',         'INJURIES'),
     ('modules/promotion.js',        'PROMOTION'),

@@ -1,9 +1,13 @@
+import { developmentPlanAttributePreference, developmentPlanProgressMultiplier } from './training.js';
+
 /*
  * modules/playerDevelopment.js — pure P3 development and potential knowledge.
  *
  * True potential remains the existing hidden potentialRating. This module owns
  * deterministic growth-profile assignment, user-facing potential estimates and
  * once-per-world-week development projections. No DB or UI imports.
+ * P5 development plans only shape this existing boundary; they do not add a
+ * second growth clock.
  */
 
 export const GROWTH_PROFILE_DEFS = Object.freeze({
@@ -125,7 +129,7 @@ function developmentThreshold(player, profile) {
   return Math.max(10, Math.round(ageBase * gapMult / profile.growthRate));
 }
 
-function boostAttribute(player, seed) {
+function boostAttribute(player, seed, preferredAttribute = null) {
   const next = { ...player };
   const primary = primaryAttribute(player.position);
   const roll = devDeterministicUnit(seed);
@@ -133,7 +137,8 @@ function boostAttribute(player, seed) {
     : primary === 'midfield' ? (roll < .5 ? 'attack' : 'defence')
       : primary === 'defence' ? 'midfield'
         : 'defence';
-  const attribute = roll < .78 ? primary : secondary;
+  const validPreference = ['attack','midfield','defence','goalkeeping'].includes(preferredAttribute) ? preferredAttribute : null;
+  const attribute = validPreference && roll < .72 ? validPreference : roll < .78 ? primary : secondary;
   next[attribute] = Math.min(99, Number(next[attribute] ?? 50) + 1);
   return next;
 }
@@ -153,7 +158,8 @@ function declineAttribute(player, seed) {
 /**
  * Pure once-per-completed-world-week development. The caller supplies the
  * player's total league/cup/European exposure for the week before settlement;
- * a matching key is therefore a strict replay no-op.
+ * a matching key is therefore a strict replay no-op. P5 training changes only
+ * the bounded progress/focus inputs to this same settlement.
  */
 export function settlePlayerDevelopment(player, gameweek, season = null) {
   if (!player) return player;
@@ -167,6 +173,8 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
   const currentLevel = durableLevel(player);
   const potential = Math.max(currentLevel, Number(player.potentialRating ?? currentLevel));
   const age = Number(player.age ?? 24);
+  const planMultiplier = developmentPlanProgressMultiplier(player, player.developmentPlan?.coachingMultiplier ?? 1);
+  const preferredAttribute = developmentPlanAttributePreference(player);
   let next = { ...player, growthProfile:profileState };
   let progress = Math.max(0, Number(player.developmentProgress ?? player.growthPoints ?? 0));
   let boostedThisWeek = false;
@@ -179,10 +187,10 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
     const sharpness = devClamp(Number(player.sharpness ?? 50), 0, 100);
     const readinessMult = .82 + morale / 500 + sharpness / 625;
     const variance = .9 + devDeterministicUnit(`${player.id}:${key}:growth`) * .2;
-    progress += Math.max(0, (minutesScore + ratingBonus) * profile.growthRate * readinessMult * variance);
+    progress += Math.max(0, (minutesScore + ratingBonus) * profile.growthRate * readinessMult * variance * planMultiplier);
     const threshold = developmentThreshold(player, profile);
     if (progress >= threshold) {
-      next = boostAttribute(next, `${player.id}:${key}:boost`);
+      next = boostAttribute(next, `${player.id}:${key}:boost`, preferredAttribute);
       progress -= threshold;
       boostedThisWeek = true;
     }

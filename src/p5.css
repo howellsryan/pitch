@@ -1,0 +1,9 @@
+/* P5 responsive polish. The Squad sheet centres with a static translate on wide
+   screens; its mobile slide-up keyframes also animate transform and temporarily
+   override that centring. Disable only the wide planning-sheet transition so it
+   never opens half outside the viewport or snaps horizontally after 220ms. */
+@media (min-width: 720px) {
+  .planning-sheet {
+    animation: none !important;
+  }
+}
