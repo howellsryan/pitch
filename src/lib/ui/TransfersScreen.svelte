@@ -1,7 +1,7 @@
 <script>
   import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, openDB, putPlayer } from '../../modules/db.js';
   import { primaryRating } from '../../modules/matchEngine.js';
-  import { counterMarketDeal, isUserClubDeal } from '../../modules/transferDealActions.js';
+  import { counterMarketDeal, isUserClubDeal, reconcileManagedClubInboundOffers, submitContractTerms } from '../../modules/transferDealActions.js';
   import {
     _loanFee, _loanWageCost, acceptMarketDeal, canClubSignPlayer, contractYearsRemaining, createUserMarketDeal, formAdjustedValue,
     getLoanableInPlayers, loanOutPlayer, playerMinRepToSign, transferWindowStatus, withdrawMarketDeal,
@@ -45,8 +45,9 @@
 
   async function load() {
     await openDB();
-    const s = await getSave();
+    let s = await getSave();
     if (!s || s._deleted) return;
+    s = await reconcileManagedClubInboundOffers(s).catch(() => s);
     save = s;
     team = await getTeam(s.userTeamId);
     const allTeams = await getAllTeams();
@@ -287,6 +288,13 @@
   let counterDeal = $state(null);
   let counterAmount = $state(0);
   let counterBusy = $state(false);
+  let contractSheet = $state(null); // { player, deal }
+  let contractWage = $state(10_000);
+  let contractDuration = $state(3);
+  let contractRole = $state('rotation');
+  let contractSigningBonus = $state(0);
+  let contractReleaseClause = $state(0);
+  let contractBusy = $state(false);
 
   async function acceptDeal(deal) {
     try { await acceptMarketDeal(deal.id); toast(`${deal.playerName}: terms accepted`, 'success', 3200); screenTicks.transfers++; }
@@ -314,6 +322,7 @@
       toast(message, lastReason === 'buyer_walks_away' ? 'error' : 'success', 4000);
       counterDeal = null;
       screenTicks.transfers++;
+      await load();
     } catch (error) {
       const message = error.message === 'INSUFFICIENT_FUNDS' ? 'That counter is above your available transfer budget.' : error.message;
       toast(message, 'error', 3500);
@@ -321,16 +330,78 @@
       counterBusy = false;
     }
   }
+
+  function fillContractSheet(player, deal = null) {
+    const terms = deal?.terms?.contract ?? {};
+    contractSheet = { player, deal };
+    contractWage = Math.max(1_000, terms.wage ?? Math.round((player.wage ?? 10_000) * 1.1));
+    contractDuration = terms.duration ?? 3;
+    contractRole = terms.squadRole ?? player.squadRole ?? 'rotation';
+    contractSigningBonus = terms.signingBonus ?? Math.round((player.wage ?? 10_000) * 4);
+    contractReleaseClause = terms.releaseClause ?? 0;
+  }
+
+  async function openContractDeal(deal) {
+    const player = await getPlayer(deal.playerId);
+    if (!player) { toast('Player not found.', 'error', 3000); return; }
+    fillContractSheet(player, deal);
+  }
+
+  function openRenewal(p) {
+    const existing = activeDeals.find(deal => deal.type === 'renewal' && deal.playerId === String(p.id));
+    if (existing) {
+      if (existing.awaiting === 'user') void openContractDeal(existing);
+      else {
+        tab = 'deals';
+        toast(`${p.name}: waiting for the player's response.`, 'info', 3000);
+      }
+      return;
+    }
+    fillContractSheet(p, null);
+  }
+
+  function closeContractSheet() { if (!contractBusy) contractSheet = null; }
+
+  async function submitContractOffer() {
+    if (!contractSheet) return;
+    contractBusy = true;
+    try {
+      const result = await submitContractTerms({
+        playerId:contractSheet.player.id,
+        dealId:contractSheet.deal?.id ?? null,
+        contract:{
+          wage:contractWage,
+          duration:contractDuration,
+          squadRole:contractRole,
+          signingBonus:contractSigningBonus,
+          releaseClause:contractReleaseClause,
+        },
+      });
+      const deal = result.deal;
+      screenTicks.transfers++;
+      await load();
+      if (result.settlement?.success || deal.state === 'agreed') {
+        toast(`${deal.playerName}: contract agreed.`, 'success', 4000);
+        contractSheet = null;
+      } else if (deal.awaiting === 'user') {
+        const player = await getPlayer(deal.playerId) ?? contractSheet.player;
+        fillContractSheet(player, deal);
+        toast(`${deal.playerName} has countered your contract offer.`, 'info', 4000);
+      } else {
+        toast(`${deal.playerName}: revised contract terms sent.`, 'success', 3200);
+        contractSheet = null;
+      }
+    } catch (error) {
+      const message = error.message === 'INSUFFICIENT_FUNDS' ? 'The signing bonus is above your available transfer budget.' : error.message;
+      toast(message, 'error', 3500);
+    } finally {
+      contractBusy = false;
+    }
+  }
+
   async function withdrawDeal(deal) {
     try { await withdrawMarketDeal(deal.id); toast(`${deal.playerName}: negotiation withdrawn`, 'success', 2600); screenTicks.transfers++; }
     catch (error) { toast(error.message, 'error', 3500); }
-  }
-  async function openRenewal(p) {
-    try {
-      await createUserMarketDeal(p.id, { type:'renewal', terms:{ contract:{ wage:Math.round((p.wage ?? 10_000) * 1.1), duration:3, squadRole:p.squadRole ?? 'rotation', signingBonus:Math.round((p.wage ?? 10_000) * 4) } } });
-      toast(`Contract talks opened with ${p.name}`, 'success', 3000);
-      screenTicks.transfers++;
-    } catch (error) { toast(error.message, 'error', 3500); }
   }
 </script>
 
@@ -366,25 +437,37 @@
 
     {#if tab === 'deals'}
       <div class="tr-panel">
-        <div class="tr-panel-title">Active Negotiations</div>
+        <div class="tr-panel-title">Active Negotiations &amp; Offers</div>
         {#if !activeDeals.length}
-          <div class="tr-empty-inline">No active deals.<br><span>Open an enquiry from Buy, list a player from Sell, or start contract talks with a free agent.</span></div>
+          <div class="tr-empty-inline">No active deals.<br><span>Open an enquiry from Buy, list a player from Sell, or start contract talks from Contracts.</span></div>
         {:else}
           <div class="sell-scroll">
             {#each activeDeals as deal (deal.id)}
               <div class="sell-row deal-row">
-                <div class="pl-flag-sm">{deal.type === 'loan' ? 'LN' : deal.type === 'renewal' ? 'CT' : 'TR'}</div>
+                <div class="pl-flag-sm">{deal.userSide === 'seller' && deal.type === 'transfer' ? 'OF' : deal.type === 'loan' ? 'LN' : deal.type === 'renewal' ? 'CT' : 'TR'}</div>
                 <div class="pl-info">
                   <div class="pl-name">{deal.playerName || deal.playerId}</div>
-                  <div class="pl-meta"><span class="pl-tag">{stageLabel(deal.state)}</span><span>{deal.awaiting === 'user' ? 'Your decision' : `Awaiting ${deal.awaiting || 'completion'}`}</span>{#if deal.competingOffers?.length}<span>{deal.competingOffers.length} rival bid{deal.competingOffers.length === 1 ? '' : 's'}</span>{/if}</div>
+                  <div class="pl-meta">
+                    <span class="pl-tag">{stageLabel(deal.state)}</span>
+                    {#if deal.userSide === 'seller' && deal.type === 'transfer'}<span class="pl-tag">Offer from {byId.get(deal.buyerTeamId)?.shortName || byId.get(deal.buyerTeamId)?.name || deal.buyerTeamId}</span>{/if}
+                    <span>{deal.awaiting === 'user' ? 'Your decision' : `Awaiting ${deal.awaiting || 'completion'}`}</span>
+                    {#if deal.state === 'player_negotiation'}<span>{fmt.wage(deal.terms?.contract?.wage)} · {deal.terms?.contract?.duration ?? 3}y · {deal.terms?.contract?.squadRole ?? 'rotation'}</span>{/if}
+                    {#if deal.competingOffers?.length}<span>{deal.competingOffers.length} rival bid{deal.competingOffers.length === 1 ? '' : 's'}</span>{/if}
+                  </div>
                   {#if deal.interest?.strongestConcern}<div class="pl-meta">Concern: {deal.interest.strongestConcern}</div>{/if}
                 </div>
-                <div class="pl-right"><div class="pl-val">{fmt.money(deal.type === 'loan' ? deal.terms.loan.fee : deal.terms.fee.upfront)}</div></div>
+                <div class="pl-right">
+                  <div class="pl-val">
+                    {deal.type === 'renewal' || deal.type === 'free_agent' ? fmt.wage(deal.terms?.contract?.wage) : fmt.money(deal.type === 'loan' ? deal.terms.loan.fee : deal.terms.fee.upfront)}
+                  </div>
+                </div>
                 <div class="deal-actions">
                   {#if deal.awaiting === 'user'}
                     <button class="sell-btn" onclick={() => acceptDeal(deal)}>Accept</button>
                     {#if deal.state === 'club_negotiation' && deal.type === 'transfer'}
                       <button class="sell-btn btn-secondary" onclick={() => openCounterDeal(deal)}>Counter</button>
+                    {:else if deal.state === 'player_negotiation' && String(deal.buyerTeamId) === String(save?.userTeamId)}
+                      <button class="sell-btn btn-secondary" onclick={() => openContractDeal(deal)}>Counter Terms</button>
                     {/if}
                   {/if}
                   <button class="sell-btn btn-secondary" onclick={() => withdrawDeal(deal)}>Walk away</button>
@@ -537,10 +620,11 @@
         <div class="sell-scroll">
           {#each [...squadPlayers].sort((a, b) => contractYearsRemaining(a, save) - contractYearsRemaining(b, save)) as p (p.id)}
             {@const years = contractYearsRemaining(p, save)}
+            {@const renewal = activeDeals.find(deal => deal.type === 'renewal' && deal.playerId === String(p.id))}
             <div class="sell-row">
               <div class="pl-flag-sm">CT</div>
-              <div class="pl-info"><div class="pl-name">{p.name}</div><div class="pl-meta"><span>{years} year{years === 1 ? '' : 's'} remaining</span><span>{fmt.wage(p.wage)}</span><span>{p.squadRole ?? 'rotation'}</span></div></div>
-              <button class="sell-btn" disabled={p.onLoan} onclick={() => openRenewal(p)}>Negotiate</button>
+              <div class="pl-info"><div class="pl-name">{p.name}</div><div class="pl-meta"><span>{years} year{years === 1 ? '' : 's'} remaining</span><span>{fmt.wage(p.wage)}</span><span>{p.squadRole ?? 'rotation'}</span>{#if renewal}<span class="pl-tag">{renewal.awaiting === 'user' ? 'Counter received' : 'Negotiating'}</span>{/if}</div></div>
+              <button class="sell-btn" disabled={p.onLoan} onclick={() => openRenewal(p)}>{renewal?.awaiting === 'user' ? 'Review' : renewal ? 'View' : 'Negotiate'}</button>
             </div>
           {/each}
         </div>
@@ -774,6 +858,32 @@
     <div class="sheet-actions">
       <button class="btn-full btn-primary" disabled={counterBusy || counterAmount <= 0} onclick={submitCounterDeal}>{counterBusy ? 'Sending…' : 'Send Counter'}</button>
       <button class="btn-full btn-secondary" disabled={counterBusy} onclick={closeCounterDeal}>Cancel</button>
+    </div>
+  </div>
+{/if}
+
+<!-- ── Contract negotiation sheet ───────────────────────────── -->
+{#if contractSheet}
+  {@const p = contractSheet.player}
+  <button class="sheet-backdrop" onclick={closeContractSheet} aria-label="Close"></button>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">{contractSheet.deal ? 'Contract Counter' : `Renew ${p.name}`}</div>
+    <div class="confirm-body">
+      <div class="confirm-row"><span>Player</span><strong>{p.name}</strong></div>
+      <div class="confirm-row"><span>Current wage</span><strong>{fmt.wage(p.wage)}</strong></div>
+      {#if contractSheet.deal?.interest?.strongestConcern}<div class="contract-concern">{contractSheet.deal.interest.strongestConcern}</div>{/if}
+      <div class="contract-grid">
+        <label><span>Weekly wage</span><input type="number" min="1000" step="1000" bind:value={contractWage} /></label>
+        <label><span>Length</span><select bind:value={contractDuration}><option value={1}>1 year</option><option value={2}>2 years</option><option value={3}>3 years</option><option value={4}>4 years</option><option value={5}>5 years</option></select></label>
+        <label><span>Squad role</span><select bind:value={contractRole}><option value="crucial">Crucial</option><option value="important">Important</option><option value="rotation">Rotation</option><option value="squad">Squad</option><option value="prospect">Prospect</option></select></label>
+        <label><span>Signing bonus</span><input type="number" min="0" step="10000" bind:value={contractSigningBonus} /></label>
+        <label class="contract-wide"><span>Release clause</span><input type="number" min="0" step="100000" bind:value={contractReleaseClause} /></label>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-full btn-primary" disabled={contractBusy || contractWage <= 0} onclick={submitContractOffer}>{contractBusy ? 'Sending…' : contractSheet.deal ? 'Send Revised Terms' : 'Make Contract Offer'}</button>
+      <button class="btn-full btn-secondary" disabled={contractBusy} onclick={closeContractSheet}>Cancel</button>
     </div>
   </div>
 {/if}
@@ -1039,6 +1149,11 @@
   .confirm-row strong { color: var(--color-tx); }
   .counter-field { display: grid; gap: 6px; padding-top: 8px; font-size: 11px; color: var(--color-tx-2); }
   .counter-field .tr-search { width: 100%; box-sizing: border-box; }
+  .contract-concern { margin: 8px 0; padding: 9px 10px; border-radius: 8px; background: var(--color-raised); border: 1px solid var(--color-line); color: var(--color-warn); font-size: 11px; }
+  .contract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .contract-grid label { display: grid; gap: 5px; min-width: 0; font-size: 10px; color: var(--color-tx-2); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .5px; }
+  .contract-grid input, .contract-grid select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 38px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); padding: 0 9px; font-family: var(--font-body); }
+  .contract-wide { grid-column: 1 / -1; }
   .loan-breakdown { background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
   .loan-breakdown-title { font-size: 9px; font-weight: 700; color: var(--color-tx-3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
   .loan-total { border-top: 1px solid var(--color-line); margin-top: 4px; padding-top: 6px; }
