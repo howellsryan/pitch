@@ -6,6 +6,7 @@ import { updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
 import { advanceTransferMarketWeek } from './transfers.js';
+import { advanceP5CareerDepthWeek } from './p5Runtime.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
@@ -257,7 +258,6 @@ async function settleWorldCompetitionGameweek(gw, save, allTeams) {
     await applyDevelopment(recovered.results).catch(() => {});
   }
   if (!workingSave?.worldCompetitions?.competitions) return workingSave;
-
   const freshPlayers = await getAllPlayers();
   const advanced = await advanceWorldCompetitions(
     workingSave.worldCompetitions,
@@ -297,12 +297,10 @@ async function settleWorldPersonalState(gameweek, season, userTeamId, fixtures) 
 }
 
 async function runEndOfWorldGameweek(save, fixtures) {
-  // P3 personal state observes the fully projected world week before injury
-  // recovery advances the medical clock. The per-player settled-week key makes
-  // this safe to retry if closeout is interrupted before the world clock itself
-  // advances, including after gameweek numbers repeat in a later season.
-  // This write is fail-closed: if the P3 lifecycle cannot persist, the caller
-  // must not advance the shared world clock and silently skip a player week.
+  // P3 observes the fully projected world week first. Medical recovery then
+  // advances the injury clock, P5 progresses development/scouting/planning on
+  // the same persisted week key, and only then may P4 open candidate activity.
+  // Each layer owns its own retry key, so a reload never creates a second tick.
   const personalStatePatches = await settleWorldPersonalState(
     save.currentGameweek,
     save.season,
@@ -310,14 +308,20 @@ async function runEndOfWorldGameweek(save, fixtures) {
     fixtures,
   );
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
-  // P4 advances transfers once per completed world week. The persisted tick key
-  // makes retries safe and prevents one market step per pending fixture.
-  const marketResult = await advanceTransferMarketWeek(save).catch(() => ({ newOffers:[], playerResponses:[] }));
+  const careerDepthResult = await advanceP5CareerDepthWeek(await getSave()).catch(() => ({ reportsAdded:[], needs:[] }));
+  const marketResult = await advanceTransferMarketWeek(await getSave()).catch(() => ({ newOffers:[], playerResponses:[] }));
   const newOffers = marketResult.newOffers ?? [];
   const playerResponses = marketResult.playerResponses ?? [];
   await payWeeklyWages().catch(() => {});
   await updateTeamMorale(save.userTeamId).catch(() => {});
-  return { recoveredPlayers, newOffers, playerResponses, personalStatePatches };
+  return {
+    recoveredPlayers,
+    newOffers,
+    playerResponses,
+    personalStatePatches,
+    scoutingReports:careerDepthResult.reportsAdded ?? [],
+    squadNeeds:careerDepthResult.needs ?? [],
+  };
 }
 
 export async function advanceOneFixture(overrideFormation) {
@@ -399,8 +403,6 @@ export async function advanceOneFixture(overrideFormation) {
       await putFixture(toCanonicalLeagueRecord(fix, result, save.season));
       const worldResults = await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
       singleResult = { ...result, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
-      // settleWorldLeagueGameweek already projects the managed result together
-      // with the background leagues; keep its result list available to dev only.
       void worldResults;
     }
     pending = remaining;
@@ -480,9 +482,6 @@ export async function advanceOneFixture(overrideFormation) {
   const newDate = new Date(save.currentDate);
 
   if (gwDone) {
-    // Weeks with a cup but no managed league match still advance every other
-    // domestic league and background competition on the same date before the
-    // shared world clock moves forward.
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
     const latestAfterLeague = await getSave();
     const competitionSave = await settleWorldCompetitionGameweek(gw, latestAfterLeague, allTeams);
@@ -773,14 +772,12 @@ export async function simulateFixtures(fixtures, teamsById, playersByTeam, save)
     const withContext = { ...result, gameweek:fixture.gameweek, league:fixture.league };
     toWrite.push(toCanonicalLeagueRecord(fixture, withContext, save.season));
     results.push(withContext);
-    // Keep the background engine responsive without making Broadcast the world engine.
     if ((index + 1) % WORLD_SIM_BATCH_SIZE === 0) await Promise.resolve();
   }
   if (toWrite.length) await putFixturesBulk(toWrite);
   return results;
 }
 
-// Compatibility helpers remain exported for the legacy validator and focused tests.
 export function buildHeavyLossMap(results) {
   const map = new Map();
   for (const r of results) {
