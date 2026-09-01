@@ -240,6 +240,31 @@ export function canClubSignPlayer(team, player) {
   return canClubSignPlayerAtRating(team, player, _fav_primaryRating(player));
 }
 
+/** A player may be listed only when their current club can still sell them. */
+export function transferListingEligibility(player) {
+  if (!player) return { ok:false, reason:'PLAYER_NOT_FOUND' };
+  if (player.onLoan || player.loanedFrom) return { ok:false, reason:'ALREADY_ON_LOAN' };
+  if (player.signedThisSeason) return { ok:false, reason:'SIGNED_THIS_SEASON' };
+  return { ok:true, reason:null };
+}
+
+/**
+ * Persist a managed-club transfer listing from a plain database record.
+ * UI player rows are Svelte proxies and cannot be written directly to
+ * IndexedDB, so this boundary deliberately re-reads the authoritative player.
+ */
+export async function setManagedPlayerTransferListing(playerId, listed) {
+  const [save, player] = await Promise.all([getSave(), getPlayer(playerId)]);
+  if (!save || !player || String(player.teamId) !== String(save.userTeamId)) throw new Error('PLAYER_NOT_IN_SQUAD');
+  if (listed) {
+    const eligibility = transferListingEligibility(player);
+    if (!eligibility.ok) throw new Error(eligibility.reason);
+  }
+  const updated = { ...player, transferListed:Boolean(listed) };
+  await putPlayer(updated);
+  return updated;
+}
+
 // Human-readable reason why a signing is blocked (shown in UI).
 export function repGateReason(team, player) {
   if (player.signedThisSeason) {

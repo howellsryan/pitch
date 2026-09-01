@@ -1,10 +1,11 @@
 <script>
-  import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, openDB, putPlayer } from '../../modules/db.js';
+  import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
   import { primaryRating } from '../../modules/matchEngine.js';
   import { counterMarketDeal, isUserClubDeal, reconcileManagedClubInboundOffers, submitContractTerms } from '../../modules/transferDealActions.js';
   import {
     _loanFee, _loanWageCost, acceptMarketDeal, canClubSignPlayer, contractYearsRemaining, createUserMarketDeal, formAdjustedValue,
     getLoanableInPlayers, loanOutPlayer, playerMinRepToSign, transferWindowStatus, withdrawMarketDeal,
+    setManagedPlayerTransferListing,
   } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
   import { fmt, formLabel, playerNationality, posGroup, toast } from '../../ui/helpers.js';
@@ -14,7 +15,7 @@
   const POT_COLORS = ['', '#8a9ab0', 'var(--color-live)', '#3b82f6', 'var(--color-warn)', 'var(--color-bad)'];
   const LEAGUE_NATION = { 'Premier League': 'ENG', 'Championship': 'ENG', 'League One': 'ENG', 'League Two': 'ENG', 'La Liga': 'ESP', 'Bundesliga': 'GER', 'Serie A': 'ITA', 'Ligue 1': 'FRA', 'Eredivisie': 'NED' };
   const BUY_MSGS = { INSUFFICIENT_FUNDS: 'Not enough budget.', ALREADY_IN_SQUAD: 'Already in your squad.', REP_TOO_LOW: "Your club's reputation is too low to attract this calibre of player.", WINDOW_CLOSED: 'The transfer window is closed. You can only sign players in the summer (Aug) or winter (Jan) windows.', SIGNED_THIS_SEASON: 'This player has already transferred once this season and cannot move again until next season.' };
-  const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.' };
+  const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.', SIGNED_THIS_SEASON: 'This player joined during the current season and cannot be sold until next season.', ALREADY_ON_LOAN: 'A player on loan cannot be transfer listed.' };
   const LOAN_IN_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Player is already out on loan.', SIGNED_THIS_SEASON: 'Player already moved this season.', INSUFFICIENT_FUNDS: 'Not enough budget.', CLUB_WONT_LOAN: "This club won't loan out this player." };
   const LOAN_OUT_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Already on loan.', SIGNED_THIS_SEASON: 'Already moved this season.', NO_LOAN_TAKERS: 'No clubs interested in this player right now.' };
   const TERMINAL_DEAL_STATES = new Set(['completed','rejected','withdrawn','expired','hijacked']);
@@ -210,7 +211,7 @@
     const { player } = sellConfirm;
     sellBusy = true;
     try {
-      await putPlayer({ ...player, transferListed:true });
+      await setManagedPlayerTransferListing(player.id, true);
       toast(`${player.name} is transfer listed. Interested clubs can now submit staged bids.`, 'success', 5000);
       sellConfirm = null;
       screenTicks.transfers++;
