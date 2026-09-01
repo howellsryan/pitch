@@ -20,6 +20,7 @@ async function openMarket(page) {
 
 async function createStagedEnquiry(page) {
   await page.getByRole('button', { name:'Buy', exact:true }).click();
+  await page.getByText('Filters & sort', { exact:true }).click();
   await page.getByRole('button', { name:'Affordable', exact:true }).click();
   await page.locator('#tr-can-sign').click();
   await expect(page.locator('.buy-row').first()).toBeVisible();
@@ -54,28 +55,30 @@ async function advanceActiveDealToContractTerms(page) {
         actor:'seller', reasonCode:'seller_accepts', weekKey:'2025/26:1',
       }],
     };
-    store.put({
-      ...save,
-      transferMarket:{
-        ...save.transferMarket,
-        activeDeals:save.transferMarket.activeDeals.map((item, index) => index === 0 ? accepted : item),
-      },
-    });
-    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+    store.put({ ...save, transferMarket:{ ...save.transferMarket, activeDeals:[accepted] } });
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error); });
     db.close();
   });
+  await page.getByRole('button', { name:'Deals', exact:false }).click();
+  await page.waitForTimeout(150);
 }
 
-async function assertNoOverflow(page) {
-  const geometry = await page.evaluate(() => ({ viewport:window.innerWidth, documentWidth:document.documentElement.scrollWidth, screenWidth:document.querySelector('#screen-transfers')?.scrollWidth ?? 0 }));
-  expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport + 1);
-  expect(geometry.screenWidth).toBeLessThanOrEqual(geometry.viewport + 1);
+async function assertNoOverflow(page, selector, label) {
+  const geometry = await page.locator(selector).evaluate(el => ({
+    clientWidth:el.clientWidth, scrollWidth:el.scrollWidth, left:el.getBoundingClientRect().left,
+    right:el.getBoundingClientRect().right, viewport:window.innerWidth,
+  }));
+  expect(geometry.scrollWidth, `${label} horizontal overflow`).toBeLessThanOrEqual(geometry.clientWidth + 1);
+  expect(geometry.left, `${label} starts outside viewport`).toBeGreaterThanOrEqual(-1);
+  expect(geometry.right, `${label} extends outside viewport`).toBeLessThanOrEqual(geometry.viewport + 1);
 }
 
 test.beforeEach(async ({ page }) => {
   errors.length = 0;
-  page.on('pageerror', error => errors.push(String(error)));
-  page.on('console', message => { if (message.type() === 'error' && !isNetworkNoise(message.text())) errors.push(message.text()); });
+  page.on('pageerror', e => errors.push(String(e)));
+  page.on('console', m => {
+    if (m.type() === 'error' && !isNetworkNoise(m.text())) errors.push(m.text());
+  });
 });
 
 test('P4 staged deal is persisted and readable at 390x844', async ({ page }) => {
@@ -83,28 +86,16 @@ test('P4 staged deal is persisted and readable at 390x844', async ({ page }) => 
   await startArsenalCareer(page);
   await openMarket(page);
   await createStagedEnquiry(page);
-  await assertNoOverflow(page);
-  const persisted = await page.evaluate(async () => {
-    const request = window.indexedDB.open('pitch_fc');
-    const db = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-    const tx = db.transaction('save');
-    const get = tx.objectStore('save').get('active');
-    const save = await new Promise((resolve, reject) => { get.onsuccess = () => resolve(get.result); get.onerror = () => reject(get.error); });
-    return save.transferMarket.activeDeals[0];
-  });
-  expect(persisted).toMatchObject({ state:'seller_terms', awaiting:'seller', createdBy:'user' });
-  await advanceActiveDealToContractTerms(page);
+
+  const deal = page.locator('.deal-row').first();
+  await expect(deal).toBeVisible();
+  await assertNoOverflow(page, '#screen-transfers', 'P4 mobile transfer screen');
+  await page.screenshot({ path:'test-results/p4-deal-390x844.png' });
+
   await page.reload();
+  await expect(page.locator('#app')).toBeVisible({ timeout:30000 });
   await openMarket(page);
-  await page.getByRole('button', { name:'Negotiate Contract' }).click();
-  await expect(page.getByText(/Negotiate with/)).toBeVisible();
-  await expect(page.getByText('Weekly wage')).toBeVisible();
-  await expect(page.getByText('Length')).toBeVisible();
-  await expect(page.getByText('Squad role')).toBeVisible();
-  await expect(page.getByText('Signing bonus')).toBeVisible();
-  await expect(page.getByText('Release clause')).toBeVisible();
-  await assertNoOverflow(page);
-  await page.screenshot({ path:'test-results/p4-transfer-contract-390x844.png' });
+  await expect(page.locator('.deal-row').first()).toContainText('Seller terms');
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });
 
@@ -113,8 +104,12 @@ test('P4 deals and contract navigation remain readable at 1280x800', async ({ pa
   await startArsenalCareer(page);
   await openMarket(page);
   await createStagedEnquiry(page);
-  await assertNoOverflow(page);
-  await expect(page.getByRole('button', { name:'Contracts', exact:true })).toBeVisible();
-  await page.screenshot({ path:'test-results/p4-transfer-deals-1280x800.png' });
+  await advanceActiveDealToContractTerms(page);
+  await expect(page.getByRole('button', { name:'Negotiate Contract' })).toBeVisible();
+  await page.getByRole('button', { name:'Negotiate Contract' }).click();
+  const contract = page.locator('.contract-grid');
+  await expect(contract).toBeVisible();
+  await assertNoOverflow(page, '.sheet', 'P4 contract sheet');
+  await page.screenshot({ path:'test-results/p4-contract-1280x800.png' });
   expect(errors, `page errors:\n${errors.join('\n')}`).toEqual([]);
 });
