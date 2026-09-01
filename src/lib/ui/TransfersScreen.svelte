@@ -8,6 +8,7 @@
     setManagedPlayerTransferListing,
   } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
+  import { projectScoutedPlayerView } from '../../modules/scoutingView.js';
   import { fmt, formLabel, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { _updateOffersBadge } from '../../ui/squad_tactics_offers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -15,7 +16,7 @@
   const POT_COLORS = ['', '#8a9ab0', 'var(--color-live)', '#3b82f6', 'var(--color-warn)', 'var(--color-bad)'];
   const LEAGUE_NATION = { 'Premier League': 'ENG', 'Championship': 'ENG', 'League One': 'ENG', 'League Two': 'ENG', 'La Liga': 'ESP', 'Bundesliga': 'GER', 'Serie A': 'ITA', 'Ligue 1': 'FRA', 'Eredivisie': 'NED' };
   const BUY_MSGS = { INSUFFICIENT_FUNDS: 'Not enough budget.', ALREADY_IN_SQUAD: 'Already in your squad.', REP_TOO_LOW: "Your club's reputation is too low to attract this calibre of player.", WINDOW_CLOSED: 'The transfer window is closed. You can only sign players in the summer (Aug) or winter (Jan) windows.', SIGNED_THIS_SEASON: 'This player has already transferred once this season and cannot move again until next season.' };
-  const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.', SIGNED_THIS_SEASON: 'This player joined during the current season and cannot be sold until next season.', ALREADY_ON_LOAN: 'A player on loan cannot be transfer listed.' };
+  const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.', SIGNED_THIS_SEASON: 'This player joined during the current season and cannot be sold again until next season.', ALREADY_ON_LOAN: 'A player on loan cannot be transfer listed.' };
   const LOAN_IN_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Player is already out on loan.', SIGNED_THIS_SEASON: 'Player already moved this season.', INSUFFICIENT_FUNDS: 'Not enough budget.', CLUB_WONT_LOAN: "This club won't loan out this player." };
   const LOAN_OUT_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Already on loan.', SIGNED_THIS_SEASON: 'Already moved this season.', NO_LOAN_TAKERS: 'No clubs interested in this player right now.' };
   const TERMINAL_DEAL_STATES = new Set(['completed','rejected','withdrawn','expired','hijacked']);
@@ -44,6 +45,21 @@
     maxPrice: 0, minPot: 0, query: '', affordable: false, canSign: false,
   });
 
+  function projectMarketPlayer(player) {
+    return projectScoutedPlayerView(player, save?.scouting, {
+      season:save?.season,
+      gameweek:save?.currentGameweek,
+      userTeam:team,
+      teamsById:byId,
+      valueFor:formAdjustedValue,
+    });
+  }
+
+  function abilityLabel(player) {
+    const range = player?.scoutingReport?.current;
+    return range ? `${range.min}–${range.max}` : String(primaryRating(player));
+  }
+
   async function load() {
     await openDB();
     let s = await getSave();
@@ -55,8 +71,8 @@
     byId = new Map(allTeams.map(t => [t.id, t]));
     leagues = [...new Set(allTeams.map(t => t.league || 'Premier League'))].sort();
     const allPl = await getAllPlayers();
-    buyTargets = allPl.filter(p => p.teamId !== s.userTeamId && p.teamId !== 'free_agents');
-    freeAgents = allPl.filter(p => p.teamId === 'free_agents');
+    buyTargets = allPl.filter(p => p.teamId !== s.userTeamId && p.teamId !== 'free_agents').map(projectMarketPlayer);
+    freeAgents = allPl.filter(p => p.teamId === 'free_agents').map(projectMarketPlayer);
     squadPlayers = [...(await getPlayersByTeam(s.userTeamId))].sort((a, b) => primaryRating(b) - primaryRating(a));
     winStatus = transferWindowStatus(s);
     if (tab === 'loans') await loadLoans();
@@ -67,7 +83,7 @@
   async function loadLoans() {
     if (!save) return;
     if (winStatus.open === false) { loanInList = []; loanOutList = []; return; }
-    loanInList = await getLoanableInPlayers(save);
+    loanInList = (await getLoanableInPlayers(save)).map(projectMarketPlayer);
     loanOutList = squadPlayers.filter(p => !p.onLoan && !p.loanedFrom && !p.signedThisSeason);
   }
 
@@ -146,14 +162,15 @@
 
   // ── Player detail sheet ─────────────────────────────────────
   let detailPlayer = $state(null);
-  let detailFresh = $state(null); // re-fetched fresh copy, avoids stale closures
+  let detailFresh = $state(null); // projected fresh copy, canonical row stays in DB
   let offerAmount = $state(0);
   let offerInstallment = $state(0);
   let offerSellOn = $state(0);
 
   async function openDetail(p) {
     detailPlayer = p;
-    detailFresh = await getPlayer(p.id) ?? p;
+    const canonical = await getPlayer(p.id) ?? p;
+    detailFresh = projectMarketPlayer(canonical);
     const fv = formAdjustedValue(detailFresh);
     offerAmount = Math.floor(fv * 0.95);
     offerInstallment = 0;
@@ -167,10 +184,10 @@
   const detailSeasonLocked = $derived(!!detailFresh?.signedThisSeason);
   const detailRep = $derived(detailFresh ? repInfo(detailFresh) : { adjMin: 0, blocked: false });
   const offerLikelihood = $derived.by(() => {
-    if (offerAmount >= detailFv) return { text: 'Over value — very likely accepted', cls: 'good' };
-    if (offerAmount >= detailMinOffer) return { text: 'Likely accepted', cls: 'good' };
-    if (offerAmount >= detailMinOffer * 0.88) return { text: 'May be rejected', cls: 'warn' };
-    return { text: 'Will be rejected', cls: 'bad' };
+    if (offerAmount >= detailFv) return { text: 'Above scouting estimate — strong opening offer', cls: 'good' };
+    if (offerAmount >= detailMinOffer) return { text: 'Within scouting estimate', cls: 'good' };
+    if (offerAmount >= detailMinOffer * 0.88) return { text: 'May be rejected or countered', cls: 'warn' };
+    return { text: 'Likely below the seller’s expectations', cls: 'bad' };
   });
 
   // ── Offer confirm / counter-offer flow ──────────────────────
@@ -214,7 +231,7 @@
       await setManagedPlayerTransferListing(player.id, true);
       toast(`${player.name} is transfer listed. Interested clubs can now submit staged bids.`, 'success', 5000);
       sellConfirm = null;
-      screenTicks.transfers++;
+      screenTicks.squad++;
       load();
     } catch (err) {
       toast(SELL_MSGS[err.message] || err.message, 'error', 5000);
@@ -513,10 +530,10 @@
           <div class="tr-adv-body">
             <div class="tr-adv-row">
               <select bind:value={filters.sort}>
-                <option value="rating">Rating</option>
-                <option value="value">Value</option>
+                <option value="rating">Scouted ability</option>
+                <option value="value">Estimated value</option>
                 <option value="age">Age</option>
-                <option value="potential">Potential</option>
+                <option value="potential">Scouted future</option>
                 <option value="goals">Goals</option>
                 <option value="assists">Assists</option>
               </select>
@@ -534,7 +551,7 @@
                 </div>
               </div>
               <div>
-                <div class="tr-adv-lbl"><span>Rating</span><span>{filters.minRat}–{filters.maxRat}</span></div>
+                <div class="tr-adv-lbl"><span>Scouted ability</span><span>{filters.minRat}–{filters.maxRat}</span></div>
                 <div class="tr-adv-sliders">
                   <input type="range" min="40" max="99" bind:value={filters.minRat} />
                   <input type="range" min="40" max="99" bind:value={filters.maxRat} />
@@ -542,11 +559,11 @@
               </div>
             </div>
             <div>
-              <div class="tr-adv-lbl"><span>Max Price</span><span>{filters.maxPrice > 0 ? fmt.money(filters.maxPrice) : 'No limit'}</span></div>
+              <div class="tr-adv-lbl"><span>Max Est. Price</span><span>{filters.maxPrice > 0 ? fmt.money(filters.maxPrice) : 'No limit'}</span></div>
               <input type="range" min="0" max="300000000" step="500000" bind:value={filters.maxPrice} style="width:100%" />
             </div>
             <div class="tr-adv-row">
-              <span class="tr-adv-lbl-inline">Min Pot</span>
+              <span class="tr-adv-lbl-inline">Min Scouted Pot</span>
               <div class="tr-pot-stars">
                 {#each [1, 2, 3, 4, 5] as n (n)}
                   <button class="ftab tr-pot-btn {n <= filters.minPot ? 'on' : ''}" onclick={() => filters.minPot = filters.minPot === n ? 0 : n}>{'★'.repeat(n)}</button>
@@ -554,8 +571,8 @@
               </div>
             </div>
             <div class="tr-adv-row">
-              <button class="ftab {filters.affordable ? 'on' : ''}" onclick={() => filters.affordable = !filters.affordable}>Affordable</button>
-              <button id="tr-can-sign" class="ftab {filters.canSign ? 'on' : ''}" onclick={() => filters.canSign = !filters.canSign}>Can Sign</button>
+              <button class="ftab {filters.affordable ? 'on' : ''}" onclick={() => filters.affordable = !filters.affordable}>Probably affordable</button>
+              <button id="tr-can-sign" class="ftab {filters.canSign ? 'on' : ''}" onclick={() => filters.canSign = !filters.canSign}>Likely signable</button>
               <button class="ftab tr-reset" onclick={resetFilters}>Reset</button>
             </div>
           </div>
@@ -568,7 +585,6 @@
             <div class="buy-spacer" style="height:{buyTotalHeight}px">
               {#each buyVisible as { p, top } (p.id)}
                 {@const g = posGroup(p.position)}
-                {@const r = primaryRating(p)}
                 {@const teamRec = byId.get(p.teamId)}
                 {@const fv = formAdjustedValue(p)}
                 {@const potStars = getPotentialStars(p)}
@@ -583,7 +599,7 @@
                   <div class="pl-info">
                     <div class="pl-name">
                       {p.name}
-                      {#if seasonLocked}<span class="lock-badge" title="Already transferred this season">TR</span>{:else if rep.blocked}<span class="lock-badge" title="Rep {rep.adjMin}+ required">REP</span>{/if}
+                      {#if seasonLocked}<span class="lock-badge" title="Already transferred this season">TR</span>{:else if rep.blocked}<span class="lock-badge" title="Scouting suggests rep {rep.adjMin}+ required">REP</span>{/if}
                     </div>
                     <div class="pl-meta">
                       <span class="pos-badge pos-{g}">{p.position}</span>
@@ -594,8 +610,8 @@
                     </div>
                   </div>
                   <div class="pl-right">
-                    <div class="pl-val">{fmt.money(fv)}</div>
-                    <div class="pl-rat">{r}</div>
+                    <div class="pl-val">~{fmt.money(fv)}</div>
+                    <div class="pl-rat range-rating">{abilityLabel(p)}</div>
                   </div>
                 </div>
               {/each}
@@ -656,7 +672,6 @@
             <div class="sell-scroll">
               {#each [...loanInList].sort((a, b) => (b.age <= 22 ? 1 : 0) - (a.age <= 22 ? 1 : 0) || (b.potentialRating ?? 70) - (a.potentialRating ?? 70)) as p (p.id)}
                 {@const g = posGroup(p.position)}
-                {@const r = primaryRating(p)}
                 {@const cost = loanCost(p)}
                 {@const canAfford = budget >= cost.total}
                 {@const parentTeam = byId.get(p.teamId)}
@@ -671,8 +686,8 @@
                     <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span class="pl-tag">{parentTeam?.shortName || ''}</span><span>Age {p.age}</span></div>
                   </div>
                   <div class="pl-right">
-                    <div class="pl-val" style="color:{canAfford ? 'var(--color-live)' : 'var(--color-bad)'}">{fmt.money(cost.total)}</div>
-                    <div class="pl-rat">{r}</div>
+                    <div class="pl-val" style="color:{canAfford ? 'var(--color-live)' : 'var(--color-bad)'}">~{fmt.money(cost.total)}</div>
+                    <div class="pl-rat range-rating">{abilityLabel(p)}</div>
                   </div>
                 </div>
               {/each}
@@ -714,16 +729,15 @@
           <div class="sell-scroll">
             {#each [...freeAgents].sort((a, b) => primaryRating(b) - primaryRating(a)) as p (p.id)}
               {@const g = posGroup(p.position)}
-              {@const r = primaryRating(p)}
               {@const blocked = !canClubSignPlayer(team, p)}
               <div class="sell-row {blocked ? 'is-locked' : ''}">
                 <div class="pl-flag-sm pos-{g}">{g}</div>
                 <div class="pl-info">
                   <div class="pl-name">{p.name}</div>
-                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>{fmt.wage(p.wage)}/wk</span></div>
+                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>~{fmt.wage(p.wage)}/wk</span></div>
                 </div>
-                <div class="pl-val">{r}</div>
-                <button class="sell-btn" disabled={blocked} title={blocked ? "Your club's reputation is too low" : ''} onclick={() => signFree(p)}>Sign</button>
+                <div class="pl-val range-rating">{abilityLabel(p)}</div>
+                <button class="sell-btn" disabled={blocked} title={blocked ? "Scouting suggests your club's reputation may be too low" : ''} onclick={() => signFree(p)}>Sign</button>
               </div>
             {/each}
           </div>
@@ -742,23 +756,25 @@
   {@const fl = formLabel(p)}
   {@const potStars = getPotentialStars(p)}
   {@const potLabel = getPotentialLabel(p)}
+  {@const report = p.scoutingReport}
   <button class="sheet-backdrop" onclick={closeDetail} aria-label="Close"></button>
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="det-hero">
-      <div class="det-rating" style="color:{r >= 80 ? 'var(--color-live)' : 'var(--color-club)'}">{r}</div>
+      <div class="det-rating" style="color:{r >= 80 ? 'var(--color-live)' : 'var(--color-club)'}">{abilityLabel(p)}</div>
       <div class="det-flag">{playerNationality(p, teamRec?.league)}</div>
       <div class="det-name">{p.name}</div>
-      {#if p.isWonderkid}<div class="det-wk">WONDERKID</div>{/if}
+      {#if p.isWonderkid}<div class="det-wk">HIGH UPSIDE</div>{/if}
       <div class="det-meta"><span class="pl-tag">{teamRec?.shortName || ''}</span><span>{teamRec?.name || ''}</span><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span></div>
       <div class="det-badges">
         <span class="form-badge form-{fl.cls}">{fl.text}</span>
         <span style="color:{fitnessColor(p.fitness ?? 100)}">{Math.round(p.fitness ?? 100)}% fit</span>
+        {#if report}<span>{report.confidenceLabel} confidence</span>{/if}
       </div>
     </div>
 
     <div class="det-pot">
-      <div class="det-pot-top"><span>Potential</span><span style="color:{POT_COLORS[potStars]}">{potLabel}</span></div>
+      <div class="det-pot-top"><span>Scouted future</span><span style="color:{POT_COLORS[potStars]}">{report ? `${report.future.min}–${report.future.max}` : potLabel}</span></div>
       <div class="det-pot-bar-row">
         <span style="color:{POT_COLORS[potStars]}">{'★'.repeat(potStars)}{'☆'.repeat(5 - potStars)}</span>
         <div class="det-pot-track"><div class="det-pot-fill" style="width:{(potStars / 5) * 100}%;background:{POT_COLORS[potStars]}"></div></div>
@@ -766,15 +782,15 @@
     </div>
 
     <div class="det-facts">
-      <div class="fact"><span>Form Value</span><strong>{fmt.money(detailFv)}</strong></div>
-      <div class="fact"><span>Weekly Wage</span><strong>{fmt.wage(p.wage)}</strong></div>
+      <div class="fact"><span>Estimated Value</span><strong>~{fmt.money(detailFv)}</strong>{#if report}<small>{fmt.money(report.financial.feeMin)}–{fmt.money(report.financial.feeMax)}</small>{/if}</div>
+      <div class="fact"><span>Estimated Wage</span><strong>~{fmt.wage(p.wage)}</strong>{#if report}<small>{fmt.wage(report.financial.wageMin)}–{fmt.wage(report.financial.wageMax)}</small>{/if}</div>
     </div>
 
     <div class="det-attrs">
-      <div class="attr-row"><div class="attr-lbl">Attack</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'ATT'} style="width:{Math.round((p.attack / 99) * 100)}%"></div></div><div class="attr-val">{p.attack}</div></div>
-      <div class="attr-row"><div class="attr-lbl">Midfield</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'MID'} style="width:{Math.round((p.midfield / 99) * 100)}%"></div></div><div class="attr-val">{p.midfield}</div></div>
-      <div class="attr-row"><div class="attr-lbl">Defence</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'DEF'} style="width:{Math.round((p.defence / 99) * 100)}%"></div></div><div class="attr-val">{p.defence}</div></div>
-      <div class="attr-row"><div class="attr-lbl">GK</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'GK'} style="width:{Math.round((p.goalkeeping / 99) * 100)}%"></div></div><div class="attr-val">{p.goalkeeping}</div></div>
+      <div class="attr-row"><div class="attr-lbl">Attack</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'ATT'} style="width:{Math.round((p.attack / 99) * 100)}%"></div></div><div class="attr-val">~{p.attack}</div></div>
+      <div class="attr-row"><div class="attr-lbl">Midfield</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'MID'} style="width:{Math.round((p.midfield / 99) * 100)}%"></div></div><div class="attr-val">~{p.midfield}</div></div>
+      <div class="attr-row"><div class="attr-lbl">Defence</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'DEF'} style="width:{Math.round((p.defence / 99) * 100)}%"></div></div><div class="attr-val">~{p.defence}</div></div>
+      <div class="attr-row"><div class="attr-lbl">GK</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'GK'} style="width:{Math.round((p.goalkeeping / 99) * 100)}%"></div></div><div class="attr-val">~{p.goalkeeping}</div></div>
     </div>
 
     <div class="det-offer">
@@ -790,8 +806,8 @@
         </div>
       {:else if detailRep.blocked}
         <div class="offer-blocked">
-          <div class="offer-blocked-title">Reputation Required: {detailRep.adjMin}+</div>
-          <div class="offer-blocked-text">Your club (rep {userRep}) isn't attractive enough for a {r}-rated player.</div>
+          <div class="offer-blocked-title">Likely Reputation Required: {detailRep.adjMin}+</div>
+          <div class="offer-blocked-text">Your club (rep {userRep}) may not currently be attractive enough for this player. Better scouting improves the assessment.</div>
         </div>
       {:else if !winStatus.open}
         <div class="offer-blocked">
@@ -799,7 +815,7 @@
           <div class="offer-blocked-text">{winStatus.label || 'Transfer window is currently closed.'}</div>
         </div>
       {:else}
-        <div class="offer-lbl-row"><span>Your Offer</span><span class="offer-min">Min ~{fmt.money(detailMinOffer)}</span></div>
+        <div class="offer-lbl-row"><span>Your Offer</span><span class="offer-min">Scouted floor ~{fmt.money(detailMinOffer)}</span></div>
         <div class="offer-slider-row">
           <input type="range" min={Math.floor(detailMinOffer * 0.7)} max={Math.floor(detailFv * 1.6)} step="100000" bind:value={offerAmount} />
           <div class="offer-val">{fmt.money(offerAmount)}</div>
@@ -832,10 +848,10 @@
     <div class="confirm-body">
       <div class="confirm-row"><span>{p.name}</span><span class="pos-badge pos-{g}">{p.position}</span></div>
       <div class="confirm-row"><span>From</span><strong>{teamRec?.name || ''}</strong></div>
-      <div class="confirm-row"><span>Rating</span><strong>{primaryRating(p)}</strong></div>
+      <div class="confirm-row"><span>Scouted ability</span><strong>{abilityLabel(p)}</strong></div>
       <div class="confirm-row"><span>Offer</span><strong style="color:var(--color-warn)">{fmt.money(confirmOffer.offer)}</strong></div>
-      <div class="confirm-row"><span>Form Value</span><strong>{fmt.money(formAdjustedValue(p))}</strong></div>
-      <div class="confirm-row"><span>Weekly Wage</span><strong>{fmt.wage(p.wage)}</strong></div>
+      <div class="confirm-row"><span>Estimated Value</span><strong>~{fmt.money(formAdjustedValue(p))}</strong></div>
+      <div class="confirm-row"><span>Estimated Wage</span><strong>~{fmt.wage(p.wage)}</strong></div>
     </div>
     <div class="sheet-actions">
       <button class="btn-full btn-primary" onclick={sendOffer}>Send Offer</button>
@@ -930,19 +946,19 @@
       <div class="confirm-row"><span>{p.name}</span><span class="pos-badge pos-{g}">{p.position}</span></div>
       {#if loanDetail.mode === 'in'}<div class="confirm-row"><span>Parent Club</span><strong>{byId.get(p.teamId)?.name || ''}</strong></div>{/if}
       <div class="confirm-row"><span>Age</span><strong>{p.age}</strong></div>
-      <div class="confirm-row"><span>Rating</span><strong>{r}</strong></div>
-      <div class="confirm-row"><span>Weekly Wage</span><strong>{fmt.wage(p.wage)}</strong></div>
+      <div class="confirm-row"><span>{loanDetail.mode === 'in' ? 'Scouted ability' : 'Rating'}</span><strong>{loanDetail.mode === 'in' ? abilityLabel(p) : r}</strong></div>
+      <div class="confirm-row"><span>{loanDetail.mode === 'in' ? 'Estimated Wage' : 'Weekly Wage'}</span><strong>{loanDetail.mode === 'in' ? '~' : ''}{fmt.wage(p.wage)}</strong></div>
       <div class="loan-breakdown">
-        <div class="loan-breakdown-title">{loanDetail.mode === 'in' ? 'Cost Breakdown' : 'Budget Relief'}</div>
-        <div class="confirm-row"><span>{loanDetail.mode === 'in' ? 'Loan Fee (10% value)' : 'Loan Fee received'}</span><strong>{fmt.money(cost.fee)}</strong></div>
-        <div class="confirm-row"><span>{loanDetail.mode === 'in' ? `Wages × ${gwsLeft} GWs` : `Wages saved × ${gwsLeft} GWs`}</span><strong>{fmt.money(cost.wageCost)}</strong></div>
-        <div class="confirm-row loan-total"><span>{loanDetail.mode === 'in' ? 'Total Upfront Cost' : 'Total Budget Gain'}</span><strong>{loanDetail.mode === 'out' ? '+' : ''}{fmt.money(cost.total)}</strong></div>
+        <div class="loan-breakdown-title">{loanDetail.mode === 'in' ? 'Estimated Cost' : 'Budget Relief'}</div>
+        <div class="confirm-row"><span>{loanDetail.mode === 'in' ? 'Estimated loan fee' : 'Loan Fee received'}</span><strong>{fmt.money(cost.fee)}</strong></div>
+        <div class="confirm-row"><span>{loanDetail.mode === 'in' ? `Estimated wages × ${gwsLeft} GWs` : `Wages saved × ${gwsLeft} GWs`}</span><strong>{fmt.money(cost.wageCost)}</strong></div>
+        <div class="confirm-row loan-total"><span>{loanDetail.mode === 'in' ? 'Estimated Upfront Cost' : 'Total Budget Gain'}</span><strong>{loanDetail.mode === 'out' ? '+' : ''}{fmt.money(cost.total)}</strong></div>
       </div>
       {#if loanDetail.mode === 'in'}<div class="confirm-row"><span>Your Budget</span><strong style="color:{budget >= cost.total ? 'var(--color-live)' : 'var(--color-bad)'}">{fmt.money(budget)}</strong></div>{/if}
     </div>
     <div class="sheet-actions">
       {#if loanDetail.mode === 'in'}
-        <button class="btn-full btn-primary" disabled={loanBusy || budget < cost.total} onclick={confirmLoanIn}>{loanBusy ? 'Loading…' : 'Confirm Loan'}</button>
+        <button class="btn-full btn-primary" disabled={loanBusy || budget < cost.total} onclick={confirmLoanIn}>{loanBusy ? 'Loading…' : 'Open Loan Talks'}</button>
       {:else}
         <button class="btn-full btn-primary" disabled={loanBusy} onclick={confirmLoanOut}>{loanBusy ? 'Loading…' : 'Loan Out'}</button>
       {/if}
@@ -1069,6 +1085,7 @@
   .pl-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
   .pl-val { font-family: var(--font-mono); font-size: 11px; color: var(--color-tx-2); }
   .pl-rat { font-family: var(--font-display); font-size: 16px; color: var(--color-club); }
+  .range-rating { min-width:44px; white-space:nowrap; text-align:right; }
 
   .pos-badge {
     font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
@@ -1112,7 +1129,7 @@
   .det-name { font-family: var(--font-display); font-size: 19px; letter-spacing: 0.5px; margin-top: 4px; }
   .det-wk { display: inline-block; margin-top: 4px; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px; background: linear-gradient(135deg, var(--color-warn), #f97316); color: #14171c; }
   .det-meta { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; color: var(--color-tx-2); margin-top: 6px; flex-wrap: wrap; }
-  .det-badges { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; font-size: 11px; font-family: var(--font-mono); }
+  .det-badges { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; font-size: 11px; font-family: var(--font-mono); flex-wrap:wrap; }
   .form-badge { font-size: 10px; font-family: var(--font-mono); padding: 1px 6px; border-radius: 5px; }
   .form-badge.form-hot { background: color-mix(in oklch, var(--color-bad) 18%, transparent); color: var(--color-bad); }
   .form-badge.form-good { background: color-mix(in oklch, var(--color-live) 18%, transparent); color: var(--color-live); }
@@ -1127,9 +1144,10 @@
   .det-facts { display: flex; gap: 20px; padding: 10px 0; border-bottom: 1px solid var(--color-line); }
   .fact { font-size: 11px; color: var(--color-tx-2); display: flex; flex-direction: column; gap: 2px; }
   .fact strong { color: var(--color-tx); font-size: 14px; }
+  .fact small { color:var(--color-tx-3); font:9px var(--font-mono); }
 
   .det-attrs { padding: 12px 0; border-bottom: 1px solid var(--color-line); }
-  .attr-row { display: grid; grid-template-columns: 70px 1fr 26px; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .attr-row { display: grid; grid-template-columns: 70px 1fr 34px; align-items: center; gap: 8px; margin-bottom: 7px; }
   .attr-lbl { font-size: 11px; color: var(--color-tx-2); }
   .attr-bar-track { height: 6px; border-radius: 3px; background: var(--color-raised); overflow: hidden; }
   .attr-bar { height: 100%; border-radius: 3px; background: var(--color-tx-2); }
