@@ -60,6 +60,7 @@ MODULES += [
     ('modules/youthAcademy.js',     'YOUTH ACADEMY'),
     ('modules/managers.js',         'MANAGERS'),
     ('modules/managerCareer.js',    'MANAGER CAREER'),
+    ('modules/managerAppointments.js', 'MANAGER APPOINTMENTS'),
     ('modules/world.js',            'LIVING WORLD'),
     ('modules/worldCompetitions.js','WORLD COMPETITIONS'),
     ('modules/worldRuntime.js',     'WORLD RUNTIME'),
