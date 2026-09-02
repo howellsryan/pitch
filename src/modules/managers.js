@@ -9,6 +9,10 @@ import { createManagerDNA, stableStringHash } from './tactics.js';
 
 export const MANAGER_MODEL_VERSION = 1;
 export const USER_MANAGER_ID = 'mgr_user';
+// Shared with managerCareer.js's shouldRetire so a manager row persisted
+// before `age` existed (any save already past the WP1 backfill) reads as
+// this same neutral age rather than silently computing age 0 forever.
+export const DEFAULT_MANAGER_AGE = 45;
 
 export function aiManagerIdForClub(clubId) {
   return `mgr_${clubId}`;
@@ -68,6 +72,7 @@ export function createManager(input = {}) {
   return {
     id:input.id,
     version:MANAGER_MODEL_VERSION,
+    age:input.age ?? DEFAULT_MANAGER_AGE,
     name:input.name ?? 'The Manager',
     nationality:input.nationality ?? '🌍',
     isUser:Boolean(input.isUser),
@@ -114,6 +119,7 @@ export function generateAIManagerForClub(team, { currentDate = null, seasonStart
   }
   return createManager({
     id:aiManagerIdForClub(team.id),
+    age:36 + (stableStringHash(`${team.id}:age`) % 30), // 36..65
     name:identity.name,
     nationality:identity.nationality,
     isUser:false,
@@ -206,6 +212,7 @@ export function createCaretakerManager(team, { weekKey, currentDate = null } = {
   const rep = Number(team.reputation ?? 65);
   return createManager({
     id:`mgr_caretaker_${team.id}_${safeWeekKey}`,
+    age:38 + (stableStringHash(`${team.id}:caretaker_age:${weekKey}`) % 20), // 38..57
     name:identity.name,
     nationality:identity.nationality,
     isUser:false,
@@ -219,5 +226,5 @@ export function createCaretakerManager(team, { weekKey, currentDate = null } = {
 }
 
 export function createEmptyManagerMarket() {
-  return { version:1, vacancies:[], reviewedCheckpoints:[], processedWeekKeys:[] };
+  return { version:1, vacancies:[], reviewedCheckpoints:[], processedWeekKeys:[], recentAppointments:[] };
 }

@@ -311,7 +311,7 @@ async function runEndOfWorldGameweek(save, fixtures) {
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   const careerDepthResult = await advanceP5CareerDepthWeek(await getSave()).catch(() => ({ reportsAdded:[], needs:[] }));
   const marketResult = await advanceTransferMarketWeek(await getSave()).catch(() => ({ newOffers:[], playerResponses:[] }));
-  const managerCareerResult = await advanceP6ManagerCareerWeek(await getSave()).catch(() => ({ dismissed:[], warnings:[] }));
+  const managerCareerResult = await advanceP6ManagerCareerWeek(await getSave()).catch(() => ({ dismissed:[], warnings:[], hired:[] }));
   const newOffers = marketResult.newOffers ?? [];
   const playerResponses = marketResult.playerResponses ?? [];
   await payWeeklyWages().catch(() => {});
@@ -325,6 +325,7 @@ async function runEndOfWorldGameweek(save, fixtures) {
     squadNeeds:careerDepthResult.needs ?? [],
     dismissedManagers:managerCareerResult.dismissed ?? [],
     managerWarnings:managerCareerResult.warnings ?? [],
+    hiredManagers:managerCareerResult.hired ?? [],
   };
 }
 

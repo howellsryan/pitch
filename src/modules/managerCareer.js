@@ -1,3 +1,6 @@
+import { stableStringHash } from './tactics.js';
+import { DEFAULT_MANAGER_AGE } from './managers.js';
+
 /**
  * modules/managerCareer.js — P6 WP2: manager match-record accrual and bounded
  * in-season club review checkpoints. Pure/DOM-free; `p6Runtime.js` owns the
@@ -126,20 +129,26 @@ export function applyReputationDelta(manager, delta) {
 }
 
 /**
- * Dismiss a manager and hand the club to a caretaker in the same step, so no
- * club is ever left without an active manager between review checkpoints —
- * WP3/WP4 later replace the caretaker through the real appointment flow.
+ * Vacate a manager's role (dismissal, resignation or retirement — the reason
+ * is the only thing that differs) and hand the club to a caretaker in the
+ * same step, so no club is ever left without an active manager between
+ * review checkpoints. WP4's appointment pipeline then resolves the vacancy;
+ * a 'retired' manager status is intentionally distinct from 'unemployed' so
+ * a retired manager never resurfaces as a hire candidate.
  */
 export function dismissAndCaretake(manager, caretaker, { weekKey, reason = 'dismissed' } = {}) {
+  const record = { ...manager.record };
+  if (reason === 'dismissed') record.sackings = (record.sackings ?? 0) + 1;
+  if (reason === 'resigned') record.resignations = (record.resignations ?? 0) + 1;
   const dismissed = {
     ...manager,
-    status:'unemployed',
+    status:reason === 'retired' ? 'retired' : 'unemployed',
     currentClubId:null,
     employment:{ clubId:null, startDate:null, contractEndSeason:null },
-    record:{ ...manager.record, sackings:(manager.record?.sackings ?? 0) + 1 },
+    record,
     history:[
       ...(manager.history ?? []),
-      { clubId:manager.currentClubId, endReason:reason, endedWeekKey:weekKey },
+      { clubId:manager.currentClubId, startedWeekKey:null, endedWeekKey:weekKey, endReason:reason },
     ],
   };
   return {
@@ -153,6 +162,48 @@ export function dismissAndCaretake(manager, caretaker, { weekKey, reason = 'dism
       previousManagerId:manager.id,
       caretakerManagerId:caretaker.id,
       status:'caretaker',
+      declinedCandidateIds:[],
+      offer:null,
+      hiredManagerId:null,
     },
   };
+}
+
+const RETIREMENT_CHANCE_PER_YEAR_OVER = 0.22;
+const RESIGNATION_BASE_CHANCE = 0.05;
+
+/**
+ * Bounded, seeded probability of retirement once a manager is at or past
+ * their entity's `availability.retirementAge`. Only evaluated for employed,
+ * non-caretaker AI managers at a due review checkpoint (see p6Runtime.js),
+ * so this is at most one small seeded roll per club every
+ * `MANAGER_REVIEW_INTERVAL_GWS` weeks, never per match.
+ */
+export function shouldRetire(manager, save) {
+  if (!manager || manager.status !== 'employed' || manager.isUser) return false;
+  // A manager row persisted before `age` existed (any save already past the
+  // WP1 backfill) falls back to the schema default rather than reading as
+  // age 0, which would silently defeat retirement for that row forever.
+  const age = Number.isFinite(manager.age) ? manager.age : DEFAULT_MANAGER_AGE;
+  const retirementAge = Number(manager.availability?.retirementAge ?? 62);
+  if (age < retirementAge) return false;
+  const yearsOver = age - retirementAge;
+  const chance = Math.min(0.9, RETIREMENT_CHANCE_PER_YEAR_OVER * (1 + yearsOver));
+  const roll = (stableStringHash(`${manager.id}:retire:${reviewCheckpointKey(save)}`) % 1000) / 1000;
+  return roll < chance;
+}
+
+/**
+ * Bounded, seeded chance an out-of-favour AI manager resigns instead of
+ * waiting to be dismissed: low reputation, well past minimum tenure, and
+ * already flagged by the same review as underperforming.
+ */
+export function shouldResign(manager, save, { underperforming = false } = {}) {
+  if (!manager || manager.status !== 'employed' || manager.isUser) return false;
+  if (!underperforming) return false;
+  if (tenureGWs(manager, save) < MIN_TENURE_GWS_BEFORE_REVIEW * 2) return false;
+  const reputation = Number(manager.reputation?.overall ?? 60);
+  if (reputation > 45) return false;
+  const roll = (stableStringHash(`${manager.id}:resign:${reviewCheckpointKey(save)}`) % 1000) / 1000;
+  return roll < RESIGNATION_BASE_CHANCE;
 }

@@ -8,6 +8,8 @@ import {
   evaluateClubReview,
   isReviewCheckpointDue,
   reviewCheckpointKey,
+  shouldResign,
+  shouldRetire,
 } from './managerCareer.js';
 import { createCaretakerManager, createManager } from './managers.js';
 
@@ -129,10 +131,64 @@ describe('dismissAndCaretake', () => {
     expect(result.dismissedManager.status).toBe('unemployed');
     expect(result.dismissedManager.currentClubId).toBeNull();
     expect(result.dismissedManager.record.sackings).toBe(1);
+    expect(result.dismissedManager.history.at(-1)).toMatchObject({ clubId:'club_a', endReason:'dismissed', endedWeekKey:'2025/26:10' });
     expect(result.caretakerManager.status).toBe('employed');
     expect(result.caretakerManager.currentClubId).toBe('club_a');
     expect(result.caretakerManager.availability.caretakerEligible).toBe(true);
     expect(result.vacancy).toMatchObject({ clubId:'club_a', reason:'dismissed', status:'caretaker' });
+  });
+});
+
+describe('shouldRetire', () => {
+  const save = { season:'2025/26', currentGameweek:10 };
+
+  it('never fires below retirement age', () => {
+    const m = manager('m1', 'a', { age:50, retirementAge:65 });
+    expect(shouldRetire(m, save)).toBe(false);
+  });
+
+  it('never fires for the user manager, regardless of age', () => {
+    const m = manager('m1', 'a', { age:80, retirementAge:60, isUser:true });
+    expect(shouldRetire(m, save)).toBe(false);
+  });
+
+  it('never fires for an unemployed or caretaker (non-employed-permanent) manager entity check — status gate', () => {
+    const m = manager('m1', 'a', { age:80, retirementAge:60, status:'unemployed', currentClubId:null });
+    expect(shouldRetire(m, save)).toBe(false);
+  });
+
+  it('is deterministic for the same manager/checkpoint', () => {
+    const m = manager('m1', 'a', { age:70, retirementAge:60 });
+    expect(shouldRetire(m, save)).toBe(shouldRetire(m, save));
+  });
+
+  it('becomes near-certain well past retirement age', () => {
+    const m = manager('m1', 'a', { age:95, retirementAge:60 });
+    expect(shouldRetire(m, save)).toBe(true);
+  });
+});
+
+describe('shouldResign', () => {
+  const save = { season:'2025/26', currentGameweek:10, currentDate:'2026-01-01T00:00:00.000Z' };
+
+  it('never fires when not flagged underperforming', () => {
+    const m = manager('m1', 'a', { startDate:'2024-01-01T00:00:00.000Z', reputation:{ overall:20, youth:20, tactical:20, financial:20 } });
+    expect(shouldResign(m, save, { underperforming:false })).toBe(false);
+  });
+
+  it('never fires before double the minimum tenure', () => {
+    const m = manager('m1', 'a', { startDate:'2025-12-25T00:00:00.000Z', reputation:{ overall:20, youth:20, tactical:20, financial:20 } });
+    expect(shouldResign(m, save, { underperforming:true })).toBe(false);
+  });
+
+  it('never fires above the reputation floor', () => {
+    const m = manager('m1', 'a', { startDate:'2024-01-01T00:00:00.000Z', reputation:{ overall:70, youth:70, tactical:70, financial:70 } });
+    expect(shouldResign(m, save, { underperforming:true })).toBe(false);
+  });
+
+  it('never fires for the user manager', () => {
+    const m = manager('m1', 'a', { isUser:true, startDate:'2024-01-01T00:00:00.000Z', reputation:{ overall:20, youth:20, tactical:20, financial:20 } });
+    expect(shouldResign(m, save, { underperforming:true })).toBe(false);
   });
 });
 
