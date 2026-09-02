@@ -39,6 +39,38 @@ describe('P4 shared squad planning', () => {
     expect(needs.some(need => need.group === 'ATT' && need.reasons.includes('coverage_shortfall'))).toBe(false);
   });
 
+  it('a club without a philosophy field gets the same needs as before P7 (no behaviour change)', () => {
+    const team = { id:'club', reputation:72, budget:50_000_000, league:'Premier League' };
+    const squad = [
+      player('gk', 'club', 'GK', 67, { age:37, contractExpiry:2026 }),
+      ...Array.from({ length:8 }, (_, i) => player(`d${i}`, 'club', i < 5 ? 'CB' : 'RB', 68)),
+    ];
+    const needs = buildSquadNeeds(team, squad, { currentYear:2025, season:'2025/26' });
+    expect(needs[0].preferredAgeMax).toBe(27);
+  });
+
+  it('a star-recruitment, low-caution philosophy commits more budget share than a cautious one, all else equal', () => {
+    const squad = [
+      player('gk', 'club', 'GK', 67, { age:37, contractExpiry:2026 }),
+      ...Array.from({ length:8 }, (_, i) => player(`d${i}`, 'club', i < 5 ? 'CB' : 'RB', 68)),
+    ];
+    const boldTeam = { id:'club', reputation:72, budget:50_000_000, league:'Premier League', philosophy:{ version:1, traits:{ starRecruitment:90, financialCaution:10 } } };
+    const cautiousTeam = { id:'club', reputation:72, budget:50_000_000, league:'Premier League', philosophy:{ version:1, traits:{ starRecruitment:10, financialCaution:90 } } };
+    const boldNeed = buildSquadNeeds(boldTeam, squad, { currentYear:2025, season:'2025/26' })[0];
+    const cautiousNeed = buildSquadNeeds(cautiousTeam, squad, { currentYear:2025, season:'2025/26' })[0];
+    expect(boldNeed.maxBudget).toBeGreaterThan(cautiousNeed.maxBudget);
+  });
+
+  it('a strong youth-pathway philosophy prefers younger recruitment targets', () => {
+    const squad = [
+      player('gk', 'club', 'GK', 67, { age:37, contractExpiry:2026 }),
+      ...Array.from({ length:8 }, (_, i) => player(`d${i}`, 'club', i < 5 ? 'CB' : 'RB', 68)),
+    ];
+    const youthTeam = { id:'club', reputation:72, budget:50_000_000, league:'Premier League', philosophy:{ version:1, traits:{ youthPathway:80 } } };
+    const need = buildSquadNeeds(youthTeam, squad, { currentYear:2025, season:'2025/26' })[0];
+    expect(need.preferredAgeMax).toBe(25);
+  });
+
   it('subtracts reserved deals from the same budget projection used by AI', () => {
     expect(transferAvailableBudget(
       { id:'club', budget:40_000_000 },

@@ -60,6 +60,18 @@ describe('scoreCandidateFit', () => {
     const untested = createManager({ id:'m', reputation:{ overall:75, youth:50, tactical:50, financial:50 } });
     expect(scoreCandidateFit(untested, team).reasons.trackRecord).toBe(40);
   });
+
+  it('a team without a philosophy field scores a neutral clubFit rather than penalising the candidate', () => {
+    const manager = createManager({ id:'m', reputation:{ overall:70, youth:60, tactical:55, financial:50 } });
+    expect(scoreCandidateFit(manager, team).reasons.clubFit).toBe(50);
+  });
+
+  it('prefers the manager whose reputation profile matches the club philosophy, all else equal', () => {
+    const youthClub = { ...team, philosophy:{ version:1, traits:{ youthPathway:90, financialCaution:50, starRecruitment:50 } } };
+    const youthAligned = createManager({ id:'m1', reputation:{ overall:70, youth:90, tactical:50, financial:50 }, record:{ matches:10, wins:4, draws:3, losses:3 } });
+    const youthMismatched = createManager({ id:'m2', reputation:{ overall:70, youth:10, tactical:50, financial:50 }, record:{ matches:10, wins:4, draws:3, losses:3 } });
+    expect(scoreCandidateFit(youthAligned, youthClub).overall).toBeGreaterThan(scoreCandidateFit(youthMismatched, youthClub).overall);
+  });
 });
 
 describe('assembleCandidates', () => {

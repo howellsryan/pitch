@@ -42,6 +42,7 @@ import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketN
 import { withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
 import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
+import { CLUB_PHILOSOPHY_VERSION, buildClubPhilosophyBackfill, clubPhilosophiesNeedBackfill, generateClubPhilosophy } from './clubPhilosophy.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -221,6 +222,15 @@ export async function ensureP6Managers(save) {
   return migration.save;
 }
 
+export async function ensureP7ClubPhilosophy(save) {
+  if (!save || !clubPhilosophiesNeedBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildClubPhilosophyBackfill(save, teams);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -232,6 +242,7 @@ export async function initApp() {
     save = await ensureP4TransferMarket(save);
     save = await ensureP5CareerDepth(save);
     save = await ensureP6Managers(save);
+    save = await ensureP7ClubPhilosophy(save);
   }
   return save ?? null;
 }
@@ -277,6 +288,7 @@ export async function startNewGame(userTeamId, managerName) {
     budget: startingBudget(rest.reputation ?? 70),
     academyInvestment: 0,
     managerId: managerIdByClub.get(rest.id) ?? null,
+    philosophy: generateClubPhilosophy(rest, rest.league ?? userLeague),
   }));
 
   const save = {
@@ -284,6 +296,7 @@ export async function startNewGame(userTeamId, managerName) {
     userLeague,
     managerName:     managerName || 'The Manager',
     managerModelVersion: MANAGER_MODEL_VERSION,
+    clubPhilosophyVersion: CLUB_PHILOSOPHY_VERSION,
     userManagerId:   userManager.id,
     managerMarket:   createEmptyManagerMarket(),
     currentDate,

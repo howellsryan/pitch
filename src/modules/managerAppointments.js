@@ -15,6 +15,8 @@
  * pauses at `offer_extended` for a human decision instead of auto-resolving.
  */
 
+import { clubPhilosophyTraitValue } from './clubPhilosophy.js';
+
 export const HARD_BLOCK_REASONS = Object.freeze({
   NOT_AVAILABLE:'not_available',
   ALREADY_RESERVED:'already_reserved',
@@ -29,6 +31,23 @@ export function isEligibleCandidate(manager, vacancy) {
 }
 
 /**
+ * How well a candidate's own reputation profile matches this club's P7
+ * philosophy — e.g. a high-youthPathway club favours a manager with strong
+ * youth reputation, a high-financialCaution club favours a fiscally
+ * disciplined one. Missing philosophy (pre-P7 team row, or a team object a
+ * test builds without one) reads as neutral (50 on every trait), so this
+ * never penalises a club that hasn't been through the P7 backfill yet.
+ */
+function philosophyFit(manager, team) {
+  if (!team?.philosophy?.traits) return 50;
+  const youthGap = Math.abs(clubPhilosophyTraitValue(team.philosophy, 'youthPathway') - (manager.reputation?.youth ?? 50));
+  const financialGap = Math.abs(clubPhilosophyTraitValue(team.philosophy, 'financialCaution') - (manager.reputation?.financial ?? 50));
+  const starGap = Math.abs(clubPhilosophyTraitValue(team.philosophy, 'starRecruitment') - (manager.reputation?.overall ?? 50));
+  const avgGap = (youthGap + financialGap + starGap) / 3;
+  return Math.max(0, 100 - avgGap * 1.2);
+}
+
+/**
  * Explainable, bounded fit score in [0, 100]. Every input is named so a
  * rejection reason can be surfaced later without recomputing anything.
  */
@@ -39,10 +58,11 @@ export function scoreCandidateFit(manager, team) {
   const winRate = matches > 0 ? (manager.record.wins / matches) : 0.4;
   const trackRecord = Math.round(winRate * 100);
   const youthFit = manager.reputation?.youth ?? 50;
-  const overall = Math.round(reputationFit * 0.55 + trackRecord * 0.30 + youthFit * 0.15);
+  const clubFit = philosophyFit(manager, team);
+  const overall = Math.round(reputationFit * 0.48 + trackRecord * 0.27 + youthFit * 0.10 + clubFit * 0.15);
   return {
     overall:Math.max(0, Math.min(100, overall)),
-    reasons:{ reputationFit:Math.round(reputationFit), trackRecord, youthFit, matches },
+    reasons:{ reputationFit:Math.round(reputationFit), trackRecord, youthFit, clubFit:Math.round(clubFit), matches },
   };
 }
 
