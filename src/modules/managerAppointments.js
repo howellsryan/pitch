@@ -98,3 +98,14 @@ export function completeHandover(vacancy, { hiredManagerId, weekKey } = {}) {
 export function isVacancyOpen(vacancy) {
   return vacancy && vacancy.status !== 'completed';
 }
+
+/**
+ * Narrower than `isVacancyOpen`: true only while the vacancy has no offer
+ * already out (`caretaker` or `candidates_assembled`). A vacancy sitting at
+ * `offer_extended` is mid-decision for a specific candidate and must not be
+ * treated as available for a *different* new approach/application until that
+ * offer resolves — `isVacancyOpen` alone doesn't draw this distinction.
+ */
+export function isVacancyAvailableForNewCandidate(vacancy) {
+  return vacancy?.status === 'caretaker' || vacancy?.status === 'candidates_assembled';
+}

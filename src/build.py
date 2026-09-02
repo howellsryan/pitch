@@ -61,6 +61,7 @@ MODULES += [
     ('modules/managers.js',         'MANAGERS'),
     ('modules/managerCareer.js',    'MANAGER CAREER'),
     ('modules/managerAppointments.js', 'MANAGER APPOINTMENTS'),
+    ('modules/managerUserJourney.js', 'MANAGER USER JOURNEY'),
     ('modules/world.js',            'LIVING WORLD'),
     ('modules/worldCompetitions.js','WORLD COMPETITIONS'),
     ('modules/worldRuntime.js',     'WORLD RUNTIME'),
