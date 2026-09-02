@@ -1,5 +1,6 @@
 import { getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
 import { buildSquadNeeds } from './squadPlanning.js';
+import { formAdjustedValue } from './transfers.js';
 import {
   advanceScoutingState,
   cancelScoutingAssignment,
@@ -149,7 +150,11 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
     players:effectivePlayers,
     teamsById,
     userTeam,
-    valueFor:player => Number(player?.value) || 0,
+    // The engine prices every offer against formAdjustedValue (minimumOffer is
+    // 0.88x of it), so a report's fee range has to be on that same basis.
+    // Reporting the raw value put stored reports below the engine's own floor,
+    // and left them disagreeing with the public estimate the UI builds.
+    valueFor:formAdjustedValue,
   });
   const nextSave = { ...save, scouting:progressed.state, careerDepthVersion:P5_CAREER_DEPTH_VERSION };
   await putSave(nextSave);
@@ -163,6 +168,15 @@ export async function addScoutingAssignment(assignment) {
   save = { ...save, scouting:nextScouting };
   await putSave(save);
   return save.scouting;
+}
+
+/**
+ * Send a dedicated scout to one named player. The report lands on the next
+ * completed world week (`advanceP5CareerDepthWeek`) and reads exactly until the
+ * season rolls over — the queue and the weekly settlement are unchanged.
+ */
+export async function scoutPlayerInFull(playerId, label = null) {
+  return addScoutingAssignment({ type:'player', mode:'full', playerId, label });
 }
 
 export async function removeScoutingAssignment(assignmentId) {

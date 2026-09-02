@@ -60,7 +60,10 @@
   .drawer-body { min-height:0; overflow:auto; overscroll-behavior:contain; }
   .loading { padding:24px; text-align:center; color:var(--color-tx-3); font-size:11px; }
   @media (min-width:760px) {
-    .scouting-drawer { left:50%; right:auto; width:min(760px,calc(100vw - 32px)); transform:translateX(-50%); }
+    /* Centred with auto margins rather than a transform: a transformed ancestor
+       becomes the containing block for position:fixed descendants, which let
+       .drawer-body's overflow clip the scouting panel's own dialog. */
+    .scouting-drawer { left:0; right:0; width:min(760px,calc(100vw - 32px)); margin-inline:auto; }
     .scouting-launcher { right:24px; bottom:24px; }
   }
   @media (prefers-reduced-motion:reduce) { .scouting-drawer { scroll-behavior:auto; } }

@@ -4,7 +4,13 @@
 
 **Baseline:** `main` after PR #14 (`767b31656d58f00acc42431cc3bca6df131b1b5b`) — R0-R7 shipped.
 
-**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA complete (31 August 2026). P3 — Player Model 2.0 complete (1 September 2026). P4 — Transfer Market and Contracts 2.0 complete (1 September 2026). P5 — Scouting, Coaching, Training and Squad Planning is next.**
+**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA complete (31 August 2026). P3 — Player Model 2.0 complete (1 September 2026). P4 — Transfer Market and Contracts 2.0 complete (1 September 2026). P5 — Scouting, Coaching, Training and Squad Planning complete (1 September 2026). P6 — Manager Career and Club Movement is next.**
+
+**Verification note:** the Playwright/E2E suite referenced by earlier phase gates
+in this document has been removed from the repository. Those browser-suite
+requirements are retired; verification is Vitest contracts, the legacy validator
+bridge, lint, the accent/emoji audits and hands-on inspection of the running app.
+Do not reintroduce a browser test suite.
 
 **Benchmark reviewed:** EA SPORTS FC 27 Manager Career (Career Deep Dive, July 2026), with relevant Manager Market ideas carried forward from FC 26. This is not a parity checklist. Pitch should take the parts that create meaningful management decisions and, where a browser simulator has an advantage, go deeper systemically rather than imitate AAA presentation.
 
@@ -169,7 +175,7 @@ Pitch's European competition model should be data-driven enough that rule change
 
 ## 5.1 Delivery contract for future agents
 
-**P0-P4 are implemented and verified. P5-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested delivery slices so a later agent can pick it up without reopening the main product and architecture decisions.
+**P0-P5 are implemented and verified. P6-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested delivery slices so a later agent can pick it up without reopening the main product and architecture decisions.
 
 **Detailed execution guides:** [P3–P12 implementation guide index](post-r7-implementation-guides/README.md). Use the roadmap for priority and scope, then the phase guide for contracts, migration, work packages, verification and commit boundaries.
 
@@ -1241,7 +1247,7 @@ Do not solve content gaps by importing assets/data that create licensing risk. B
 
 ## 9.7 Every phase ends playable
 
-Follow the existing plan discipline: no phase may leave the career half-migrated or one route dependent on unfinished follow-up work. Build, lint, unit tests and browser tests must pass before a phase is considered complete.
+Follow the existing plan discipline: no phase may leave the career half-migrated or one route dependent on unfinished follow-up work. Build, lint and unit tests must pass, and the affected browser journeys must be exercised and visually inspected by hand, before a phase is considered complete.
 
 ---
 
@@ -1253,15 +1259,15 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 | ✅ | **P1 — Living Football World (COMPLETE)** | Persistent football universe and historical data spine |
 | ✅ | **P2 — Match Engine 2.0 + Tactics/Manager DNA (COMPLETE)** | Core simulator gameplay depth |
 | ✅ | **P3 — Player Model 2.0 (COMPLETE)** | Meaningful selection, rotation and development |
-| 1 | **P5 — Scouting/Coaching/Training/Squad Planning (NEXT)** | Turn P4 needs into uncertain knowledge and long-term development decisions |
-| 2 | P5 — Scouting/Coaching/Training | Less omniscience; strategic planning |
-| 3 | P6 — Manager Career + AI Manager Market | A career across clubs, not one club forever |
-| 4 | P7 — Club/Finance/Board ecosystem | Clubs gain persistent identities and pressures |
-| 5 | P8 — Story/Press/Fans/Rivalries | Systems turn into memorable narratives |
-| 6 | P9 — Academy/Loans 2.0 | Deep long-term player pathways |
-| 7 | P10 — Career settings | Depth remains approachable/configurable |
-| 8 | P11 — Creator Challenges/Live starts | Replayability and community sharing |
-| 9 | P12 — Second tiers/internationals/Create-a-Club/content | Breadth after depth |
+| ✅ | **P4 — Transfer Market and Contracts 2.0 (COMPLETE)** | Staged deals, contracts and need-led AI recruitment |
+| ✅ | **P5 — Scouting/Coaching/Training/Squad Planning (COMPLETE)** | Less omniscience and strategic long-term planning |
+| 1 | **P6 — Manager Career + AI Manager Market (NEXT)** | A career across clubs, not one club forever |
+| 2 | P7 — Club/Finance/Board ecosystem | Clubs gain persistent identities and pressures |
+| 3 | P8 — Story/Press/Fans/Rivalries | Systems turn into memorable narratives |
+| 4 | P9 — Academy/Loans 2.0 | Deep long-term player pathways |
+| 5 | P10 — Career settings | Depth remains approachable/configurable |
+| 6 | P11 — Creator Challenges/Live starts | Replayability and community sharing |
+| 7 | P12 — Second tiers/internationals/Create-a-Club/content | Breadth after depth |
 
 ---
 

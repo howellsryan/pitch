@@ -1,4 +1,4 @@
-import { currentEffectiveLevel } from './playerModel.js';
+import { baselineAttribute, currentEffectiveLevel } from './playerModel.js';
 import { observedPlayerProfile } from './scouting.js';
 
 /**
@@ -19,9 +19,14 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
   const futureMax = Number(report.future?.max ?? futureMin);
   const currentMid = Math.max(1, Math.min(99, Math.round((currentMin + currentMax) / 2)));
   const futureMid = Math.max(currentMid, Math.min(99, Math.round((futureMin + futureMax) / 2)));
-  const confidence = Math.max(.2, Math.min(.96, Number(report.confidence ?? .42)));
+  // A completed dedicated scout reads exactly, so it is not rounded into a band
+  // the way a partial observation is.
+  const exact = report.exact === true;
+  const confidence = exact ? 1 : Math.max(.2, Math.min(.96, Number(report.confidence ?? .42)));
   const step = confidence >= .82 ? 2 : confidence >= .56 ? 5 : 10;
-  const coarse = (value) => Math.max(1, Math.min(99, Math.round((Number(value) || 1) / step) * step));
+  const coarse = (value) => (exact
+    ? Math.max(1, Math.min(99, Math.round(Number(value) || 1)))
+    : Math.max(1, Math.min(99, Math.round((Number(value) || 1) / step) * step)));
   const feeMin = Math.max(0, Number(report.financial?.feeMin ?? player.value ?? 0));
   const feeMax = Math.max(feeMin, Number(report.financial?.feeMax ?? feeMin));
   const wageMin = Math.max(0, Number(report.financial?.wageMin ?? player.wage ?? 0));
@@ -40,12 +45,14 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
     isWonderkid:Number(player.age ?? 25) <= 21 && confidence >= .56 && futureMid >= 85,
     scoutingReport:report,
     scoutingView:true,
+    fullyScouted:exact,
   };
 
-  if (['ST','CF','RW','LW'].includes(player.position)) projected.attack = currentMid;
-  else if (['CM','CDM','CAM','RM','LM'].includes(player.position)) projected.midfield = currentMid;
-  else if (['CB','RB','LB'].includes(player.position)) projected.defence = currentMid;
-  else if (player.position === 'GK') projected.goalkeeping = currentMid;
+  // The observed level belongs in whichever attribute the canonical model calls
+  // this position's baseline. Re-listing the positions here had CAM writing to
+  // midfield while playerModel treats it as an attacker, so a CAM's scouted
+  // ability landed in the wrong row.
+  projected[baselineAttribute(player.position)] = currentMid;
 
   return projected;
 }

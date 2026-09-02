@@ -16,7 +16,6 @@
     "audit:rosters": "node tools/audit-rosters.mjs",
     "reconcile": "node tools/reconcile.mjs",
     "generate:leagues": "node tools/csv-to-league.mjs",
-    "test:e2e": "playwright test --config=playwright.config.mjs",
     "check:svelte": "svelte-check --tsconfig ./tsconfig.json",
     "lint": "eslint .",
     "deploy": "npm run build && wrangler deploy",
@@ -24,7 +23,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.62.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tailwindcss/vite": "^4.3.3",
     "eslint": "^10.9.1",

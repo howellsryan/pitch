@@ -65,10 +65,10 @@ npm run build && npx size-limit`), then `wrangler deploy` for main or
 a bad version. pitch-sim.com is a live site with real visitors; a rollback
 procedure that exists only in someone's head is not a rollback procedure.
 
-**`mobile-verify`** — replaces "open it in a browser". Run `npm run dev`, drive
-Playwright at 390×844, screenshot each changed screen, check doc 02's quality
-floor, diff against the committed baseline. Chromium is pre-installed in this
-environment, so it's cheap to automate.
+**`mobile-verify`** — run `npm run dev`, open the app at 390×844, screenshot each
+changed screen and check doc 02's quality floor. This is done by hand: the
+repository has no Playwright/E2E suite and one must not be added, so "verify the
+screen" means looking at a real rendered screenshot, not automating a browser.
 
 **`design-system`** — a thin pointer at `docs/design-system.md` so every UI session
 starts from the real tokens instead of re-inventing a blue across nine screens.
@@ -119,7 +119,7 @@ For a typical "rebuild screen X":
 3. `frontend-design` if the screen needs new visual thinking.
 4. Build.
 5. `web-design-guidelines` + `ui-ux-pro-max --domain ux` as a review pass.
-6. `mobile-verify` → Playwright at 390×844.
+6. `mobile-verify` → inspect the running app at 390×844.
 7. `validate` → 0 failures.
 8. `scope-fence` on the diff: is anything in here not the screen?
 9. Commit, push, open the preview URL on your phone.

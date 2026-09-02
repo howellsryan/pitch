@@ -23,9 +23,12 @@ A claim you inferred rather than observed is a guess with a confident tone.
 
 ## What a green build does and does not prove
 
-`npm run build` runs the bundle, then `src/validate.js`'s **1078 checks**, and
-CI adds ESLint, the 186-club accent contrast check, Vitest over `src/game/`,
-and a Playwright smoke test at 390×844.
+`npm run build` runs the bundle, then `src/validate.js`'s checks, and
+CI adds ESLint, the 186-club accent contrast check and Vitest.
+
+**There is no E2E/browser suite.** It was deliberately removed — do not run,
+restore or write one, and do not treat its absence as a gap to fill. The only
+thing that stands in for it is you driving the running app yourself.
 
 That is a real safety net and a narrow one. **430 of the validator's assertions
 are string matching against the bundle's raw source text.** It can confirm a
@@ -38,7 +41,7 @@ works."
 | "The validator passes" | `npm run validate` just now, and you read `RESULT: N passed, 0 failed` |
 | "The pure logic is correct" | `npm run test` — a Vitest case that failed before your fix and passes now |
 | "The screen renders correctly" | A real screenshot at 390×844, looked at |
-| "The career still plays" | `npm run test:e2e`, or a gameweek played by hand in the browser |
+| "The career still plays" | A gameweek played by hand in the running app |
 | "No console errors" | The console, open, after driving the feature |
 | "The build deploys" | `npm run build:app` succeeded and `dist/` has the expected output |
 

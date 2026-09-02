@@ -29,8 +29,8 @@ export default [
     },
   },
   {
-    // tools/ and tests/ run in Node, not the browser.
-    files: ['tools/**/*.mjs', 'tests/**/*.mjs', '*.config.mjs', '*.config.ts'],
+    // tools/ and the config files run in Node, not the browser.
+    files: ['tools/**/*.mjs', '*.config.mjs', '*.config.ts'],
     languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } },
   },
   {

@@ -90,6 +90,162 @@ export const CUP_META = Object.freeze(Object.fromEntries(
   })
 ));
 
+/**
+ * Read a stored `cupState.results` row back into display text.
+ *
+ * League-phase rows are written by `updateLeaguePhaseCupState`, which tags them
+ * `isLeaguePhaseMatchday` and carries a `result` letter but no `roundName` and
+ * no `userWon`; knockout rows come from `simulateCupRound` and carry the
+ * opposite pair. Reading only one of those shapes is what produced
+ * "undefined: L" against a match the manager actually won, so the outcome is
+ * derived from whichever field the row actually has, falling back to the score.
+ */
+export function isLeaguePhaseResult(result) {
+  return result?.isLeaguePhaseMatchday === true || result?.isUCLMatchday === true;
+}
+
+export function cupResultStageLabel(result, cupId = result?.cupId) {
+  if (isLeaguePhaseResult(result)) {
+    const matchday = Number(result?.matchday);
+    return Number.isFinite(matchday) && matchday > 0 ? `League Phase · MD${matchday}` : 'League Phase';
+  }
+  return result?.roundName || CUP_META[cupId]?.rounds?.[result?.roundIdx] || 'Cup tie';
+}
+
+export function cupResultOutcome(result) {
+  if (result?.result === 'W' || result?.result === 'D' || result?.result === 'L') return result.result;
+  // A tie settled over two legs, in extra time or on penalties has a verdict
+  // that the score on the night does not carry: 3-0 away then 0-1 at home is a
+  // win, and a level 90 minutes can still be a shootout win.
+  const aggregateWon = typeof result?.aggregate?.userWon === 'boolean' ? result.aggregate.userWon : null;
+  if (aggregateWon !== null) return aggregateWon ? 'W' : 'L';
+  const decided = result?.penalties === true || result?.extraTime === true;
+  if (decided && typeof result?.userWon === 'boolean') return result.userWon ? 'W' : 'L';
+
+  const userGoals = Number(result?.userGoals ?? 0);
+  const oppGoals = Number(result?.oppGoals ?? 0);
+  if (userGoals !== oppGoals) return userGoals > oppGoals ? 'W' : 'L';
+  // Level with nothing to separate the sides: the first leg of a two-legged
+  // round sets userWon from the score alone, so reading it here would turn an
+  // honest draw into a loss.
+  return 'D';
+}
+
+export function describeCupResult(result, cupId = result?.cupId) {
+  const outcome = cupResultOutcome(result);
+  const stage = cupResultStageLabel(result, cupId);
+  const score = `${Number(result?.userGoals ?? 0)}-${Number(result?.oppGoals ?? 0)}`;
+  const opponent = result?.opponentName ?? 'Opponent';
+  const points = isLeaguePhaseResult(result) && Number.isFinite(Number(result?.points))
+    ? ` [${Number(result.points)} pts]`
+    : '';
+  // The Trophies rows are a single nowrap line on a 390px screen, so they get a
+  // compact stage ("MD3") while everything else uses the full one.
+  const shortStage = isLeaguePhaseResult(result) && Number.isFinite(Number(result?.matchday))
+    ? `MD${Number(result.matchday)}`
+    : stage;
+  return {
+    outcome,
+    stage,
+    shortStage,
+    won:outcome === 'W',
+    label:`${stage}: ${outcome} vs ${opponent} (${score})${points}`,
+    shortLabel:`${shortStage}: ${outcome} vs ${opponent} (${score})${points}`,
+  };
+}
+
+/** The stage a cup run is actually at, for a club profile summary. */
+export function cupRunStageLabel(cupId, state) {
+  const meta = CUP_META[cupId];
+  if (!meta) return 'In progress';
+  if (meta.isGroupStage) {
+    if (!state?.leaguePhaseComplete) {
+      const matchday = Number(state?.leaguePhase?.matchday ?? 0);
+      return matchday > 0 ? `League Phase · MD${matchday}` : 'League Phase';
+    }
+    // finishLeaguePhase stores roundIndex 0 for an eliminated route, which would
+    // otherwise read back as the knockout play-off the club never reached.
+    const route = state.leaguePhase?.qualificationRoute ?? state.qualificationRoute;
+    if (route === 'eliminated') return 'League Phase';
+  }
+  return meta.rounds?.[state?.roundIndex ?? 0] ?? 'Final';
+}
+
+/** Display status for the whole run, using the round the state actually owns. */
+export function cupRunStatusLabel(cupId, state) {
+  if (state?.status === 'winner') return 'Trophy Won!';
+  const stage = cupRunStageLabel(cupId, state);
+  return state?.status === 'eliminated' ? `Out (${stage})` : stage;
+}
+
+/**
+ * Read-only view of the cup/European matches the manager still has coming up.
+ *
+ * Scheduling comes from the same shared rules layer the event queue uses
+ * (`leaguePhase.gws` and `roundGWs`), so the rail cannot disagree with what the
+ * Play button will actually serve. It does not draw opponents or touch
+ * `save.pendingEvents`: knockout opponents are fixed when the queue builds the
+ * event, so anything not yet drawn is reported as undecided. Pass the live
+ * queue in `pendingEvents` to name the opponent for the current gameweek.
+ */
+export function upcomingCupFixtures(cupState, fromGameweek, { limit = 6, pendingEvents = [] } = {}) {
+  const from = Number(fromGameweek) || 0;
+  const pendingByCup = new Map();
+  for (const event of pendingEvents ?? []) {
+    if (event?.cupId) pendingByCup.set(event.cupId, event);
+  }
+
+  const rows = [];
+  for (const [cupId, state] of Object.entries(cupState ?? {})) {
+    if (state?.status !== 'active') continue;
+    const meta = CUP_META[cupId];
+    const rules = COMPETITION_RULES[cupId];
+    if (!meta || !rules) continue;
+    const pending = pendingByCup.get(cupId);
+
+    if (rules.leaguePhase && !state.leaguePhaseComplete) {
+      const played = Number(state.leaguePhase?.matchday ?? 0);
+      const gws = rules.leaguePhase.gws ?? [];
+      for (let index = played; index < Math.min(gws.length, rules.leaguePhase.matches); index++) {
+        const gameweek = gws[index];
+        if (gameweek < from) continue;
+        const opponent = state.leaguePhase?.opponents?.[index] ?? null;
+        rows.push({
+          cupId,
+          cupName:meta.name,
+          cupShortName:meta.shortName ?? meta.name,
+          gameweek,
+          stage:`League Phase · MD${index + 1}`,
+          leaguePhase:true,
+          opponentName:opponent?.name ?? null,
+          userIsHome:gameweek === from ? pending?.userIsHome ?? null : null,
+        });
+      }
+      continue;
+    }
+
+    // Knockout: only the round the club is actually in has a fixed gameweek and
+    // a drawable opponent; later rounds depend on winning this one.
+    const roundIndex = Number(state.roundIndex ?? 0);
+    const gameweek = meta.roundGWs?.[roundIndex];
+    if (!Number.isFinite(gameweek) || gameweek < from) continue;
+    rows.push({
+      cupId,
+      cupName:meta.name,
+      cupShortName:meta.shortName ?? meta.name,
+      gameweek,
+      stage:meta.rounds?.[roundIndex] ?? 'Final',
+      leaguePhase:false,
+      opponentName:gameweek === from ? pending?.opponentName ?? null : null,
+      userIsHome:gameweek === from ? pending?.userIsHome ?? null : null,
+    });
+  }
+
+  return rows
+    .sort((a, b) => a.gameweek - b.gameweek || a.cupId.localeCompare(b.cupId))
+    .slice(0, limit);
+}
+
 export const LEAGUE_DOMESTIC_CUPS = {
   'Premier League': ['fa_cup', 'league_cup'],
   Championship: ['fa_cup', 'league_cup'],

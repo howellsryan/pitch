@@ -1,5 +1,5 @@
 import { currentEffectiveLevel } from './playerModel.js';
-import { potentialEstimate } from './playerDevelopment.js';
+import { durableLevel, potentialEstimate } from './playerDevelopment.js';
 import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
 import { coachingEffects } from './coaching.js';
 
@@ -13,6 +13,16 @@ import { coachingEffects } from './coaching.js';
 
 export const SCOUTING_VERSION = 1;
 export const MAX_SCOUTING_ASSIGNMENTS = 5;
+/**
+ * A dedicated scout on one named player reports back after a single completed
+ * gameweek with an exact reading rather than a range. That certainty is scoped
+ * to the season it was gathered in: `observedPlayerProfile` stops honouring any
+ * report whose `observedSeason` is not the current one, so next season the
+ * player is unknown again until a scout is sent back out.
+ */
+export const FULL_SCOUT_WEEKS = 1;
+/** Active-scout cap plus retained completed history. */
+export const MAX_SCOUTING_ASSIGNMENT_ROWS = 20;
 export const MAX_SCOUTING_REPORTS = 80;
 export const MAX_SCOUTING_TICK_KEYS = 60;
 
@@ -42,7 +52,8 @@ function scoutingWeekKey(season, gameweek) {
   return Number.isInteger(gw) && gw >= 0 ? `${String(season ?? 'unknown')}:${gw}` : null;
 }
 
-function reportStage(weeks) {
+function reportStage(weeks, mode) {
+  if (mode === 'full') return weeks >= FULL_SCOUT_WEEKS ? 'complete' : 'assigned';
   if (weeks >= 4) return 'complete';
   if (weeks >= 2) return 'detailed';
   if (weeks >= 1) return 'observed';
@@ -57,12 +68,30 @@ export function createScoutingState({ defaultKnowledge = .42 } = {}) {
     reports:[],
     processedWeekKeys:[],
     notifications:[],
+    assignmentSeq:0,
   };
+}
+
+function normalizeAssignmentRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  const all = rows.filter(Boolean);
+  const active = all.filter(item => item.status === 'active');
+  const finishedRoom = Math.max(0, MAX_SCOUTING_ASSIGNMENT_ROWS - active.length);
+  // slice(-0) would return the whole array, so an empty allowance is explicit.
+  const finished = new Set(finishedRoom > 0
+    ? all.filter(item => item.status !== 'active').slice(-finishedRoom)
+    : []);
+  return all.filter(item => item.status === 'active' || finished.has(item));
 }
 
 export function normalizeScoutingState(state, { defaultKnowledge = .42 } = {}) {
   const source = state && typeof state === 'object' && !Array.isArray(state) ? state : {};
-  const assignments = Array.isArray(source.assignments) ? source.assignments.filter(Boolean).slice(-MAX_SCOUTING_ASSIGNMENTS) : [];
+  // Completed assignments are kept so their reports stay reachable from the
+  // recruitment screen, but they are the only rows the ledger trims: a scout
+  // still in the field must survive regardless of how much history sits in
+  // front of it, which a blind tail slice could not guarantee once finished
+  // rows stopped counting against the active cap.
+  const assignments = normalizeAssignmentRows(source.assignments);
   const reports = Array.isArray(source.reports) ? source.reports.filter(report => report?.playerId).slice(-MAX_SCOUTING_REPORTS) : [];
   const processedWeekKeys = Array.isArray(source.processedWeekKeys) ? source.processedWeekKeys.filter(key => typeof key === 'string').slice(-MAX_SCOUTING_TICK_KEYS) : [];
   const notifications = Array.isArray(source.notifications) ? source.notifications.filter(Boolean).slice(-12) : [];
@@ -73,6 +102,13 @@ export function normalizeScoutingState(state, { defaultKnowledge = .42 } = {}) {
     reports,
     processedWeekKeys,
     notifications,
+    // Monotonic, so a cancelled assignment's id is never handed out again and a
+    // replacement cannot inherit its reports through `report.source`.
+    assignmentSeq:Math.max(
+      Number(source.assignmentSeq) || 0,
+      ...assignments.map(item => (Number(item.seq) || 0) + 1),
+      0,
+    ),
   };
 }
 
@@ -80,27 +116,49 @@ export function scoutingNeedsBackfill(save) {
   return !save?.scouting || Number(save.scouting.version ?? 0) < SCOUTING_VERSION;
 }
 
+/** An assignment belongs to the season that opened it; last season's scouts are
+ * not still out in the field, and must not hold a slot against the cap. */
+export function scoutingAssignmentIsCurrent(assignment, season) {
+  if (!assignment) return false;
+  if (season == null || assignment.season == null) return true;
+  return String(assignment.season) === String(season);
+}
+
 export function createScoutingAssignment(stateInput, assignment, context = {}) {
   const state = normalizeScoutingState(stateInput);
-  if (state.assignments.length >= MAX_SCOUTING_ASSIGNMENTS) throw new Error('SCOUTING_ASSIGNMENT_CAP');
+  const live = state.assignments.filter(item => scoutingAssignmentIsCurrent(item, context.season));
+  const inTheField = live.filter(item => item.status === 'active');
+  if (inTheField.length >= MAX_SCOUTING_ASSIGNMENTS) throw new Error('SCOUTING_ASSIGNMENT_CAP');
   const type = ['player','position','league','shortlist'].includes(assignment?.type) ? assignment.type : 'player';
   if (type === 'player' && assignment?.playerId == null) throw new Error('SCOUTING_PLAYER_REQUIRED');
-  const id = `scout:${type}:${assignment?.playerId ?? assignment?.position ?? assignment?.league ?? 'list'}:${context.season ?? 'season'}:${context.gameweek ?? 0}:${state.assignments.length}`;
+  // A dedicated scout is only ever pointed at one named player; every other
+  // assignment shape stays a survey that narrows a range over several weeks.
+  const mode = assignment?.mode === 'full' && type === 'player' ? 'full' : 'survey';
+  // One dedicated scout per player: a second is wasted effort, not a faster report.
+  if (mode === 'full' && live.some(item =>
+    item.mode === 'full' && item.status === 'active' && String(item.playerId) === String(assignment.playerId))) {
+    throw new Error('SCOUTING_ALREADY_ASSIGNED');
+  }
+  const seq = Number(state.assignmentSeq) || 0;
+  const id = `scout:${type}:${mode}:${assignment?.playerId ?? assignment?.position ?? assignment?.league ?? 'list'}:${context.season ?? 'season'}:${context.gameweek ?? 0}:${seq}`;
   const next = {
     id,
     type,
+    mode,
+    season:context.season ?? null,
     playerId:assignment?.playerId ?? null,
     position:assignment?.position ?? null,
     league:assignment?.league ?? null,
     playerIds:Array.isArray(assignment?.playerIds) ? assignment.playerIds.slice(0, 20) : [],
     label:assignment?.label ?? null,
+    seq,
     createdWeekKey:scoutingWeekKey(context.season, context.gameweek),
     lastAdvancedKey:null,
     weeks:0,
     stage:'assigned',
     status:'active',
   };
-  return { ...state, assignments:[...state.assignments, next] };
+  return { ...state, assignments:[...live, next], assignmentSeq:seq + 1 };
 }
 
 export function cancelScoutingAssignment(stateInput, assignmentId) {
@@ -152,8 +210,54 @@ function statusInterest(player, userTeam, seller) {
   return 'Difficult';
 }
 
+/**
+ * A completed dedicated scout returns the club's true reading of the player:
+ * exact ability, exact potential and exact financials, with no observation
+ * bias applied. It still reports rather than mutates — the canonical player row
+ * is untouched, and `observedSeason` is what scopes the certainty to one season.
+ */
+function buildExactScoutingReport(player, context = {}) {
+  const gameweek = Number(context.gameweek ?? 0);
+  const season = context.season ?? 'unknown';
+  const userTeam = context.userTeam ?? null;
+  const seller = context.teamsById?.get?.(player.teamId) ?? null;
+  // A completed scout reports durable ability, not today's reading. Form, morale
+  // and fitness move week to week; freezing an inflated effective level for a
+  // whole season would also let the exact ceiling sit below the exact current
+  // ability, since potential is a bound on durable ability alone.
+  const current = Math.round(Number(durableLevel(player) ?? currentEffectiveLevel(player) ?? 50));
+  const potential = Math.round(scoutingClamp(Number(player.potentialRating ?? current), current, 99));
+  const tacticalProfile = getAITacticalProfile(userTeam ?? {});
+  const roleId = chooseAIRole(player, tacticalProfile);
+  const fit = roleId ? roleSuitability(player, roleId) : .8;
+  const value = Math.round(Math.max(0, Number(context.valueFor?.(player) ?? player.value ?? 0)));
+  const wage = Math.round(Math.max(0, Number(player.wage ?? 0)));
+  return {
+    version:SCOUTING_VERSION,
+    playerId:String(player.id),
+    source:context.source ?? 'assignment',
+    observedWeekKey:scoutingWeekKey(season, gameweek),
+    observedGameweek:gameweek,
+    observedSeason:season,
+    exact:true,
+    confidence:1,
+    confidenceLabel:'Complete',
+    stage:'complete',
+    current:{ min:current, max:current, evidence:'Complete' },
+    tactical:{ roleId, fit:fit >= 1.02 ? 'Strong' : fit >= .91 ? 'Good' : 'Stretch', confidence:'Complete' },
+    future:{ min:potential, max:potential, growthProfileConfidence:'Complete' },
+    financial:{ feeMin:value, feeMax:value, wageMin:wage, wageMax:wage },
+    status:{
+      availability:player.signedThisSeason ? 'Moved recently' : player.transferListed ? 'Listed' : 'Under contract',
+      happiness:Number(player.individualMorale ?? 50) >= 65 ? 'Positive' : Number(player.individualMorale ?? 50) <= 35 ? 'Unsettled' : 'Stable',
+      joiningInterest:statusInterest(player, userTeam, seller),
+    },
+  };
+}
+
 export function buildScoutingReport(player, context = {}) {
   if (!player) return null;
+  if (context.exact) return buildExactScoutingReport(player, context);
   const confidence = scoutingClamp(Number(context.confidence ?? .35), .2, .96);
   const gameweek = Number(context.gameweek ?? 0);
   const season = context.season ?? 'unknown';
@@ -162,7 +266,11 @@ export function buildScoutingReport(player, context = {}) {
   const coachAssessment = coachingEffects(userTeam, player).assessment;
   const adjustedConfidence = scoutingClamp(confidence * coachAssessment, .2, .96);
   const seed = `${player.id}:${season}:${gameweek}:${Math.round(adjustedConfidence * 100)}`;
-  const current = Number(currentEffectiveLevel(player) ?? 50);
+  // Durable ability, on the same basis as the exact report and as potential.
+  // Reporting the form-inflated effective level here meant a range like 78-88
+  // collapsed to a lower flat number the moment a dedicated scout reported, and
+  // let an observed range sit above the player's own ceiling.
+  const current = Number(durableLevel(player) ?? currentEffectiveLevel(player) ?? 50);
   const currentRange = observedRange(current, adjustedConfidence, `${seed}:current`, { baseWidth:9 });
   const future = potentialEstimate(player, adjustedConfidence);
   const tacticalProfile = getAITacticalProfile(userTeam ?? {});
@@ -181,7 +289,7 @@ export function buildScoutingReport(player, context = {}) {
     observedSeason:season,
     confidence:scoutingRound2(adjustedConfidence),
     confidenceLabel:confidenceLabel(adjustedConfidence),
-    stage:context.stage ?? reportStage(context.weeks ?? 1),
+    stage:context.stage ?? reportStage(context.weeks ?? 1, context.mode),
     current:{ ...currentRange, evidence:confidenceLabel(adjustedConfidence) },
     tactical:{ roleId, fit:fit >= 1.02 ? 'Strong' : fit >= .91 ? 'Good' : 'Stretch', confidence:confidenceLabel(adjustedConfidence) },
     future:{ min:future.min, max:future.max, growthProfileConfidence:confidenceLabel(adjustedConfidence) },
@@ -205,12 +313,61 @@ export function latestScoutingReport(stateInput, playerId) {
 }
 
 /**
+ * Knowledge expires with the season. A report gathered in 2025/26 says nothing
+ * reliable about 2026/27's squad, so it stops counting entirely once the season
+ * rolls over rather than being carried forward as though it were fresh.
+ */
+export function scoutingReportIsCurrent(report, season) {
+  if (!report) return false;
+  if (season == null || report.observedSeason == null) return true;
+  return String(report.observedSeason) === String(season);
+}
+
+/** Every current-season report a single assignment has produced. */
+export function assignmentScoutingReports(stateInput, assignmentId, season = null) {
+  const state = normalizeScoutingState(stateInput);
+  const id = String(assignmentId);
+  return state.reports.filter(report =>
+    (String(report.source) === id || (report.sources ?? []).some(source => String(source) === id))
+    && (season == null || scoutingReportIsCurrent(report, season)));
+}
+
+/**
  * User-facing knowledge. With no formal report we expose a broad public range,
  * preserving discoverability without returning an authoritative hidden rating.
  */
 export function observedPlayerProfile(player, stateInput, context = {}) {
   const state = normalizeScoutingState(stateInput, { defaultKnowledge:context.defaultKnowledge ?? .42 });
-  const report = latestScoutingReport(state, player?.id);
+  const stored = latestScoutingReport(state, player?.id);
+  const report = scoutingReportIsCurrent(stored, context.season) ? stored : null;
+  // The stored report is an immutable observation, but a completed dedicated
+  // scout grants exact knowledge for the rest of that season. Reproject that
+  // entitlement from the latest canonical row so development, form-adjusted
+  // valuation, wages and status cannot drift away from an "exact" UI. Keep the
+  // original observation metadata so the saved report remains auditable.
+  if (report?.exact) {
+    const refreshedGameweek = Number(context.gameweek ?? report.observedGameweek ?? 0);
+    const refreshed = buildExactScoutingReport(player, {
+      ...context,
+      source:report.source,
+      season:context.season ?? report.observedSeason,
+      gameweek:refreshedGameweek,
+      // Callers that own a live valuation policy (the transfer market does)
+      // supply it here. Other projections retain the exact observed fee rather
+      // than silently falling back to a raw base value on a different basis.
+      valueFor:context.valueFor ?? (() => report.financial?.feeMin ?? player?.value ?? 0),
+    });
+    return {
+      ...report,
+      current:refreshed.current,
+      tactical:refreshed.tactical,
+      future:refreshed.future,
+      financial:refreshed.financial,
+      status:refreshed.status,
+      refreshedWeekKey:refreshed.observedWeekKey,
+      refreshedGameweek,
+    };
+  }
   if (report) {
     const currentGameweek = Number(context.gameweek ?? report.observedGameweek ?? 0);
     const ageWeeks = Math.max(0, currentGameweek - Number(report.observedGameweek ?? currentGameweek));
@@ -240,10 +397,19 @@ export function advanceScoutingState(stateInput, context = {}) {
   const teamsById = context.teamsById ?? new Map();
   const reportByPlayer = new Map(state.reports.map(report => [String(report.playerId), report]));
   const reportsAdded = [];
-  const assignments = state.assignments.map(assignment => {
+  const assignments = state.assignments
+    .filter(assignment => scoutingAssignmentIsCurrent(assignment, context.season))
+    // A career created before assignments carried a season has none. Adopt it
+    // into the season that first settles it, so it expires at the next rollover
+    // instead of holding a slot against the cap forever.
+    .map(assignment => (assignment.season == null && context.season != null
+      ? { ...assignment, season:context.season }
+      : assignment))
+    .map(assignment => {
     if (assignment.status !== 'active' || assignment.lastAdvancedKey === weekKey) return assignment;
     const weeks = Math.max(0, Number(assignment.weeks ?? 0)) + 1;
-    const stage = reportStage(weeks);
+    const mode = assignment.mode === 'full' ? 'full' : 'survey';
+    const stage = reportStage(weeks, mode);
     const confidence = scoutingClamp(.34 + weeks * .13, .34, .9);
     for (const player of assignmentCandidates(assignment, players, teamsById)) {
       const report = buildScoutingReport(player, {
@@ -256,16 +422,47 @@ export function advanceScoutingState(stateInput, context = {}) {
         confidence,
         stage,
         weeks,
+        mode,
+        exact:mode === 'full' && stage === 'complete',
       });
       if (!report) continue;
-      reportByPlayer.set(String(player.id), report);
-      reportsAdded.push(report);
+      const key = String(player.id);
+      const existing = reportByPlayer.get(key);
+      // Only one report is stored per player, but several assignments can cover
+      // the same one. Every assignment that looked at this player is recorded so
+      // the recruitment screen can list its findings, whichever report survives.
+      const sources = [...new Set([
+        ...(existing?.sources ?? []),
+        ...(existing?.source ? [existing.source] : []),
+        assignment.id,
+      ])];
+      // A survey passing over a player a dedicated scout has already read in full
+      // must not replace certainty with a range.
+      if (existing?.exact && !report.exact && scoutingReportIsCurrent(existing, context.season)) {
+        reportByPlayer.set(key, { ...existing, sources });
+        continue;
+      }
+      const merged = { ...report, sources };
+      reportByPlayer.set(key, merged);
+      reportsAdded.push(merged);
     }
-    return { ...assignment, weeks, stage, lastAdvancedKey:weekKey, status:stage === 'complete' ? 'complete' : 'active' };
+    return { ...assignment, mode, weeks, stage, lastAdvancedKey:weekKey, status:stage === 'complete' ? 'complete' : 'active' };
   });
-  const reports = [...reportByPlayer.values()]
-    .sort((a,b) => Number(a.observedGameweek ?? 0) - Number(b.observedGameweek ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
-    .slice(-MAX_SCOUTING_REPORTS);
+  // The ledger is bounded, but a dedicated scout is a deliberate spend: exact
+  // reports keep their place and only surveys are trimmed to fit.
+  const current = [...reportByPlayer.values()]
+    .filter(report => scoutingReportIsCurrent(report, context.season))
+    .sort((a,b) => Number(a.observedGameweek ?? 0) - Number(b.observedGameweek ?? 0) || String(a.playerId).localeCompare(String(b.playerId)));
+  const exactReports = current.filter(report => report.exact);
+  const surveyReports = current.filter(report => !report.exact);
+  const keptExact = exactReports.slice(-MAX_SCOUTING_REPORTS);
+  const surveyRoom = MAX_SCOUTING_REPORTS - keptExact.length;
+  // slice(-0) returns the whole array, so an empty allowance is handled here
+  // rather than by a negative offset.
+  const reports = [
+    ...keptExact,
+    ...(surveyRoom > 0 ? surveyReports.slice(-surveyRoom) : []),
+  ].sort((a,b) => Number(a.observedGameweek ?? 0) - Number(b.observedGameweek ?? 0) || String(a.playerId).localeCompare(String(b.playerId)));
   const notification = reportsAdded.length ? { weekKey, type:'scouting', count:reportsAdded.length, message:`${reportsAdded.length} scouting report${reportsAdded.length === 1 ? '' : 's'} updated` } : null;
   return {
     state:{

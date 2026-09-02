@@ -1,9 +1,10 @@
 <script>
   import { flip } from 'svelte/animate';
   import { getAllFixtures, getAllPlayers, getAllTeams, getSave, openDB } from '../../modules/db.js';
-  import { CUP_META } from '../../modules/cups.js';
+  import { CUP_META, cupRunStageLabel } from '../../modules/cups.js';
+  import { getLeaguePhaseQualification } from '../../modules/competitionRules.js';
   import { getLeagueTable } from '../../modules/standings.js';
-  import { worldCompetitionRunsForTeam } from '../../modules/worldCompetitions.js';
+  import { WORLD_EUROPEAN_COMPETITION_IDS, buildEuropeanLeaguePhaseTable, worldCompetitionRunsForTeam } from '../../modules/worldCompetitions.js';
   import { fmt } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import Crest from './kit/Crest.svelte';
@@ -21,6 +22,9 @@
   let leagues = $state([]);
   let selectedTeamId = $state(null);
   let loaded = $state(false);
+  // 'domestic' shows a league table from standings; 'european' shows a UEFA
+  // league-phase table read from the P1 world ledger.
+  let europeanId = $state(null);
 
   function zone(pos, total) {
     if (total === 20) {
@@ -38,6 +42,100 @@
       if (pos >= 16) return { cls:'rel', label:'REL' };
     }
     return null;
+  }
+
+  const europeanCompetitions = $derived(WORLD_EUROPEAN_COMPETITION_IDS
+    .filter(cupId => worldCompetitions?.competitions?.[cupId])
+    .map(cupId => ({ id:cupId, name:CUP_META[cupId]?.shortName || CUP_META[cupId]?.name || cupId })));
+
+  const europeanTable = $derived(europeanId
+    ? buildEuropeanLeaguePhaseTable(worldCompetitions, europeanId, {
+      userTeamId,
+      userCupState:userCups?.[europeanId] ?? null,
+    })
+    : null);
+
+  const europeanMeta = $derived(europeanId ? CUP_META[europeanId] ?? null : null);
+
+  // The managed club's own seeding is settled by the competition rules layer at
+  // the end of the phase, so its confirmed outcome is stated outright rather
+  // than inferred from where the club sits in this merged table.
+  const userRouteNote = $derived.by(() => {
+    const user = europeanTable?.user;
+    if (!user?.complete || !user.route) return '';
+    const place = user.position ? `Finished ${user.position}${ordinal(user.position)}` : 'League phase complete';
+    if (user.route === 'direct') return `${place} — you go straight into the Round of 16.`;
+    if (user.route === 'playoff') return `${place} — you go into the knockout play-off.`;
+    return `${place} — you are out of this competition.`;
+  });
+
+  function ordinal(value) {
+    const n = Number(value);
+    if (n % 100 >= 11 && n % 100 <= 13) return 'th';
+    return n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
+  }
+
+  function europeanZone(position) {
+    const route = getLeaguePhaseQualification(europeanId, position).route;
+    if (route === 'direct') return 'ucl';
+    if (route === 'playoff') return 'uecl';
+    return 'rel';
+  }
+
+  // The world ledger labels league-phase records "League Phase · Matchday N";
+  // the results rail only has room for the short form.
+  function resultRoundLabel(fixture) {
+    if (!fixture.roundName) return `GW${fixture.gameweek}`;
+    const matchday = /Matchday\s+(\d+)/.exec(fixture.roundName);
+    return matchday ? `MD${matchday[1]}` : fixture.roundName;
+  }
+
+  // The manager's own European nights are played through save.cups, not the
+  // background ledger, so they have to be folded in or this competition's
+  // results would never include the club actually being managed.
+  const userEuropeanResults = $derived.by(() => {
+    if (!europeanId || !userTeamId) return [];
+    return (userCups?.[europeanId]?.results ?? [])
+      .filter(result => Number.isFinite(Number(result?.gameweek)))
+      .map((result, index) => {
+        const userIsHome = result.userIsHome !== false;
+        const userName = byId.get(userTeamId)?.name ?? 'Your club';
+        const oppName = result.opponentName ?? 'Opponent';
+        return {
+          id:`user-${europeanId}-${result.gameweek}-${index}`,
+          gameweek:Number(result.gameweek),
+          roundName:result.roundName ?? (result.matchday ? `Matchday ${result.matchday}` : 'Cup tie'),
+          homeTeamId:userIsHome ? userTeamId : result.opponentId ?? 'opp',
+          awayTeamId:userIsHome ? result.opponentId ?? 'opp' : userTeamId,
+          homeTeamName:userIsHome ? userName : oppName,
+          awayTeamName:userIsHome ? oppName : userName,
+          homeGoals:userIsHome ? result.userGoals : result.oppGoals,
+          awayGoals:userIsHome ? result.oppGoals : result.userGoals,
+        };
+      });
+  });
+
+  const visibleResults = $derived.by(() => {
+    if (!europeanId) return results;
+    const byRecency = (a, b) => b.gameweek - a.gameweek || String(b.id).localeCompare(String(a.id));
+    // One matchday of a 36-club field is 18 ledger records, so a flat slice
+    // would bury the manager's own nights entirely. Reserve them room first.
+    const mine = [...userEuropeanResults].sort(byRecency).slice(0, 6);
+    const ledger = [...(worldCompetitions?.competitions?.[europeanId]?.results ?? [])]
+      .sort(byRecency)
+      .slice(0, Math.max(0, 20 - mine.length));
+    return [...mine, ...ledger].sort(byRecency);
+  });
+
+  function chooseEuropean(cupId) {
+    europeanId = cupId;
+    const table = buildEuropeanLeaguePhaseTable(worldCompetitions, cupId, {
+      userTeamId, userCupState:userCups?.[cupId] ?? null,
+    });
+    const rows = table?.rows ?? [];
+    if (!rows.some(row => row.teamId === selectedTeamId)) {
+      selectedTeamId = rows.find(row => row.isUser)?.teamId ?? rows[0]?.teamId ?? selectedTeamId;
+    }
   }
 
   function leagueForFixture(fixture) {
@@ -72,7 +170,8 @@
   }
 
   async function chooseLeague(nextLeague) {
-    if (nextLeague === leagueName) return;
+    if (nextLeague === leagueName && !europeanId) return;
+    europeanId = null;
     await loadLeague(nextLeague);
   }
 
@@ -110,7 +209,32 @@
 
   const totalTeams = $derived(rows.length);
   const selectedTeam = $derived(selectedTeamId ? byId.get(selectedTeamId) ?? null : null);
-  const selectedRow = $derived(selectedTeamId ? rows.find(row => row.teamId === selectedTeamId) ?? null : null);
+  // In European mode the selected club is usually not in the loaded domestic
+  // table, so its snapshot has to come from the competition's own row or the
+  // panel reads "—" and zero for a club that has played eight matches.
+  const selectedRow = $derived.by(() => {
+    if (!selectedTeamId) return null;
+    // The managed club also exists in the domestic table cached behind this
+    // screen. European mode must prefer the UEFA row or its side panel silently
+    // reports domestic position/points beside a European table.
+    if (europeanId) {
+      const euro = europeanTable?.rows.find(row => row.teamId === selectedTeamId);
+      if (!euro) return null;
+      return {
+        teamId:euro.teamId,
+        position:euro.position,
+        points:euro.points,
+        goalDifference:euro.gd,
+        played:euro.played,
+        won:euro.won,
+        drawn:euro.drawn,
+        lost:euro.lost,
+        form:[],
+        europeanOnly:true,
+      };
+    }
+    return rows.find(row => row.teamId === selectedTeamId) ?? null;
+  });
   const selectedPlayers = $derived.by(() => allPlayers
     .filter(player => player.teamId === selectedTeamId && player.inSquad !== false)
     .sort((a, b) =>
@@ -127,7 +251,9 @@
         competitionId,
         status:state.status,
         roundIndex:state.roundIndex,
-        roundName:CUP_META[competitionId]?.rounds?.[state.roundIndex] ?? null,
+        // During a UEFA league phase the run is not at roundIndex 0's knockout
+        // play-off yet, so the stage comes from the shared cup-state reader.
+        roundName:cupRunStageLabel(competitionId, state),
         winner:state.status === 'winner',
       }));
     }
@@ -146,10 +272,13 @@
 <div class="league-screen">
   <div class="league-hdr">
     <div class="league-eyebrow">Competitions · Living World</div>
-    <div class="league-title">{leagueName} <span class="league-season">{season}</span></div>
+    <div class="league-title">{europeanMeta?.name ?? leagueName} <span class="league-season">{season}</span></div>
     <div class="league-switcher" aria-label="Choose competition">
       {#each leagues as league (league)}
-        <button class:active={league === leagueName} onclick={() => chooseLeague(league)}>{league}</button>
+        <button class:active={!europeanId && league === leagueName} onclick={() => chooseLeague(league)}>{league}</button>
+      {/each}
+      {#each europeanCompetitions as competition (competition.id)}
+        <button class="euro-pill" class:active={europeanId === competition.id} onclick={() => chooseEuropean(competition.id)}>{competition.name}</button>
       {/each}
     </div>
   </div>
@@ -158,6 +287,47 @@
     <div class="league-empty">Loading…</div>
   {:else}
     <div class="league-body">
+      {#if europeanId}
+      <div class="league-table-card">
+        {#if !europeanTable}
+          <div class="league-empty">This competition has not kicked off yet.</div>
+        {:else}
+          <div class="euro-note">
+            <strong>League phase</strong>
+            <span>{europeanTable.complete ? 'Complete' : `Matchday ${europeanTable.matchday} of ${europeanTable.matchdays}`} · 1–8 straight to the R16, 9–24 into the knockout play-off, 25+ eliminated.</span>
+            {#if userRouteNote}<span class="euro-route {europeanTable.user?.route ?? ''}">{userRouteNote}</span>{/if}
+          </div>
+          <div class="league-table-hdr">
+            <div>#</div><div>Club</div><div>P</div><div>W</div><div>D</div><div>L</div>
+            <div>GD</div><div>PTS</div><div class="form-col"></div>
+          </div>
+          <div class="league-table-rows">
+            {#each europeanTable.rows as row (row.teamId)}
+              {@const club = byId.get(row.teamId)}
+              <button
+                class="league-row {row.isUser ? 'is-user' : ''} {row.teamId === selectedTeamId ? 'is-selected' : ''}"
+                class:zone-ucl={europeanZone(row.position) === 'ucl'}
+                class:zone-uecl={europeanZone(row.position) === 'uecl'}
+                class:zone-rel={europeanZone(row.position) === 'rel'}
+                onclick={() => selectedTeamId = row.teamId}
+                aria-label={`Inspect ${club?.name ?? row.teamId}`}
+                animate:flip={{ duration:400 }}
+              >
+                <div class="rc">{row.position}</div>
+                <div class="tc"><span class="league-crest"><Crest team={club} size={20} label={`${club?.name ?? row.teamId} crest`} /></span><span>{club?.name ?? row.teamId}</span></div>
+                <div class="sc">{row.played}</div>
+                <div class="sc">{row.won}</div>
+                <div class="sc">{row.drawn}</div>
+                <div class="sc">{row.lost}</div>
+                <div class="sc gd" class:pos={row.gd >= 0}>{row.gd >= 0 ? '+' : ''}{row.gd}</div>
+                <div class="pc">{row.points}</div>
+                <div class="form-col"></div>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      {:else}
       <div class="league-table-card">
         <div class="league-table-hdr">
           <div>#</div><div>Club</div><div>P</div><div>W</div><div>D</div><div>L</div>
@@ -190,6 +360,7 @@
           {/each}
         </div>
       </div>
+      {/if}
 
       <div class="league-side">
         {#if selectedTeam}
@@ -204,7 +375,7 @@
             </div>
 
             <div class="club-metrics">
-              <div><span>Position</span><strong>{selectedRow?.position ?? '—'}</strong></div>
+              <div><span>{selectedRow?.europeanOnly ? `${europeanMeta?.shortName ?? 'Europe'} pos` : 'Position'}</span><strong>{selectedRow?.position ?? '—'}</strong></div>
               <div><span>Points</span><strong>{selectedRow?.points ?? 0}</strong></div>
               <div><span>GD</span><strong>{selectedRow ? `${selectedRow.goalDifference >= 0 ? '+' : ''}${selectedRow.goalDifference}` : '—'}</strong></div>
               <div><span>Budget</span><strong>{fmt.money(selectedTeam.budget ?? 0)}</strong></div>
@@ -213,7 +384,7 @@
             <div class="club-form">
               <span>League form</span>
               <div class="form-mini">
-                {#if !(selectedRow?.form?.length)}<em>No results yet</em>{/if}
+                {#if !(selectedRow?.form?.length)}<em>{selectedRow?.europeanOnly ? 'Domestic form not loaded — open this club\'s league' : 'No results yet'}</em>{/if}
                 {#each (selectedRow?.form || []) as form, index (index)}<span class="fdot fd-{form}">{form}</span>{/each}
               </div>
             </div>
@@ -263,18 +434,18 @@
         {/if}
 
         <div class="league-results-card">
-          <div class="league-results-hdr">{leagueName} · Recent Results</div>
+          <div class="league-results-hdr">{europeanMeta?.name ?? leagueName} · Recent Results</div>
           <div class="league-results-list">
-            {#if !results.length}
+            {#if !visibleResults.length}
               <div class="league-empty">No matches played yet.</div>
             {:else}
-              {#each results as fixture (fixture.id)}
+              {#each visibleResults as fixture (fixture.id)}
                 <div class="result-row" class:is-user={fixture.homeTeamId === userTeamId || fixture.awayTeamId === userTeamId}>
-                  <div class="result-gw">GW{fixture.gameweek}</div>
+                  <div class="result-gw">{resultRoundLabel(fixture)}</div>
                   <div class="result-teams">
-                    <span class="rth">{byId.get(fixture.homeTeamId)?.name || fixture.homeTeamId}</span>
+                    <span class="rth">{byId.get(fixture.homeTeamId)?.name || fixture.homeTeamName || fixture.homeTeamId}</span>
                     <span class="rsc">{fixture.homeGoals} – {fixture.awayGoals}</span>
-                    <span class="rta">{byId.get(fixture.awayTeamId)?.name || fixture.awayTeamId}</span>
+                    <span class="rta">{byId.get(fixture.awayTeamId)?.name || fixture.awayTeamName || fixture.awayTeamId}</span>
                   </div>
                 </div>
               {/each}
@@ -296,6 +467,15 @@
   .league-switcher::-webkit-scrollbar { display:none; }
   .league-switcher button { flex:0 0 auto; border:1px solid var(--color-line); background:var(--color-surface); color:var(--color-tx-2); border-radius:999px; padding:7px 10px; font:600 10px var(--font-mono); cursor:pointer; }
   .league-switcher button.active { border-color:color-mix(in oklch,var(--color-club) 55%,var(--color-line)); background:color-mix(in oklch,var(--color-club) 14%,var(--color-surface)); color:var(--color-tx); }
+  .euro-pill { border-style:dashed; }
+  .euro-pill.active { border-style:solid; }
+  .euro-note { padding:9px 12px; border-bottom:1px solid var(--color-line); }
+  .euro-note strong { display:block; font:700 9px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--color-club); }
+  .euro-note span { display:block; margin-top:3px; color:var(--color-tx-3); font-size:10px; line-height:1.45; }
+  .euro-route { color:var(--color-tx-2) !important; font-weight:600; }
+  .euro-route.direct { color:var(--color-live) !important; }
+  .euro-route.playoff { color:var(--color-warn) !important; }
+  .euro-route.eliminated { color:var(--color-bad) !important; }
   .league-empty { color:var(--color-tx-3); font-size:12px; padding:24px; text-align:center; }
   .league-empty.compact { padding:10px; }
   .league-body { display:flex; flex-direction:column; gap:14px; flex:1; min-height:0; }

@@ -51,7 +51,6 @@
   let instructionsOpen = $state(false);
   let planningOpen = $state(false);
   let swapSlotIdx = $state(null);
-  let swapPreselectId = $state(null);
   let rosterOpen = $state(false);
   let playerSheet = $state(null);
   let draggedPlayerId = $state(null);
@@ -114,13 +113,6 @@
     });
     return out;
   });
-
-  const bench = $derived(
-    players
-      .filter(p => p.inSquad !== false && !p.injured && !p.suspended && !assignment.some(a => a?.id === p.id))
-      .sort((a, b) => primaryRating(b) - primaryRating(a))
-      .slice(0, 12)
-  );
 
   const formationGroups = $derived([
     { label: '3 at the back', formations: Object.keys(FORMATIONS).filter(f => f.startsWith('3-')) },
@@ -246,17 +238,8 @@
     if (player) await applySwapAt(idx, player);
   }
 
-  function openSlotSwap(idx) { swapSlotIdx = idx; swapPreselectId = null; }
-  function openBenchSwap(benchPlayer) {
-    let bestIdx = 0, bestScore = -Infinity;
-    slots.forEach((slot, i) => {
-      const score = slotLevel(benchPlayer, slot.p) + slotFit(benchPlayer, slot.p) * 3 + (!assignment[i] ? 1 : 0);
-      if (score > bestScore) { bestScore = score; bestIdx = i; }
-    });
-    swapSlotIdx = bestIdx;
-    swapPreselectId = benchPlayer.id;
-  }
-  function closeSwap() { swapSlotIdx = null; swapPreselectId = null; }
+  function openSlotSwap(idx) { swapSlotIdx = idx; }
+  function closeSwap() { swapSlotIdx = null; }
 
   const swapSections = $derived.by(() => {
     if (swapSlotIdx === null) return null;
@@ -316,10 +299,13 @@
     </header>
     <div class="tac-controls">
       <div class="tac-dd-half">
-        <div class="tac-dd-label">Formation</div>
         <div class="tac-dropdown">
           <button class="tac-dd-btn" onclick={() => { mentalityOpen = false; formationOpen = !formationOpen; }}>
-            <span class="tac-dd-val">{formation}</span>
+            <span class="tac-dd-copy">
+              <span class="tac-dd-label">Formation</span>
+              <span class="tac-dd-val">{formation}</span>
+              <small>Tap to change shape</small>
+            </span>
             <span class="tac-dd-arrow" class:open={formationOpen}>▾</span>
           </button>
           {#if formationOpen}
@@ -340,11 +326,13 @@
         </div>
       </div>
       <div class="tac-dd-half">
-        <div class="tac-dd-label">Mentality</div>
         <div class="tac-dropdown">
           <button class="tac-dd-btn" onclick={() => { formationOpen = false; mentalityOpen = !mentalityOpen; }}>
-            <span class="m-pill-tag">{curMentObj.label}</span>
-            <span class="tac-dd-val">{curMentObj.fullLabel}</span>
+            <span class="tac-dd-copy">
+              <span class="tac-dd-label">Mentality</span>
+              <span class="tac-dd-val">{curMentObj.fullLabel}</span>
+              <small>{curMentObj.desc}</small>
+            </span>
             <span class="tac-dd-arrow" class:open={mentalityOpen}>▾</span>
           </button>
           {#if mentalityOpen}
@@ -362,9 +350,6 @@
           {/if}
         </div>
       </div>
-    </div>
-
-    <div class="p2-plan-row">
       <button class="team-plan-button" onclick={() => instructionsOpen = true}>
         <span>Team plan</span>
         <strong>{planSummary}</strong>
@@ -411,22 +396,6 @@
       </div>
     </div>
 
-    <div class="tac-bench-strip">
-      <div class="tac-bench-label">Bench</div>
-      <div class="tac-bench-players">
-        {#each bench as p (p.id)}
-          {@const g = posGroup(p.position)}
-          {@const fit = Math.round(p.fitness ?? 90)}
-          <button class="tac-bench-card" draggable="true" ondragstart={() => beginDrag(p)} onclick={() => openBenchSwap(p)} title="{p.name} · {p.position} · {primaryRating(p)}">
-            <div class="tac-bench-avatar pos-{g}">{p.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</div>
-            <div class="tac-bench-pos">{p.position}</div>
-            <div class="tac-bench-name">{p.name.split(' ').slice(-1)[0]}</div>
-            <div class="tac-bench-rat">{primaryRating(p)}</div>
-            <div class="tac-bench-fit" style="color:{fitnessColor(fit)}">{fit}%</div>
-          </button>
-        {/each}
-      </div>
-    </div>
   {/if}
 </div>
 
@@ -458,7 +427,7 @@
   <div class="sheet planning-sheet">
     <div class="sheet-handle"></div>
     <div class="swap-hdr">
-      <div><span class="swap-title">Squad planning</span><div class="sheet-subtitle">Current depth, future gaps and club coaching staff.</div></div>
+      <div><span class="swap-title">Squad planning</span><div class="sheet-subtitle">Which positions you are short in, and who coaches each part of your squad.</div></div>
       <button class="sheet-close" onclick={() => planningOpen = false} aria-label="Close">✕</button>
     </div>
     <div class="planning-sheet-body"><SquadPlanningPanel /></div>
@@ -491,7 +460,7 @@
           {#each entries as entry (entry.player.id)}
             {@const p = entry.player}
             {@const fit = Math.round(p.fitness ?? 90)}
-            <button class="swap-row {entry.isInXI ? 'dimmed' : ''} {swapPreselectId === p.id ? 'swap-presel' : ''}" onclick={() => applySwap(p)}>
+            <button class="swap-row {entry.isInXI ? 'dimmed' : ''}" onclick={() => applySwap(p)}>
               <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
               <span class="swap-row-info">
                 <span class="swap-row-name">{p.name}</span>
@@ -611,12 +580,16 @@
   .header-actions { display:flex; gap:7px; align-items:center; }
   .roster-button { min-height:44px; padding:0 12px; color:var(--color-tx-2); background:var(--color-surface); border:1px solid var(--color-line); border-radius:999px; cursor:pointer; font:600 11px var(--font-mono); }
 
-  .tac-controls { display: flex; gap: 10px; padding: 14px 16px 8px; flex-shrink: 0; position: relative; z-index: 10; }
-  .tac-dd-half { flex: 1; position: relative; }
-  .tac-dd-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 4px; }
+  /* Formation, Mentality, Team plan and Manager DNA share one row, each card
+     carrying its own title, so the pitch below gets the rest of the screen. */
+  .tac-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px 16px 8px; flex-shrink: 0; position: relative; z-index: 10; }
+  .tac-dd-half { min-width: 0; position: relative; }
+  .tac-dd-label { display: block; color: var(--color-tx-3); font: 700 8px/1 var(--font-mono); letter-spacing: 1.1px; text-transform: uppercase; }
   .tac-dropdown { position: relative; }
-  .tac-dd-btn { width: 100%; display: flex; align-items: center; gap: 8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; padding: 10px 12px; min-height: 44px; color: var(--color-tx); cursor: pointer; }
-  .tac-dd-val { flex: 1; text-align: left; font-family: var(--font-display); font-size: 15px; letter-spacing: 0.5px; }
+  .tac-dd-btn { width: 100%; min-height: 62px; display: flex; align-items: center; gap: 6px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; padding: 8px 10px; color: var(--color-tx); cursor: pointer; }
+  .tac-dd-copy { min-width: 0; flex: 1; text-align: left; }
+  .tac-dd-copy small { display: block; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-tx-3); font: 9px/1.2 var(--font-body); }
+  .tac-dd-val { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1.15 var(--font-body); }
   .tac-dd-arrow { color: var(--color-tx-3); transition: transform 0.15s; }
   .tac-dd-arrow.open { transform: rotate(180deg); }
   .m-pill-tag { font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px; background: var(--color-raised); color: var(--color-club); flex-shrink: 0; }
@@ -630,8 +603,7 @@
   .m-dd-opt-label { font-weight: 600; }
   .m-dd-opt-desc { font-size: 10px; color: var(--color-tx-3); }
 
-  .p2-plan-row { flex-shrink:0; display:grid; grid-template-columns:minmax(0,1.45fr) minmax(0,1fr); gap:8px; padding:0 16px 7px; }
-  .team-plan-button, .dna-card { min-width:0; min-height:52px; padding:8px 10px; text-align:left; border:1px solid var(--color-line); border-radius:10px; background:var(--color-surface); color:var(--color-tx); }
+  .team-plan-button, .dna-card { min-width:0; min-height:62px; padding:8px 10px; text-align:left; border:1px solid var(--color-line); border-radius:10px; background:var(--color-surface); color:var(--color-tx); }
   .team-plan-button { cursor:pointer; }
   .team-plan-button span, .dna-card span { display:block; color:var(--color-tx-3); font:700 8px/1 var(--font-mono); letter-spacing:1.1px; text-transform:uppercase; }
   .team-plan-button strong, .dna-card strong { display:block; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 12px/1.15 var(--font-body); }
@@ -639,8 +611,9 @@
   .dna-card { background:color-mix(in oklch,var(--color-club) 7%,var(--color-surface)); }
   .dna-card strong { color:var(--color-club); }
 
-  .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 12px; }
-  .pitch-wrap { width: 100%; max-width: 420px; aspect-ratio: 68/100; margin: 0 auto; }
+  /* The bench strip is gone, so the pitch takes the full remaining height. */
+  .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 10px calc(14px + env(safe-area-inset-bottom)); }
+  .pitch-wrap { width: 100%; max-width: min(560px, calc((100dvh - 210px) * .68)); aspect-ratio: 68/100; margin: 0 auto; }
   .pitch-bg { position: relative; width: 100%; height: 100%; background: linear-gradient(180deg, var(--color-turf), var(--color-turf-2)); border: 2px solid rgba(255,255,255,0.18); border-radius: 8px; overflow: hidden; }
   .pitch-line.half { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.18); }
   .pitch-circle { position: absolute; top: 50%; left: 50%; width: 22%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.18); border-radius: 50%; transform: translate(-50%, -50%); }
@@ -653,28 +626,21 @@
   .pitch-arc { position: absolute; left: 36%; width: 28%; height: 6%; border: 1px solid rgba(255,255,255,0.18); border-radius: 0 0 50% 50% / 0 0 100% 100%; }
   .pitch-arc.top { top: 16%; border-top: none; } .pitch-arc.bot { bottom: 16%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-bottom: none; }
 
-  .pitch-slot { position: absolute; transform: translate(-50%, -50%); width: 44px; min-height: 58px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; cursor: pointer; padding: 0; }
-  .slot-inner { width: 44px; height: 44px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid; background: var(--color-surface); }
+  .pitch-slot { position: absolute; transform: translate(-50%, -50%); width: 52px; min-height: 68px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; cursor: pointer; padding: 0; }
+  .slot-inner { width: 52px; height: 52px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid; background: var(--color-surface); }
   .slot-inner.pos-GK { border-color: #7c83e8; } .slot-inner.pos-DEF { border-color: var(--color-live); } .slot-inner.pos-MID { border-color: var(--color-warn); } .slot-inner.pos-ATT { border-color: var(--color-bad); }
   .slot-inner.pos-empty { border-color: var(--color-line); border-style: dashed; background: rgba(255,255,255,0.04); }
   .slot-inner.slot-injured { box-shadow: 0 0 0 2px var(--color-bad); }
   .slot-inner.slot-mismatch { border-color:var(--color-bad); }
-  .slot-rating { font-family: var(--font-display); font-size: 14px; line-height: .95; color: var(--color-tx); }
-  .slot-pos { font-family: var(--font-mono); font-size: 7px; line-height:1; color: var(--color-tx-2); }
+  .slot-rating { font-family: var(--font-display); font-size: 17px; line-height: .95; color: var(--color-tx); }
+  .slot-pos { font-family: var(--font-mono); font-size: 8px; line-height:1; color: var(--color-tx-2); }
   .slot-role { margin-top:1px; color:var(--color-club); font:700 6px/1 var(--font-mono); letter-spacing:.2px; }
   .slot-empty-lbl { color: var(--color-tx-3); font-size: 9px; }
   .slot-inj-tag, .slot-fit-tag { position:absolute; top:-6px; font:700 7px/1 var(--font-mono); background:var(--color-surface); padding:2px 3px; border-radius:3px; }
   .slot-inj-tag { color:var(--color-bad); }
   .slot-fit-tag { color:var(--color-warn); left:-2px; }
-  .slot-name { font-size: 9px; color: var(--color-tx); background: rgba(0,0,0,0.55); padding: 1px 5px; border-radius: 4px; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+  .slot-name { font-size: 10px; color: var(--color-tx); background: rgba(0,0,0,0.55); padding: 2px 6px; border-radius: 4px; white-space: nowrap; max-width: 82px; overflow: hidden; text-overflow: ellipsis; }
 
-  .tac-bench-strip { flex-shrink: 0; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); }
-  .tac-bench-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); margin-bottom: 8px; }
-  .tac-bench-players { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior: contain; padding-bottom: 4px; }
-  .tac-bench-card { flex-shrink: 0; width: 62px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; padding: 8px 4px; cursor: pointer; color: var(--color-tx); }
-  .tac-bench-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 10px; font-weight: 700; border: 1px solid; background: var(--color-raised); }
-  .tac-bench-avatar.pos-GK { color: #7c83e8; border-color: #7c83e8; } .tac-bench-avatar.pos-DEF { color: var(--color-live); border-color: var(--color-live); } .tac-bench-avatar.pos-MID { color: var(--color-warn); border-color: var(--color-warn); } .tac-bench-avatar.pos-ATT { color: var(--color-bad); border-color: var(--color-bad); }
-  .tac-bench-pos { font-size: 8px; color: var(--color-tx-3); font-family: var(--font-mono); } .tac-bench-name { font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; } .tac-bench-rat { font-family: var(--font-display); font-size: 13px; } .tac-bench-fit { font-size: 8px; font-family: var(--font-mono); }
 
   .pos-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 5px; flex-shrink: 0; background: var(--color-raised); color: var(--color-tx-2); border: 1px solid var(--color-line); }
   .pos-badge.pos-GK { color: #7c83e8; } .pos-badge.pos-DEF { color: var(--color-live); } .pos-badge.pos-MID { color: var(--color-warn); } .pos-badge.pos-ATT { color: var(--color-bad); }
@@ -701,7 +667,7 @@
   .swap-list { overflow-y: auto; overscroll-behavior: contain; }
   .swap-section-hdr { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--color-tx-3); padding: 10px 4px 4px; }
   .swap-row { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: none; border: 1px solid transparent; border-radius: 10px; padding: 8px; cursor: pointer; color: var(--color-tx); min-height: 44px; }
-  .swap-row:hover { background: var(--color-raised); } .swap-row.dimmed { opacity: 0.55; } .swap-row.swap-presel { border-color: var(--color-club); }
+  .swap-row:hover { background: var(--color-raised); } .swap-row.dimmed { opacity: 0.55; }
   .swap-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; } .swap-row-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .swap-row-meta { font-size: 10px; color: var(--color-tx-3); }
   .swap-row-badge { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); background: var(--color-raised); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
   .swap-row-fit { font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; } .swap-row-rat { font-family: var(--font-display); font-size: 15px; min-width: 24px; text-align: right; flex-shrink: 0; }
@@ -736,5 +702,16 @@
   @media (min-width: 720px) {
     .sheet { left:50%; right:auto; width:min(560px,calc(100vw - 32px)); transform:translateX(-50%); }
     .sheet.planning-sheet { width:min(920px,calc(100vw - 32px)); }
+  }
+  /* Four cards abreast need real width; on a phone they wrap to two rows and
+     the pitch keeps everything below them. */
+  @media (max-width: 600px) {
+    .tac-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-inline: 12px; }
+    .pitch-wrap { max-width: min(560px, calc((100dvh - 300px) * .68)); }
+  }
+  @media (max-width: 380px) {
+    .pitch-slot { width: 46px; min-height: 62px; }
+    .slot-inner { width: 46px; height: 46px; }
+    .slot-rating { font-size: 15px; }
   }
 </style>

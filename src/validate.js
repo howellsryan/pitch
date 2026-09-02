@@ -566,7 +566,10 @@ chk('Season end sets a fresh objective for next season', (()=>{const s=code.inde
 chk('resetForNewCareer defined', typeof resetForNewCareer==='function');
 chk('resetForNewCareer preserves honors and seasons', (()=>{const s=code.indexOf('async function resetForNewCareer');const chunk=s>-1?code.slice(s,s+800):'';return !chunk.includes("'honors'")&&!chunk.includes("'seasons'");})());
 chk('Sacked end-state offers Start New Career, not Start Next Season', code.includes('Start New Career')&&code.includes("summary.sacked"));
-chk('HomeScreen shows board confidence', homeScreenSrc.includes('boardObjective')&&homeScreenSrc.includes('jobSecurity'));
+// Board confidence is now projected live from position and form by
+// season.js's liveBoardConfidence rather than read straight off save.jobSecurity,
+// which only moved at the season review. boardConfidence.test.js owns the maths.
+chk('HomeScreen shows board confidence', homeScreenSrc.includes('boardObjective')&&homeScreenSrc.includes('liveBoardConfidence'));
 
 // ── Team morale (real, stored — not the old cosmetic win-rate label) ──
 chk('moraleTargetFromForm defined', typeof moraleTargetFromForm==='function');
@@ -629,9 +632,31 @@ chk('screen-trophies in HTML', shellSrc.includes('id="screen-trophies"'));
 chk('screen-squad in HTML', shellSrc.includes('id="screen-squad"'));
 chk('screen-academy in HTML', shellSrc.includes('id="screen-academy"'));
 chk('R4 unifies Squad and Tactics in one Chalk screen', squadScreenSrc.includes('chalk-header') && squadScreenSrc.includes('rosterOpen'));
-chk('R4 Chalk screen keeps the persistent pitch and bench rail', squadScreenSrc.includes('pitch-bg') && squadScreenSrc.includes('tac-bench-strip'));
+// The bench rail was removed deliberately so the pitch and starting XI get the
+// full height below the controls; the persistent pitch itself is still the
+// screen's spine, and substitutions are made by tapping a slot.
+chk('R4 Chalk screen keeps the persistent pitch', squadScreenSrc.includes('pitch-bg') && !squadScreenSrc.includes('tac-bench-strip'));
 chk('R4 Chalk screen supports drag-to-swap', squadScreenSrc.includes('ondragstart') && squadScreenSrc.includes('ondrop'));
-chk('R4 Chalk player discs meet the 44px touch target', squadScreenSrc.includes('width: 44px; height: 44px'));
+// The discs grew when the bench rail came off; assert the floor, not one literal
+// size, so the base rule and the narrow-phone override are both covered.
+// (These tests are embedded in a template literal, so plain string parsing here
+// avoids regex escapes being swallowed before the assertion ever runs.)
+chk('R4 Chalk player discs meet the 44px touch target', (()=>{
+  const sizes=[];
+  let at=squadScreenSrc.indexOf('.slot-inner {');
+  while(at!==-1){
+    const open=squadScreenSrc.indexOf('{', at);
+    const rule=squadScreenSrc.slice(open+1, squadScreenSrc.indexOf('}', open));
+    for(const part of rule.split(';')){
+      const [prop, value]=part.split(':').map(chunk=>chunk.trim());
+      // A non-px size is not something this floor can judge, so record it as 0
+      // and fail rather than quietly skipping the declaration.
+      if(prop==='width'||prop==='height') sizes.push(value.endsWith('px')?parseInt(value,10):0);
+    }
+    at=squadScreenSrc.indexOf('.slot-inner {', at+1);
+  }
+  return sizes.length>0 && sizes.every(size=>size>=44);
+})());
 chk('R4 Tactics route aliases to Squad', code.includes("ROUTE_ALIASES = { tactics: 'squad' }"));
 chk('showOffersModal in bundle', code.includes('showOffersModal'));
 // screen-cups/screen-honours were hidden display:none alias divs kept only so

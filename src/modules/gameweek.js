@@ -424,12 +424,15 @@ export async function advanceOneFixture(overrideFormation) {
       save.lineup ?? null,
     );
     if (mdResult) {
-      updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, mdResult, save.userTeamId);
       const reportResult = {
         ...mdResult,
+        // Persisted with the result so the Home rail can place a European night
+        // on its gameweek. Quick Sim and Broadcast must store the same shape.
+        gameweek:event.gw,
         opponentId:mdResult.opponentId ?? event.opponentId,
         opponentName:mdResult.opponentName ?? event.opponentName ?? event.oppName,
       };
+      updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, reportResult, save.userTeamId);
       cupResults.push(reportResult);
       singleResult = buildCupMatchResult(reportResult, save.userTeamId, event, allTeams);
       await applyNonLeaguePlayerResults([mdResult]).catch(() => {});
@@ -460,6 +463,9 @@ export async function advanceOneFixture(overrideFormation) {
     );
     const resultOut = {
       ...result,
+      // Stored so the Home rail can place a cup result on its gameweek; the
+      // authoritative football outcome above is unchanged.
+      gameweek:event.gw,
       opponentSeed:event.opponentSeed ?? null,
       ...(progress.aggregate ? { userWon:progress.aggregate.userWon, aggregate:progress.aggregate } : {}),
     };
@@ -564,6 +570,7 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
       const points = userGoals > oppGoals ? 3 : userGoals === oppGoals ? 1 : 0;
       const mdResult = {
         cupId,
+        gameweek:event0.gw,
         matchday:(cupState?.leaguePhase?.matchday ?? 0) + 1,
         opponentId:event0.opponentId,
         opponentName:event0.opponentName ?? event0.oppName,
@@ -617,6 +624,12 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
         results:[
           ...(cupState?.results ?? []),
           {
+            cupId:event0.cupId,
+            // Quick Sim's row carries these; Broadcast's must too, or the same
+            // tie reads as an unnamed round in the competition history.
+            roundName:event0.roundName,
+            roundIdx:event0.roundIdx ?? 0,
+            gameweek:event0.gw,
             userGoals, oppGoals, userWon:aggregate ? aggregate.userWon : knockout.userWon,
             userIsHome, opponentId:event0.opponentId, opponentName:event0.opponentName,
             opponentSeed:event0.opponentSeed ?? null,

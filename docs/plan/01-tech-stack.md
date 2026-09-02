@@ -42,7 +42,7 @@ Three properties matter more than anything else in this document:
 | Styling | **Tailwind v4** + `@theme` tokens | CSS-first, so the club accent is a real custom property |
 | Icons | **Lucide** | pitch already hand-writes Lucide-style inline SVG — same visual language, tree-shaken |
 | Persistence | **keep IndexedDB** (`modules/db.js`) | Already right. 8 stores, integrity-hashed, export/import works |
-| Tests | **keep `validate.js`**, add **Vitest** + **Playwright** | Retire the validator only when Vitest covers the same checks |
+| Tests | **keep `validate.js`**, add **Vitest** | Retire the validator only when Vitest covers the same checks. No browser/E2E suite — the Playwright suite this table once prescribed was removed; do not reintroduce one |
 | Host | **Cloudflare Workers static assets** | See doc 03 |
 
 Rationale for Svelte over React is unchanged from the original plan: bundle size
@@ -76,7 +76,8 @@ pitch/
 ├─ tools/
 │  ├─ csv-to-league.mjs       was csv_to_league.py + footy-sim's generator
 │  └─ reconcile.mjs           footy-sim CSV → pitch schema (doc 06)
-└─ tests/                     Vitest over src/game, Playwright at 390×844
+                              (no tests/ directory: Vitest specs live beside
+                               the code they cover, as src/**/*.test.js)
 ```
 
 `build.py`, `shell.html` and `ui/` are all deleted by the end of Phase 4.
