@@ -135,6 +135,7 @@
     position:myRow?.position ?? null,
     totalTeams:tableSize,
     form,
+    played:myRow?.played ?? 0,
   }));
   const objectiveNote = $derived(board.objectiveState === 'on_track' ? 'On track'
     : board.objectiveState === 'close' ? 'Just short'

@@ -61,6 +61,21 @@ describe('live board confidence', () => {
     expect(empty.stored).toBe(65);
   });
 
+  it('does not judge an unplayed table whose position is only alphabetical', () => {
+    const save = { jobSecurity:65, boardObjective:europeObjective };
+    const board = liveBoardConfidence(save, {
+      position:20,
+      totalTeams:20,
+      played:0,
+      form:[],
+    });
+
+    expect(board.pct).toBe(65);
+    expect(board.label).toBe('Secure');
+    expect(board.objectiveState).toBe('unknown');
+    expect(board.objectivePoints).toBe(0);
+  });
+
   it('is derived only — the stored figure still moves solely at the season review', () => {
     const save = { jobSecurity:65, boardObjective:europeObjective };
     const board = liveBoardConfidence(save, { position:2, totalTeams:20, form:['W','W','W'] });

@@ -214,22 +214,26 @@
   // panel reads "—" and zero for a club that has played eight matches.
   const selectedRow = $derived.by(() => {
     if (!selectedTeamId) return null;
-    const domestic = rows.find(row => row.teamId === selectedTeamId);
-    if (domestic) return domestic;
-    const euro = europeanTable?.rows.find(row => row.teamId === selectedTeamId);
-    if (!euro) return null;
-    return {
-      teamId:euro.teamId,
-      position:euro.position,
-      points:euro.points,
-      goalDifference:euro.gd,
-      played:euro.played,
-      won:euro.won,
-      drawn:euro.drawn,
-      lost:euro.lost,
-      form:[],
-      europeanOnly:true,
-    };
+    // The managed club also exists in the domestic table cached behind this
+    // screen. European mode must prefer the UEFA row or its side panel silently
+    // reports domestic position/points beside a European table.
+    if (europeanId) {
+      const euro = europeanTable?.rows.find(row => row.teamId === selectedTeamId);
+      if (!euro) return null;
+      return {
+        teamId:euro.teamId,
+        position:euro.position,
+        points:euro.points,
+        goalDifference:euro.gd,
+        played:euro.played,
+        won:euro.won,
+        drawn:euro.drawn,
+        lost:euro.lost,
+        form:[],
+        europeanOnly:true,
+      };
+    }
+    return rows.find(row => row.teamId === selectedTeamId) ?? null;
   });
   const selectedPlayers = $derived.by(() => allPlayers
     .filter(player => player.teamId === selectedTeamId && player.inSquad !== false)

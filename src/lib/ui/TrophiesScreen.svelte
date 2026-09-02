@@ -1,6 +1,6 @@
 <script>
   import { getSave, getTeam, openDB } from '../../modules/db.js';
-  import { CUP_META, cupRunStageLabel, describeCupResult } from '../../modules/cups.js';
+  import { CUP_META, cupRunStatusLabel, describeCupResult } from '../../modules/cups.js';
   import { getHonorsForTeam } from '../../modules/season.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import Icon from './kit/Icon.svelte';
@@ -103,13 +103,10 @@
           leaguePhase = { md, total, pts, gd: lp.gd ?? 0, pct: (md / total) * 100, verdict };
         } else {
           const roundIdx = state.roundIndex ?? 0;
-          // A club knocked out in a UEFA league phase stores roundIndex 0, which
-          // read back as the knockout play-off it never reached; cupRunStageLabel
-          // is the shared reader that already handles that.
-          const exitStage = state.leaguePhaseComplete && (state.leaguePhase?.qualificationRoute ?? state.qualificationRoute) === 'eliminated'
-            ? cupRunStageLabel(cupId, state)
-            : meta.rounds[Math.max(0, roundIdx - 1)] ?? 'Early';
-          const roundName = state.status === 'winner' ? 'Trophy Won!' : state.status === 'eliminated' ? `Out (${exitStage})` : cupRunStageLabel(cupId, state);
+          // The state retains the round where an elimination happened; moving
+          // back one round made every knockout exit read a stage too early.
+          // The shared reader also handles a UEFA league-phase elimination.
+          const roundName = cupRunStatusLabel(cupId, state);
           roundInfo = { roundName, pct: Math.round((roundIdx / meta.rounds.length) * 100) };
         }
 

@@ -459,18 +459,27 @@ export function evaluateBoardObjective(objective, finalPosition, totalTeams, was
  * recent form. It is a derived view only and is never persisted; the stored
  * figure still moves solely through `nextJobSecurity` at the end of a season.
  */
-export function liveBoardConfidence(save, { position = null, totalTeams = 20, form = [] } = {}) {
+export function liveBoardConfidence(save, { position = null, totalTeams = 20, form = [], played = null } = {}) {
   const stored = Math.max(0, Math.min(100, Number(save?.jobSecurity ?? 65)));
   const objective = save?.boardObjective ?? null;
   const recent = (form ?? []).slice(-5);
+  // Before the first result, league position is only the standings tiebreak
+  // (usually alphabetical). Treating it as performance can put a fresh manager
+  // under scrutiny before a ball has been kicked.
+  const matchesPlayed = played == null
+    ? recent.length
+    : Math.max(0, Number(played) || 0);
+  const hasLeagueEvidence = matchesPlayed > 0;
 
   // Form: a win is worth +4 and a loss -4, scaled by how much of a run we have.
-  const formPoints = recent.reduce((sum, result) => sum + (result === 'W' ? 4 : result === 'D' ? 1 : -4), 0);
+  const formPoints = hasLeagueEvidence
+    ? recent.reduce((sum, result) => sum + (result === 'W' ? 4 : result === 'D' ? 1 : -4), 0)
+    : 0;
 
   // Objective: how far the club currently sits from where the board asked it to be.
   let objectivePoints = 0;
   let objectiveState = 'unknown';
-  if (objective && Number.isFinite(Number(position)) && Number(position) > 0) {
+  if (objective && hasLeagueEvidence && Number.isFinite(Number(position)) && Number(position) > 0) {
     const target = objective.kind === 'avoid_relegation'
       ? Math.max(1, (totalTeams || 20) - 3)
       : objective.kind === 'top_half'

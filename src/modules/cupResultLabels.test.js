@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cupRunStageLabel, describeCupResult } from './cups.js';
+import { CUP_META, cupRunStageLabel, cupRunStatusLabel, describeCupResult } from './cups.js';
 import { updateLeaguePhaseCupState } from './gameweek.js';
 import { buildLeaguePhaseState } from './competitionRules.js';
 
@@ -108,6 +108,12 @@ describe('cup result labelling', () => {
       roundIndex:0,
       leaguePhase:{ matchday:8, position:14, qualificationRoute:'playoff' },
     })).toBe('Knockout Play-off (Leg 1)');
+  });
+
+  it('names the round where a knockout exit actually happened', () => {
+    const roundIndex = 2;
+    expect(cupRunStatusLabel('fa_cup', { status:'eliminated', roundIndex }))
+      .toBe(`Out (${CUP_META.fa_cup.rounds[roundIndex]})`);
   });
 
   it('reports the league phase as the current stage, not the knockout play-off', () => {

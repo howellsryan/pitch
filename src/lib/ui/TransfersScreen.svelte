@@ -9,8 +9,8 @@
   } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
   import { projectScoutedPlayerView } from '../../modules/scoutingView.js';
-import { scoutingAssignmentIsCurrent } from '../../modules/scouting.js';
-import { scoutPlayerInFull } from '../../modules/p5Runtime.js';
+  import { scoutingAssignmentIsCurrent } from '../../modules/scouting.js';
+  import { scoutPlayerInFull } from '../../modules/p5Runtime.js';
   import { fmt, formLabel, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { _updateOffersBadge } from '../../ui/squad_tactics_offers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -102,6 +102,22 @@ import { scoutPlayerInFull } from '../../modules/p5Runtime.js';
     buyTargets = allPl.filter(p => p.teamId !== s.userTeamId && p.teamId !== 'free_agents').map(projectMarketPlayer);
     freeAgents = allPl.filter(p => p.teamId === 'free_agents').map(projectMarketPlayer);
     squadPlayers = [...(await getPlayersByTeam(s.userTeamId))].sort((a, b) => primaryRating(b) - primaryRating(a));
+
+    // Screens remain mounted while the manager moves around the app. If a
+    // dedicated report lands during a gameweek, refresh an open profile from
+    // the same canonical snapshot as the lists; otherwise the completed scout
+    // disappears from the pending state while the sheet keeps its old estimate.
+    const openDetailId = detailFresh?.id ?? detailPlayer?.id ?? null;
+    if (openDetailId != null) {
+      const canonicalDetail = allPl.find(player => String(player.id) === String(openDetailId));
+      if (!canonicalDetail || String(canonicalDetail.teamId) === String(s.userTeamId)) closeDetail();
+      else {
+        const refreshedDetail = projectMarketPlayer(canonicalDetail);
+        detailPlayer = refreshedDetail;
+        detailFresh = refreshedDetail;
+      }
+    }
+
     winStatus = transferWindowStatus(s);
     if (tab === 'loans') await loadLoans();
     loaded = true;

@@ -64,16 +64,16 @@ P3 was closed on branch `roadmap/post-r7-career-depth` on 1 September 2026. The 
 - the unchanged P1 performance guards green at 13.108s load, 7.301s world week and 3.41 MiB storage at 4× CPU throttle;
 - GitHub Actions and Cloudflare Workers green on the final promoted roadmap SHA.
 
-P4 must consume these contracts rather than rebuilding a transfer-only rating, role or player-interest model.
+P4 consumed these contracts rather than rebuilding a transfer-only rating, role or player-interest model; P5 then expanded its shared squad-needs service.
 
 ## Guide index
 
 | Phase | Guide | Depends on | Main result |
 |---:|---|---|---|
 | P3 ✅ | [Player Model 2.0](p3-player-model-2.md) | P1, P2 | One coherent durable/effective player state |
-| P4 — NEXT | [Transfer Market and Contracts 2.0](p4-transfer-market-and-contracts-2.md) | P3 | Persisted staged deals and need-led AI recruitment |
-| P5 | [Scouting, Coaching, Training and Squad Planning](p5-scouting-coaching-training.md) | P3, P4 | Uncertain knowledge and one shared squad planner |
-| P6 | [Manager Career and Living Manager Market](p6-manager-career-and-market.md) | P1–P5 | Manager entities and club movement in one world |
+| P4 ✅ | [Transfer Market and Contracts 2.0](p4-transfer-market-and-contracts-2.md) | P3 | Persisted staged deals and need-led AI recruitment |
+| P5 ✅ | [Scouting, Coaching, Training and Squad Planning](p5-scouting-coaching-training.md) | P3, P4 | Uncertain knowledge and one shared squad planner |
+| P6 — NEXT | [Manager Career and Living Manager Market](p6-manager-career-and-market.md) | P1–P5 | Manager entities and club movement in one world |
 | P7 | [Club Identity, Finance, Board and Facilities](p7-club-finance-board-facilities.md) | P4–P6 | Persistent club identity and lightweight economy |
 | P8 | [Story Engine, Press, Fans and Rivalries](p8-story-press-fans-rivalries.md) | P3, P6, P7 | Deterministic decisions from real state |
 | P9 | [Academy, Loans and Development Pathways 2.0](p9-academy-loans-pathways-2.md) | P1, P3–P5 | Canonical prospects and evidence-based loans |
@@ -186,7 +186,7 @@ Each phase should normally progress through these concerns, without requiring on
 5. Cross-system consumers.
 6. Svelte product surface.
 7. Compatibility adapter removal.
-8. Balance/performance/E2E/documentation closeout.
+8. Balance/performance/manual-browser/documentation closeout.
 
 The phase guide may refine this order. Do not combine a later roadmap phase merely because adjacent code is visible.
 

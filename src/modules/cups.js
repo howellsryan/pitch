@@ -171,6 +171,13 @@ export function cupRunStageLabel(cupId, state) {
   return meta.rounds?.[state?.roundIndex ?? 0] ?? 'Final';
 }
 
+/** Display status for the whole run, using the round the state actually owns. */
+export function cupRunStatusLabel(cupId, state) {
+  if (state?.status === 'winner') return 'Trophy Won!';
+  const stage = cupRunStageLabel(cupId, state);
+  return state?.status === 'eliminated' ? `Out (${stage})` : stage;
+}
+
 /**
  * Read-only view of the cup/European matches the manager still has coming up.
  *
