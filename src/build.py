@@ -32,6 +32,8 @@ for df in _data_files:
 # P4's market state/facade follow the shared planner. P5 runtime sits after those
 # pure contracts and before save/gameweek, where migration and closeout consume
 # it. P1 world helpers remain after youthAcademy and before worldRuntime/save.
+# P6 managers depends on tactics (Manager DNA) and youthAcademy (name pools), so
+# it loads after both and before save.js, which builds/backfills manager entities.
 MODULES += [
     ('modules/db.js',               'DATABASE'),
     ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
@@ -56,6 +58,7 @@ MODULES += [
     ('modules/injuries.js',         'INJURIES'),
     ('modules/promotion.js',        'PROMOTION'),
     ('modules/youthAcademy.js',     'YOUTH ACADEMY'),
+    ('modules/managers.js',         'MANAGERS'),
     ('modules/world.js',            'LIVING WORLD'),
     ('modules/worldCompetitions.js','WORLD COMPETITIONS'),
     ('modules/worldRuntime.js',     'WORLD RUNTIME'),

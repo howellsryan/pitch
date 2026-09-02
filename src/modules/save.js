@@ -16,6 +16,7 @@ import {
   getSave,
   openDB,
   putFixturesBulk,
+  putManagersBulk,
   putPlayersBulk,
   putSave,
   putStandingsBulk,
@@ -40,6 +41,7 @@ import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
 import { withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
+import { MANAGER_MODEL_VERSION, buildManagersBackfill, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -209,6 +211,16 @@ export async function ensureP4TransferMarket(save) {
   return migration.save;
 }
 
+export async function ensureP6Managers(save) {
+  if (!save || !managersNeedBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildManagersBackfill(save, teams);
+  if (migration.managers.length) await putManagersBulk(migration.managers);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -219,6 +231,7 @@ export async function initApp() {
     save = await ensureP3PlayerModel(save);
     save = await ensureP4TransferMarket(save);
     save = await ensureP5CareerDepth(save);
+    save = await ensureP6Managers(save);
   }
   return save ?? null;
 }
@@ -252,17 +265,27 @@ export async function startNewGame(userTeamId, managerName) {
   const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague)
     .map(normalizePlayerModel);
 
+  const currentDate = new Date(seasonYear, 7, 9).toISOString();
+  const userManager = createUserManager({ name:managerName, currentClubId:userTeamId, currentDate });
+  const aiManagers = allTeamData
+    .filter(team => team.id !== userTeamId)
+    .map(team => generateAIManagerForClub(team, { currentDate, seasonStartYear:seasonYear }));
+  const managerIdByClub = new Map([[userTeamId, userManager.id], ...aiManagers.map(m => [m.currentClubId, m.id])]);
+
   const teams = allTeamData.map(({ players: _, ...rest }) => withDefaultCoaching({
     ...rest,
     budget: startingBudget(rest.reputation ?? 70),
     academyInvestment: 0,
+    managerId: managerIdByClub.get(rest.id) ?? null,
   }));
 
   const save = {
     userTeamId,
     userLeague,
     managerName:     managerName || 'The Manager',
-    currentDate:     new Date(seasonYear, 7, 9).toISOString(),
+    managerModelVersion: MANAGER_MODEL_VERSION,
+    userManagerId:   userManager.id,
+    currentDate,
     season,
     currentGameweek: 1,
     totalGameweeks:  (leagueTeams.length - 1) * 2,
@@ -300,6 +323,7 @@ export async function startNewGame(userTeamId, managerName) {
   const world = buildWorldLeagueSeason(teams, seasonYear);
 
   await putTeamsBulk(teams);
+  await putManagersBulk([userManager, ...aiManagers]);
   const assignedPlayers = assignDefaultSquadRoles(
     assignPotentials(players).map(normalizePlayerModel),
     { currentYear:seasonYear, managedTeamId:userTeamId },

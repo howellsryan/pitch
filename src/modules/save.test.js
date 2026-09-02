@@ -4,6 +4,7 @@ const db = vi.hoisted(() => ({
   openDB: vi.fn(async () => {}),
   getSave: vi.fn(async () => null),
   putPlayersBulk: vi.fn(async () => {}),
+  putManagersBulk: vi.fn(async () => {}),
   putSave: vi.fn(async () => {}),
   putTeamsBulk: vi.fn(async () => {}),
   replaceAllFixtures: vi.fn(async () => {}),

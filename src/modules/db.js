@@ -7,14 +7,14 @@
  * every existing domain/store API continues to operate on one active DB.
  */
 export const DB_NAME = 'pitch_fc';
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 export const LEGACY_SLOT_ID = 'legacy';
 export const SAVE_SCHEMA_VERSION = 2;
 export const CAREER_SLOT_REGISTRY_VERSION = 1;
 
 const ACTIVE_SLOT_KEY = 'pitch_active_career_slot_v1';
 const SLOT_REGISTRY_KEY = 'pitch_career_slots_v1';
-const STORE_NAMES = ['save','teams','players','fixtures','standings','transfers','honors','seasons'];
+const STORE_NAMES = ['save','teams','players','fixtures','standings','transfers','honors','seasons','managers'];
 const SAFE_SLOT_ID = /^[a-zA-Z0-9_-]{1,80}$/;
 
 export let _db = null;
@@ -97,6 +97,10 @@ function _upgradeSchema(db) {
   if (!db.objectStoreNames.contains('fixtures')) {
     const fs = db.createObjectStore('fixtures', { keyPath:'id' });
     fs.createIndex('by_gameweek', 'gameweek', { unique:false });
+  }
+  if (!db.objectStoreNames.contains('managers')) {
+    const ms = db.createObjectStore('managers', { keyPath:'id' });
+    ms.createIndex('by_club', 'currentClubId', { unique:false });
   }
 }
 
@@ -357,6 +361,10 @@ export const getAllHonors = () => req2p(store('honors').getAll());
 export const addHonor = h => req2p(store('honors','readwrite').add(h));
 export const getAllSeasons = () => req2p(store('seasons').getAll());
 export const addSeason = s => req2p(store('seasons','readwrite').add(s));
+export const getAllManagers = () => req2p(store('managers').getAll());
+export const getManager = id => req2p(store('managers').get(id));
+export const putManager = m => req2p(store('managers','readwrite').put(m));
+export const putManagersBulk = ms => bulkPut('managers', ms);
 
 export async function resetForNewCareer() {
   await clearAndBulkPut('save', []);
@@ -365,6 +373,7 @@ export async function resetForNewCareer() {
   await clearAndBulkPut('fixtures', []);
   await clearAndBulkPut('standings', []);
   await clearAndBulkPut('transfers', []);
+  await clearAndBulkPut('managers', []);
 }
 
 async function _clearNamedDB(name) {

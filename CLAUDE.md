@@ -76,6 +76,7 @@
 - Cloud save API/D1 is slot-aware: rows are keyed by `(user_id, slot_id)`; pre-P0 cloud rows migrate to `legacy`.
 - P1 legacy/current careers backfill living-world state through the existing migration/backfill path; do not require users to destroy a P0 career to gain the world model.
 - P3 uses additive, idempotent player-row/domain backfills and does not increment `DB_VERSION` merely to add fields to existing rows. Preserve that pattern for compatible player-contract extensions.
+- P6 (in progress) added a dedicated `managers` IndexedDB store (`DB_VERSION` 3→4, keyPath `id`, indexed `by_club`) via `src/modules/managers.js`. `save.js`'s `ensureP6Managers`/`buildManagersBackfill` give every club exactly one manager entity (the user's own manager, or a deterministically generated AI manager keyed by club ID) idempotently, gated by `save.managerModelVersion`; `save.managerName`/`save.managerDNA` remain as compatibility fields, not the source of truth. Extend this store rather than adding a second manager/job-market persistence path as later P6 work packages (vacancies, appointments, control handover) land.
 
 ## 2) UI / product boundaries
 
