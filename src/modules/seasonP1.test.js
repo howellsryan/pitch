@@ -41,6 +41,15 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('inboundOffers:[]');
   });
 
+  it('ages every manager by one year at rollover, feeding P6 age-based retirement a real moving age', () => {
+    const source = functionBody('processEndOfSeason');
+    const managersIndex = source.indexOf('const allManagers = await getAllManagers()');
+    const academyIndex = source.indexOf('const allTeamsForAcademy = await getAllTeams()');
+    expect(managersIndex).toBeGreaterThan(-1);
+    expect(academyIndex).toBeGreaterThan(managersIndex);
+    expect(source).toContain('age:(manager.age ?? 45) + 1');
+  });
+
   it('compacts the outgoing competition ledger and seeds a fresh P1 world for the next season', () => {
     const source = functionBody('processEndOfSeason');
     const historyIndex = source.indexOf('buildLivingWorldSeasonSummary');

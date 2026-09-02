@@ -21,7 +21,14 @@ function weekKeyFor(save) {
   return reviewCheckpointKey(save);
 }
 
-/** Everything a manager-career UI needs in one read. */
+/**
+ * Everything a manager-career UI needs in one read. `approaches` and
+ * `applications` are kept separate — the same underlying market.userApproaches
+ * list, but distinguished by `source` — because they mean different things to
+ * a user: an approach is a club expressing interest (has a fit score), an
+ * application is the user's own proactive request (no fit score, and its
+ * vacancy must not still be offered as "open" to apply to again).
+ */
 export async function getManagerCareerView() {
   const save = await getSave();
   if (!save) return null;
@@ -29,18 +36,21 @@ export async function getManagerCareerView() {
   const [userManager, allTeams] = await Promise.all([getManager(save.userManagerId), getAllTeams()]);
   const teamsById = new Map(allTeams.map(team => [team.id, team]));
   const isUnemployed = userManager?.status !== 'employed';
+  const pursuedClubIds = new Set((market.userApproaches ?? []).map(approach => approach.clubId));
   const openVacancies = market.vacancies
-    .filter(isVacancyAvailableForNewCandidate)
+    .filter(vacancy => isVacancyAvailableForNewCandidate(vacancy) && !pursuedClubIds.has(vacancy.clubId))
     .map(vacancy => ({ vacancy, team:teamsById.get(vacancy.clubId) }))
     .filter(entry => entry.team);
+  const resolvedApproaches = (market.userApproaches ?? [])
+    .map(approach => ({ approach, vacancy:market.vacancies.find(v => v.id === approach.vacancyId), team:teamsById.get(approach.clubId) }))
+    .filter(entry => entry.vacancy && entry.team);
   return {
     save, userManager, market,
     currentTeam:isUnemployed ? null : teamsById.get(save.userTeamId),
     isUnemployed,
     canResign:!isUnemployed && (save.pendingEvents ?? []).length === 0,
-    approaches:(market.userApproaches ?? [])
-      .map(approach => ({ approach, vacancy:market.vacancies.find(v => v.id === approach.vacancyId), team:teamsById.get(approach.clubId) }))
-      .filter(entry => entry.vacancy && entry.team),
+    approaches:resolvedApproaches.filter(entry => entry.approach.source === 'approach'),
+    applications:resolvedApproaches.filter(entry => entry.approach.source === 'application'),
     openVacancies,
   };
 }
@@ -74,11 +84,12 @@ export async function applyForVacancy(vacancyId) {
   if (market.pendingUserHandover) throw new Error('ALREADY_HAVE_A_PENDING_JOB_OFFER');
   const vacancy = market.vacancies.find(item => item.id === vacancyId);
   if (!vacancy) throw new Error('VACANCY_NOT_FOUND');
+  if ((market.userApproaches ?? []).some(item => item.clubId === vacancy.clubId)) {
+    throw new Error('ALREADY_PURSUING_THIS_CLUB');
+  }
   const weekKey = weekKeyFor(save);
   const application = applyToVacancy(userManager, vacancy, { weekKey });
-  const alreadyPending = (market.userApproaches ?? []).some(item => item.clubId === application.clubId);
-  const nextApproaches = alreadyPending ? market.userApproaches : [...(market.userApproaches ?? []), application];
-  await putSave({ ...save, managerMarket:{ ...market, userApproaches:nextApproaches } });
+  await putSave({ ...save, managerMarket:{ ...market, userApproaches:[...(market.userApproaches ?? []), application] } });
   return application;
 }
 

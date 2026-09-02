@@ -84,6 +84,7 @@ export function generateUserApproaches(userManager, vacancies, teamsById, existi
     fit:best.fit.overall,
     offeredWeekKey:weekKey,
     status:'pending',
+    source:'approach',
   };
   return [...existingApproaches, approach].slice(-MAX_USER_APPROACHES);
 }
@@ -93,6 +94,9 @@ export function generateUserApproaches(userManager, vacancies, teamsById, existi
  * waiting for an approach. Unlike `generateUserApproaches`, this bypasses the
  * fit threshold — applying is always allowed, being shortlisted is not
  * guaranteed (the club may still prefer another candidate later).
+ * `source:'application'` distinguishes this from a club-initiated approach —
+ * it has no computed fit score, and a UI must not present it as the club
+ * having expressed interest.
  */
 export function applyToVacancy(userManager, vacancy, { weekKey } = {}) {
   if (!userManager || userManager.status === 'employed') throw new Error('USER_MANAGER_NOT_AVAILABLE');
@@ -103,6 +107,7 @@ export function applyToVacancy(userManager, vacancy, { weekKey } = {}) {
     vacancyId:vacancy.id,
     offeredWeekKey:weekKey,
     status:'pending',
+    source:'application',
   };
 }
 

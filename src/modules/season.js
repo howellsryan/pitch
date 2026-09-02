@@ -1,4 +1,4 @@
-import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllPlayers, getAllStandings, getAllTeams, getAllTransfers, getSave, getTeam, putPlayersBulk, putSave, putTeam, replaceAllFixtures, replaceAllStandings } from './db.js';
+import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllManagers, getAllPlayers, getAllStandings, getAllTeams, getAllTransfers, getSave, getTeam, putManagersBulk, putPlayersBulk, putSave, putTeam, replaceAllFixtures, replaceAllStandings } from './db.js';
 import { bumpMorale, sortTable } from './standings.js';
 import { CUP_META, buildInitialCupState } from './cups.js';
 import { getCompetitionRules } from './competitionRules.js';
@@ -292,6 +292,14 @@ export async function processEndOfSeason() {
       ...generatedNewgens,
     ]),
   };
+
+  // Managers age exactly like players do at rollover. Nothing else here
+  // decides retirement/dismissal — that stays p6Runtime.js's one weekly
+  // checkpoint (managerCareer.js's shouldRetire), which already runs every
+  // season on the same cadence; this just feeds it a real, moving age
+  // instead of leaving every manager frozen at their starting age forever.
+  const allManagers = await getAllManagers();
+  if (allManagers.length) await putManagersBulk(allManagers.map(manager => ({ ...manager, age:(manager.age ?? 45) + 1 })));
 
   const allTeamsForAcademy = await getAllTeams();
   const newYouthCohort = await runYouthIntake(save, allTeamsForAcademy);

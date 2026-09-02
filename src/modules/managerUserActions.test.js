@@ -70,7 +70,7 @@ describe('applyForVacancy', () => {
     db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
 
     const application = await applyForVacancy('vac_weak');
-    expect(application).toMatchObject({ clubId:'weak', vacancyId:'vac_weak', status:'pending' });
+    expect(application).toMatchObject({ clubId:'weak', vacancyId:'vac_weak', status:'pending', source:'application' });
     const [savedSave] = db.putSave.mock.calls[0];
     expect(savedSave.managerMarket.userApproaches).toHaveLength(1);
   });
@@ -86,16 +86,15 @@ describe('applyForVacancy', () => {
     expect(db.putSave).not.toHaveBeenCalled();
   });
 
-  it('does not duplicate an application already pending for the same club', async () => {
+  it('refuses to apply again to a club already being pursued (approach or application)', async () => {
     const vacancy = { id:'vac_weak', clubId:'weak', status:'caretaker' };
-    const existing = { id:'application_weak_old', clubId:'weak', vacancyId:'vac_weak', offeredWeekKey:'x', status:'pending' };
+    const existing = { id:'application_weak_old', clubId:'weak', vacancyId:'vac_weak', offeredWeekKey:'x', status:'pending', source:'application' };
     const save = baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[existing] } });
     db.getSave.mockResolvedValue(save);
     db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
 
-    await applyForVacancy('vac_weak');
-    const [savedSave] = db.putSave.mock.calls[0];
-    expect(savedSave.managerMarket.userApproaches).toHaveLength(1);
+    await expect(applyForVacancy('vac_weak')).rejects.toThrow('ALREADY_PURSUING_THIS_CLUB');
+    expect(db.putSave).not.toHaveBeenCalled();
   });
 });
 
@@ -211,5 +210,33 @@ describe('getManagerCareerView', () => {
     expect(view.currentTeam.id).toBe('old_club');
     expect(view.openVacancies).toHaveLength(1);
     expect(view.openVacancies[0].team.id).toBe('weak');
+  });
+
+  it('separates club-initiated approaches from the user\'s own applications, and excludes a pursued club from openVacancies', async () => {
+    const approachedVacancy = { id:'vac_strong', clubId:'strong', status:'caretaker' };
+    const appliedVacancy = { id:'vac_weak', clubId:'weak', status:'caretaker' };
+    const untouchedVacancy = { id:'vac_mid', clubId:'mid', status:'caretaker' };
+    const save = baseSave({
+      managerMarket:{
+        ...createEmptyManagerMarket(),
+        vacancies:[approachedVacancy, appliedVacancy, untouchedVacancy],
+        userApproaches:[
+          { id:'approach_1', clubId:'strong', vacancyId:'vac_strong', fit:80, offeredWeekKey:'x', status:'pending', source:'approach' },
+          { id:'application_1', clubId:'weak', vacancyId:'vac_weak', offeredWeekKey:'x', status:'pending', source:'application' },
+        ],
+      },
+    });
+    db.getSave.mockResolvedValue(save);
+    db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
+    db.getAllTeams.mockResolvedValue([team('strong'), team('weak'), team('mid')]);
+
+    const view = await getManagerCareerView();
+    expect(view.approaches).toHaveLength(1);
+    expect(view.approaches[0].team.id).toBe('strong');
+    expect(view.applications).toHaveLength(1);
+    expect(view.applications[0].team.id).toBe('weak');
+    // Only the untouched vacancy remains offered for a fresh application.
+    expect(view.openVacancies).toHaveLength(1);
+    expect(view.openVacancies[0].team.id).toBe('mid');
   });
 });
