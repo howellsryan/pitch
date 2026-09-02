@@ -174,6 +174,88 @@ describe('advanceP6ManagerCareerWeek', () => {
     expect(result.hired).toEqual([{ clubId:'weak', managerId:'mgr_caretaker_weak', wasCaretaker:true }]);
   });
 
+  it('never auto-hires the unemployed user manager into an open AI vacancy — only the user\'s own accept action can do that', async () => {
+    const save = baseSave({ currentGameweek:1, userManagerId:'mgr_user' });
+    db.getSave.mockResolvedValue(save);
+    const vacancy = {
+      id:'vac_weak_z', clubId:'weak', openedWeekKey:'2025/26:0', reason:'dismissed',
+      previousManagerId:'mgr_old', caretakerManagerId:'mgr_caretaker_weak', status:'caretaker',
+      declinedCandidateIds:[], offer:null, hiredManagerId:null,
+    };
+    db.getAllTeams.mockResolvedValue([{ id:'weak', league:'Premier League', reputation:50, managerId:'mgr_caretaker_weak' }]);
+    db.getAllManagers.mockResolvedValue([
+      createManager({ id:'mgr_caretaker_weak', currentClubId:'weak', status:'employed', caretakerEligible:true, reputation:{ overall:20, youth:20, tactical:20, financial:20 } }),
+      // The user's own manager would be the objectively best fit (high reputation, unemployed) — must still never be auto-hired here.
+      createManager({ id:'mgr_user', isUser:true, status:'unemployed', currentClubId:null, reputation:{ overall:95, youth:95, tactical:95, financial:95 } }),
+    ]);
+    db.getFixturesByGW.mockResolvedValue([]);
+    const seededSave = { ...save, managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy] } };
+
+    const result = await advanceP6ManagerCareerWeek(seededSave);
+    expect(result.hired).toEqual([{ clubId:'weak', managerId:'mgr_caretaker_weak', wasCaretaker:true }]);
+  });
+
+  it('never generates a new approach while the user already has a job offer pending handover', async () => {
+    const save = baseSave({
+      currentGameweek:1, userManagerId:'mgr_user',
+      managerMarket:{ ...createEmptyManagerMarket(), pendingUserHandover:{ clubId:'elsewhere', vacancyId:'vac_x', weekKey:'x' } },
+    });
+    db.getSave.mockResolvedValue(save);
+    db.getAllTeams.mockResolvedValue([{ id:'strong', league:'Premier League', reputation:75, managerId:'mgr_caretaker_strong' }]);
+    db.getAllManagers.mockResolvedValue([
+      createManager({ id:'mgr_caretaker_strong', currentClubId:'strong', status:'employed', caretakerEligible:true }),
+      createManager({ id:'mgr_user', isUser:true, status:'unemployed', currentClubId:null, reputation:{ overall:73, youth:60, tactical:60, financial:60 } }),
+    ]);
+    db.getFixturesByGW.mockResolvedValue([]);
+    const vacancy = { id:'vac_strong', clubId:'strong', openedWeekKey:'2025/26:0', reason:'dismissed', previousManagerId:null, caretakerManagerId:'mgr_caretaker_strong', status:'caretaker', declinedCandidateIds:[], offer:null, hiredManagerId:null };
+    const seededSave = { ...save, managerMarket:{ ...save.managerMarket, vacancies:[vacancy] } };
+
+    const result = await advanceP6ManagerCareerWeek(seededSave);
+    expect(result.save.managerMarket.userApproaches).toHaveLength(0);
+  });
+
+  it('prunes an approach once its vacancy is filled by an AI candidate, so that club can approach the user again later', async () => {
+    const staleApproach = { id:'approach_old', clubId:'strong', vacancyId:'vac_strong', fit:70, offeredWeekKey:'2025/26:1', status:'pending' };
+    const save = baseSave({
+      currentGameweek:1, userManagerId:'mgr_user',
+      managerMarket:{ ...createEmptyManagerMarket(), userApproaches:[staleApproach] },
+    });
+    db.getSave.mockResolvedValue(save);
+    db.getAllTeams.mockResolvedValue([{ id:'strong', league:'Premier League', reputation:75, managerId:'mgr_caretaker_strong' }]);
+    db.getAllManagers.mockResolvedValue([
+      createManager({ id:'mgr_caretaker_strong', currentClubId:'strong', status:'employed', caretakerEligible:true }),
+      // A strong-fit unemployed AI candidate exists this time, so resolveOpenVacancies fills the vacancy this tick.
+      createManager({ id:'mgr_free_agent', status:'unemployed', currentClubId:null, reputation:{ overall:74, youth:70, tactical:70, financial:70 }, record:{ matches:30, wins:18, draws:6, losses:6, trophies:[], promotions:0, relegations:0, sackings:0, resignations:0 } }),
+      createManager({ id:'mgr_user', isUser:true, status:'unemployed', currentClubId:null }),
+    ]);
+    db.getFixturesByGW.mockResolvedValue([]);
+    // vac_strong is not protected this tick (no NEW approach generated for it — it already had one), so AI resolution can fill it.
+    const vacancy = { id:'vac_strong', clubId:'strong', openedWeekKey:'2025/26:0', reason:'dismissed', previousManagerId:null, caretakerManagerId:'mgr_caretaker_strong', status:'caretaker', declinedCandidateIds:[], offer:null, hiredManagerId:null };
+    const seededSave = { ...save, managerMarket:{ ...save.managerMarket, vacancies:[vacancy] } };
+
+    const result = await advanceP6ManagerCareerWeek(seededSave);
+    expect(result.hired[0]).toMatchObject({ clubId:'strong', managerId:'mgr_free_agent' });
+    expect(result.save.managerMarket.userApproaches).toHaveLength(0); // stale approach pruned
+  });
+
+  it('generates a bounded weekly approach for the unemployed user manager from a well-fitting open vacancy', async () => {
+    const save = baseSave({ currentGameweek:1, userManagerId:'mgr_user' });
+    db.getSave.mockResolvedValue(save);
+    const vacancy = { id:'vac_strong', clubId:'strong', openedWeekKey:'2025/26:0', reason:'dismissed', previousManagerId:null, caretakerManagerId:'mgr_caretaker_strong', status:'caretaker', declinedCandidateIds:[], offer:null, hiredManagerId:null };
+    db.getAllTeams.mockResolvedValue([{ id:'strong', league:'Premier League', reputation:75, managerId:'mgr_caretaker_strong' }]);
+    db.getAllManagers.mockResolvedValue([
+      createManager({ id:'mgr_caretaker_strong', currentClubId:'strong', status:'employed', caretakerEligible:true, reputation:{ overall:20, youth:20, tactical:20, financial:20 } }),
+      createManager({ id:'mgr_user', isUser:true, status:'unemployed', currentClubId:null, reputation:{ overall:73, youth:60, tactical:60, financial:60 }, record:{ matches:20, wins:12, draws:4, losses:4 } }),
+    ]);
+    db.getFixturesByGW.mockResolvedValue([]);
+    // The caretaker (poor fit) is a worse candidate than the user would be, so the vacancy stays open for the user to consider rather than being auto-resolved to someone else.
+    const seededSave = { ...save, managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy] } };
+
+    const result = await advanceP6ManagerCareerWeek(seededSave);
+    expect(result.save.managerMarket.userApproaches).toHaveLength(1);
+    expect(result.save.managerMarket.userApproaches[0].clubId).toBe('strong');
+  });
+
   it('keeps exactly one active manager per club across many checkpoints, with no duplicate assignment or managerless club', async () => {
     const clubIds = ['a', 'b', 'c', 'd', 'e'];
     let teams = clubIds.map(id => ({ id, league:'Premier League', reputation:50 + clubIds.indexOf(id) * 5, managerId:`mgr_${id}` }));

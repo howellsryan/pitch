@@ -71,6 +71,7 @@ MODULES += [
     ('modules/p6Runtime.js',        'P6 MANAGER CAREER RUNTIME'),
     ('modules/gameweek.js',         'GAMEWEEK'),
     ('modules/managerClubHandover.js', 'MANAGER CLUB HANDOVER'),
+    ('modules/managerUserActions.js', 'MANAGER USER ACTIONS'),
     ('lib/theme.mjs',               'CLUB THEME'),
     ('ui/helpers.js',               'UI HELPERS'),
     ('ui/home_transfers.js',        'HOME & TRANSFERS'),

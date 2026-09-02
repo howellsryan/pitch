@@ -10,8 +10,19 @@ import {
   shouldResign,
   shouldRetire,
 } from './managerCareer.js';
-import { applyHireOutcome, assembleCandidates, completeHandover, extendOffer, isVacancyOpen, resolveOffer } from './managerAppointments.js';
+import { applyHireOutcome, assembleCandidates, completeHandover, extendOffer, isVacancyAvailableForNewCandidate, isVacancyOpen, resolveOffer } from './managerAppointments.js';
+import { generateUserApproaches } from './managerUserJourney.js';
 import { MAX_RECENT_MANAGER_APPOINTMENTS, createCaretakerManager, createEmptyManagerMarket } from './managers.js';
+
+// Deliberately does NOT import managerClubHandover.js here: that module
+// imports buildPendingEvents from gameweek.js, which imports
+// advanceP6ManagerCareerWeek from this file — importing it here would be a
+// real import cycle the legacy bundler's flat concatenation cannot express
+// (not just a style issue; there is no linear module order that satisfies
+// both directions). Executing an accepted user job offer therefore happens
+// from the UI layer instead (managerUserActions.js's
+// tryCompletePendingUserHandover, called right after accepting and
+// opportunistically on screen load) rather than from this tick.
 
 /** modules/p6Runtime.js — bounded persistence/runtime facade for P6 WP2-WP4. */
 
@@ -54,7 +65,7 @@ function decideVacateReason(manager, review, save) {
  * because the checkpoint loop already pointed team.managerId at them the
  * moment the caretaker took over.
  */
-function resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, currentDate) {
+function resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, currentDate, userManagerId, protectedClubIds = new Set()) {
   const hiredThisTick = new Set();
   const hired = [];
   const completedAppointments = [];
@@ -62,10 +73,19 @@ function resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey,
 
   for (const vacancy of [...vacancies].sort((a, b) => a.clubId.localeCompare(b.clubId))) {
     if (!isVacancyOpen(vacancy)) { nextVacancies.push(vacancy); continue; }
+    // A club that just approached the user this same tick gives them first
+    // refusal for one tick rather than being instantly filled by an AI
+    // candidate the same week — otherwise AI resolution (below) is
+    // immediate enough that the user would almost never see a live vacancy.
+    if (protectedClubIds.has(vacancy.clubId)) { nextVacancies.push(vacancy); continue; }
     const team = workingTeamsById.get(vacancy.clubId);
     if (!team) { nextVacancies.push(vacancy); continue; }
 
-    const excludeIds = [vacancy.previousManagerId, ...(vacancy.declinedCandidateIds ?? []), ...hiredThisTick];
+    // The user's own manager, while unemployed, is never auto-hired by this
+    // AI pipeline — joining a club is only ever the user's own deliberate
+    // accept action (managerUserActions.js's respondToApproach), even if
+    // they'd otherwise be the best-fitting candidate for this vacancy.
+    const excludeIds = [vacancy.previousManagerId, userManagerId, ...(vacancy.declinedCandidateIds ?? []), ...hiredThisTick];
     const candidates = assembleCandidates(vacancy, team, [...workingById.values()], { excludeIds });
     if (!candidates.length) { nextVacancies.push(vacancy); continue; }
 
@@ -176,11 +196,34 @@ export async function advanceP6ManagerCareerWeek(saveInput = null) {
     reviewedCheckpoints = [...reviewedCheckpoints, weekKey].slice(-MAX_MANAGER_TICK_KEYS);
   }
 
-  const resolution = resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, save.currentDate);
+  // Bounded weekly approach generation while the user is unemployed AND has
+  // no already-accepted offer awaiting handover — at most one new approach
+  // per call (see generateUserApproaches) — runs BEFORE AI resolution below,
+  // using this week's vacancies as they stood at the start of the tick: AI
+  // resolution is otherwise immediate, so a user would almost never see a
+  // genuinely open vacancy if this ran after it.
+  const userManager = (save.userManagerId && !market.pendingUserHandover) ? workingById.get(save.userManagerId) : null;
+  const previousApproachClubIds = new Set((market.userApproaches ?? []).map(approach => approach.clubId));
+  const generatedApproaches = userManager
+    ? generateUserApproaches(userManager, vacancies, workingTeamsById, market.userApproaches ?? [], { weekKey })
+    : (market.userApproaches ?? []);
+  // Any club that newly approached the user this tick gives them first
+  // refusal for one tick rather than being auto-filled by AI resolution below.
+  const protectedClubIds = new Set(
+    generatedApproaches.filter(approach => !previousApproachClubIds.has(approach.clubId)).map(approach => approach.clubId),
+  );
+
+  const resolution = resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, save.currentDate, save.userManagerId, protectedClubIds);
   vacancies = resolution.nextVacancies;
   const recentAppointments = resolution.completedAppointments.length
     ? [...(market.recentAppointments ?? []), ...resolution.completedAppointments].slice(-MAX_RECENT_MANAGER_APPOINTMENTS)
     : (market.recentAppointments ?? []);
+
+  // Prune any approach whose vacancy AI resolution just filled (or that no
+  // longer exists) — otherwise generateUserApproaches' alreadyApproachedClubIds
+  // would block that club from ever approaching this manager again.
+  const openVacancyIds = new Set(vacancies.filter(isVacancyAvailableForNewCandidate).map(vacancy => vacancy.id));
+  const userApproaches = generatedApproaches.filter(approach => openVacancyIds.has(approach.vacancyId));
 
   const changedTeams = [...workingTeamsById.values()].filter(team => originalTeamsById.get(team.id) !== team);
   if (changedTeams.length) await putTeamsBulk(changedTeams);
@@ -195,6 +238,7 @@ export async function advanceP6ManagerCareerWeek(saveInput = null) {
       vacancies,
       reviewedCheckpoints,
       recentAppointments,
+      userApproaches,
       processedWeekKeys:[...(market.processedWeekKeys ?? []), weekKey].slice(-MAX_MANAGER_TICK_KEYS),
     },
   };

@@ -231,5 +231,8 @@ export function createCaretakerManager(team, { weekKey, currentDate = null } = {
 export const MAX_RECENT_MANAGER_APPOINTMENTS = 40;
 
 export function createEmptyManagerMarket() {
-  return { version:1, vacancies:[], reviewedCheckpoints:[], processedWeekKeys:[], recentAppointments:[] };
+  return {
+    version:1, vacancies:[], reviewedCheckpoints:[], processedWeekKeys:[], recentAppointments:[],
+    userApproaches:[], pendingUserHandover:null,
+  };
 }
