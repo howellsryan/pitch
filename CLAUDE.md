@@ -7,7 +7,7 @@
 - **Product:** free browser-first football career simulator, 9 leagues / 186 clubs, mobile-first, no forced account. It is **simulator-only**: do not add manual/on-pitch football controls. Broadcast is a watchable presentation of simulated football, not a playable match mode.
 - **Live product:** `pitch-sim.com`. The app is built with Vite/Svelte 5 and deployed by **Cloudflare Workers Builds**, not GitHub Actions.
 - **R0-R7 redesign is complete.** `docs/plan/07-redesign.md` remains the historical redesign reference. R8 quality/light-mode/PWA work remains a separate parallel quality stream.
-- **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is COMPLETE (1 Sep 2026). P4 — Transfer Market and Contracts 2.0 is COMPLETE (1 Sep 2026). P5 — Scouting, Coaching, Training and Squad Planning is NEXT.**
+- **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is COMPLETE (1 Sep 2026). P4 — Transfer Market and Contracts 2.0 is COMPLETE (1 Sep 2026). P5 — Scouting, Coaching, Training and Squad Planning is COMPLETE (1 Sep 2026). P6 — Manager Career and Club Movement is NEXT.**
 - Detailed P3-P12 execution guides live under `docs/plan/post-r7-implementation-guides/`; use the roadmap for product priority and the phase guide for execution seams.
 - Read the live roadmap before non-trivial work. If this guide and the roadmap disagree, fix this guide in the same change.
 
@@ -60,7 +60,7 @@
 - Current-season player statistics include appearances, starts/minutes, goals, assists, clean sheets, cards/suspensions, injuries, form and ratings. `LeagueScreen.svelte` exposes inspectable living-world club profiles.
 - Season rollover persists compact historical summaries and creates the next season's fresh world/competition state. Do not retain an unbounded detailed match ledger across seasons.
 - P1 newgens replace retirements from calibrated cohorts; avoid cloning retired players or unconstrained talent inflation.
-- Background simulation/persistence is performance-sensitive. `tests/p1-living-world-performance.spec.mjs` is a regression guard, not a UX target: 4× CPU throttle, <20s fresh-career load, <25s full world week, <50 MiB storage. Final P1 baseline was 12.33s / 18.50s / 2.76 MiB on a shared CI runner; P2 closeout remained within those guards at 12.57s / 18.93s / 2.61 MiB.
+- Background simulation/persistence is performance-sensitive. The budgets are **<20s fresh-career load, <25s full world week, <50 MiB storage** at a 4× CPU throttle. The browser benchmark that used to assert them (`tests/p1-living-world-performance.spec.mjs`) was deleted with the E2E suite, so **these are now design constraints with no automated guard**: when you touch world simulation, persistence or a per-gameweek loop, reason about the cost explicitly and measure by hand in the running app before claiming it is fine. Historical baselines for reference: P1 12.33s / 18.50s / 2.76 MiB, P2 12.57s / 18.93s / 2.61 MiB, P3 13.108s / 7.301s / 3.41 MiB.
 
 ### Persistence / career slots — P0 foundation
 
@@ -98,13 +98,19 @@ npm run build:legacy     # src/build.py -> legacy bundle + validate_p0 bridge
 npm run build:app        # Vite -> dist/
 npm run test             # Vitest + UI emoji audit
 npm run check:accents    # all 186 clubs
-npm run test:e2e         # Playwright, mobile target 390x844 + targeted wider checks
 npm run lint             # ESLint + eslint-plugin-svelte
 ```
 
+**There is no end-to-end/browser test suite, and one must not be added.** The
+Playwright suite, its config and its opt-in workflow were deliberately deleted:
+they cost more to run and maintain than they caught. Do not add `@playwright/test`,
+a `test:e2e` script, a `tests/` spec directory, Puppeteer, Cypress, `vitest
+--browser`, or a CI job that drives a real browser. If a change needs proof it
+works in the browser, open the app and look at it — see §7's visual rule.
+
 - Vite `dist/` is the deployed artifact.
 - `src/build.py` remains because the legacy validator asserts against concatenated raw source. P0+ route that gate through `src/validate_p0.py`, which permits only an explicit allow-list of superseded source-shape assertions and requires deterministic replacement contracts. Do not interpret the legacy validator's allow-listed failure count as a green-by-itself result; the bridge must pass.
-- CI (`.github/workflows/deploy.yml`) **does not deploy**. Its per-commit gate runs both builds, lint, Vitest and the accent audit. Full Playwright remains mandatory at phase closeout through `.github/workflows/e2e-opt-in.yml`, but is deliberately opt-in to bound free-tier Actions usage. Cloudflare's Git integration owns production and branch previews.
+- CI (`.github/workflows/deploy.yml`) **does not deploy**. Its per-commit gate runs both builds, lint, Vitest and the accent audit — that is the whole gate; there is no browser job to add to it. Cloudflare's Git integration owns production and branch previews.
 - Do not re-add a GitHub Actions deploy step; two deploy systems racing the same Worker is a known failure mode.
 - Cloudflare build command is `npm run build:app`; `wrangler.jsonc` serves `./dist`.
 
@@ -146,14 +152,19 @@ Use the repo skills under `.claude/skills/`:
 
 ## 7) Definition of done for roadmap phases
 
+The P0-P4 baselines below are a historical record of what each phase actually
+shipped against. Where one cites a Playwright/browser count, that is history:
+the suite has since been deleted and those bullets are retired, not targets to
+reproduce. Every other bullet still stands.
+
 A phase is not complete until, where applicable:
 
 - old saves migrate or fail safely with an actionable recovery path;
 - authoritative Quick Sim/Broadcast outcome boundaries are preserved;
-- deterministic regression tests cover new domain rules;
-- the affected 390px mobile journey is exercised, with wider responsive checks when the surface changed;
+- deterministic regression tests cover new domain rules — as Vitest unit/contract tests over `src/modules/` and `src/game/`, never as browser specs;
+- the affected 390px mobile journey is exercised by hand in a running app, with wider responsive checks when the surface changed;
 - rendered screenshots are inspected for new/restyled UI;
-- storage/performance budgets have not materially regressed;
+- storage/performance budgets have not materially regressed (reasoned about and, for simulation/persistence work, measured by hand — there is no automated benchmark any more);
 - this guide and the roadmap status are current;
 - the PR explains shipped scope, migration impact, deferred scope and the next milestone;
 - CI and the Cloudflare branch preview are green on the final pushed SHA.
@@ -165,7 +176,6 @@ P0's completion gate established the initial safety floor:
 - deterministic P0 contract suites for competition rules/integration, save migration and UEFA finance;
 - full Vitest suite;
 - 186-club accent audit;
-- Playwright mobile suite including multi-career switching/deletion and legacy-slot fallback;
 - retained/inspected 390x844 Career Menu screenshot.
 
 ### P1 completion baseline
@@ -175,7 +185,6 @@ P1 extends that floor; do not weaken these regressions:
 - deterministic world ledger, world competition, atomic projection, season-history/rollover and injury-cadence contracts;
 - **128/128 Vitest tests** green on the implementation-complete SHA;
 - **186/186 club accent checks** green;
-- **17/17 Playwright tests** green, including the full 390×844 playable-app audit and the 1280×800 Barcelona / Borussia Dortmund / Ajax living-world inspection acceptance journey;
 - retained/inspected **390×844 Competitions screenshot**;
 - throttled P1 benchmark baseline: **12.33s career load, 18.50s authoritative 186-club world week, 2.76 MiB storage at 4× CPU throttle** on shared CI.
 
@@ -188,7 +197,6 @@ P2 adds the simulator-depth safety floor; do not weaken it to make P3 pass:
 - additive P2 save backfill preserving formation, mentality and lineup;
 - **150/150 Vitest tests** green on `de7de8a8`;
 - **186/186 club accent checks** green;
-- **19/19 Playwright tests** green, including 390×844 and 1280×800 P2 acceptance journeys;
 - retained/inspected P2 tactics and Team News screenshots;
 - P1 performance regression still within guardrails at **12.57s / 18.93s / 2.61 MiB**;
 - GitHub Actions and Cloudflare Workers successful on the same exact head SHA.
@@ -202,7 +210,6 @@ P3 adds the player-state safety floor; do not fork these contracts in P4/P5:
 - match selection and transfer valuation consume the shared selector, with regression coverage preserving the previous XI/bench ordering exactly;
 - **242/242 Vitest tests** green across 41 files, plus the UI emoji audit;
 - **186/186 club accent checks** green;
-- **21/21 Playwright tests** green, including 390×844 and 1280×800 P3 player-detail journeys with retained/inspected screenshots;
 - throttled P1 regression at **13.108s career load, 7.301s authoritative world week and 3.41 MiB storage**, inside the unchanged ceilings;
 - GitHub Actions and Cloudflare Workers successful on the final promoted roadmap SHA.
 
@@ -225,4 +232,16 @@ Whenever code is committed/pushed:
 - persisted Deals/Market/Loans/Contracts/history UI with no modal-owned negotiation state;
 - **257/257 Vitest tests** green across 44 files, plus the UI emoji audit and legacy replacement contracts.
 
-**Next roadmap milestone after P4:** `P5 — Scouting, Coaching, Training and Squad Planning`, expanding P4's shared need projection rather than replacing it.
+### P5 completion baseline
+
+- pure `scouting.js` / `coaching.js` / `training.js` / `squadPlanning.js` domain layer with a bounded, versioned `save.scouting` and per-club coaching departments;
+- one idempotent P5 settlement per completed world week, keyed so a reload cannot double-apply it;
+- a dedicated scout returns an exact report after one completed gameweek and that certainty is scoped to the season it was gathered in — last season's scouts and reports are retired, never carried forward;
+- reports store observations against canonical player ids only; they never copy or mutate authoritative attributes or potential.
+
+**Next roadmap milestone after P5:** `P6 — Manager Career and Club Movement`, building on P5's scouting/coaching state rather than replacing it.
+
+### Testing policy (supersedes any earlier phase wording)
+
+Verification is Vitest contracts plus hands-on inspection of the running app.
+There is no browser/E2E suite and none is to be introduced — see §3.

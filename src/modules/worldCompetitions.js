@@ -508,6 +508,110 @@ export async function advanceWorldCompetitions(worldState, gw, teams, playersByT
   return { state:next, records };
 }
 
+/**
+ * Read-only league-phase standings for a UEFA competition.
+ *
+ * The background field is the canonical P1 world ledger (`comp.table`, written
+ * once per completed matchday). The managed club is deliberately not in that
+ * field — its European matches run through `save.cups` and the pending-event
+ * queue — so its own authoritative aggregate is merged in for display only.
+ * Nothing here simulates or writes anything; the qualification route stays
+ * whatever `finishLeaguePhase` already decided.
+ */
+export function buildEuropeanLeaguePhaseTable(worldState, cupId, { userTeamId = null, userCupState = null } = {}) {
+  const comp = worldState?.competitions?.[cupId];
+  if (!comp || comp.format !== 'uefa_league_phase') return null;
+
+  const rows = (comp.table ?? []).map(row => ({
+    teamId:row.teamId,
+    ledgerPosition:Number(row.position ?? 0) || null,
+    played:Number(row.played ?? 0),
+    won:Number(row.won ?? 0),
+    drawn:Number(row.drawn ?? 0),
+    lost:Number(row.lost ?? 0),
+    gf:Number(row.gf ?? 0),
+    ga:Number(row.ga ?? 0),
+    gd:Number(row.gd ?? 0),
+    points:Number(row.points ?? 0),
+    isUser:false,
+  }));
+
+  // Once both fields are settled they are two different rankings — the ledger's
+  // own, and the one finishLeaguePhase computed for the managed club against its
+  // seeded field. Merging them would print the same position twice, so after the
+  // phase ends the table stays the ledger's and the club's confirmed finish is
+  // reported separately in `user` below.
+  const phase = userCupState?.leaguePhase;
+  const settled = Boolean(userCupState?.leaguePhaseComplete)
+    && phase?.position != null
+    && Number.isFinite(Number(phase.position));
+  if (userTeamId && phase && !settled && !rows.some(row => row.teamId === userTeamId)) {
+    const played = (userCupState.results ?? []).filter(result =>
+      result?.isLeaguePhaseMatchday === true || result?.isUCLMatchday === true);
+    const won = played.filter(result => Number(result.userGoals ?? 0) > Number(result.oppGoals ?? 0)).length;
+    const drawn = played.filter(result => Number(result.userGoals ?? 0) === Number(result.oppGoals ?? 0)).length;
+    rows.push({
+      teamId:userTeamId,
+      played:Number(phase.matchday ?? played.length),
+      won,
+      drawn,
+      lost:Math.max(0, played.length - won - drawn),
+      gf:Number(phase.gf ?? 0),
+      ga:Number(phase.ga ?? 0),
+      gd:Number(phase.gd ?? 0),
+      points:Number(phase.points ?? 0),
+      ledgerPosition:null,
+      isUser:true,
+    });
+  }
+
+  if (!rows.length) return null;
+  rows.sort(compareLeaguePhaseRows);
+
+  // The world field is sized to the competition, and the managed club may not
+  // have been part of that strength slice. Merging it in can therefore push the
+  // table one over; trim from the bottom, never the club being inspected.
+  const size = getCompetitionRules(cupId)?.leaguePhase?.teams ?? rows.length;
+  while (rows.length > size) {
+    const cut = rows.findLastIndex(row => !row.isUser);
+    if (cut === -1) break;
+    rows.splice(cut, 1);
+  }
+
+  // The managed club's own qualification is decided by finishLeaguePhase against
+  // its own seeded field, not by where it happens to sit in this table. Report
+  // that decision verbatim so the screen never promises a different route.
+  const phaseState = userCupState?.leaguePhase;
+  const user = userTeamId && phaseState
+    ? {
+      teamId:userTeamId,
+      complete:Boolean(userCupState.leaguePhaseComplete),
+      position:phaseState.position != null && Number.isFinite(Number(phaseState.position)) ? Number(phaseState.position) : null,
+      route:phaseState.qualificationRoute ?? userCupState.qualificationRoute ?? null,
+    }
+    : null;
+
+  // Once the phase is over the ledger has ranked the field itself, and those
+  // positions are what decided who went through: re-numbering them by display
+  // order would shift every club below into the wrong qualification band. But
+  // the two sources must never be mixed, or a merged club numbered by display
+  // index can print the same position as a club numbered by the ledger — so the
+  // stored ranking is used only when every row actually has one.
+  const useLedger = rows.every(row => row.ledgerPosition != null);
+  const ranked = rows.map((row, index) => ({ ...row, position:useLedger ? row.ledgerPosition : index + 1 }));
+  ranked.sort((a, b) => a.position - b.position);
+
+  return {
+    competitionId:cupId,
+    phase:comp.phase,
+    matchday:Number(comp.leaguePhaseMatchday ?? 0),
+    matchdays:getCompetitionRules(cupId)?.leaguePhase?.matches ?? 8,
+    complete:comp.phase !== 'league_phase',
+    user,
+    rows:ranked,
+  };
+}
+
 export function worldCompetitionRunsForTeam(worldState, teamId) {
   const runs = {};
   for (const [competitionId, comp] of Object.entries(worldState?.competitions ?? {})) {

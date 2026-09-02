@@ -11,9 +11,10 @@ jobs:
   # concatenation (which runs validate.js's compatibility suite) and the Vite
   # build, plus lint, Vitest, and the club-accent contrast floor.
   #
-  # Playwright E2E remains in the repository for targeted/manual verification,
-  # but is intentionally excluded from this per-commit workflow to keep free-
-  # tier Actions usage bounded.
+  # There is deliberately no browser/E2E job here, and no E2E suite in the
+  # repository: Playwright, its config and its opt-in workflow were removed
+  # because they cost more to run and maintain than they caught. Do not add one
+  # back. Browser behaviour is verified by driving the running app by hand.
   #
   # This workflow does NOT deploy. Cloudflare Workers Builds is connected to
   # this repo and owns both production deploys and per-branch previews —

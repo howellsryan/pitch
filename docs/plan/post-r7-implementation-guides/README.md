@@ -198,14 +198,16 @@ Run fresh on the final implementation SHA:
 - `npm run lint`
 - `npm run test`
 - `npm run check:accents`
-- `npm run test:e2e`
+
+There is no `test:e2e` — the Playwright/E2E suite was removed and must not be
+reintroduced. Browser behaviour is verified by driving the running app yourself.
 
 Also require:
 
-- new deterministic domain tests;
+- new deterministic domain tests, as Vitest specs beside the code they cover;
 - old-save and export/import/cloud coverage for persistent changes;
 - Quick Sim/Broadcast parity when player/tactic/match inputs change;
-- the affected 390×844 journey;
+- the affected 390×844 journey, exercised by hand;
 - a wider responsive journey for dense content;
 - rendered screenshot inspection for every new/restyled surface;
 - console-error check after driving the real flow;

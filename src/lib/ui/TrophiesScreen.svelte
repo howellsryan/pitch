@@ -1,6 +1,6 @@
 <script>
   import { getSave, getTeam, openDB } from '../../modules/db.js';
-  import { CUP_META } from '../../modules/cups.js';
+  import { CUP_META, cupRunStageLabel, describeCupResult } from '../../modules/cups.js';
   import { getHonorsForTeam } from '../../modules/season.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import Icon from './kit/Icon.svelte';
@@ -94,26 +94,26 @@
 
         let leaguePhase = null;
         let roundInfo = null;
-        if (cupId === 'ucl' && meta.isGroupStage && !state.leaguePhaseComplete) {
+        if (meta.isGroupStage && !state.leaguePhaseComplete) {
           const lp = state.leaguePhase ?? {};
           const md = lp.matchday ?? 0;
           const pts = lp.points ?? 0;
-          const verdict = pts >= 12 ? 'On course to qualify directly' : pts >= 8 ? 'Likely playoff spot' : md < 4 ? 'Season underway' : 'Need points to qualify';
-          leaguePhase = { md, pts, gd: lp.gd ?? 0, pct: (md / 8) * 100, verdict };
+          const total = Math.max(1, meta.groupStageGWs?.length || 8);
+          const verdict = pts >= total * 1.5 ? 'On course to qualify directly' : pts >= total ? 'Likely playoff spot' : md < total / 2 ? 'Season underway' : 'Need points to qualify';
+          leaguePhase = { md, total, pts, gd: lp.gd ?? 0, pct: (md / total) * 100, verdict };
         } else {
           const roundIdx = state.roundIndex ?? 0;
-          const roundName = state.status === 'winner' ? 'Trophy Won!' : state.status === 'eliminated' ? `Out (${meta.rounds[Math.max(0, roundIdx - 1)] ?? 'Early'})` : (meta.rounds[roundIdx] ?? 'Final');
+          // A club knocked out in a UEFA league phase stores roundIndex 0, which
+          // read back as the knockout play-off it never reached; cupRunStageLabel
+          // is the shared reader that already handles that.
+          const exitStage = state.leaguePhaseComplete && (state.leaguePhase?.qualificationRoute ?? state.qualificationRoute) === 'eliminated'
+            ? cupRunStageLabel(cupId, state)
+            : meta.rounds[Math.max(0, roundIdx - 1)] ?? 'Early';
+          const roundName = state.status === 'winner' ? 'Trophy Won!' : state.status === 'eliminated' ? `Out (${exitStage})` : cupRunStageLabel(cupId, state);
           roundInfo = { roundName, pct: Math.round((roundIdx / meta.rounds.length) * 100) };
         }
 
-        const results = (state.results ?? []).slice(-4).map(r => {
-          const isUCLMD = r.isUCLMatchday;
-          const won = isUCLMD ? r.result === 'W' : r.userWon;
-          const label = isUCLMD
-            ? `MD${r.matchday}: ${r.result} vs ${r.opponentName} (${r.userGoals}-${r.oppGoals}) [${r.points} pts]`
-            : `${r.roundName}: ${won ? 'W' : 'L'} vs ${r.opponentName} (${r.userGoals}-${r.oppGoals})`;
-          return { won, label };
-        });
+        const results = (state.results ?? []).slice(-4).map(r => describeCupResult(r, cupId));
 
         return { cupId, meta, icon: CUP_ICON[cupId] ?? 'cup', badge, leaguePhase, roundInfo, results };
       });
@@ -157,7 +157,7 @@
                   <div class="cup-lp">
                     <div class="cup-lp-hdr">League Phase</div>
                     <div class="cup-lp-row">
-                      <span>MD {c.leaguePhase.md}/8</span>
+                      <span>MD {c.leaguePhase.md}/{c.leaguePhase.total}</span>
                       <span class="cup-lp-pts">{c.leaguePhase.pts} pts</span>
                       <span class="cup-lp-gd">GD: {c.leaguePhase.gd >= 0 ? '+' : ''}{c.leaguePhase.gd}</span>
                     </div>
@@ -171,7 +171,7 @@
                 {#if c.results.length}
                   <div class="cup-results">
                     {#each c.results as r, i (i)}
-                      <div class="cup-res-row {r.won ? 'won' : 'lost'}">{r.label}</div>
+                      <div class="cup-res-row {r.outcome === 'W' ? 'won' : r.outcome === 'D' ? 'drew' : 'lost'}">{r.shortLabel}</div>
                     {/each}
                   </div>
                 {/if}
@@ -259,6 +259,7 @@
   .cup-results { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
   .cup-res-row { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--color-raised); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cup-res-row.won { border-left: 2px solid var(--color-live); }
+  .cup-res-row.drew { border-left: 2px solid var(--color-tx-3); }
   .cup-res-row.lost { border-left: 2px solid var(--color-bad); }
 
   .hon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }

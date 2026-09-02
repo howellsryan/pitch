@@ -5,6 +5,12 @@ inspiration from the current Broadcast Kit look**. This document supersedes
 `02-design-system.md` as the design authority from the moment R0 lands; until
 then `02` still describes what ships.
 
+> **Retired verification note.** Where this document records a Playwright or E2E
+> run, that is a historical record of how a phase was verified at the time. That
+> suite has since been deleted from the repository and must not be reintroduced;
+> current verification is Vitest, the validator bridge, lint, the accent/emoji
+> audits and hands-on inspection of the running app.
+
 Direction sketches and their trade-offs live in `design-canvas-v2/` (canvas:
 https://claude.ai/code/artifact/2c054241-6613-47dd-b19d-e8885524a2ea). Two
 rounds were drawn; round one was rejected as four palettes rather than four

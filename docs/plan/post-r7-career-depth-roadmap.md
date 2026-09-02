@@ -4,7 +4,13 @@
 
 **Baseline:** `main` after PR #14 (`767b31656d58f00acc42431cc3bca6df131b1b5b`) — R0-R7 shipped.
 
-**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA complete (31 August 2026). P3 — Player Model 2.0 complete (1 September 2026). P4 — Transfer Market and Contracts 2.0 complete (1 September 2026). P5 — Scouting, Coaching, Training and Squad Planning is next.**
+**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA complete (31 August 2026). P3 — Player Model 2.0 complete (1 September 2026). P4 — Transfer Market and Contracts 2.0 complete (1 September 2026). P5 — Scouting, Coaching, Training and Squad Planning complete (1 September 2026). P6 — Manager Career and Club Movement is next.**
+
+**Verification note:** the Playwright/E2E suite referenced by earlier phase gates
+in this document has been removed from the repository. Those browser-suite
+requirements are retired; verification is Vitest contracts, the legacy validator
+bridge, lint, the accent/emoji audits and hands-on inspection of the running app.
+Do not reintroduce a browser test suite.
 
 **Benchmark reviewed:** EA SPORTS FC 27 Manager Career (Career Deep Dive, July 2026), with relevant Manager Market ideas carried forward from FC 26. This is not a parity checklist. Pitch should take the parts that create meaningful management decisions and, where a browser simulator has an advantage, go deeper systemically rather than imitate AAA presentation.
 

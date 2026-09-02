@@ -3,6 +3,12 @@
 Strangler-fig on `ui/`, not on `modules/`. **Every phase ends with a playable,
 deployable game**, and `validate.js` passes at the end of every one.
 
+> **Retired verification note.** Where this document records a Playwright or E2E
+> run, that is a historical record of how a phase was verified at the time. That
+> suite has since been deleted from the repository and must not be reintroduced;
+> current verification is Vitest, the validator bridge, lint, the accent/emoji
+> audits and hands-on inspection of the running app.
+
 ---
 
 ## Phase 0 — Ship pitch on Workers (~3h) — ✅ steps 1–3 done, step 4 outstanding
@@ -388,8 +394,8 @@ Per-screen recipe (for reference — the recipe this phase's screens followed):
    example — they're game rules currently living in `ui/watchmatch.js`.
 3. Delete the `render*` function and its handlers together.
 4. Rebuild from `docs/design-system.md`.
-5. Add Vitest coverage for any logic you moved; add a Playwright screenshot at
-   390×844.
+5. Add Vitest coverage for any logic you moved; take a screenshot at 390×844 by
+   hand and look at it. (There is no Playwright/E2E suite — it was removed.)
 6. Compare against the Phase-0 before-shot. Better, or just newer?
 7. Run `validate.js`.
 

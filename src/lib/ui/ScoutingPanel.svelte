@@ -1,23 +1,60 @@
 <script>
   import { addScoutingAssignment, removeScoutingAssignment } from '../../modules/p5Runtime.js';
-  import { MAX_SCOUTING_ASSIGNMENTS } from '../../modules/scouting.js';
-  import { toast } from '../../ui/helpers.js';
+  import { MAX_SCOUTING_ASSIGNMENTS, assignmentScoutingReports, scoutingAssignmentIsCurrent, scoutingReportIsCurrent } from '../../modules/scouting.js';
+  import { fmt, toast } from '../../ui/helpers.js';
 
   let { save, players = [], teams = [], onchange = () => {} } = $props();
   let busy = $state(false);
   let assignmentType = $state('position');
   let position = $state('ST');
   let league = $state('Premier League');
+  let openAssignmentId = $state(null);
 
   const scouting = $derived(save?.scouting ?? { assignments:[], reports:[] });
-  const assignments = $derived(scouting.assignments ?? []);
-  const reports = $derived([...(scouting.reports ?? [])].reverse().slice(0, 20));
+  const assignments = $derived((scouting.assignments ?? [])
+    .filter(item => scoutingAssignmentIsCurrent(item, save?.season)));
+  // Knowledge expires with the season, exactly as observedPlayerProfile treats
+  // it — otherwise this list would still show last season's reports as current.
+  const reports = $derived([...(scouting.reports ?? [])]
+    .filter(report => scoutingReportIsCurrent(report, save?.season))
+    .reverse()
+    .slice(0, 20));
   const playerById = $derived(new Map(players.map(player => [String(player.id), player])));
+  const teamById = $derived(new Map(teams.map(team => [String(team.id), team])));
   const leagueOptions = $derived([...new Set(teams.map(team => team.league).filter(Boolean))].sort());
   const activeCount = $derived(assignments.filter(item => item.status === 'active').length);
+  const reportCountById = $derived(new Map(assignments.map(item =>
+    [item.id, assignmentScoutingReports(scouting, item.id, save?.season).length])));
+
+  const openAssignment = $derived(openAssignmentId
+    ? assignments.find(item => item.id === openAssignmentId) ?? null
+    : null);
+  const openAssignmentReports = $derived(openAssignment
+    ? assignmentScoutingReports(scouting, openAssignment.id, save?.season)
+      .map(report => ({ report, player:playerById.get(String(report.playerId)) }))
+      .sort((a, b) => (b.report.current?.max ?? 0) - (a.report.current?.max ?? 0))
+    : []);
 
   function stageLabel(stage) {
     return stage === 'complete' ? 'Complete' : stage === 'detailed' ? 'Detailed' : stage === 'observed' ? 'Observed' : 'Assigned';
+  }
+
+  function assignmentLabel(assignment) {
+    return assignment?.label ?? assignment?.position ?? assignment?.league ?? 'Player report';
+  }
+
+  function abilityRange(report) {
+    return report.exact ? `${report.current?.min}` : `${report.current?.min}–${report.current?.max}`;
+  }
+
+  function futureRange(report) {
+    return report.exact ? `${report.future?.min}` : `${report.future?.min}–${report.future?.max}`;
+  }
+
+  function feeRange(report) {
+    const min = report.financial?.feeMin ?? 0;
+    const max = report.financial?.feeMax ?? min;
+    return report.exact || min === max ? fmt.money(min) : `${fmt.money(min)}–${fmt.money(max)}`;
   }
 
   function reportPlayer(report) {
@@ -87,11 +124,16 @@
   {:else}
     <div class="assignment-list">
       {#each assignments as assignment (assignment.id)}
+        {@const found = reportCountById.get(assignment.id) ?? 0}
         <div class="assignment-row">
-          <div>
-            <strong>{assignment.label ?? assignment.position ?? assignment.league ?? 'Player report'}</strong>
-            <span>{stageLabel(assignment.stage)} · {assignment.weeks ?? 0} week{assignment.weeks === 1 ? '' : 's'} of evidence</span>
-          </div>
+          <button
+            class="assignment-open"
+            onclick={() => openAssignmentId = assignment.id}
+            aria-label={`Open ${found} scouted player${found === 1 ? '' : 's'} found by ${assignmentLabel(assignment)}`}
+          >
+            <strong>{assignmentLabel(assignment)}{#if assignment.mode === 'full'}<em class="mode-tag">Dedicated</em>{/if}</strong>
+            <span>{stageLabel(assignment.stage)} · {assignment.weeks ?? 0} week{assignment.weeks === 1 ? '' : 's'} of evidence · {found} player{found === 1 ? '' : 's'} found</span>
+          </button>
           <button disabled={busy} onclick={() => removeAssignment(assignment.id)}>{assignment.status === 'complete' ? 'Clear' : 'Cancel'}</button>
         </div>
       {/each}
@@ -108,11 +150,11 @@
         <article class="report-card">
           <div class="report-head">
             <div><strong>{player?.name ?? report.playerId}</strong><span>{player?.position ?? ''} · {stageLabel(report.stage)}</span></div>
-            <span class="confidence">{report.confidenceLabel} confidence</span>
+            <span class="confidence">{report.exact ? 'Fully scouted' : `${report.confidenceLabel} confidence`}</span>
           </div>
           <div class="report-grid">
-            <div><span>Current</span><strong>{report.current?.min}–{report.current?.max}</strong></div>
-            <div><span>Future</span><strong>{report.future?.min}–{report.future?.max}</strong></div>
+            <div><span>Current</span><strong>{abilityRange(report)}</strong></div>
+            <div><span>Future</span><strong>{futureRange(report)}</strong></div>
             <div><span>Tactical</span><strong>{report.tactical?.fit ?? 'Unknown'}</strong></div>
             <div><span>Interest</span><strong>{report.status?.joiningInterest ?? 'Unknown'}</strong></div>
           </div>
@@ -121,6 +163,45 @@
     </div>
   {/if}
 </div>
+
+{#if openAssignment}
+  <button class="assignment-backdrop" onclick={() => openAssignmentId = null} aria-label="Close scouted players"></button>
+  <div class="assignment-modal" role="dialog" aria-modal="true" aria-label={`Players scouted by ${assignmentLabel(openAssignment)}`}>
+    <div class="modal-head">
+      <div>
+        <span>Assignment</span>
+        <strong>{assignmentLabel(openAssignment)}</strong>
+        <small>{stageLabel(openAssignment.stage)} · {openAssignment.weeks ?? 0} week{openAssignment.weeks === 1 ? '' : 's'} of evidence</small>
+      </div>
+      <button class="modal-close" onclick={() => openAssignmentId = null} aria-label="Close">Close</button>
+    </div>
+    <div class="modal-body">
+      {#if !openAssignmentReports.length}
+        <div class="empty">This assignment has not filed a report yet. Scouts report back after a completed gameweek.</div>
+      {:else}
+        {#each openAssignmentReports as entry (entry.report.playerId)}
+          {@const report = entry.report}
+          {@const player = entry.player}
+          <article class="report-card">
+            <div class="report-head">
+              <div>
+                <strong>{player?.name ?? report.playerId}</strong>
+                <span>{player?.position ?? ''}{player?.age ? ` · Age ${player.age}` : ''}{teamById.get(String(player?.teamId))?.name ? ` · ${teamById.get(String(player.teamId)).name}` : ''}</span>
+              </div>
+              <span class="confidence">{report.exact ? 'Fully scouted' : `${report.confidenceLabel} confidence`}</span>
+            </div>
+            <div class="report-grid">
+              <div><span>Current</span><strong>{abilityRange(report)}</strong></div>
+              <div><span>Future</span><strong>{futureRange(report)}</strong></div>
+              <div><span>Est. fee</span><strong>{feeRange(report)}</strong></div>
+              <div><span>Interest</span><strong>{report.status?.joiningInterest ?? 'Unknown'}</strong></div>
+            </div>
+          </article>
+        {/each}
+      {/if}
+    </div>
+  </div>
+{/if}
 
 <style>
   .scouting-panel { display:flex; flex-direction:column; gap:12px; min-height:0; overflow:auto; padding-bottom:8px; }
@@ -139,11 +220,23 @@
   .section-title { margin-top:2px; }
   .assignment-list, .report-list { display:grid; gap:7px; }
   .assignment-row { display:flex; align-items:center; gap:10px; padding:10px 11px; border:1px solid var(--color-line); border-radius:10px; background:var(--color-surface); }
-  .assignment-row > div { min-width:0; flex:1; }
+  .assignment-open { min-width:0; flex:1; padding:0; text-align:left; background:transparent; border:0; color:inherit; cursor:pointer; }
   .assignment-row strong, .assignment-row span { display:block; }
-  .assignment-row strong { font-size:12px; color:var(--color-tx); }
+  .assignment-row strong { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--color-tx); }
   .assignment-row span { margin-top:3px; color:var(--color-tx-3); font:9px var(--font-mono); }
-  .assignment-row button { border:1px solid var(--color-line); background:var(--color-raised); color:var(--color-tx-2); }
+  .mode-tag { flex-shrink:0; padding:1px 5px; border-radius:999px; background:color-mix(in oklch,var(--color-club) 22%,transparent); color:var(--color-club); font:700 8px var(--font-mono); font-style:normal; text-transform:uppercase; letter-spacing:.06em; }
+  .assignment-row > button:last-child { border:1px solid var(--color-line); background:var(--color-raised); color:var(--color-tx-2); }
+  .assignment-open:focus-visible, .modal-close:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+
+  .assignment-backdrop { position:fixed; inset:0; z-index:940; border:0; padding:0; background:rgba(0,0,0,.66); }
+  .assignment-modal { position:fixed; left:50%; top:50%; z-index:941; transform:translate(-50%,-50%); width:min(560px,calc(100vw - 28px)); max-height:min(80dvh,640px); display:flex; flex-direction:column; padding:14px; border:1px solid var(--color-line); border-radius:16px; background:var(--color-surface); color:var(--color-tx); font-family:var(--font-body); box-shadow:0 24px 64px rgba(0,0,0,.45); }
+  .modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding-bottom:11px; margin-bottom:11px; border-bottom:1px solid var(--color-line); flex-shrink:0; }
+  .modal-head > div { min-width:0; }
+  .modal-head span { display:block; color:var(--color-club); font:700 8px var(--font-mono); letter-spacing:.1em; text-transform:uppercase; }
+  .modal-head strong { display:block; margin-top:4px; font:17px var(--font-display); }
+  .modal-head small { display:block; margin-top:3px; color:var(--color-tx-3); font:9px var(--font-mono); }
+  .modal-close { flex-shrink:0; min-height:44px; padding:0 12px; border:1px solid var(--color-line); border-radius:9px; background:var(--color-raised); color:var(--color-tx-2); font:600 10px var(--font-body); cursor:pointer; }
+  .modal-body { min-height:0; overflow:auto; overscroll-behavior:contain; display:grid; gap:7px; }
   .report-card { padding:11px; border:1px solid var(--color-line); border-radius:11px; background:var(--color-surface); }
   .report-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .report-head strong, .report-head span { display:block; }

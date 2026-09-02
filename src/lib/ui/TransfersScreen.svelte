@@ -9,6 +9,8 @@
   } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
   import { projectScoutedPlayerView } from '../../modules/scoutingView.js';
+import { scoutingAssignmentIsCurrent } from '../../modules/scouting.js';
+import { scoutPlayerInFull } from '../../modules/p5Runtime.js';
   import { fmt, formLabel, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { _updateOffersBadge } from '../../ui/squad_tactics_offers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -23,6 +25,12 @@
 
   const ROW_H = 68;
   const OVERSCAN = 6;
+
+  // Search compares folded text on both sides: the roster is full of accented
+  // names (Mbappé, Håland, Özil) and nobody types the diacritic on a phone.
+  function searchKey(value) {
+    return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
 
   let loaded = $state(false);
   let save = $state(null);
@@ -55,9 +63,29 @@
     });
   }
 
+  // A completed dedicated scout reads exactly, so its figures are shown as one
+  // number rather than a range that repeats itself ("77–77").
+  function scoutedRange(range, format = (value) => String(value)) {
+    if (!range) return null;
+    const min = range.min ?? range.feeMin ?? range.wageMin;
+    const max = range.max ?? range.feeMax ?? range.wageMax;
+    if (min == null) return null;
+    return min === max ? format(min) : `${format(min)}–${format(max)}`;
+  }
+
+  // Every player on these surfaces is a scouting projection whose `value` is
+  // already the form-adjusted fee: the public path is handed formAdjustedValue
+  // as its valueFor, and p5Runtime's weekly report uses the same basis, so both
+  // agree with the engine's own minimumOffer. Running formAdjustedValue over
+  // that again applies the multiplier twice — visible now that a fully scouted
+  // player no longer shows a corrective range beside the figure.
+  function scoutedValue(player) {
+    if (!player) return 0;
+    return player.scoutingView ? Math.round(Number(player.value) || 0) : formAdjustedValue(player);
+  }
+
   function abilityLabel(player) {
-    const range = player?.scoutingReport?.current;
-    return range ? `${range.min}–${range.max}` : String(primaryRating(player));
+    return scoutedRange(player?.scoutingReport?.current) ?? String(primaryRating(player));
   }
 
   async function load() {
@@ -123,15 +151,16 @@
     if (f.league !== 'ALL') fil = fil.filter(p => leagueByTeam.get(p.teamId) === f.league);
     fil = fil.filter(p => (p.age || 25) >= f.minAge && (p.age || 25) <= f.maxAge);
     fil = fil.filter(p => primaryRating(p) >= f.minRat && primaryRating(p) <= f.maxRat);
-    if (f.maxPrice > 0) fil = fil.filter(p => formAdjustedValue(p) <= f.maxPrice);
-    if (f.affordable) fil = fil.filter(p => Math.floor(formAdjustedValue(p) * 0.88) <= budget);
+    if (f.maxPrice > 0) fil = fil.filter(p => scoutedValue(p) <= f.maxPrice);
+    if (f.affordable) fil = fil.filter(p => Math.floor(scoutedValue(p) * 0.88) <= budget);
     if (f.canSign) fil = fil.filter(p => canClubSignPlayer({ reputation: userRep }, p));
     if (f.minPot > 0) fil = fil.filter(p => getPotentialStars(p) >= f.minPot);
-    if (f.query) fil = fil.filter(p => p.name.toLowerCase().includes(f.query) || (byId.get(p.teamId)?.name || '').toLowerCase().includes(f.query));
+    const q = searchKey(f.query).trim();
+    if (q) fil = fil.filter(p => searchKey(p.name).includes(q) || searchKey(byId.get(p.teamId)?.name).includes(q));
 
     const sortFns = {
       rating: (a, b) => primaryRating(b) - primaryRating(a),
-      value: (a, b) => formAdjustedValue(b) - formAdjustedValue(a),
+      value: (a, b) => scoutedValue(b) - scoutedValue(a),
       age: (a, b) => (a.age || 25) - (b.age || 25),
       potential: (a, b) => getPotentialStars(b) - getPotentialStars(a),
       goals: (a, b) => (b.goals || 0) - (a.goals || 0),
@@ -171,21 +200,63 @@
     detailPlayer = p;
     const canonical = await getPlayer(p.id) ?? p;
     detailFresh = projectMarketPlayer(canonical);
-    const fv = formAdjustedValue(detailFresh);
+    const fv = scoutedValue(detailFresh);
     offerAmount = Math.floor(fv * 0.95);
     offerInstallment = 0;
     offerSellOn = 0;
   }
   function closeDetail() { detailPlayer = null; detailFresh = null; }
 
-  const detailFv = $derived(detailFresh ? formAdjustedValue(detailFresh) : 0);
+  // ── Dedicated scout ─────────────────────────────────────────
+  // One gameweek out, then an exact reading for the rest of this season.
+  let scoutBusy = $state(false);
+  const SCOUT_MSGS = {
+    SCOUTING_ASSIGNMENT_CAP: 'All of your scouts are already out on assignment. Clear one from the Scouting drawer first.',
+    SCOUTING_ALREADY_ASSIGNED: 'A scout is already watching this player.',
+  };
+  const detailScoutState = $derived.by(() => {
+    if (!detailFresh) return { state: 'idle' };
+    if (detailFresh.scoutingReport?.exact) return { state: 'complete' };
+    // Only a scout from this season is still in the field; advanceScoutingState
+    // retires the rest, so matching one of those would hide the button forever
+    // waiting on a report that can never land.
+    const assignments = save?.scouting?.assignments ?? [];
+    const pending = assignments.find(item =>
+      item.mode === 'full'
+      && String(item.playerId) === String(detailFresh.id)
+      && item.status === 'active'
+      && scoutingAssignmentIsCurrent(item, save?.season));
+    return pending ? { state: 'pending' } : { state: 'idle' };
+  });
+
+  async function scoutDetailPlayer() {
+    if (scoutBusy || !detailFresh) return;
+    scoutBusy = true;
+    try {
+      await scoutPlayerInFull(detailFresh.id, `${detailFresh.name} report`);
+      toast(`Scout assigned to ${detailFresh.name}. Full report after the next gameweek.`, 'success', 3600);
+      screenTicks.transfers++;
+    } catch (error) {
+      toast(SCOUT_MSGS[error.message] || 'Could not assign a scout to this player.', 'error', 3200);
+    } finally {
+      scoutBusy = false;
+    }
+  }
+
+  // The offer controls stay on the scouted estimate. Pricing them off the
+  // canonical row would hand every player's true valuation to the manager and
+  // make the dedicated scout pointless — the fog is the feature. The engine's
+  // real floor tracks live form, so a scouted offer can still be rejected; the
+  // hint below says so rather than promising acceptance.
+  const detailScoutedFv = $derived(scoutedValue(detailFresh));
+  const detailFv = $derived(detailScoutedFv);
   const detailMinOffer = $derived(Math.floor(detailFv * 0.88));
   const detailIsCollapsed = $derived(detailFresh ? (save?.collapsedDeals || []).includes(detailFresh.id) : false);
   const detailSeasonLocked = $derived(!!detailFresh?.signedThisSeason);
   const detailRep = $derived(detailFresh ? repInfo(detailFresh) : { adjMin: 0, blocked: false });
   const offerLikelihood = $derived.by(() => {
     if (offerAmount >= detailFv) return { text: 'Above scouting estimate — strong opening offer', cls: 'good' };
-    if (offerAmount >= detailMinOffer) return { text: 'Within scouting estimate', cls: 'good' };
+    if (offerAmount >= detailMinOffer) return { text: 'Within scouting estimate — the club may still hold out', cls: 'good' };
     if (offerAmount >= detailMinOffer * 0.88) return { text: 'May be rejected or countered', cls: 'warn' };
     return { text: 'Likely below the seller’s expectations', cls: 'bad' };
   });
@@ -218,7 +289,7 @@
   let sellBusy = $state(false);
 
   function openSellConfirm(p) {
-    const fv = formAdjustedValue(p);
+    const fv = scoutedValue(p);
     const est = Math.round(fv * (0.92 + Math.random() * 0.2));
     sellConfirm = { player: p, est, fv };
   }
@@ -258,7 +329,7 @@
     loanBusy = true;
     try {
       const cost = loanCost(player);
-      await createUserMarketDeal(player.id, { type:'loan', terms:{ loan:{ fee:cost.fee, wageContributionPercentage:100, recall:false, optionToBuy:Math.round(formAdjustedValue(player) * .9) }, contract:{ wage:player.wage ?? 10_000, duration:1, squadRole:'rotation' } } });
+      await createUserMarketDeal(player.id, { type:'loan', terms:{ loan:{ fee:cost.fee, wageContributionPercentage:100, recall:false, optionToBuy:Math.round(scoutedValue(player) * .9) }, contract:{ wage:player.wage ?? 10_000, duration:1, squadRole:'rotation' } } });
       toast(`Loan enquiry sent for ${player.name}`, 'success', 5000);
       loanDetail = null;
       screenTicks.transfers++;
@@ -586,7 +657,7 @@
               {#each buyVisible as { p, top } (p.id)}
                 {@const g = posGroup(p.position)}
                 {@const teamRec = byId.get(p.teamId)}
-                {@const fv = formAdjustedValue(p)}
+                {@const fv = scoutedValue(p)}
                 {@const potStars = getPotentialStars(p)}
                 {@const rep = repInfo(p)}
                 {@const seasonLocked = !!p.signedThisSeason}
@@ -626,7 +697,7 @@
           {#each squadPlayers as p (p.id)}
             {@const g = posGroup(p.position)}
             {@const r = primaryRating(p)}
-            {@const fv = formAdjustedValue(p)}
+            {@const fv = scoutedValue(p)}
             {@const isListed = p.transferListed === true}
             <div class="sell-row">
               <div class="pl-flag-sm pos-{g}">{g}</div>
@@ -757,6 +828,7 @@
   {@const potStars = getPotentialStars(p)}
   {@const potLabel = getPotentialLabel(p)}
   {@const report = p.scoutingReport}
+  {@const approx = report?.exact ? '' : '~'}
   <button class="sheet-backdrop" onclick={closeDetail} aria-label="Close"></button>
   <div class="sheet">
     <div class="sheet-handle"></div>
@@ -769,12 +841,23 @@
       <div class="det-badges">
         <span class="form-badge form-{fl.cls}">{fl.text}</span>
         <span style="color:{fitnessColor(p.fitness ?? 100)}">{Math.round(p.fitness ?? 100)}% fit</span>
-        {#if report}<span>{report.confidenceLabel} confidence</span>{/if}
+        {#if report}<span>{report.exact ? 'Fully scouted' : `${report.confidenceLabel} confidence`}</span>{/if}
       </div>
     </div>
 
+    <div class="det-scout">
+      {#if detailScoutState.state === 'complete'}
+        <div class="det-scout-copy"><strong>Fully scouted</strong><small>Exact ability, potential and valuation until the end of {save?.season ?? 'this season'}.</small></div>
+      {:else if detailScoutState.state === 'pending'}
+        <div class="det-scout-copy"><strong>Scout on assignment</strong><small>The full report lands after the next completed gameweek.</small></div>
+      {:else}
+        <div class="det-scout-copy"><strong>Everything here is an estimate</strong><small>Send a scout for one gameweek to see this player exactly, for the rest of the season.</small></div>
+        <button class="sell-btn det-scout-btn" disabled={scoutBusy} onclick={scoutDetailPlayer}>{scoutBusy ? 'Sending…' : 'Send scout'}</button>
+      {/if}
+    </div>
+
     <div class="det-pot">
-      <div class="det-pot-top"><span>Scouted future</span><span style="color:{POT_COLORS[potStars]}">{report ? `${report.future.min}–${report.future.max}` : potLabel}</span></div>
+      <div class="det-pot-top"><span>{report?.exact ? 'Potential' : 'Scouted future'}</span><span style="color:{POT_COLORS[potStars]}">{scoutedRange(report?.future) ?? potLabel}</span></div>
       <div class="det-pot-bar-row">
         <span style="color:{POT_COLORS[potStars]}">{'★'.repeat(potStars)}{'☆'.repeat(5 - potStars)}</span>
         <div class="det-pot-track"><div class="det-pot-fill" style="width:{(potStars / 5) * 100}%;background:{POT_COLORS[potStars]}"></div></div>
@@ -782,15 +865,15 @@
     </div>
 
     <div class="det-facts">
-      <div class="fact"><span>Estimated Value</span><strong>~{fmt.money(detailFv)}</strong>{#if report}<small>{fmt.money(report.financial.feeMin)}–{fmt.money(report.financial.feeMax)}</small>{/if}</div>
-      <div class="fact"><span>Estimated Wage</span><strong>~{fmt.wage(p.wage)}</strong>{#if report}<small>{fmt.wage(report.financial.wageMin)}–{fmt.wage(report.financial.wageMax)}</small>{/if}</div>
+      <div class="fact"><span>Estimated Value</span><strong>~{fmt.money(detailScoutedFv)}</strong>{#if report?.exact}<small>as scouted, GW{report.observedGameweek}</small>{:else if report}<small>{fmt.money(report.financial.feeMin)}–{fmt.money(report.financial.feeMax)}</small>{/if}</div>
+      <div class="fact"><span>Estimated Wage</span><strong>~{fmt.wage(p.wage)}</strong>{#if report?.exact}<small>as scouted, GW{report.observedGameweek}</small>{:else if report}<small>{fmt.wage(report.financial.wageMin)}–{fmt.wage(report.financial.wageMax)}</small>{/if}</div>
     </div>
 
     <div class="det-attrs">
-      <div class="attr-row"><div class="attr-lbl">Attack</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'ATT'} style="width:{Math.round((p.attack / 99) * 100)}%"></div></div><div class="attr-val">~{p.attack}</div></div>
-      <div class="attr-row"><div class="attr-lbl">Midfield</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'MID'} style="width:{Math.round((p.midfield / 99) * 100)}%"></div></div><div class="attr-val">~{p.midfield}</div></div>
-      <div class="attr-row"><div class="attr-lbl">Defence</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'DEF'} style="width:{Math.round((p.defence / 99) * 100)}%"></div></div><div class="attr-val">~{p.defence}</div></div>
-      <div class="attr-row"><div class="attr-lbl">GK</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'GK'} style="width:{Math.round((p.goalkeeping / 99) * 100)}%"></div></div><div class="attr-val">~{p.goalkeeping}</div></div>
+      <div class="attr-row"><div class="attr-lbl">Attack</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'ATT'} style="width:{Math.round((p.attack / 99) * 100)}%"></div></div><div class="attr-val">{approx}{p.attack}</div></div>
+      <div class="attr-row"><div class="attr-lbl">Midfield</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'MID'} style="width:{Math.round((p.midfield / 99) * 100)}%"></div></div><div class="attr-val">{approx}{p.midfield}</div></div>
+      <div class="attr-row"><div class="attr-lbl">Defence</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'DEF'} style="width:{Math.round((p.defence / 99) * 100)}%"></div></div><div class="attr-val">{approx}{p.defence}</div></div>
+      <div class="attr-row"><div class="attr-lbl">GK</div><div class="attr-bar-track"><div class="attr-bar" class:primary={g === 'GK'} style="width:{Math.round((p.goalkeeping / 99) * 100)}%"></div></div><div class="attr-val">{approx}{p.goalkeeping}</div></div>
     </div>
 
     <div class="det-offer">
@@ -850,7 +933,8 @@
       <div class="confirm-row"><span>From</span><strong>{teamRec?.name || ''}</strong></div>
       <div class="confirm-row"><span>Scouted ability</span><strong>{abilityLabel(p)}</strong></div>
       <div class="confirm-row"><span>Offer</span><strong style="color:var(--color-warn)">{fmt.money(confirmOffer.offer)}</strong></div>
-      <div class="confirm-row"><span>Estimated Value</span><strong>~{fmt.money(formAdjustedValue(p))}</strong></div>
+      <div class="confirm-row"><span>Estimated Value</span><strong>~{fmt.money(scoutedValue(p))}</strong></div>
+      <div class="confirm-row"><span>Scouted floor</span><strong>~{fmt.money(detailMinOffer)}</strong></div>
       <div class="confirm-row"><span>Estimated Wage</span><strong>~{fmt.wage(p.wage)}</strong></div>
     </div>
     <div class="sheet-actions">
@@ -1154,7 +1238,14 @@
   .attr-bar.primary { background: linear-gradient(90deg, var(--color-club), var(--color-live)); }
   .attr-val { font-family: var(--font-mono); font-size: 11px; text-align: right; }
 
+  .det-scout { display: flex; align-items: center; gap: 10px; padding: 11px 12px; margin-top: 12px; border: 1px solid var(--color-line); border-radius: 10px; background: var(--color-raised); }
+  .det-scout-copy { min-width: 0; flex: 1; }
+  .det-scout-copy strong { display: block; font-size: 12px; color: var(--color-tx); }
+  .det-scout-copy small { display: block; margin-top: 3px; color: var(--color-tx-3); font-size: 10px; line-height: 1.45; }
+  .det-scout-btn { flex-shrink: 0; min-height: 44px; }
+
   .det-offer { padding-top: 12px; }
+  .det-offer .btn-full { margin-top: 12px; }
   .offer-blocked { background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 10px; padding: 14px; text-align: center; }
   .offer-blocked-title { font-size: 13px; font-weight: 700; color: var(--color-bad); margin-bottom: 4px; }
   .offer-blocked.warn .offer-blocked-title { color: var(--color-warn); }
@@ -1185,7 +1276,7 @@
   .loan-total strong { color: var(--color-live); font-size: 14px; }
 
   .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
-  .btn-full { min-height: 44px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-body); }
+  .btn-full { display: block; width: 100%; min-height: 44px; padding: 0 14px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-body); }
   .btn-full:disabled { opacity: 0.6; cursor: not-allowed; }
   .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
   .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }

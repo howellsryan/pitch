@@ -448,6 +448,49 @@ export function evaluateBoardObjective(objective, finalPosition, totalTeams, was
   return { met:finalPosition <= objective.target, margin:objective.target - finalPosition };
 }
 
+/**
+ * Live board confidence, mid-season.
+ *
+ * `save.jobSecurity` only moves at the season rollover, so on its own it leaves
+ * a manager permanently pinned to whatever the last review decided — a 65
+ * baseline reads "Under scrutiny" for a whole season no matter how many games
+ * are won. This projects the stored figure forward from what the board can
+ * actually see today: how the club sits against its objective right now, and
+ * recent form. It is a derived view only and is never persisted; the stored
+ * figure still moves solely through `nextJobSecurity` at the end of a season.
+ */
+export function liveBoardConfidence(save, { position = null, totalTeams = 20, form = [] } = {}) {
+  const stored = Math.max(0, Math.min(100, Number(save?.jobSecurity ?? 65)));
+  const objective = save?.boardObjective ?? null;
+  const recent = (form ?? []).slice(-5);
+
+  // Form: a win is worth +4 and a loss -4, scaled by how much of a run we have.
+  const formPoints = recent.reduce((sum, result) => sum + (result === 'W' ? 4 : result === 'D' ? 1 : -4), 0);
+
+  // Objective: how far the club currently sits from where the board asked it to be.
+  let objectivePoints = 0;
+  let objectiveState = 'unknown';
+  if (objective && Number.isFinite(Number(position)) && Number(position) > 0) {
+    const target = objective.kind === 'avoid_relegation'
+      ? Math.max(1, (totalTeams || 20) - 3)
+      : objective.kind === 'top_half'
+        ? Math.ceil((totalTeams || 20) / 2)
+        : Number(objective.target ?? 1);
+    const margin = target - Number(position);
+    // Being close to target already counts as tracking it, not as failure.
+    objectivePoints = Math.max(-20, Math.min(20, margin * 2.5));
+    objectiveState = margin >= 0 ? 'on_track' : margin >= -2 ? 'close' : 'behind';
+  }
+
+  const pct = Math.max(0, Math.min(100, Math.round(stored + objectivePoints + formPoints)));
+  const label = pct >= 78 ? 'Backed'
+    : pct >= 58 ? 'Secure'
+      : pct >= 38 ? 'Under scrutiny'
+        : pct >= 18 ? 'On notice'
+          : 'Facing the axe';
+  return { pct, label, stored, objectiveState, formPoints, objectivePoints };
+}
+
 export function nextJobSecurity(current, met, margin) {
   const cur = current ?? 65;
   const delta = met ? 12 + Math.min(18, Math.max(0, margin) * 2) : -18 - Math.min(22, Math.max(0, -margin) * 2);

@@ -51,7 +51,7 @@ R6 makes the screen deliberately plain and dense:
 - mobile remains the compact four-column table already chosen by the component;
 - desktop keeps the full statistics/form columns.
 
-The R6 Playwright check confirms all 20 Premier League rows render, exactly one user row remains identifiable, and the flat density rules are actually present at runtime.
+The R6 browser check (since retired with the E2E suite) confirmed all 20 Premier League rows render, exactly one user row remains identifiable, and the flat density rules are actually present at runtime.
 
 ## Why a global R6 layer
 

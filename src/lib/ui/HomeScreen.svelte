@@ -2,9 +2,11 @@
   import { tick } from 'svelte';
   import { getAllFixtures, getAllPlayers, getAllTeams, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
   import { getUpcomingForTeam } from '../../modules/fixtures.js';
+  import { CUP_META, describeCupResult, upcomingCupFixtures } from '../../modules/cups.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { advanceTransferMarketWeek, isDeadlineDay } from '../../modules/transfers.js';
   import { patchSave } from '../../modules/save.js';
+  import { liveBoardConfidence } from '../../modules/season.js';
   import { getEffectiveTotalGW } from '../../modules/gameweek.js';
   import { fmt, navigateTo, toast } from '../../ui/helpers.js';
   import { handleEndOfSeason } from '../../ui/home_transfers.js';
@@ -40,9 +42,79 @@
   let deadlineBusy = $state(false);
 
   const next = $derived(upcoming[0] ?? null);
-  const future = $derived(upcoming.slice(1, 4));
+
+  // The rail is the manager's season, so cups and Europe belong on it. Both come
+  // from the same competition-rules scheduling the Play button's event queue
+  // uses, so the two can never disagree about when a tie is played.
+  const cupFixtures = $derived(upcomingCupFixtures(save?.cups, save?.currentGameweek ?? 0, {
+    limit:6,
+    pendingEvents:save?.pendingEvents ?? [],
+  }));
+  const thisWeekCups = $derived(cupFixtures.filter((fixture) => fixture.gameweek === save?.currentGameweek));
+  // The active card follows the next unplayed league fixture, which has already
+  // moved on once a mixed gameweek's league match is played. Only badge the card
+  // with cup ties when it is actually showing the current gameweek.
+  const activeCardIsCurrentGW = $derived((next?.gameweek ?? save?.currentGameweek) === save?.currentGameweek);
+
+  // The Play button pops the head of save.pendingEvents. When that head is a cup
+  // tie the card has to be that tie, or the screen names one match and the
+  // button plays another — which is exactly what happens in a mixed gameweek
+  // once the league fixture has been played and the cup event is still queued.
+  const pendingHead = $derived((save?.pendingEvents ?? [])[0] ?? null);
+  const activeCupTie = $derived.by(() => {
+    if (pendingHead?.cupId) {
+      return thisWeekCups.find((fixture) => fixture.cupId === pendingHead.cupId) ?? thisWeekCups[0] ?? null;
+    }
+    // Queue not built yet: a cup tie is still this gameweek's match whenever no
+    // league fixture remains in it.
+    if (!activeCardIsCurrentGW && thisWeekCups.length) return thisWeekCups[0];
+    return null;
+  });
+  // Two ties can share a gameweek (FA Cup + Europe at GW7/13, the two domestic
+  // cups at GW20/30). Whichever is not on the active card is badged onto it.
+  const activeCardCups = $derived(activeCupTie
+    ? thisWeekCups.filter((fixture) => fixture.cupId !== activeCupTie.cupId)
+    : activeCardIsCurrentGW ? thisWeekCups : []);
+  // Anything past the current gameweek is a future card; ties in the current
+  // gameweek are already named on the active card by thisWeekCups. Keying off
+  // the next league fixture instead would hide a tie that shares its gameweek.
+  const cupCards = $derived(cupFixtures
+    // Ties past this gameweek are future cards; a current-gameweek tie is either
+    // on the active card or badged onto it, so it is never duplicated here.
+    .filter((fixture) => fixture.gameweek > (save?.currentGameweek ?? 0))
+    .map((fixture) => ({ kind:'cup', id:`cup-${fixture.cupId}-${fixture.gameweek}`, ...fixture })));
+  const leagueCards = $derived(upcoming.slice(1, 4).map((fixture) => ({
+    kind:'league', id:fixture.id, gameweek:fixture.gameweek, fixture,
+  })));
+  const future = $derived([...leagueCards, ...cupCards].sort((a, b) => a.gameweek - b.gameweek).slice(0, 4));
+
+  // Completed cup ties only carry a gameweek from this change onward, so older
+  // careers simply keep their league-only history rather than showing it wrong.
+  const pastCups = $derived.by(() => Object.entries(save?.cups ?? {})
+    .flatMap(([cupId, state]) => (state?.results ?? [])
+      .filter((result) => Number.isFinite(Number(result?.gameweek)))
+      .map((result) => ({ cupId, result })))
+    .map(({ cupId, result }) => ({
+      kind:'cup-result',
+      id:`cup-res-${cupId}-${result.gameweek}-${result.opponentName ?? ''}`,
+      gameweek:Number(result.gameweek),
+      cupShortName:CUP_META[cupId]?.shortName ?? CUP_META[cupId]?.name ?? cupId,
+      ...describeCupResult(result, cupId),
+      score:`${Number(result.userGoals ?? 0)}—${Number(result.oppGoals ?? 0)}`,
+      opponentName:result.opponentName ?? 'Opponent',
+    })));
+  const pastCards = $derived([
+    ...past.map((fixture) => ({ kind:'league-result', id:fixture.id, gameweek:fixture.gameweek, fixture })),
+    ...pastCups,
+  ].sort((a, b) => a.gameweek - b.gameweek).slice(-4));
   const myRow = $derived(slice.find((row) => row.isUserTeam) ?? null);
   const form = $derived(myRow?.form ?? []);
+  // `slice` is only the rows around the user, so league size comes from the clubs.
+  const tableSize = $derived.by(() => {
+    const league = team?.league ?? save?.userLeague;
+    if (!league) return 20;
+    return [...byId.values()].filter((club) => (club.league ?? 'Premier League') === league).length || 20;
+  });
   const progress = $derived(save ? Math.min(100, Math.max(0, (save.currentGameweek / railGameweeks) * 100)) : 0);
   const unread = $derived((save?.inbox ?? []).filter((item) => !item.read));
   const pendingOffers = $derived((save?.inboundOffers ?? []).filter((offer) => offer.status === 'pending'));
@@ -57,11 +129,16 @@
     if (!cloudSignedIn) items.push({ id: 'cloud-save', tone: 'warn', label: 'Progress is local-only on this browser', action: startGoogleLogin });
     return items;
   });
-  const board = $derived((() => {
-    const pct = Math.max(0, Math.min(100, save?.jobSecurity ?? 65));
-    const label = pct >= 75 ? 'Secure' : pct >= 45 ? 'Under scrutiny' : pct >= 20 ? 'On notice' : 'Facing the axe';
-    return { pct, label };
-  })());
+  // Board confidence is projected from the current table position and form, not
+  // just the figure the last end-of-season review left behind.
+  const board = $derived(liveBoardConfidence(save, {
+    position:myRow?.position ?? null,
+    totalTeams:tableSize,
+    form,
+  }));
+  const objectiveNote = $derived(board.objectiveState === 'on_track' ? 'On track'
+    : board.objectiveState === 'close' ? 'Just short'
+      : board.objectiveState === 'behind' ? 'Behind target' : '');
   const morale = $derived((() => {
     const pct = Math.max(0, Math.min(100, team?.morale ?? 50));
     return pct >= 75 ? 'Excellent' : pct >= 55 ? 'High' : pct >= 40 ? 'Good' : pct >= 20 ? 'Low' : 'Very low';
@@ -210,17 +287,54 @@
       <section class="season-stage" aria-labelledby="season-title">
         <div class="section-label" id="season-title">The season · swipe to move through it</div>
         <div class="season-rail" bind:this={railEl}>
-          {#each past as fixture (fixture.id)}
-            {@const result = resultFor(fixture)}
-            <article class="rail-card result-card">
-              <span>GW{fixture.gameweek}</span><strong class={result.tone}>{result.score}</strong><small>{opponent(fixture)?.name ?? 'Opponent'}</small>
-            </article>
+          {#each pastCards as card (card.id)}
+            {#if card.kind === 'league-result'}
+              {@const result = resultFor(card.fixture)}
+              <article class="rail-card result-card">
+                <span>GW{card.gameweek}</span><strong class={result.tone}>{result.score}</strong><small>{opponent(card.fixture)?.name ?? 'Opponent'}</small>
+              </article>
+            {:else}
+              <article class="rail-card result-card is-cup">
+                <span>{card.cupShortName}</span>
+                <strong class={card.outcome === 'W' ? 'win' : card.outcome === 'D' ? 'draw' : 'loss'}>{card.score}</strong>
+                <small>{card.opponentName}</small>
+              </article>
+            {/if}
           {/each}
-          {#if next}
+          {#if activeCupTie}
+            <article class="rail-card active-card" bind:this={activeCardEl}>
+              <div class="next-meta"><span>Gameweek {activeCupTie.gameweek}</span><span>{activeCupTie.cupShortName}</span></div>
+              <strong>{activeCupTie.opponentName ?? 'To be drawn'}</strong>
+              <p>{activeCupTie.stage}{activeCupTie.userIsHome == null ? '' : activeCupTie.userIsHome ? ' · Home' : ' · Away'}</p>
+              {#if activeCardCups.length || next}
+                <div class="also-this-week">
+                  {#each activeCardCups as fixture (fixture.cupId)}
+                    <span>{fixture.cupShortName} · {fixture.opponentName ?? fixture.stage}</span>
+                  {/each}
+                  {#if next}<span>Then GW{next.gameweek} · {opponent(next)?.name ?? 'Opponent'}</span>{/if}
+                </div>
+              {/if}
+              <FormGuide form={form} />
+            </article>
+          {:else if next}
             <article class="rail-card active-card" bind:this={activeCardEl}>
               <div class="next-meta"><span>Gameweek {next.gameweek}</span><span>{fmt.dateShort(next.date)}</span></div>
               <strong>{opponent(next)?.name ?? 'Opponent'}</strong>
               <p>{isHome(next) ? team?.stadium ?? 'Home ground' : opponent(next)?.stadium ?? 'Opponent ground'} · {isHome(next) ? 'Home' : 'Away'}</p>
+              {#if activeCardCups.length}
+                <div class="also-this-week">
+                  {#each activeCardCups as fixture (fixture.cupId)}
+                    <span>{fixture.cupShortName} · {fixture.opponentName ?? fixture.stage}</span>
+                  {/each}
+                </div>
+              {/if}
+              <FormGuide form={form} />
+            </article>
+          {:else if thisWeekCups.length}
+            <article class="rail-card active-card" bind:this={activeCardEl}>
+              <div class="next-meta"><span>Gameweek {save.currentGameweek}</span><span>{thisWeekCups[0].cupShortName}</span></div>
+              <strong>{thisWeekCups[0].opponentName ?? 'To be drawn'}</strong>
+              <p>{thisWeekCups[0].stage}{thisWeekCups[0].userIsHome == null ? '' : thisWeekCups[0].userIsHome ? ' · Home' : ' · Away'}</p>
               <FormGuide form={form} />
             </article>
           {:else}
@@ -228,8 +342,12 @@
               <span>Season complete</span><strong>Full time.</strong><p>Your final position is {myRow?.displayPosition ?? myRow?.position ?? '—'}.</p>
             </article>
           {/if}
-          {#each future as fixture (fixture.id)}
-            <article class="rail-card future-card"><span>GW{fixture.gameweek}</span><strong>{opponent(fixture)?.name ?? 'Opponent'}</strong><small>{isHome(fixture) ? 'H' : 'A'} · {fmt.dateShort(fixture.date)}</small></article>
+          {#each future as card (card.id)}
+            {#if card.kind === 'league'}
+              <article class="rail-card future-card"><span>GW{card.gameweek}</span><strong>{opponent(card.fixture)?.name ?? 'Opponent'}</strong><small>{isHome(card.fixture) ? 'H' : 'A'} · {fmt.dateShort(card.fixture.date)}</small></article>
+            {:else}
+              <article class="rail-card future-card is-cup"><span>GW{card.gameweek} · {card.cupShortName}</span><strong>{card.opponentName ?? 'To be drawn'}</strong><small>{card.stage}</small></article>
+            {/if}
           {/each}
         </div>
         <div class="season-progress"><div class="track"><span style:width={`${progress}%`}></span><i style:left={`${progress}%`}></i></div><span>{Math.min(save.currentGameweek, railGameweeks)} / {railGameweeks}</span></div>
@@ -249,7 +367,7 @@
         <div><span>Form</span><FormGuide form={form} size="sm" /></div><div><span>Morale</span><strong>{morale}</strong></div><div><span>Board</span><strong>{board.label}</strong></div><div><span>Squad</span><strong>{squadSize} players</strong></div>
       </section>
       {#if save?.boardObjective}
-        <button class="objective" onclick={() => navigateTo('competitions')}><span>Board objective</span><strong>{save.boardObjective.label}</strong><i><b style:width={`${board.pct}%`}></b></i></button>
+        <button class="objective" onclick={() => navigateTo('competitions')}><span>Board objective</span><strong>{save.boardObjective.label}</strong>{#if objectiveNote}<em class="objective-note {board.objectiveState}">{objectiveNote}</em>{/if}<i><b style:width={`${board.pct}%`}></b></i></button>
       {/if}
     </main>
 
@@ -304,6 +422,10 @@
   .active-card.complete > span { color: var(--color-accent); }
   .future-card { justify-content: center; }
   .future-card strong { font-size: 12px; }
+  .rail-card.is-cup { border-left-color: color-mix(in oklch, var(--color-club) 60%, var(--color-line)); }
+  .rail-card.is-cup > span { color: color-mix(in oklch, var(--color-club) 70%, var(--color-tx-3)); }
+  .also-this-week { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+  .also-this-week span { padding: 3px 7px; color: var(--color-tx-2); background: color-mix(in oklch, var(--color-tx) 7%, transparent); border-radius: 999px; font: 600 9px/1.2 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; }
   .season-progress { display: flex; align-items: center; gap: 10px; padding: 15px 20px 0; color: var(--color-tx-3); font: 600 10px/1 var(--font-mono); }
   .track { position: relative; flex: 1; height: 2px; background: var(--color-line); }
   .track span { display: block; height: 100%; background: var(--color-club); }
@@ -316,8 +438,13 @@
   .pulse-grid span, .objective span { color: var(--color-tx-3); font: 600 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
   .pulse-grid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
   .objective { width: calc(100% - 40px); display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; margin: 12px 20px 0; padding: 13px; text-align: left; color: var(--color-tx); background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); cursor: pointer; }
-  .objective strong { font-size: 12px; }
-  .objective i { grid-column: 1 / -1; height: 3px; overflow: hidden; background: var(--color-raised); border-radius: 2px; }
+  .objective span { grid-area: 1 / 1; }
+  .objective strong { grid-area: 2 / 1 / 3 / -1; font-size: 12px; }
+  .objective-note { grid-area: 1 / 2; justify-self: end; align-self: center; font: 600 9px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; font-style: normal; }
+  .objective-note.on_track { color: var(--color-live); }
+  .objective-note.close { color: var(--color-warn); }
+  .objective-note.behind { color: var(--color-bad); }
+  .objective i { grid-area: 3 / 1 / 4 / -1; height: 3px; overflow: hidden; background: var(--color-raised); border-radius: 2px; }
   .objective b { display: block; height: 100%; background: var(--color-club); }
   .waiting-sheet { width: min(100% - 24px, 1016px); margin: auto auto 0; padding: 12px 16px calc(92px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, var(--color-raised), var(--color-surface)); border: 1px solid var(--color-line); border-bottom: 0; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: 0 -18px 48px rgba(0,0,0,.24); }
   .grabber { width: 38px; height: 4px; margin: 0 auto 14px; background: color-mix(in oklch, var(--color-tx) 22%, transparent); border-radius: 3px; }
