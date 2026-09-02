@@ -41,7 +41,7 @@ import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
 import { withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
-import { MANAGER_MODEL_VERSION, buildManagersBackfill, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
+import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -285,6 +285,7 @@ export async function startNewGame(userTeamId, managerName) {
     managerName:     managerName || 'The Manager',
     managerModelVersion: MANAGER_MODEL_VERSION,
     userManagerId:   userManager.id,
+    managerMarket:   createEmptyManagerMarket(),
     currentDate,
     season,
     currentGameweek: 1,

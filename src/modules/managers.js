@@ -176,7 +176,12 @@ export function buildManagersBackfill(save, teams = []) {
     .filter(team => team.managerId !== managerIdByClub.get(team.id))
     .map(team => ({ ...team, managerId:managerIdByClub.get(team.id) ?? null }));
   return {
-    save:{ ...save, managerModelVersion:MANAGER_MODEL_VERSION, userManagerId:USER_MANAGER_ID },
+    save:{
+      ...save,
+      managerModelVersion:MANAGER_MODEL_VERSION,
+      userManagerId:USER_MANAGER_ID,
+      managerMarket:save.managerMarket ?? createEmptyManagerMarket(),
+    },
     managers,
     teamPatches,
   };
@@ -184,4 +189,35 @@ export function buildManagersBackfill(save, teams = []) {
 
 export function currentClub(manager) {
   return manager?.status === 'employed' ? manager.currentClubId : null;
+}
+
+/**
+ * A caretaker is a normal manager entity — WP2's dismissal transition hands
+ * the club to one immediately so no club is ever left without an active
+ * manager. WP3/WP4 later replace the caretaker through the real appointment
+ * flow; `caretakerEligible` marks it as a natural pick to keep the job. The ID
+ * is derived from club + review checkpoint week (unique in practice, since a
+ * club can only be dismissed once per checkpoint) rather than a module-level
+ * counter, so this stays a pure function of its inputs.
+ */
+export function createCaretakerManager(team, { weekKey, currentDate = null } = {}) {
+  const safeWeekKey = String(weekKey ?? 'unknown').replace(/[^a-zA-Z0-9]/g, '_');
+  const identity = generateManagerIdentity(`${team.id}:caretaker:${weekKey}`, team.league);
+  const rep = Number(team.reputation ?? 65);
+  return createManager({
+    id:`mgr_caretaker_${team.id}_${safeWeekKey}`,
+    name:identity.name,
+    nationality:identity.nationality,
+    isUser:false,
+    currentClubId:team.id,
+    status:'employed',
+    startDate:currentDate,
+    reputation:createManagerReputation({ overall:Math.max(30, Math.min(70, Math.round(rep * 0.55))), youth:45, tactical:45, financial:45 }),
+    caretakerEligible:true,
+    retirementAge:60,
+  });
+}
+
+export function createEmptyManagerMarket() {
+  return { version:1, vacancies:[], reviewedCheckpoints:[], processedWeekKeys:[] };
 }

@@ -146,4 +146,16 @@ describe('managers backfill', () => {
     expect(result.save.managerModelVersion).toBe(MANAGER_MODEL_VERSION);
     expect(result.save.userManagerId).toBe(USER_MANAGER_ID);
   });
+
+  it('creates an empty managerMarket for an existing save that never had one', () => {
+    const result = buildManagersBackfill(save, teams);
+    expect(result.save.managerMarket).toMatchObject({ vacancies:[], reviewedCheckpoints:[], processedWeekKeys:[] });
+  });
+
+  it('preserves an existing managerMarket rather than overwriting it', () => {
+    const withMarket = { ...save, managerMarket:{ version:1, vacancies:[{ id:'vac_1' }], reviewedCheckpoints:['2025/26:10'], processedWeekKeys:['2025/26:10'] } };
+    const result = buildManagersBackfill(withMarket, teams);
+    expect(result.save.managerMarket.vacancies).toHaveLength(1);
+    expect(result.save.managerMarket.reviewedCheckpoints).toEqual(['2025/26:10']);
+  });
 });
