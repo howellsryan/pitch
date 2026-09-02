@@ -10,12 +10,10 @@ import {
   shouldResign,
   shouldRetire,
 } from './managerCareer.js';
-import { assembleCandidates, completeHandover, extendOffer, isVacancyOpen, resolveOffer } from './managerAppointments.js';
-import { createCaretakerManager, createEmptyManagerMarket } from './managers.js';
+import { applyHireOutcome, assembleCandidates, completeHandover, extendOffer, isVacancyOpen, resolveOffer } from './managerAppointments.js';
+import { MAX_RECENT_MANAGER_APPOINTMENTS, createCaretakerManager, createEmptyManagerMarket } from './managers.js';
 
 /** modules/p6Runtime.js — bounded persistence/runtime facade for P6 WP2-WP4. */
-
-const MAX_RECENT_APPOINTMENTS = 40;
 
 function groupBy(items, keyFn) {
   const groups = new Map();
@@ -84,34 +82,18 @@ function resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey,
       wasCaretaker, weekKey:completedVacancy.resolvedWeekKey, reason:vacancy.reason,
     });
 
-    const hiredManager = workingById.get(hiredManagerId);
-    if (wasCaretaker) {
-      // Confirm the caretaker permanently — same club, same tenure, just no
-      // longer interim. team.managerId already points at them (set below,
-      // the moment the checkpoint loop created this caretaker).
-      workingById.set(hiredManagerId, {
-        ...hiredManager,
-        availability:{ ...hiredManager.availability, caretakerEligible:false },
-      });
-    } else {
-      // An external unemployed manager takes over; the caretaker returns to the unemployed pool.
-      workingById.set(hiredManagerId, {
-        ...hiredManager,
-        status:'employed',
-        currentClubId:team.id,
-        employment:{ clubId:team.id, startDate:currentDate, contractEndSeason:null },
-        history:[...(hiredManager.history ?? []), { clubId:team.id, startedWeekKey:weekKey, endedWeekKey:null, endReason:null }],
-      });
-      const caretaker = workingById.get(vacancy.caretakerManagerId);
-      if (caretaker) {
-        workingById.set(caretaker.id, {
-          ...caretaker,
-          status:'unemployed',
-          currentClubId:null,
-          employment:{ clubId:null, startDate:null, contractEndSeason:null },
-          availability:{ ...caretaker.availability, caretakerEligible:false },
-        });
-      }
+    const { hiredManagerPatch, displacedCaretakerPatch } = applyHireOutcome({
+      vacancy:completedVacancy, hiredManagerId,
+      hiredManager:workingById.get(hiredManagerId),
+      caretakerManager:workingById.get(vacancy.caretakerManagerId),
+      currentDate,
+    });
+    workingById.set(hiredManagerId, hiredManagerPatch);
+    if (!wasCaretaker) {
+      // team.managerId only needs patching for an external hire — a
+      // confirmed caretaker already has it pointed at them since the
+      // checkpoint loop that created them.
+      if (displacedCaretakerPatch) workingById.set(displacedCaretakerPatch.id, displacedCaretakerPatch);
       workingTeamsById.set(team.id, { ...team, managerId:hiredManagerId });
     }
     // A completed vacancy is a live-queue exit, not itself history to retain —
@@ -197,7 +179,7 @@ export async function advanceP6ManagerCareerWeek(saveInput = null) {
   const resolution = resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, save.currentDate);
   vacancies = resolution.nextVacancies;
   const recentAppointments = resolution.completedAppointments.length
-    ? [...(market.recentAppointments ?? []), ...resolution.completedAppointments].slice(-MAX_RECENT_APPOINTMENTS)
+    ? [...(market.recentAppointments ?? []), ...resolution.completedAppointments].slice(-MAX_RECENT_MANAGER_APPOINTMENTS)
     : (market.recentAppointments ?? []);
 
   const changedTeams = [...workingTeamsById.values()].filter(team => originalTeamsById.get(team.id) !== team);

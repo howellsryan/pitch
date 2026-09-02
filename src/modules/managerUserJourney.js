@@ -12,7 +12,7 @@
  * land in WP7 once WP6's handover exists to complete the loop.
  */
 
-import { assembleCandidates, extendOffer, isVacancyAvailableForNewCandidate, resolveOffer, scoreCandidateFit } from './managerAppointments.js';
+import { assembleCandidates, completeHandover, extendOffer, isVacancyAvailableForNewCandidate, resolveOffer, scoreCandidateFit } from './managerAppointments.js';
 import { dismissAndCaretake } from './managerCareer.js';
 import { createCaretakerManager } from './managers.js';
 
@@ -122,7 +122,11 @@ function assertOfferBelongsToCandidate(vacancy, candidateManagerId) {
 export function acceptUserOffer(vacancy, userManagerId, { weekKey } = {}) {
   assertOfferBelongsToCandidate(vacancy, userManagerId);
   const offered = extendOffer(vacancy, userManagerId, { weekKey });
-  const accepted = resolveOffer(offered, 'accepted', { weekKey });
+  const resolved = resolveOffer(offered, 'accepted', { weekKey });
+  // resolveOffer only flips status to 'completed'; managerClubHandover.js's
+  // transferClubControl requires hiredManagerId to actually be set, which is
+  // completeHandover's job (same as the AI path in p6Runtime.js).
+  const accepted = completeHandover(resolved, { hiredManagerId:userManagerId, weekKey });
   return {
     vacancy:accepted,
     pendingUserHandover:{ clubId:accepted.clubId, vacancyId:accepted.id, weekKey },

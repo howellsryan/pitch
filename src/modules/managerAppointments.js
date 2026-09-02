@@ -109,3 +109,42 @@ export function isVacancyOpen(vacancy) {
 export function isVacancyAvailableForNewCandidate(vacancy) {
   return vacancy?.status === 'caretaker' || vacancy?.status === 'candidates_assembled';
 }
+
+/**
+ * The manager-entity side effects of a completed hire, shared by WP4's AI
+ * resolution (p6Runtime.js) and WP6's user handover (managerClubHandover.js)
+ * so both apply the exact same rule rather than two hand-rolled copies:
+ *
+ *  - hiring the vacancy's own caretaker confirms them permanently (same
+ *    club, same tenure, just no longer interim);
+ *  - hiring anyone else moves that manager to the club and returns the
+ *    caretaker to the unemployed pool.
+ *
+ * Pure: takes the three manager rows involved and returns the patches,
+ * without touching a store or a `workingById` map itself.
+ */
+export function applyHireOutcome({ vacancy, hiredManagerId, hiredManager, caretakerManager, currentDate }) {
+  const wasCaretaker = hiredManagerId === vacancy.caretakerManagerId;
+  if (wasCaretaker) {
+    return {
+      hiredManagerPatch:{ ...hiredManager, availability:{ ...hiredManager.availability, caretakerEligible:false } },
+      displacedCaretakerPatch:null,
+    };
+  }
+  return {
+    hiredManagerPatch:{
+      ...hiredManager,
+      status:'employed',
+      currentClubId:vacancy.clubId,
+      employment:{ clubId:vacancy.clubId, startDate:currentDate, contractEndSeason:null },
+      history:[...(hiredManager.history ?? []), { clubId:vacancy.clubId, startedWeekKey:vacancy.resolvedWeekKey ?? null, endedWeekKey:null, endReason:null }],
+    },
+    displacedCaretakerPatch:caretakerManager ? {
+      ...caretakerManager,
+      status:'unemployed',
+      currentClubId:null,
+      employment:{ clubId:null, startDate:null, contractEndSeason:null },
+      availability:{ ...caretakerManager.availability, caretakerEligible:false },
+    } : null,
+  };
+}

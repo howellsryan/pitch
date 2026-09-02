@@ -121,9 +121,12 @@ describe('applyToVacancy', () => {
 describe('accept/decline user offer', () => {
   const vacancy = { id:'vac_weak', clubId:'weak', status:'caretaker' };
 
-  it('accepting resolves the vacancy to completed and records a pending handover', () => {
+  it('accepting resolves the vacancy to completed with hiredManagerId set, and records a pending handover', () => {
     const { vacancy:resolved, pendingUserHandover } = acceptUserOffer(vacancy, 'mgr_user', { weekKey:'2025/26:10' });
     expect(resolved.status).toBe('completed');
+    // managerClubHandover.js's transferClubControl requires this to actually
+    // be set — a regression here silently makes every user job offer unusable.
+    expect(resolved.hiredManagerId).toBe('mgr_user');
     expect(pendingUserHandover).toEqual({ clubId:'weak', vacancyId:'vac_weak', weekKey:'2025/26:10' });
   });
 

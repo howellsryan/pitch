@@ -225,6 +225,11 @@ export function createCaretakerManager(team, { weekKey, currentDate = null } = {
   });
 }
 
+// Shared by p6Runtime.js (AI hires) and managerClubHandover.js (the user's
+// own hire) so managerMarket.recentAppointments has one cap, not two
+// independently-tuned constants.
+export const MAX_RECENT_MANAGER_APPOINTMENTS = 40;
+
 export function createEmptyManagerMarket() {
   return { version:1, vacancies:[], reviewedCheckpoints:[], processedWeekKeys:[], recentAppointments:[] };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyHireOutcome,
   assembleCandidates,
   completeHandover,
   extendOffer,
@@ -124,6 +125,32 @@ describe('completeHandover', () => {
     const second = completeHandover(first, { hiredManagerId:'someone_else', weekKey:'2025/26:20' });
     expect(second).toBe(first);
     expect(second.hiredManagerId).toBe('good');
+  });
+});
+
+describe('applyHireOutcome', () => {
+  const vacancy = { id:'vac_a', clubId:'club_a', status:'completed', caretakerManagerId:'mgr_caretaker', resolvedWeekKey:'2025/26:10' };
+
+  it('confirms the caretaker permanently without touching employment/history when they are the hire', () => {
+    const caretaker = createManager({ id:'mgr_caretaker', currentClubId:'club_a', caretakerEligible:true });
+    const { hiredManagerPatch, displacedCaretakerPatch } = applyHireOutcome({
+      vacancy, hiredManagerId:'mgr_caretaker', hiredManager:caretaker, caretakerManager:caretaker, currentDate:'2025-11-01T00:00:00.000Z',
+    });
+    expect(hiredManagerPatch.availability.caretakerEligible).toBe(false);
+    expect(hiredManagerPatch.currentClubId).toBe('club_a');
+    expect(displacedCaretakerPatch).toBeNull();
+  });
+
+  it('moves an external hire to the club and displaces the caretaker back to unemployed', () => {
+    const external = createManager({ id:'mgr_free_agent', status:'unemployed', currentClubId:null });
+    const caretaker = createManager({ id:'mgr_caretaker', currentClubId:'club_a', caretakerEligible:true });
+    const { hiredManagerPatch, displacedCaretakerPatch } = applyHireOutcome({
+      vacancy, hiredManagerId:'mgr_free_agent', hiredManager:external, caretakerManager:caretaker, currentDate:'2025-11-01T00:00:00.000Z',
+    });
+    expect(hiredManagerPatch).toMatchObject({ status:'employed', currentClubId:'club_a' });
+    expect(hiredManagerPatch.history.at(-1)).toMatchObject({ clubId:'club_a', startedWeekKey:'2025/26:10' });
+    expect(displacedCaretakerPatch).toMatchObject({ status:'unemployed', currentClubId:null });
+    expect(displacedCaretakerPatch.availability.caretakerEligible).toBe(false);
   });
 });
 
