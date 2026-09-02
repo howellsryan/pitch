@@ -340,9 +340,34 @@ export function observedPlayerProfile(player, stateInput, context = {}) {
   const state = normalizeScoutingState(stateInput, { defaultKnowledge:context.defaultKnowledge ?? .42 });
   const stored = latestScoutingReport(state, player?.id);
   const report = scoutingReportIsCurrent(stored, context.season) ? stored : null;
-  // A completed dedicated scout is exact for the rest of its season: it neither
-  // goes stale nor widens, and the season gate above retires it after that.
-  if (report?.exact) return report;
+  // The stored report is an immutable observation, but a completed dedicated
+  // scout grants exact knowledge for the rest of that season. Reproject that
+  // entitlement from the latest canonical row so development, form-adjusted
+  // valuation, wages and status cannot drift away from an "exact" UI. Keep the
+  // original observation metadata so the saved report remains auditable.
+  if (report?.exact) {
+    const refreshedGameweek = Number(context.gameweek ?? report.observedGameweek ?? 0);
+    const refreshed = buildExactScoutingReport(player, {
+      ...context,
+      source:report.source,
+      season:context.season ?? report.observedSeason,
+      gameweek:refreshedGameweek,
+      // Callers that own a live valuation policy (the transfer market does)
+      // supply it here. Other projections retain the exact observed fee rather
+      // than silently falling back to a raw base value on a different basis.
+      valueFor:context.valueFor ?? (() => report.financial?.feeMin ?? player?.value ?? 0),
+    });
+    return {
+      ...report,
+      current:refreshed.current,
+      tactical:refreshed.tactical,
+      future:refreshed.future,
+      financial:refreshed.financial,
+      status:refreshed.status,
+      refreshedWeekKey:refreshed.observedWeekKey,
+      refreshedGameweek,
+    };
+  }
   if (report) {
     const currentGameweek = Number(context.gameweek ?? report.observedGameweek ?? 0);
     const ageWeeks = Math.max(0, currentGameweek - Number(report.observedGameweek ?? currentGameweek));

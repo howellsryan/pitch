@@ -259,11 +259,10 @@
     }
   }
 
-  // The offer controls stay on the scouted estimate. Pricing them off the
-  // canonical row would hand every player's true valuation to the manager and
-  // make the dedicated scout pointless — the fog is the feature. The engine's
-  // real floor tracks live form, so a scouted offer can still be rejected; the
-  // hint below says so rather than promising acceptance.
+  // Offer controls stay on the manager's current knowledge. Public and partial
+  // reports remain estimates; a current-season exact report is deliberately
+  // reprojected from the canonical row, so its visible floor stays aligned with
+  // the transfer engine as development and form change.
   const detailScoutedFv = $derived(scoutedValue(detailFresh));
   const detailFv = $derived(detailScoutedFv);
   const detailMinOffer = $derived(Math.floor(detailFv * 0.88));
@@ -863,11 +862,11 @@
 
     <div class="det-scout">
       {#if detailScoutState.state === 'complete'}
-        <div class="det-scout-copy"><strong>Fully scouted</strong><small>Exact ability, potential and valuation until the end of {save?.season ?? 'this season'}.</small></div>
+        <div class="det-scout-copy"><strong>Fully scouted</strong><small>Exact current ability, potential and valuation until the end of {save?.season ?? 'this season'}. Values refresh as the player changes.</small></div>
       {:else if detailScoutState.state === 'pending'}
         <div class="det-scout-copy"><strong>Scout on assignment</strong><small>The full report lands after the next completed gameweek.</small></div>
       {:else}
-        <div class="det-scout-copy"><strong>Everything here is an estimate</strong><small>Send a scout for one gameweek to see this player exactly, for the rest of the season.</small></div>
+        <div class="det-scout-copy"><strong>Everything here is an estimate</strong><small>Send a scout for one gameweek to unlock an exact live view for the rest of the season.</small></div>
         <button class="sell-btn det-scout-btn" disabled={scoutBusy} onclick={scoutDetailPlayer}>{scoutBusy ? 'Sending…' : 'Send scout'}</button>
       {/if}
     </div>
@@ -881,8 +880,8 @@
     </div>
 
     <div class="det-facts">
-      <div class="fact"><span>Estimated Value</span><strong>~{fmt.money(detailScoutedFv)}</strong>{#if report?.exact}<small>as scouted, GW{report.observedGameweek}</small>{:else if report}<small>{fmt.money(report.financial.feeMin)}–{fmt.money(report.financial.feeMax)}</small>{/if}</div>
-      <div class="fact"><span>Estimated Wage</span><strong>~{fmt.wage(p.wage)}</strong>{#if report?.exact}<small>as scouted, GW{report.observedGameweek}</small>{:else if report}<small>{fmt.wage(report.financial.wageMin)}–{fmt.wage(report.financial.wageMax)}</small>{/if}</div>
+      <div class="fact"><span>{report?.exact ? 'Current Value' : 'Estimated Value'}</span><strong>{report?.exact ? fmt.money(detailScoutedFv) : `~${fmt.money(detailScoutedFv)}`}</strong>{#if report?.exact}<small>live exact view · GW{report.refreshedGameweek ?? report.observedGameweek}</small>{:else if report}<small>{fmt.money(report.financial.feeMin)}–{fmt.money(report.financial.feeMax)}</small>{/if}</div>
+      <div class="fact"><span>{report?.exact ? 'Current Wage' : 'Estimated Wage'}</span><strong>{report?.exact ? fmt.wage(p.wage) : `~${fmt.wage(p.wage)}`}</strong>{#if report?.exact}<small>live exact view · GW{report.refreshedGameweek ?? report.observedGameweek}</small>{:else if report}<small>{fmt.wage(report.financial.wageMin)}–{fmt.wage(report.financial.wageMax)}</small>{/if}</div>
     </div>
 
     <div class="det-attrs">

@@ -107,6 +107,51 @@ describe('dedicated full scout', () => {
     expect(view.wage).toBe(player.wage);
   });
 
+  it('reprojects a current-season exact entitlement from the live player row', () => {
+    const player = target();
+    let state = createScoutingState();
+    state = createScoutingAssignment(state, { type:'player', mode:'full', playerId:'target' }, { season:'2025/26', gameweek:4 });
+    const settled = advanceScoutingState(state, weekContext('2025/26', 5, [player])).state;
+    const stored = latestScoutingReport(settled, 'target');
+
+    const developed = target({
+      attack:81,
+      potentialRating:91,
+      value:47_000_000,
+      wage:96_000,
+      form:84,
+    });
+    const current = observedPlayerProfile(developed, settled, {
+      season:'2025/26', gameweek:9, teamsById, userTeam, valueFor:formAdjustedValue,
+    });
+
+    // The persisted report remains the GW5 observation, while the season-long
+    // exact entitlement is projected from the latest canonical player row.
+    expect(stored.observedGameweek).toBe(5);
+    expect(stored).not.toHaveProperty('refreshedGameweek');
+    expect(stored.current.min).not.toBe(Math.round(Number(durableLevel(developed))));
+    expect(current.observedGameweek).toBe(5);
+    expect(current.refreshedGameweek).toBe(9);
+    expect(current.current).toMatchObject({
+      min:Math.round(Number(durableLevel(developed))),
+      max:Math.round(Number(durableLevel(developed))),
+    });
+    expect(current.future).toMatchObject({ min:91, max:91 });
+    expect(current.financial).toMatchObject({
+      feeMin:formAdjustedValue(developed),
+      feeMax:formAdjustedValue(developed),
+      wageMin:developed.wage,
+      wageMax:developed.wage,
+    });
+
+    const view = projectScoutedPlayerView(developed, settled, {
+      season:'2025/26', gameweek:9, teamsById, userTeam, valueFor:formAdjustedValue,
+    });
+    expect(view.attack).toBe(Math.round(Number(durableLevel(developed))));
+    expect(view.value).toBe(formAdjustedValue(developed));
+    expect(Math.floor(view.value * .88)).toBe(minimumOffer(developed));
+  });
+
   it('expires the report when the season rolls over', () => {
     const player = target();
     let state = createScoutingState();
