@@ -1,4 +1,5 @@
 import { getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
+import { applyLedgerMovement } from './clubFinance.js';
 import { buildSquadNeeds } from './squadPlanning.js';
 import { formAdjustedValue } from './transfers.js';
 import {
@@ -117,8 +118,7 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
     let team = coachingNeedsBackfill(rawTeam) ? withDefaultCoaching(rawTeam) : rawTeam;
     if (team.coachingPaidWeekKey !== weekKey) {
       team = {
-        ...team,
-        budget:(Number(team.budget) || 0) - coachingWeeklyCost(team),
+        ...applyLedgerMovement(team, { category:'coaching_costs', amount:-coachingWeeklyCost(team), description:'Weekly coaching costs', weekKey }),
         coachingPaidWeekKey:weekKey,
       };
     }
@@ -225,8 +225,7 @@ export async function hireManagedCoach(department, coachId) {
   if (!candidate) throw new Error('COACH_NOT_FOUND');
   if ((Number(team.budget) || 0) < candidate.signingCost) throw new Error('INSUFFICIENT_FUNDS');
   const updatedTeam = withDefaultCoaching({
-    ...team,
-    budget:(Number(team.budget) || 0) - candidate.signingCost,
+    ...applyLedgerMovement(team, { category:'coaching_costs', amount:-candidate.signingCost, description:`Hired ${candidate.name ?? 'coach'} (${department})` }),
     coaching:{ ...(team.coaching ?? {}), [department]:candidate },
   });
   await putTeam(updatedTeam);

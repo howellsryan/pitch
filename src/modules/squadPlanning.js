@@ -2,6 +2,7 @@ import { currentEffectiveLevel, playerPositionGroup } from './playerModel.js';
 import { aiRecruitmentObservation } from './scouting.js';
 import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
 import { clubPhilosophyTraitValue } from './clubPhilosophy.js';
+import { availableFunds } from './clubFinance.js';
 
 /**
  * Shared P4/P5 squad-needs service.
@@ -31,11 +32,9 @@ export function squadPlanningGroup(playerOrPosition) {
   const position = typeof playerOrPosition === 'string' ? playerOrPosition : playerOrPosition?.position;
   return playerPositionGroup(position);
 }
+/** Thin alias kept for callers already using this name — delegates to clubFinance.js's shared selector, the one place spending power is computed. */
 export function transferAvailableBudget(team, transferMarket = null, ignoreDealId = null) {
-  const committed = (transferMarket?.reservedCommitments ?? [])
-    .filter(item => item?.clubId === team?.id && item?.dealId !== ignoreDealId)
-    .reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0), 0);
-  return Math.max(0, (Number(team?.budget) || 0) - committed);
+  return availableFunds(team, transferMarket, ignoreDealId);
 }
 function squadPlanningAverage(values, fallback = 50) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback;

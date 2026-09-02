@@ -1,5 +1,6 @@
 import { getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
 import { normalizePlayerModel } from './playerModel.js';
+import { applyLedgerMovement } from './clubFinance.js';
 
 /** modules/youthAcademy.js -- Youth cohort intake, development, promotion/release */
 export const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RM','LM','ST','ST','CF','RW','LW'];
@@ -110,7 +111,7 @@ export async function investInAcademy(amount) {
   const cost = points * ACADEMY_INVESTMENT_COST_PER_POINT;
 
   const newInvestment = Math.min(100, (team.academyInvestment ?? 0) + points);
-  await putTeamsBulk([{ ...team, budget: team.budget - cost, academyInvestment: newInvestment }]);
+  await putTeamsBulk([{ ...applyLedgerMovement(team, { category:'academy_investment', amount:-cost, description:`Academy investment (+${points} pts)` }), academyInvestment: newInvestment }]);
   return { success: true, pointsGained: points, cost, newInvestment };
 }
 

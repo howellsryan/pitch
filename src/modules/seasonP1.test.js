@@ -16,7 +16,7 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('const billByTeam = new Map()');
     expect(source).toContain('if (!player.teamId || player.onLoan) continue');
     expect(source).toContain("billByTeam.set(player.teamId, (billByTeam.get(player.teamId) ?? 0) + (player.wage ?? 0))");
-    expect(source).toContain("budget:(team.budget ?? 0) - bill");
+    expect(source).toContain("applyLedgerMovement(team, { category:'wages', amount:-bill, description:'Weekly wages' })");
   });
 
   it('returns loans to their parent club and clears every loan marker before aging', () => {

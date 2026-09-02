@@ -43,6 +43,7 @@ import { withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
 import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
 import { CLUB_PHILOSOPHY_VERSION, buildClubPhilosophyBackfill, clubPhilosophiesNeedBackfill, generateClubPhilosophy } from './clubPhilosophy.js';
+import { CLUB_FINANCE_VERSION, buildClubFinanceBackfill, createClubFinance, financeNeedsBackfill } from './clubFinance.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -231,6 +232,15 @@ export async function ensureP7ClubPhilosophy(save) {
   return migration.save;
 }
 
+export async function ensureP7ClubFinance(save) {
+  if (!save || !financeNeedsBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildClubFinanceBackfill(save, teams);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -243,6 +253,7 @@ export async function initApp() {
     save = await ensureP5CareerDepth(save);
     save = await ensureP6Managers(save);
     save = await ensureP7ClubPhilosophy(save);
+    save = await ensureP7ClubFinance(save);
   }
   return save ?? null;
 }
@@ -283,13 +294,17 @@ export async function startNewGame(userTeamId, managerName) {
     .map(team => generateAIManagerForClub(team, { currentDate, seasonStartYear:seasonYear }));
   const managerIdByClub = new Map([[userTeamId, userManager.id], ...aiManagers.map(m => [m.currentClubId, m.id])]);
 
-  const teams = allTeamData.map(({ players: _, ...rest }) => withDefaultCoaching({
-    ...rest,
-    budget: startingBudget(rest.reputation ?? 70),
-    academyInvestment: 0,
-    managerId: managerIdByClub.get(rest.id) ?? null,
-    philosophy: generateClubPhilosophy(rest, rest.league ?? userLeague),
-  }));
+  const teams = allTeamData.map(({ players: _, ...rest }) => {
+    const budget = startingBudget(rest.reputation ?? 70);
+    return withDefaultCoaching({
+      ...rest,
+      budget,
+      academyInvestment: 0,
+      managerId: managerIdByClub.get(rest.id) ?? null,
+      philosophy: generateClubPhilosophy(rest, rest.league ?? userLeague),
+      finance: createClubFinance(budget),
+    });
+  });
 
   const save = {
     userTeamId,
@@ -297,6 +312,7 @@ export async function startNewGame(userTeamId, managerName) {
     managerName:     managerName || 'The Manager',
     managerModelVersion: MANAGER_MODEL_VERSION,
     clubPhilosophyVersion: CLUB_PHILOSOPHY_VERSION,
+    clubFinanceVersion: CLUB_FINANCE_VERSION,
     userManagerId:   userManager.id,
     managerMarket:   createEmptyManagerMarket(),
     currentDate,

@@ -121,6 +121,16 @@ SUPERSEDED_LEGACY_CHECKS = {
     'REG: ST primary boost is attack',
     'REG: CB primary boost is defence',
     'REG: GK primary boost is goalkeeping',
+
+    # P7 WP2 routes every budget-mutating write through clubFinance.js's
+    # applyLedgerMovement/syncLedgerCash instead of hand-rolled
+    # `budget: team.budget +/- x` arithmetic, so team.budget can never drift
+    # from the new finance.cash ledger. These three legacy checks match the
+    # literal retired expressions; transfersLoanFinance.test.js exercises
+    # loanOutPlayer/loanInPlayer's real financial outcomes directly.
+    'LOAN: loan club deducted total cost',
+    'LOAN: parent club receives loan fee',
+    'LOAN: user loan-out gives full wage relief',
 }
 
 P0_TEST_FILES = [
@@ -141,6 +151,8 @@ P0_TEST_FILES = [
     'src/modules/playerPathways.test.js',
     'src/modules/playerDevelopment.test.js',
     'src/modules/playerRehabilitation.test.js',
+    # P7 WP2 replacement for the retired loan-financials source-shape checks.
+    'src/modules/transfersLoanFinance.test.js',
 ]
 
 

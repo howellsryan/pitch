@@ -35,6 +35,10 @@ for df in _data_files:
 # P6 managers depends on tactics (Manager DNA) and youthAcademy (name pools), so
 # it loads after both and before save.js, which builds/backfills manager entities.
 MODULES += [
+    # clubFinance.js is fully standalone (no imports of its own) and db.js's
+    # settleTransferMarketDealAtomic calls its applyLedgerMovement, so it
+    # must load before db.js.
+    ('modules/clubFinance.js',      'CLUB FINANCE'),
     ('modules/db.js',               'DATABASE'),
     ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
     ('modules/training.js',         'TRAINING'),

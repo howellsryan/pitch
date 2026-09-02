@@ -3,6 +3,7 @@ import { baselineLevel, currentEffectiveLevel } from './playerModel.js';
 import { patchSave } from './save.js';
 import { bumpMorale } from './standings.js';
 import { buildSquadNeeds, rankRecruitmentCandidates, rankStandoutRecruitmentCandidates, selectAIRecruitmentTarget } from './squadPlanning.js';
+import { applyLedgerMovement, syncLedgerCash } from './clubFinance.js';
 import {
   MAX_ACTIVE_MARKET_DEALS,
   advanceMarketDeal,
@@ -306,8 +307,8 @@ export async function buyPlayer(playerId, offerAmount) {
   if (offerAmount < threshold) throw new Error('OFFER_REJECTED');
   if (offerAmount < formAdjustedValue(player) && Math.random() < 0.10) throw new Error('OFFER_REJECTED');
 
-  await putTeam({ ...userTeam, budget: userTeam.budget - offerAmount });
-  if (fromTeam) await putTeam({ ...fromTeam, budget: fromTeam.budget + offerAmount });
+  await putTeam(applyLedgerMovement(userTeam, { category:'transfer_fee_out', amount:-offerAmount, description:`Signed ${player.name}` }));
+  if (fromTeam) await putTeam(applyLedgerMovement(fromTeam, { category:'transfer_fee_in', amount:offerAmount, description:`Sold ${player.name}` }));
   const updated = { ...player, teamId: save.userTeamId, signedThisSeason: true, contractExpiry: _freshContractExpiry(save) };
   await putPlayer(updated);
   await addTransfer({ playerId, playerName: player.name, fromTeamId, toTeamId: save.userTeamId, fee: offerAmount, type: 'buy', date: save.currentDate });
@@ -365,8 +366,8 @@ export async function sellPlayer(playerId) {
   if (!buyerTeam) throw new Error('NO_BUYERS');
 
   const userTeam = await getTeam(save.userTeamId);
-  await putTeam({ ...buyerTeam, budget: buyerTeam.budget - fee });
-  await putTeam({ ...userTeam,  budget: userTeam.budget  + fee });
+  await putTeam(applyLedgerMovement(buyerTeam, { category:'transfer_fee_out', amount:-fee, description:`Signed ${player.name}` }));
+  await putTeam(applyLedgerMovement(userTeam, { category:'transfer_fee_in', amount:fee, description:`Sold ${player.name}` }));
   await putPlayer({ ...player, teamId: buyerTeam.id, signedThisSeason: true, contractExpiry: _freshContractExpiry(save) });
   await addTransfer({ playerId, playerName: player.name, fromTeamId: save.userTeamId, toTeamId: buyerTeam.id, fee, type: 'sell', date: save.currentDate });
   return { success: true, fee, buyerName: buyerTeam.name };
@@ -426,8 +427,8 @@ export async function acceptOffer(playerId) {
   const userTeam  = await getTeam(save.userTeamId);
   if (!buyerTeam || buyerTeam.budget < offer.fee) throw new Error('BUYER_CANT_AFFORD');
 
-  await putTeam({ ...buyerTeam, budget: buyerTeam.budget - offer.fee });
-  await putTeam({ ...userTeam,  budget: userTeam.budget  + offer.fee });
+  await putTeam(applyLedgerMovement(buyerTeam, { category:'transfer_fee_out', amount:-offer.fee, description:`Signed ${player.name}` }));
+  await putTeam(applyLedgerMovement(userTeam, { category:'transfer_fee_in', amount:offer.fee, description:`Sold ${player.name}` }));
   await putPlayer({ ...player, teamId: offer.clubId, signedThisSeason: true, contractExpiry: _freshContractExpiry(save) });
   await addTransfer({ playerId, playerName: player.name, fromTeamId: save.userTeamId, toTeamId: offer.clubId, fee: offer.fee, type: 'accepted_offer', date: save.currentDate });
 
@@ -725,7 +726,7 @@ export async function simulateAITransfers(save) {
   const teamsToWrite = [];
   for (const t of allTeams) {
     if (budgetMap.has(t.id) && budgetMap.get(t.id) !== t.budget) {
-      teamsToWrite.push({ ...t, budget: budgetMap.get(t.id) });
+      teamsToWrite.push(syncLedgerCash(t, budgetMap.get(t.id)));
     }
   }
   if (teamsToWrite.length) await bulkPut('teams', teamsToWrite);
@@ -804,8 +805,8 @@ export async function loanOutPlayer(playerId) {
   const loanTeam = allTeams.find(t => t.id === loanClub.id) ?? await getTeam(loanClub.id);
 
   // Loan club pays total cost; parent club (user) receives fee + wage relief
-  await putTeam({ ...loanTeam, budget: loanTeam.budget - totalCost });
-  await putTeam({ ...userTeam, budget: userTeam.budget + fee + wageCost });
+  await putTeam(applyLedgerMovement(loanTeam, { category:'loan_fee_out', amount:-totalCost, description:`Loaned ${player.name}` }));
+  await putTeam(applyLedgerMovement(userTeam, { category:'loan_fee_in', amount:fee + wageCost, description:`Loaned out ${player.name}` }));
 
   // Player moves to loan club with loan metadata
   const loanedPlayer = {
@@ -854,8 +855,8 @@ export async function loanInPlayer(playerId) {
   if ((userTeam?.budget ?? 0) < totalCost) throw new Error('INSUFFICIENT_FUNDS');
 
   // User pays; parent club receives loan fee
-  await putTeam({ ...userTeam, budget: userTeam.budget - totalCost });
-  await putTeam({ ...parentTeam, budget: (parentTeam.budget ?? 0) + fee });
+  await putTeam(applyLedgerMovement(userTeam, { category:'loan_fee_out', amount:-totalCost, description:`Loaned in ${player.name}` }));
+  await putTeam(applyLedgerMovement(parentTeam, { category:'loan_fee_in', amount:fee, description:`Loaned out ${player.name}` }));
 
   const loanedPlayer = {
     ...player,
@@ -1042,7 +1043,7 @@ export async function simulateAILoans(save) {
   const teamsToWrite = [];
   for (const t of allTeams) {
     if (budgetMap.has(t.id) && budgetMap.get(t.id) !== t.budget) {
-      teamsToWrite.push({ ...t, budget: budgetMap.get(t.id) });
+      teamsToWrite.push(syncLedgerCash(t, budgetMap.get(t.id)));
     }
   }
   if (teamsToWrite.length) await bulkPut('teams', teamsToWrite);

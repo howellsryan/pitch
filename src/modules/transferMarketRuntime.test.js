@@ -15,6 +15,17 @@ describe('P4 transfer-market runtime integration', () => {
     expect(settlement).toContain('historyStore.add');
   });
 
+  it('P7 WP2: settles budget through the finance ledger, never raw budget arithmetic that could drift from finance.cash', () => {
+    const source = readFileSync(new URL('./db.js', import.meta.url), 'utf8');
+    const start = source.indexOf('export function settleTransferMarketDealAtomic');
+    const end = source.indexOf('export const getAllHonors', start);
+    const settlement = source.slice(start, end);
+    expect(settlement).toContain("applyLedgerMovement(buyer, { category:'transfer_fee_out'");
+    expect(settlement).toContain("applyLedgerMovement(seller, { category:'transfer_fee_in'");
+    expect(settlement).not.toContain('budget:Number(buyer.budget');
+    expect(settlement).not.toContain('budget:Number(seller.budget');
+  });
+
   it('advances the persisted market once from the shared world-week closeout', () => {
     const source = readFileSync(new URL('./gameweek.js', import.meta.url), 'utf8');
     const start = source.indexOf('async function runEndOfWorldGameweek');

@@ -6,6 +6,7 @@
  * receive their own IndexedDB database. The active slot is only a pointer;
  * every existing domain/store API continues to operate on one active DB.
  */
+import { applyLedgerMovement } from './clubFinance.js';
 export const DB_NAME = 'pitch_fc';
 export const DB_VERSION = 4;
 export const LEGACY_SLOT_ID = 'legacy';
@@ -320,9 +321,9 @@ export function settleTransferMarketDealAtomic(dealId) {
           if (seller && !['renewal','free_agent'].includes(deal.type) && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
           if (seller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
 
-          const nextBuyer = { ...buyer, budget:Number(buyer.budget ?? 0) - cost };
+          const nextBuyer = applyLedgerMovement(buyer, { category:'transfer_fee_out', amount:-cost, description:`Deal ${deal.id} settled`, weekKey:market.lastTickKey ?? deal.updatedWeekKey });
           const changedTeams = new Map([[nextBuyer.id, nextBuyer]]);
-          if (seller && seller.id !== buyer.id && fee > 0) changedTeams.set(seller.id, { ...seller, budget:Number(seller.budget ?? 0) + fee });
+          if (seller && seller.id !== buyer.id && fee > 0) changedTeams.set(seller.id, applyLedgerMovement(seller, { category:'transfer_fee_in', amount:fee, description:`Deal ${deal.id} settled`, weekKey:market.lastTickKey ?? deal.updatedWeekKey }));
           for (const team of changedTeams.values()) teamsStore.put(team);
 
           const seasonYear = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 0;

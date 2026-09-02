@@ -16,6 +16,7 @@ import {
 } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { rolloverTransferMarket } from './transferMarket.js';
+import { applyLedgerMovement } from './clubFinance.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -190,7 +191,7 @@ export async function processEndOfSeason() {
   const prizeMoney = calculatePrizeMoney(userPosition, save.cups, userLeague);
   const userTeamRec = await getTeam(save.userTeamId);
   if (userTeamRec) {
-    await putTeam({ ...userTeamRec, budget:(userTeamRec.budget ?? 0) + prizeMoney });
+    await putTeam(applyLedgerMovement(userTeamRec, { category:'prize_money', amount:prizeMoney, description:'Season prize money' }));
     summary.prizeMoney = prizeMoney;
   }
 
@@ -203,9 +204,20 @@ export async function processEndOfSeason() {
     }
   }
 
+  // P7 WP2: AI clubs no longer get a destructive annual budget reset to a
+  // fresh reputation-formula figure — that discarded any in-season spending
+  // or windfalls every year. Instead nudge cash a bounded 25% of the way
+  // toward the reputation-implied target each season: directionally the
+  // same correction as before (a club whose reputation has grown drifts
+  // richer, a fallen club drifts poorer) without a jarring one-time wealth
+  // swing or runaway compounding. WP3 replaces this placeholder with the
+  // fuller operating/commercial income abstraction the guide calls for.
   const nonUserTeams = allTeams.filter(team => team.id !== save.userTeamId);
   for (const team of nonUserTeams) {
-    await putTeam({ ...team, budget:reputationBudget(team.reputation ?? 70, false) });
+    const target = reputationBudget(team.reputation ?? 70, false);
+    const current = team.finance?.cash ?? team.budget ?? 0;
+    const delta = Math.round((target - current) * 0.25);
+    await putTeam(applyLedgerMovement(team, { category:'operating_income', amount:delta, description:'Season operating income adjustment' }));
   }
 
   const loanReturnUpdates = players
@@ -524,6 +536,6 @@ export async function payWeeklyWages() {
   for (const team of allTeams) {
     const bill = billByTeam.get(team.id) ?? 0;
     if (bill <= 0) continue;
-    await putTeam({ ...team, budget:(team.budget ?? 0) - bill });
+    await putTeam(applyLedgerMovement(team, { category:'wages', amount:-bill, description:'Weekly wages' }));
   }
 }
