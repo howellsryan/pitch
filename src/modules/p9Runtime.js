@@ -10,8 +10,7 @@ import {
   putSave,
   putTeamsBulk,
 } from './db.js';
-import { coachingEffects } from './coaching.js';
-import { scoutingCapacityBonus, trainingEfficiencyMultiplier } from './facilities.js';
+import { scoutingCapacityBonus } from './facilities.js';
 import { normalizePlayerModel } from './playerModel.js';
 import {
   ensureOpenRegistrationSpell,
@@ -24,9 +23,6 @@ import {
   transitionPlayerStatus,
 } from './playerStatus.js';
 import {
-  ACADEMY_PLAYER_CAP,
-  advanceAcademyEvidence,
-  advanceYouthScoutingState,
   applyLoanDevelopmentReport,
   academyPathwaysNeedsBackfill,
   academyReadiness,
@@ -38,7 +34,6 @@ import {
   loanReportDue,
   normalizeAcademyPathwaysState,
 } from './academyPathways.js';
-import { generateYouthPlayer } from './youthAcademy.js';
 
 /* modules/p9Runtime.js — P9 persistence/runtime facade. */
 
@@ -211,119 +206,6 @@ export async function ensureP9CareerPathways(saveInput = null) {
   if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
   if (!p9SameRow(save, migration.save)) await putSave(migration.save);
   return migration.save;
-}
-
-function p9ScoutingFacilityLevel(team) {
-  return Math.max(1, Number(team?.facilities?.scouting?.level ?? 1));
-}
-
-function p9AssignmentProspectId(assignment) {
-  return `academy_scout_${String(assignment.id).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-}
-
-function p9GenerateScoutedProspect(assignment, team, save, existingIds) {
-  const wanted = {
-    GK:new Set(['GK']),
-    DEF:new Set(['CB','RB','LB']),
-    MID:new Set(['CDM','CM','CAM','RM','LM']),
-    ATT:new Set(['RW','LW','CF','ST']),
-  }[assignment.positionGroup] ?? new Set(['CM']);
-  let generated = null;
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const row = generateYouthPlayer(
-      team.id,
-      team.reputation ?? 70,
-      save.season,
-      100 + Number(assignment.weeks ?? 0) * 10 + attempt,
-      team.league ?? save.userLeague,
-      false,
-      team.academyInvestment ?? 0,
-    );
-    if (!generated) generated = row;
-    if (wanted.has(row.position)) { generated = row; break; }
-  }
-  if (!generated) return null;
-  const id = p9AssignmentProspectId(assignment);
-  if (existingIds.has(id)) return null;
-  const band = assignment.report?.potentialBand;
-  const projectedPotential = band
-    ? Math.max(Number(generated.potentialRating ?? 65), Math.round((Number(band.min) + Number(band.max)) / 2))
-    : generated.potentialRating;
-  return p9CanonicalAcademyPlayer({
-    ...generated,
-    id,
-    potentialRating:Math.max(1, Math.min(99, projectedPotential)),
-    academySource:{
-      type:'regional_scouting',
-      assignmentId:assignment.id,
-      region:assignment.region,
-      nation:assignment.nation,
-      role:assignment.role,
-      style:assignment.style,
-      confidence:assignment.report?.confidence ?? null,
-    },
-  }, team.id, save);
-}
-
-/**
- * Runs before P3 settlement: academy evidence exists first, then the existing P3
- * development clock reads that evidence. Senior/loan participation has already
- * been projected by P1 by this boundary.
- */
-export async function advanceP9PreDevelopmentWeek(saveInput = null) {
-  let save = await ensureP9CareerPathways(saveInput ?? await getSave());
-  if (!save) return { save, academyEvidencePatches:[], scoutingCompleted:[], prospectsAdded:[] };
-  const [players, teams] = await Promise.all([getAllPlayers(), getAllTeams()]);
-  const teamsById = new Map(teams.map(team => [team.id, team]));
-  const playerPatches = [];
-  for (const raw of players) {
-    const player = normalizePlayerStatus(raw);
-    if (!isAcademyPlayer(player)) continue;
-    const team = teamsById.get(player.contractTeamId);
-    const next = advanceAcademyEvidence(player, {
-      season:save.season,
-      gameweek:save.currentGameweek,
-      coachingMultiplier:coachingEffects(team, player).development,
-      trainingMultiplier:trainingEfficiencyMultiplier(team),
-    });
-    if (!p9SameRow(raw, next)) playerPatches.push(next);
-  }
-  if (playerPatches.length) await putPlayersBulk(playerPatches);
-
-  const userTeam = teamsById.get(save.userTeamId);
-  const scouting = advanceYouthScoutingState(save.academyPathways, {
-    season:save.season,
-    gameweek:save.currentGameweek,
-    reputation:userTeam?.reputation ?? 65,
-    academyInvestment:userTeam?.academyInvestment ?? 0,
-    scoutingLevel:p9ScoutingFacilityLevel(userTeam),
-  });
-  let academyPathways = scouting.state;
-  const academyRows = players
-    .map(player => playerPatches.find(patch => String(patch.id) === String(player.id)) ?? player)
-    .filter(player => isAcademyPlayer(player, save.userTeamId));
-  const existingIds = new Set(players.map(player => String(player.id)));
-  const prospectsAdded = [];
-  const remainingCapacity = Math.max(0, ACADEMY_PLAYER_CAP - academyRows.length);
-  for (const assignment of scouting.completed.slice(0, remainingCapacity)) {
-    if (assignment.prospectId) continue;
-    const prospect = p9GenerateScoutedProspect(assignment, userTeam, save, existingIds);
-    if (!prospect) continue;
-    prospectsAdded.push(prospect);
-    existingIds.add(String(prospect.id));
-    academyPathways = {
-      ...academyPathways,
-      youthScoutingAssignments:academyPathways.youthScoutingAssignments.map(item => item.id === assignment.id
-        ? { ...item, prospectId:prospect.id }
-        : item),
-    };
-  }
-  if (prospectsAdded.length) await putPlayersBulk(prospectsAdded);
-  if (!p9SameRow(save.academyPathways, academyPathways)) {
-    save = { ...save, academyPathways };
-    await putSave(save);
-  }
-  return { save, academyEvidencePatches:playerPatches, scoutingCompleted:scouting.completed, prospectsAdded };
 }
 
 /**
