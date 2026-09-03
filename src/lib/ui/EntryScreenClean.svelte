@@ -14,7 +14,7 @@
       if (input.getAttribute('placeholder')) input.setAttribute('placeholder', '');
     };
     clearPlaceholder();
-    const observer = new MutationObserver(clearPlaceholder);
+    const observer = new globalThis.MutationObserver(clearPlaceholder);
     observer.observe(input, { attributes:true, attributeFilter:['placeholder'] });
     return () => observer.disconnect();
   });
