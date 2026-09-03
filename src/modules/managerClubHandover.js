@@ -1,5 +1,5 @@
 import { buildPendingEvents } from './gameweek.js';
-import { generateBoardObjective } from './season.js';
+import { generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { applyHireOutcome } from './managerAppointments.js';
 import { swapClubCompetitionControl } from './managerCompetitionHandoff.js';
 import { createScoutingState } from './scouting.js';
@@ -91,6 +91,7 @@ export function transferClubControl(save, {
     inboundOffers:[],
     collapsedDeals:[],
     boardObjective:nextBoardObjective,
+    boardContract:generateBoardContract(newTeam, newTeam.league ?? save.userLeague),
     jobSecurity:65,
     sacked:false,
     managerMarket:{

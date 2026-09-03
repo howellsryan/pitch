@@ -14,6 +14,7 @@ import {
   getAllStandings,
   getAllTeams,
   getSave,
+  getTeam,
   openDB,
   putFixturesBulk,
   putManagersBulk,
@@ -34,7 +35,7 @@ import {
   playerModelNeedsNormalization,
 } from './playerModel.js';
 import { generateCohort } from './youthAcademy.js';
-import { generateBoardObjective } from './season.js';
+import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
@@ -241,6 +242,14 @@ export async function ensureP7ClubFinance(save) {
   return migration.save;
 }
 
+export async function ensureP7BoardContract(save) {
+  if (!save || !boardContractNeedsBackfill(save)) return save;
+  const userTeam = await getTeam(save.userTeamId);
+  const migration = buildBoardContractBackfill(save, userTeam, save.userLeague);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -254,6 +263,7 @@ export async function initApp() {
     save = await ensureP6Managers(save);
     save = await ensureP7ClubPhilosophy(save);
     save = await ensureP7ClubFinance(save);
+    save = await ensureP7BoardContract(save);
   }
   return save ?? null;
 }
@@ -336,6 +346,8 @@ export async function startNewGame(userTeamId, managerName) {
     inbox:           [],
     youthCohort:     initialCohort,
     boardObjective:  generateBoardObjective(userTeamData, userLeague),
+    boardContract:   generateBoardContract(userTeamData, userLeague),
+    boardContractVersion: BOARD_CONTRACT_VERSION,
     jobSecurity:     65,
     sacked:          false,
   };

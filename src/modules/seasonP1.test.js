@@ -50,6 +50,17 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('age:(manager.age ?? 45) + 1');
   });
 
+  it('P7 WP4: keeps nextJobSecurity driven only by the single sporting objective — the weighted board contract is a separate, additive judgment never blended into the live job-security number', () => {
+    const source = functionBody('processEndOfSeason');
+    expect(source).toContain('nextJobSecurity(save.jobSecurity, objectiveResult.met, objectiveResult.margin)');
+    expect(source).toContain('const sacked = newJobSecurity <= 0');
+    // boardContractResult must be computed strictly after sacked/newJobSecurity, never feeding them.
+    const contractIndex = source.indexOf('evaluateBoardContractSeasonClose(');
+    const sackedIndex = source.indexOf('const sacked = newJobSecurity <= 0');
+    expect(contractIndex).toBeGreaterThan(sackedIndex);
+    expect(source).toContain('summary.dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended)');
+  });
+
   it('compacts the outgoing competition ledger and seeds a fresh P1 world for the next season', () => {
     const source = functionBody('processEndOfSeason');
     const historyIndex = source.indexOf('buildLivingWorldSeasonSummary');

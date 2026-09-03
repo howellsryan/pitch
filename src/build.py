@@ -71,6 +71,7 @@ MODULES += [
     ('modules/world.js',            'LIVING WORLD'),
     ('modules/worldCompetitions.js','WORLD COMPETITIONS'),
     ('modules/worldRuntime.js',     'WORLD RUNTIME'),
+    ('modules/boardContract.js',    'BOARD CONTRACT'),
     ('modules/save.js',             'SAVE'),
     ('modules/season.js',           'SEASON'),
     ('modules/p6Runtime.js',        'P6 MANAGER CAREER RUNTIME'),

@@ -17,6 +17,7 @@ import {
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { rolloverTransferMarket } from './transferMarket.js';
 import { applyLedgerMovement, operatingIncomeFor } from './clubFinance.js';
+import { evaluateBoardContractSeasonClose, evaluateBoardObjective, generateBoardContract, generateBoardObjective } from './boardContract.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -342,10 +343,21 @@ export async function processEndOfSeason() {
   const objectiveResult = evaluateBoardObjective(save.boardObjective, userPosition, sorted.length, leagueChanges.userRelInfo?.relegated ?? false);
   const newJobSecurity = nextJobSecurity(save.jobSecurity, objectiveResult.met, objectiveResult.margin);
   const sacked = newJobSecurity <= 0;
+  // P7 WP4: the weighted contract (sporting+financial+youth) is a separate,
+  // additive judgment — never blended into nextJobSecurity/sacked above, so
+  // the live "MET"/job-security number a title-winning-but-cash-strapped
+  // club sees stays exactly what it was pre-WP4. dismissalRecommended is
+  // surfaced only, never executed — see boardContract.js's header for why
+  // (no Inbox surface yet, WP7).
+  const boardContractResult = save.boardContract
+    ? evaluateBoardContractSeasonClose(save.boardContract, { team:userTeamRec, players, finalPosition:userPosition, totalTeams:sorted.length, wasRelegated:leagueChanges.userRelInfo?.relegated ?? false })
+    : null;
   summary.boardObjective = save.boardObjective ?? null;
+  summary.boardContract = boardContractResult;
   summary.objectiveMet = objectiveResult.met;
   summary.jobSecurity = newJobSecurity;
   summary.sacked = sacked;
+  summary.dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended);
 
   // One immutable compact season record. Current detailed ledgers are reset on
   // players/fixtures below and are not duplicated into historical match blobs.
@@ -365,6 +377,7 @@ export async function processEndOfSeason() {
   const newCupIds = assignCupsFromPosition(userPosForCups, userNewLeague, save.cups ?? {});
   const newCups = buildInitialCupState(newCupIds, save.userTeamId, userNewLeague);
   const nextBoardObjective = generateBoardObjective(userTeamUpdated, userNewLeague);
+  const nextBoardContract = generateBoardContract(userTeamUpdated, userNewLeague);
 
   const newSave = {
     ...save,
@@ -380,6 +393,7 @@ export async function processEndOfSeason() {
     formation:save.formation ?? '4-3-3',
     youthCohort:newYouthCohort,
     boardObjective:nextBoardObjective,
+    boardContract:nextBoardContract,
     jobSecurity:sacked ? 65 : newJobSecurity,
     sacked,
     inboundOffers:[],
@@ -447,31 +461,6 @@ export function reputationBudget(reputation, isUserTeam = false) {
   );
   const variance = base * (Math.random() * 0.12 - 0.06);
   return Math.round(base + variance);
-}
-
-export function generateBoardObjective(team, league) {
-  const rep = team?.reputation ?? 65;
-  const promotionLeagues = new Set(['Championship', 'League One', 'League Two']);
-  if (promotionLeagues.has(league)) {
-    if (rep >= 75) return { id:'promotion', label:'Win promotion', kind:'position', target:2 };
-    if (rep >= 62) return { id:'playoffs', label:'Push for the play-offs', kind:'position', target:6 };
-    if (league === 'League Two') return { id:'consolidate', label:'Finish in mid-table', kind:'position', target:12 };
-    return { id:'avoid_relegation', label:'Avoid relegation', kind:'avoid_relegation' };
-  }
-  if (rep >= 85) return { id:'title', label:'Win the league', kind:'position', target:1 };
-  if (rep >= 75) return { id:'europe', label:'Qualify for Europe', kind:'position', target:7 };
-  if (rep >= 55) return { id:'top_half', label:'Finish in the top half', kind:'top_half' };
-  return { id:'avoid_relegation', label:'Avoid relegation', kind:'avoid_relegation' };
-}
-
-export function evaluateBoardObjective(objective, finalPosition, totalTeams, wasRelegated) {
-  if (!objective) return { met:true, margin:0 };
-  if (objective.kind === 'avoid_relegation') return { met:!wasRelegated, margin:wasRelegated ? -3 : 3 };
-  if (objective.kind === 'top_half') {
-    const mid = Math.ceil((totalTeams || 20) / 2);
-    return { met:finalPosition <= mid, margin:mid - finalPosition };
-  }
-  return { met:finalPosition <= objective.target, margin:objective.target - finalPosition };
 }
 
 /**
