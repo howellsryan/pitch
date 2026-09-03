@@ -16,7 +16,7 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('const billByTeam = new Map()');
     expect(source).toContain('if (!player.teamId || player.onLoan) continue');
     expect(source).toContain("billByTeam.set(player.teamId, (billByTeam.get(player.teamId) ?? 0) + (player.wage ?? 0))");
-    expect(source).toContain("budget:(team.budget ?? 0) - bill");
+    expect(source).toContain("applyLedgerMovement(team, { category:'wages', amount:-bill, description:'Weekly wages' })");
   });
 
   it('returns loans to their parent club and clears every loan marker before aging', () => {
@@ -39,6 +39,63 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('signedThisSeason:false');
     expect(source).toContain('collapsedDeals:[]');
     expect(source).toContain('inboundOffers:[]');
+  });
+
+  it('ages every manager by one year at rollover, feeding P6 age-based retirement a real moving age', () => {
+    const source = functionBody('processEndOfSeason');
+    const managersIndex = source.indexOf('let allManagers = await getAllManagers()');
+    const academyIndex = source.indexOf('const allTeamsForAcademy = await getAllTeams()');
+    expect(managersIndex).toBeGreaterThan(-1);
+    expect(academyIndex).toBeGreaterThan(managersIndex);
+    expect(source).toContain('age:(manager.age ?? 45) + 1');
+  });
+
+  it('P7 WP4: keeps nextJobSecurity driven only by the single sporting objective — the weighted board contract is a separate, additive judgment never blended into the live job-security number', () => {
+    const source = functionBody('processEndOfSeason');
+    expect(source).toContain('nextJobSecurity(save.jobSecurity, objectiveResult.met, objectiveResult.margin)');
+    expect(source).toContain('const sacked = newJobSecurity <= 0');
+    // boardContractResult must be computed strictly after sacked/newJobSecurity, never feeding them.
+    const contractIndex = source.indexOf('evaluateBoardContractSeasonClose(');
+    const sackedIndex = source.indexOf('const sacked = newJobSecurity <= 0');
+    expect(contractIndex).toBeGreaterThan(sackedIndex);
+    expect(source).toContain('const dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended)');
+    expect(source).toContain('summary.dismissalRecommended = dismissalRecommended');
+  });
+
+  it('P7 WP7: executes dismissal (job security or the board contract judgment) through the soft dismissAndCaretake path, never a hard reset', () => {
+    const source = functionBody('processEndOfSeason');
+    expect(source).toContain('const dismissed = sacked || dismissalRecommended');
+    expect(source).toContain('summary.sacked = dismissed');
+    expect(source).toContain("dismissAndCaretake(userManagerRow, caretaker, { weekKey, reason:'dismissed' })");
+    expect(source).toContain('createCaretakerManager(userTeamRec');
+    expect(source).not.toContain('resetForNewCareer');
+    // newSave must carry the unified `dismissed` flag, not the narrower
+    // job-security-only `sacked` — otherwise a board-contract-only dismissal
+    // would show the sacked modal but leave the persisted save undismissed.
+    expect(source).toContain('sacked:dismissed');
+    expect(source).toContain('jobSecurity:dismissed ? 65 : newJobSecurity');
+  });
+
+  it('P7 WP5: evolves club philosophy from the season\'s board-contract outcome before generating next season\'s board contract, and records a compact identity/finance snapshot in season history', () => {
+    const source = functionBody('processEndOfSeason');
+    const evolveIndex = source.indexOf('evolveClubPhilosophy(userTeamUpdated.philosophy, boardContractResult)');
+    const nextContractIndex = source.indexOf('generateBoardContract(userTeamUpdated, userNewLeague)');
+    expect(evolveIndex).toBeGreaterThan(-1);
+    expect(nextContractIndex).toBeGreaterThan(evolveIndex);
+    expect(source).toContain('summary.clubIdentity');
+    expect(source).toContain('financialPressure(userTeamRec)');
+    // Same fact src/validate.js's legacy "Season end sets a fresh objective
+    // for next season" check looks for — its fixed-size text window can no
+    // longer see this far into the function; this Vitest assertion covers
+    // the real, untruncated source (see validate_p0.py's allow-list entry).
+    expect(source).toContain('generateBoardObjective(userTeamUpdated');
+  });
+
+  it('P7: still evaluates the outgoing sporting objective and still calls runYouthIntake — validate.js\'s legacy checks for both can no longer see this far into a function P7 has kept growing, so this Vitest assertion is their real replacement contract', () => {
+    const source = functionBody('processEndOfSeason');
+    expect(source).toContain('evaluateBoardObjective(save.boardObjective');
+    expect(source).toContain('nextJobSecurity(save.jobSecurity');
+    expect(source).toContain('runYouthIntake(save, allTeamsForAcademy)');
   });
 
   it('compacts the outgoing competition ledger and seeds a fresh P1 world for the next season', () => {

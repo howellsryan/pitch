@@ -32,7 +32,13 @@ for df in _data_files:
 # P4's market state/facade follow the shared planner. P5 runtime sits after those
 # pure contracts and before save/gameweek, where migration and closeout consume
 # it. P1 world helpers remain after youthAcademy and before worldRuntime/save.
+# P6 managers depends on tactics (Manager DNA) and youthAcademy (name pools), so
+# it loads after both and before save.js, which builds/backfills manager entities.
 MODULES += [
+    # clubFinance.js is fully standalone (no imports of its own) and db.js's
+    # settleTransferMarketDealAtomic calls its applyLedgerMovement, so it
+    # must load before db.js.
+    ('modules/clubFinance.js',      'CLUB FINANCE'),
     ('modules/db.js',               'DATABASE'),
     ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
     ('modules/training.js',         'TRAINING'),
@@ -41,6 +47,8 @@ MODULES += [
     ('modules/playerRehabilitation.js', 'PLAYER REHABILITATION'),
     ('modules/playerModel.js',      'PLAYER MODEL'),
     ('modules/tactics.js',          'TACTICS'),
+    ('modules/clubPhilosophy.js',   'CLUB PHILOSOPHY'),
+    ('modules/facilities.js',       'CLUB FACILITIES'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/standings.js',        'STANDINGS'),
@@ -56,12 +64,22 @@ MODULES += [
     ('modules/injuries.js',         'INJURIES'),
     ('modules/promotion.js',        'PROMOTION'),
     ('modules/youthAcademy.js',     'YOUTH ACADEMY'),
+    ('modules/managers.js',         'MANAGERS'),
+    ('modules/managerCareer.js',    'MANAGER CAREER'),
+    ('modules/managerAppointments.js', 'MANAGER APPOINTMENTS'),
+    ('modules/managerUserJourney.js', 'MANAGER USER JOURNEY'),
+    ('modules/managerCompetitionHandoff.js', 'MANAGER COMPETITION HANDOFF'),
     ('modules/world.js',            'LIVING WORLD'),
     ('modules/worldCompetitions.js','WORLD COMPETITIONS'),
     ('modules/worldRuntime.js',     'WORLD RUNTIME'),
+    ('modules/boardContract.js',    'BOARD CONTRACT'),
     ('modules/save.js',             'SAVE'),
     ('modules/season.js',           'SEASON'),
+    ('modules/p6Runtime.js',        'P6 MANAGER CAREER RUNTIME'),
+    ('modules/p7Runtime.js',        'P7 CLUB FINANCE RUNTIME'),
     ('modules/gameweek.js',         'GAMEWEEK'),
+    ('modules/managerClubHandover.js', 'MANAGER CLUB HANDOVER'),
+    ('modules/managerUserActions.js', 'MANAGER USER ACTIONS'),
     ('lib/theme.mjs',               'CLUB THEME'),
     ('ui/helpers.js',               'UI HELPERS'),
     ('ui/home_transfers.js',        'HOME & TRANSFERS'),

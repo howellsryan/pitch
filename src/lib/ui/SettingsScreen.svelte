@@ -1,6 +1,6 @@
 <script>
   import {
-    deleteDB, exportSaveFile, getAllPlayers, getAllSeasons, getSave, importSaveFile,
+    deleteDB, exportSaveFile, getAllPlayers, getAllSeasons, getSave, getTeam, importSaveFile,
     importSaveFromCode, openDB, putPlayersBulk,
   } from '../../modules/db.js';
   import { assignPotentials } from '../../modules/potential.js';
@@ -10,6 +10,18 @@
   import { screenTicks } from '../state/screens.svelte.js';
   import { api, clearAuth, isSignedIn, startGoogleLogin } from '../../cloud/api.js';
   import { pushSaveToCloud } from '../../cloud/sync.js';
+  import {
+    applyForVacancy, getManagerCareerView, resignAsManager, respondToApproach, tryCompletePendingUserHandover,
+  } from '../../modules/managerUserActions.js';
+  import { summarizeManagerDNA } from '../../modules/tactics.js';
+  import { availableFunds, financialPressure } from '../../modules/clubFinance.js';
+  import {
+    describeFacilityConsumer, FACILITY_LEAD_TIME_WEEKS, facilityUpgradeCost, FACILITY_MAX_LEVEL, FACILITY_TRACKS,
+  } from '../../modules/facilities.js';
+  import { startFacilityUpgrade } from '../../modules/p7Runtime.js';
+
+  const FACILITY_LABELS = { training:'Training', medical:'Medical', scouting:'Scouting' };
+  const PRESSURE_LABELS = { stable:'Stable', strained:'Strained', critical:'Critical' };
 
   const TROPHY_NAMES = {
     premier_league: 'Premier League', championship: 'Championship', league_one: 'League One', league_two: 'League Two',
@@ -38,6 +50,13 @@
   let cloudSignedIn = $state(false);
   let cloudIdentity = $state(null); // { displayName, email } once loaded
   let cloudBusy = $state(false);
+
+  let managerView = $state(null);
+  let managerBusy = $state(false);
+  let resignConfirming = $state(false);
+
+  let clubView = $state(null); // { team, available, pressure }
+  let facilityBusy = $state(false);
 
   async function loadCloudIdentity() {
     cloudSignedIn = isSignedIn();
@@ -74,13 +93,26 @@
 
   async function load() {
     await openDB();
+    // Opportunistic safety net: an accepted job offer normally completes
+    // right after acceptUserOffer (see doAccept below), but if the app was
+    // closed before that ran, this catches it on the next screen load —
+    // it's a no-op unless a handover is genuinely pending and the event
+    // queue is safely empty (managerUserActions.js's own guard).
+    const handoverResult = await tryCompletePendingUserHandover().catch(() => ({ completed:false }));
+    if (handoverResult.completed) {
+      window.location.reload();
+      return;
+    }
     const save = await getSave();
     seasons = [...(await getAllSeasons())].reverse();
     // Fire-and-forget: the account name is a nice-to-have refinement, not a
     // gate. Everything else on this screen is local IndexedDB data — `loaded`
     // must not wait on a network round trip to /api/auth/me.
     void loadCloudIdentity();
+    managerView = await getManagerCareerView().catch(() => null);
     if (save) {
+      const team = await getTeam(save.userTeamId).catch(() => null);
+      clubView = team ? { team, available:availableFunds(team, save.transferMarket), pressure:financialPressure(team) } : null;
       managerName = save.managerName || 'The Manager';
       const { earned } = await getHonorsForTeam(save.userTeamId);
       totalEarned = earned.length;
@@ -104,7 +136,106 @@
     return `${n}${['st', 'nd', 'rd'][n - 1] || 'th'}`;
   }
 
-  function closeSheet() { if (!busy) { sheet = null; saveCode = ''; importCodeInput = ''; } }
+  function closeSheet() { if (!busy) { sheet = null; saveCode = ''; importCodeInput = ''; resignConfirming = false; } }
+
+  function openManagerCareer() { sheet = 'manager'; resignConfirming = false; }
+
+  async function refreshManagerView() {
+    managerView = await getManagerCareerView().catch(() => managerView);
+  }
+
+  function confirmResign() { resignConfirming = true; }
+
+  async function doResign() {
+    managerBusy = true;
+    try {
+      await resignAsManager();
+      toast('You have resigned. Clubs may approach you, or you can apply for an open job.', 'info', 6000);
+      resignConfirming = false;
+      await refreshManagerView();
+    } catch (err) {
+      toast('Could not resign: ' + err.message, 'error');
+    } finally {
+      managerBusy = false;
+    }
+  }
+
+  async function doApply(vacancyId) {
+    managerBusy = true;
+    try {
+      await applyForVacancy(vacancyId);
+      toast('Application sent.', 'success');
+      await refreshManagerView();
+    } catch (err) {
+      toast('Could not apply: ' + err.message, 'error');
+    } finally {
+      managerBusy = false;
+    }
+  }
+
+  async function doDecline(approachId) {
+    managerBusy = true;
+    try {
+      await respondToApproach(approachId, 'decline');
+      await refreshManagerView();
+    } catch (err) {
+      toast('Error: ' + err.message, 'error');
+    } finally {
+      managerBusy = false;
+    }
+  }
+
+  async function doAccept(approachId, clubName) {
+    managerBusy = true;
+    _showFullOverlay(`Joining ${clubName}…`);
+    try {
+      await respondToApproach(approachId, 'accept');
+    } catch (err) {
+      // Accepting itself failed — nothing was persisted, this is a genuine error.
+      _removeFullOverlay();
+      toast('Could not accept: ' + err.message, 'error');
+      managerBusy = false;
+      return;
+    }
+    // The offer is accepted and persisted from here on, regardless of what
+    // happens next — a failure below must never read as "accept failed".
+    try {
+      const result = await tryCompletePendingUserHandover();
+      if (result.completed) {
+        window.location.reload();
+        return;
+      }
+      // Not yet safe to hand over (an event was mid-flight) — it will
+      // complete automatically the next time a screen loads or a gameweek
+      // settles at its own safe boundary.
+      toast(`Offer accepted — you'll take over at ${clubName} as soon as it's safe to switch.`, 'success', 6000);
+    } catch {
+      toast(`Offer accepted — you'll take over at ${clubName} as soon as it's safe to switch.`, 'success', 6000);
+    } finally {
+      _removeFullOverlay();
+      await refreshManagerView();
+      managerBusy = false;
+    }
+  }
+
+  const FACILITY_ERROR_MESSAGES = {
+    INSUFFICIENT_FUNDS: 'Not enough available funds for this upgrade.',
+    UPGRADE_ALREADY_IN_PROGRESS: 'This facility is already being upgraded.',
+    FACILITY_AT_MAX_LEVEL: 'Already at the maximum level.',
+  };
+
+  async function doUpgradeFacility(track) {
+    facilityBusy = true;
+    try {
+      await startFacilityUpgrade(track);
+      toast(`Upgrading ${FACILITY_LABELS[track] ?? track} — ready in ${FACILITY_LEAD_TIME_WEEKS} weeks.`, 'success', 5000);
+      await load();
+    } catch (err) {
+      toast(FACILITY_ERROR_MESSAGES[err.message] || `Could not start upgrade: ${err.message}`, 'error');
+    } finally {
+      facilityBusy = false;
+    }
+  }
 
   async function openExport() {
     sheet = 'export';
@@ -231,6 +362,86 @@
         </div>
       </div>
 
+      {#if managerView}
+        <div class="set-card">
+          <div class="set-card-title">Manager Career</div>
+          <div class="set-card-sub">{managerView.userManager?.name ?? managerName}</div>
+          {#if managerView.isUnemployed}
+            <div class="set-row">
+              <div>
+                <div class="set-nm">Unemployed</div>
+                <div class="set-desc">
+                  {managerView.approaches.length ? `${managerView.approaches.length} club${managerView.approaches.length === 1 ? '' : 's'} interested` : 'Keep advancing — clubs may approach you, or apply directly'}
+                </div>
+              </div>
+              <button class="btn-set btn-primary" onclick={openManagerCareer}>Job Market</button>
+            </div>
+          {:else}
+            <div class="set-row">
+              <div>
+                <div class="set-nm">Managing {managerView.currentTeam?.name ?? '—'}</div>
+                <div class="set-desc">
+                  {managerView.userManager?.record?.wins ?? 0}W {managerView.userManager?.record?.draws ?? 0}D {managerView.userManager?.record?.losses ?? 0}L
+                </div>
+              </div>
+              <button class="btn-set btn-secondary" onclick={openManagerCareer}>Career</button>
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      {#if clubView}
+        <div class="set-card">
+          <div class="set-card-title">Club</div>
+          <div class="set-card-sub">Finance &amp; facilities</div>
+
+          <div class="set-row">
+            <div><div class="set-nm">Available Funds</div><div class="set-desc">Cash minus committed spending and unpaid obligations</div></div>
+            <div style="font-weight:700;color:var(--tx)">{fmt.money(clubView.available)}</div>
+          </div>
+          <div class="set-row">
+            <div><div class="set-nm">Financial Health</div><div class="set-desc">The board's own read of your finances</div></div>
+            <div style="font-weight:700;color:{clubView.pressure === 'stable' ? 'var(--color-live)' : clubView.pressure === 'strained' ? 'var(--acc2)' : 'var(--acc3)'}">{PRESSURE_LABELS[clubView.pressure] ?? clubView.pressure}</div>
+          </div>
+
+          {#if clubView.team.finance?.recentEntries?.length}
+            <div class="set-season-list">
+              {#each clubView.team.finance.recentEntries.slice(0, 4) as entry, i (i)}
+                <div class="set-season-row">
+                  <div class="set-season-name">{entry.description || entry.category}</div>
+                  <div class="set-season-detail" style="color:{entry.amount >= 0 ? 'var(--color-live)' : 'var(--acc3)'}">{entry.amount >= 0 ? '+' : ''}{fmt.money(entry.amount)}</div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#each FACILITY_TRACKS as track (track)}
+            {@const info = clubView.team.facilities?.tracks?.[track]}
+            {@const level = info?.level ?? 1}
+            {@const upgrading = info?.upgrading}
+            {@const atMax = level >= FACILITY_MAX_LEVEL}
+            {@const cost = facilityUpgradeCost(level)}
+            <div class="set-row">
+              <div>
+                <div class="set-nm">{FACILITY_LABELS[track] ?? track} — Lv {level}/{FACILITY_MAX_LEVEL}</div>
+                <div class="set-desc">
+                  {#if upgrading}
+                    Upgrading to Lv {upgrading.targetLevel} — ready season {upgrading.dueSeason}, GW {upgrading.dueGameweek}
+                  {:else if atMax}
+                    Maximum level reached
+                  {:else}
+                    {describeFacilityConsumer(track)} · {fmt.money(cost)}
+                  {/if}
+                </div>
+              </div>
+              <button class="btn-set btn-secondary" disabled={facilityBusy || Boolean(upgrading) || atMax || clubView.available < cost} onclick={() => doUpgradeFacility(track)}>
+                {upgrading ? 'In Progress' : 'Upgrade'}
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
       <div class="set-card">
         <div class="set-card-title">Cloud Save</div>
         <div class="set-card-sub">Google Account</div>
@@ -342,6 +553,105 @@
         <button class="btn-full btn-danger" disabled={busy} onclick={confirmReset}>{busy ? 'Deleting…' : 'Delete Career & Start Again'}</button>
         <button class="btn-full btn-secondary" disabled={busy} onclick={closeSheet}>Keep Career</button>
       </div>
+    {:else if sheet === 'manager' && managerView}
+      <div class="sheet-title">Manager Career</div>
+      <div class="mgr-profile">
+        <div class="mgr-profile-name">{managerView.userManager?.name ?? managerName}</div>
+        <div class="mgr-profile-row">
+          <span>Reputation</span><strong>{managerView.userManager?.reputation?.overall ?? '—'}</strong>
+        </div>
+        <div class="mgr-profile-row">
+          <span>Career record</span>
+          <strong>
+            {managerView.userManager?.record?.matches ?? 0} apps ·
+            {managerView.userManager?.record?.wins ?? 0}W {managerView.userManager?.record?.draws ?? 0}D {managerView.userManager?.record?.losses ?? 0}L
+          </strong>
+        </div>
+        {#if managerView.userManager?.dna}
+          <div class="mgr-profile-row">
+            <span>Style</span><strong>{summarizeManagerDNA(managerView.userManager.dna).style}</strong>
+          </div>
+        {/if}
+        {#if managerView.userManager?.record?.sackings || managerView.userManager?.record?.resignations}
+          <div class="mgr-profile-row">
+            <span>Past jobs</span>
+            <strong>{managerView.userManager.record.sackings} sacked · {managerView.userManager.record.resignations} resigned</strong>
+          </div>
+        {/if}
+      </div>
+
+      {#if !managerView.isUnemployed}
+        <div class="sheet-text">Currently managing <strong>{managerView.currentTeam?.name ?? '—'}</strong>.</div>
+        {#if !resignConfirming}
+          <div class="sheet-actions">
+            <button class="btn-full btn-danger" disabled={managerBusy || !managerView.canResign} onclick={confirmResign}>Resign</button>
+            {#if !managerView.canResign}<div class="set-desc">Finish the current match/event first.</div>{/if}
+            <button class="btn-full btn-secondary" disabled={managerBusy} onclick={closeSheet}>Close</button>
+          </div>
+        {:else}
+          <div class="sheet-text">Resign from {managerView.currentTeam?.name ?? 'this club'}? A caretaker takes over immediately and you become a free agent.</div>
+          <div class="sheet-actions">
+            <button class="btn-full btn-danger" disabled={managerBusy} onclick={doResign}>{managerBusy ? 'Resigning…' : 'Confirm Resignation'}</button>
+            <button class="btn-full btn-secondary" disabled={managerBusy} onclick={() => resignConfirming = false}>Cancel</button>
+          </div>
+        {/if}
+      {:else}
+        <div class="mgr-section-title">Approaches</div>
+        {#if !managerView.approaches.length}
+          <div class="set-empty-inline">No clubs have approached you yet — keep advancing, or apply below.</div>
+        {:else}
+          <div class="mgr-list">
+            {#each managerView.approaches as entry (entry.approach.id)}
+              <div class="mgr-row">
+                <div>
+                  <div class="mgr-row-name">{entry.team.name}</div>
+                  <div class="mgr-row-sub">Fit {entry.approach.fit}%</div>
+                </div>
+                <div class="mgr-row-actions">
+                  <button class="btn-set btn-primary" disabled={managerBusy} onclick={() => doAccept(entry.approach.id, entry.team.name)}>Accept</button>
+                  <button class="btn-set btn-secondary" disabled={managerBusy} onclick={() => doDecline(entry.approach.id)}>Decline</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        {#if managerView.applications.length}
+          <div class="mgr-section-title">Your Applications</div>
+          <div class="mgr-list">
+            {#each managerView.applications as entry (entry.approach.id)}
+              <div class="mgr-row">
+                <div>
+                  <div class="mgr-row-name">{entry.team.name}</div>
+                  <div class="mgr-row-sub">Awaiting a decision</div>
+                </div>
+                <div class="mgr-row-actions">
+                  <button class="btn-set btn-primary" disabled={managerBusy} onclick={() => doAccept(entry.approach.id, entry.team.name)}>Accept</button>
+                  <button class="btn-set btn-secondary" disabled={managerBusy} onclick={() => doDecline(entry.approach.id)}>Withdraw</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        <div class="mgr-section-title">Open Jobs</div>
+        {#if !managerView.openVacancies.length}
+          <div class="set-empty-inline">No open vacancies to apply for right now.</div>
+        {:else}
+          <div class="mgr-list">
+            {#each managerView.openVacancies as entry (entry.vacancy.id)}
+              <div class="mgr-row">
+                <div class="mgr-row-name">{entry.team.name}</div>
+                <button class="btn-set btn-secondary" disabled={managerBusy} onclick={() => doApply(entry.vacancy.id)}>Apply</button>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        <div class="sheet-actions">
+          <button class="btn-full btn-secondary" onclick={closeSheet}>Close</button>
+        </div>
+      {/if}
     {/if}
   </div>
 {/if}
@@ -427,4 +737,17 @@
   .sheet-actions { display: flex; flex-direction: column; gap: 8px; }
   .btn-full { min-height: 44px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-body); }
   .btn-full:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ── Manager career sheet ─────────────────────────────────── */
+  .mgr-profile { background: var(--color-raised); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .mgr-profile-name { font-family: var(--font-display); font-size: 15px; margin-bottom: 2px; }
+  .mgr-profile-row { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--color-tx-2); }
+  .mgr-profile-row strong { color: var(--color-tx); font-weight: 600; }
+  .mgr-section-title { font-family: var(--font-mono); font-size: 9px; color: var(--color-tx-3); text-transform: uppercase; letter-spacing: 2px; margin: 14px 0 8px; }
+  .mgr-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+  .mgr-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--color-raised); border-radius: 10px; }
+  .mgr-row-name { font-size: 12.5px; font-weight: 600; }
+  .mgr-row-sub { font-size: 10.5px; color: var(--color-tx-2); margin-top: 1px; }
+  .mgr-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .mgr-row-actions .btn-set, .mgr-row .btn-set { min-height: 36px; padding: 0 12px; }
 </style>

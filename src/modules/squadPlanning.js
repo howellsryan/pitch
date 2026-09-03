@@ -1,6 +1,8 @@
 import { currentEffectiveLevel, playerPositionGroup } from './playerModel.js';
 import { aiRecruitmentObservation } from './scouting.js';
 import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
+import { clubPhilosophyTraitValue } from './clubPhilosophy.js';
+import { availableFunds } from './clubFinance.js';
 
 /**
  * Shared P4/P5 squad-needs service.
@@ -30,11 +32,9 @@ export function squadPlanningGroup(playerOrPosition) {
   const position = typeof playerOrPosition === 'string' ? playerOrPosition : playerOrPosition?.position;
   return playerPositionGroup(position);
 }
+/** Thin alias kept for callers already using this name — delegates to clubFinance.js's shared selector, the one place spending power is computed. */
 export function transferAvailableBudget(team, transferMarket = null, ignoreDealId = null) {
-  const committed = (transferMarket?.reservedCommitments ?? [])
-    .filter(item => item?.clubId === team?.id && item?.dealId !== ignoreDealId)
-    .reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0), 0);
-  return Math.max(0, (Number(team?.budget) || 0) - committed);
+  return availableFunds(team, transferMarket, ignoreDealId);
 }
 function squadPlanningAverage(values, fallback = 50) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback;
@@ -125,12 +125,23 @@ export function buildSquadNeeds(team, players, options = {}) {
     const position = choosePriorityPosition(group, groupPlayers);
     const representative = [...groupPlayers].sort((a, b) => (Number(currentEffectiveLevel(a)) || 0) - (Number(currentEffectiveLevel(b)) || 0))[0];
     const roleId = representative ? chooseAIRole({ ...representative, position }, tacticalProfile) : null;
-    const allocation = squadPlanningClamp(.12 + urgency / 210, .15, .55);
+    // Bounded P7 club-philosophy nudge: a star-recruitment, financially bold
+    // club commits a little more of its budget share to a given need; a
+    // financially cautious one commits a little less. Absent philosophy
+    // (pre-P7 team row, or a hand-built test team) this is exactly 1 — no
+    // behaviour change for a club that hasn't been through the P7 backfill.
+    const recruitmentBias = team?.philosophy
+      ? 1 + (clubPhilosophyTraitValue(team.philosophy, 'starRecruitment') - clubPhilosophyTraitValue(team.philosophy, 'financialCaution')) / 400
+      : 1;
+    const allocation = squadPlanningClamp((.12 + urgency / 210) * recruitmentBias, .15, .55);
+    const baseAgeMax = aging || expiring || futureShortfall ? 27 : 30;
+    const youthPathway = team?.philosophy ? clubPhilosophyTraitValue(team.philosophy, 'youthPathway') : 50;
+    const preferredAgeMax = squadPlanningClamp(baseAgeMax + (youthPathway >= 65 ? -2 : youthPathway <= 35 ? 2 : 0), 22, 33);
     needs.push({
       id:`${team?.id ?? 'club'}:${group}:${position}`, version:SQUAD_PLANNING_VERSION, clubId:team?.id ?? null, group, position, roleId, urgency, reasons,
       coverage:{ current:groupPlayers.length, healthy:healthy.length, target, xi:xi.length, rotation:rotation.length, depth:depth.length }, future,
       targetAbilityBand:{ min:Math.round(squadPlanningClamp(groupAverage - 4, 40, 94)), max:Math.round(squadPlanningClamp(Math.max(groupAverage + 8, squadAverage + 4), 48, 96)) },
-      preferredAgeMax:aging || expiring || futureShortfall ? 27 : 30, maxBudget:Math.round(availableBudget * allocation), tacticalProfileId:tacticalProfile?.id ?? null,
+      preferredAgeMax, maxBudget:Math.round(availableBudget * allocation), tacticalProfileId:tacticalProfile?.id ?? null,
     });
   }
   return needs.sort((a, b) => b.urgency - a.urgency || a.group.localeCompare(b.group) || a.position.localeCompare(b.position));

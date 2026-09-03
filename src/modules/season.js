@@ -1,4 +1,4 @@
-import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllPlayers, getAllStandings, getAllTeams, getAllTransfers, getSave, getTeam, putPlayersBulk, putSave, putTeam, replaceAllFixtures, replaceAllStandings } from './db.js';
+import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllManagers, getAllPlayers, getAllStandings, getAllTeams, getAllTransfers, getSave, getTeam, putManagersBulk, putPlayersBulk, putSave, putTeam, replaceAllFixtures, replaceAllStandings } from './db.js';
 import { bumpMorale, sortTable } from './standings.js';
 import { CUP_META, buildInitialCupState } from './cups.js';
 import { getCompetitionRules } from './competitionRules.js';
@@ -16,6 +16,11 @@ import {
 } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { rolloverTransferMarket } from './transferMarket.js';
+import { applyLedgerMovement, financialPressure, operatingIncomeFor } from './clubFinance.js';
+import { evaluateBoardContractSeasonClose, evaluateBoardObjective, generateBoardContract, generateBoardObjective } from './boardContract.js';
+import { evolveClubPhilosophy } from './clubPhilosophy.js';
+import { dismissAndCaretake, reviewCheckpointKey } from './managerCareer.js';
+import { createCaretakerManager, createEmptyManagerMarket } from './managers.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -188,9 +193,9 @@ export async function processEndOfSeason() {
   const populationBefore = worldPopulationReport(players);
 
   const prizeMoney = calculatePrizeMoney(userPosition, save.cups, userLeague);
-  const userTeamRec = await getTeam(save.userTeamId);
+  let userTeamRec = await getTeam(save.userTeamId);
   if (userTeamRec) {
-    await putTeam({ ...userTeamRec, budget:(userTeamRec.budget ?? 0) + prizeMoney });
+    userTeamRec = applyLedgerMovement(userTeamRec, { category:'prize_money', amount:prizeMoney, description:'Season prize money' });
     summary.prizeMoney = prizeMoney;
   }
 
@@ -203,9 +208,29 @@ export async function processEndOfSeason() {
     }
   }
 
-  const nonUserTeams = allTeams.filter(team => team.id !== save.userTeamId);
-  for (const team of nonUserTeams) {
-    await putTeam({ ...team, budget:reputationBudget(team.reputation ?? 70, false) });
+  // P7 WP3: every club (user included, per the guide's "AI uses the same
+  // affordability and solvency rules as the user") earns a real recurring
+  // commercial/operating income each season, scaled by reputation — not a
+  // destructive reset to a fresh reputation-formula figure (that discarded
+  // all in-season spending/windfalls every year, WP2's own reason for
+  // retiring it), and not WP2's interim 25%-convergence placeholder either.
+  // The user's own club is credited separately above via prizeMoney; this
+  // loop adds its operating income the same as every AI club.
+  // P7 WP6's decideAIFacilityInvestment (facilities.js) is deliberately NOT
+  // called here yet: facility consumer effects (trainingEfficiencyMultiplier
+  // etc.) are only wired for the user's own managed squad (p5Runtime.js),
+  // never for a background AI club's players — extending that would mean
+  // threading a facility multiplier through the world-wide P3 settlement
+  // path, a bigger and separate piece of work. Calling it now would have AI
+  // clubs spend real ledgered money on upgrades with no gameplay effect at
+  // all, which code review confirmed is worse than not shipping it.
+  for (const team of allTeams) {
+    if (team.id === save.userTeamId) continue;
+    await putTeam(applyLedgerMovement(team, { category:'operating_income', amount:operatingIncomeFor(team.reputation ?? 70), description:'Season commercial/operating income' }));
+  }
+  if (userTeamRec) {
+    userTeamRec = applyLedgerMovement(userTeamRec, { category:'operating_income', amount:operatingIncomeFor(userTeamRec.reputation ?? 70), description:'Season commercial/operating income' });
+    await putTeam(userTeamRec);
   }
 
   const loanReturnUpdates = players
@@ -293,6 +318,21 @@ export async function processEndOfSeason() {
     ]),
   };
 
+  // Managers age exactly like players do at rollover. Nothing else here
+  // decides AI retirement/dismissal — that stays p6Runtime.js's one weekly
+  // checkpoint (managerCareer.js's shouldRetire), which already runs every
+  // season on the same cadence; this just feeds it a real, moving age
+  // instead of leaving every manager frozen at their starting age forever.
+  // `allManagers` is reassigned to the aged array (not left pointing at the
+  // stale pre-increment objects) because the board-contract dismissal below
+  // reads the user's manager from this same array — using the stale copy
+  // there would silently revert this age bump when that patch is written.
+  let allManagers = await getAllManagers();
+  if (allManagers.length) {
+    allManagers = allManagers.map(manager => ({ ...manager, age:(manager.age ?? 45) + 1 }));
+    await putManagersBulk(allManagers);
+  }
+
   const allTeamsForAcademy = await getAllTeams();
   const newYouthCohort = await runYouthIntake(save, allTeamsForAcademy);
 
@@ -321,17 +361,70 @@ export async function processEndOfSeason() {
   const objectiveResult = evaluateBoardObjective(save.boardObjective, userPosition, sorted.length, leagueChanges.userRelInfo?.relegated ?? false);
   const newJobSecurity = nextJobSecurity(save.jobSecurity, objectiveResult.met, objectiveResult.margin);
   const sacked = newJobSecurity <= 0;
+  // P7 WP4: the weighted contract (sporting+financial+youth) is a separate,
+  // additive judgment — never blended into nextJobSecurity/sacked above, so
+  // the live "MET"/job-security number a title-winning-but-cash-strapped
+  // club sees stays exactly what it was pre-WP4 (dismissalRecommended can
+  // only ever be true when the sporting objective's own status is REVIEW,
+  // which requires it to be unmet — see boardContract.js — so it can never
+  // fire alongside a MET verdict).
+  const boardContractResult = save.boardContract
+    ? evaluateBoardContractSeasonClose(save.boardContract, { team:userTeamRec, players, finalPosition:userPosition, totalTeams:sorted.length, wasRelegated:leagueChanges.userRelInfo?.relegated ?? false })
+    : null;
   summary.boardObjective = save.boardObjective ?? null;
+  summary.boardContract = boardContractResult;
   summary.objectiveMet = objectiveResult.met;
   summary.jobSecurity = newJobSecurity;
-  summary.sacked = sacked;
+  const dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended);
+  summary.dismissalRecommended = dismissalRecommended;
+
+  // P7 WP7: execute the dismissal. Job security running out (pre-P7) and the
+  // board contract's own independent judgment (new) both end the user's
+  // tenure — reusing the exact soft dismissAndCaretake path P6 already built
+  // for voluntary resignation (reason:'dismissed' is literally its default
+  // case) rather than the old hard-reset save-wipe path: a caretaker
+  // takes over the club immediately, the user's manager becomes a free agent
+  // (record.sackings increments, honors/career history survive) and can be
+  // approached/apply for a new job from Settings' Manager Career card, same
+  // as resigning. Known limitation, shared with resignation and not
+  // introduced by this change: Home/Squad/Transfers aren't yet unemployment-
+  // aware, so the old club's fixtures stay nominally playable from Home
+  // until the user accepts a new job — see CLAUDE.md.
+  const dismissed = sacked || dismissalRecommended;
+  summary.sacked = dismissed;
+  if (dismissed) {
+    const userManagerRow = allManagers.find(manager => manager.id === save.userManagerId);
+    if (userManagerRow?.status === 'employed' && userTeamRec) {
+      const weekKey = reviewCheckpointKey(save);
+      const caretaker = createCaretakerManager(userTeamRec, { weekKey, currentDate:save.currentDate });
+      const { dismissedManager, caretakerManager, vacancy } = dismissAndCaretake(userManagerRow, caretaker, { weekKey, reason:'dismissed' });
+      await putManagersBulk([dismissedManager, caretakerManager]);
+      userTeamRec = { ...userTeamRec, managerId:caretakerManager.id };
+      await putTeam(userTeamRec);
+      summary.dismissalVacancy = vacancy;
+    }
+  }
+  // P7 WP5: compact identity/finance trajectory, not the full ledger.
+  summary.clubIdentity = userTeamRec ? {
+    philosophy:userTeamRec.philosophy?.traits ?? null,
+    financialPressure:financialPressure(userTeamRec),
+    cash:userTeamRec.finance?.cash ?? userTeamRec.budget ?? null,
+  } : null;
 
   // One immutable compact season record. Current detailed ledgers are reset on
   // players/fixtures below and are not duplicated into historical match blobs.
   await addSeason(summary);
 
   const allTeamsRefreshed = await getAllTeams();
-  const userTeamUpdated = allTeamsRefreshed.find(team => team.id === save.userTeamId);
+  let userTeamUpdated = allTeamsRefreshed.find(team => team.id === save.userTeamId);
+  // P7 WP5: bounded, slow identity drift from this season's board outcome.
+  if (userTeamUpdated?.philosophy && boardContractResult) {
+    const evolvedPhilosophy = evolveClubPhilosophy(userTeamUpdated.philosophy, boardContractResult);
+    if (evolvedPhilosophy !== userTeamUpdated.philosophy) {
+      userTeamUpdated = { ...userTeamUpdated, philosophy:evolvedPhilosophy };
+      await putTeam(userTeamUpdated);
+    }
+  }
   const userNewLeague = userTeamUpdated?.league ?? userLeague;
   const leagueTeamsNext = allTeamsRefreshed.filter(team => (team.league ?? 'Premier League') === userNewLeague);
   const nextTotalGWs = Math.max(0, (leagueTeamsNext.length - 1) * 2);
@@ -344,6 +437,7 @@ export async function processEndOfSeason() {
   const newCupIds = assignCupsFromPosition(userPosForCups, userNewLeague, save.cups ?? {});
   const newCups = buildInitialCupState(newCupIds, save.userTeamId, userNewLeague);
   const nextBoardObjective = generateBoardObjective(userTeamUpdated, userNewLeague);
+  const nextBoardContract = generateBoardContract(userTeamUpdated, userNewLeague);
 
   const newSave = {
     ...save,
@@ -359,8 +453,12 @@ export async function processEndOfSeason() {
     formation:save.formation ?? '4-3-3',
     youthCohort:newYouthCohort,
     boardObjective:nextBoardObjective,
-    jobSecurity:sacked ? 65 : newJobSecurity,
-    sacked,
+    boardContract:nextBoardContract,
+    jobSecurity:dismissed ? 65 : newJobSecurity,
+    sacked:dismissed,
+    managerMarket:summary.dismissalVacancy
+      ? { ...(save.managerMarket ?? createEmptyManagerMarket()), vacancies:[...(save.managerMarket ?? createEmptyManagerMarket()).vacancies, summary.dismissalVacancy].slice(-200) }
+      : save.managerMarket,
     inboundOffers:[],
     collapsedDeals:[],
     transferMarket:rolloverTransferMarket(save.transferMarket, nextSeason),
@@ -408,6 +506,11 @@ export async function getHonorsForTeam(teamId) {
   return { combined, earned:myEarned };
 }
 
+// Retained only because src/validate.js's legacy "Budget Scaling" section
+// calls this by bare identifier and crashes (not a clean FAIL) if it's
+// missing. P7 WP3 no longer uses this for any actual budget movement —
+// clubFinance.js's operatingIncomeFor() is the real, deterministic
+// commercial-income formula every club's season rollover uses instead.
 export function reputationBudget(reputation, isUserTeam = false) {
   const base = Math.round(
     reputation >= 95 ? 180_000_000 + (reputation - 95) * 10_000_000 :
@@ -421,31 +524,6 @@ export function reputationBudget(reputation, isUserTeam = false) {
   );
   const variance = base * (Math.random() * 0.12 - 0.06);
   return Math.round(base + variance);
-}
-
-export function generateBoardObjective(team, league) {
-  const rep = team?.reputation ?? 65;
-  const promotionLeagues = new Set(['Championship', 'League One', 'League Two']);
-  if (promotionLeagues.has(league)) {
-    if (rep >= 75) return { id:'promotion', label:'Win promotion', kind:'position', target:2 };
-    if (rep >= 62) return { id:'playoffs', label:'Push for the play-offs', kind:'position', target:6 };
-    if (league === 'League Two') return { id:'consolidate', label:'Finish in mid-table', kind:'position', target:12 };
-    return { id:'avoid_relegation', label:'Avoid relegation', kind:'avoid_relegation' };
-  }
-  if (rep >= 85) return { id:'title', label:'Win the league', kind:'position', target:1 };
-  if (rep >= 75) return { id:'europe', label:'Qualify for Europe', kind:'position', target:7 };
-  if (rep >= 55) return { id:'top_half', label:'Finish in the top half', kind:'top_half' };
-  return { id:'avoid_relegation', label:'Avoid relegation', kind:'avoid_relegation' };
-}
-
-export function evaluateBoardObjective(objective, finalPosition, totalTeams, wasRelegated) {
-  if (!objective) return { met:true, margin:0 };
-  if (objective.kind === 'avoid_relegation') return { met:!wasRelegated, margin:wasRelegated ? -3 : 3 };
-  if (objective.kind === 'top_half') {
-    const mid = Math.ceil((totalTeams || 20) / 2);
-    return { met:finalPosition <= mid, margin:mid - finalPosition };
-  }
-  return { met:finalPosition <= objective.target, margin:objective.target - finalPosition };
 }
 
 /**
@@ -516,6 +594,6 @@ export async function payWeeklyWages() {
   for (const team of allTeams) {
     const bill = billByTeam.get(team.id) ?? 0;
     if (bill <= 0) continue;
-    await putTeam({ ...team, budget:(team.budget ?? 0) - bill });
+    await putTeam(applyLedgerMovement(team, { category:'wages', amount:-bill, description:'Weekly wages' }));
   }
 }

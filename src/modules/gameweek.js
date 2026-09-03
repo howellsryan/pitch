@@ -7,6 +7,8 @@ import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatch
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
 import { advanceTransferMarketWeek } from './transfers.js';
 import { advanceP5CareerDepthWeek } from './p5Runtime.js';
+import { advanceP6ManagerCareerWeek } from './p6Runtime.js';
+import { advanceP7ClubFinanceWeek } from './p7Runtime.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
@@ -310,8 +312,10 @@ async function runEndOfWorldGameweek(save, fixtures) {
   const recoveredPlayers = await processInjuryRecovery().catch(() => []);
   const careerDepthResult = await advanceP5CareerDepthWeek(await getSave()).catch(() => ({ reportsAdded:[], needs:[] }));
   const marketResult = await advanceTransferMarketWeek(await getSave()).catch(() => ({ newOffers:[], playerResponses:[] }));
+  const managerCareerResult = await advanceP6ManagerCareerWeek(await getSave()).catch(() => ({ dismissed:[], warnings:[], hired:[] }));
   const newOffers = marketResult.newOffers ?? [];
   const playerResponses = marketResult.playerResponses ?? [];
+  await advanceP7ClubFinanceWeek(await getSave()).catch(() => ({ settledTeamIds:[] }));
   await payWeeklyWages().catch(() => {});
   await updateTeamMorale(save.userTeamId).catch(() => {});
   return {
@@ -321,6 +325,9 @@ async function runEndOfWorldGameweek(save, fixtures) {
     personalStatePatches,
     scoutingReports:careerDepthResult.reportsAdded ?? [],
     squadNeeds:careerDepthResult.needs ?? [],
+    dismissedManagers:managerCareerResult.dismissed ?? [],
+    managerWarnings:managerCareerResult.warnings ?? [],
+    hiredManagers:managerCareerResult.hired ?? [],
   };
 }
 

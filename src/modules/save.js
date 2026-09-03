@@ -14,8 +14,10 @@ import {
   getAllStandings,
   getAllTeams,
   getSave,
+  getTeam,
   openDB,
   putFixturesBulk,
+  putManagersBulk,
   putPlayersBulk,
   putSave,
   putStandingsBulk,
@@ -33,13 +35,17 @@ import {
   playerModelNeedsNormalization,
 } from './playerModel.js';
 import { generateCohort } from './youthAcademy.js';
-import { generateBoardObjective } from './season.js';
+import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
+import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
 import { withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
+import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
+import { CLUB_PHILOSOPHY_VERSION, buildClubPhilosophyBackfill, clubPhilosophiesNeedBackfill, generateClubPhilosophy } from './clubPhilosophy.js';
+import { CLUB_FINANCE_VERSION, buildClubFinanceBackfill, createClubFinance, financeNeedsBackfill } from './clubFinance.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -209,6 +215,51 @@ export async function ensureP4TransferMarket(save) {
   return migration.save;
 }
 
+export async function ensureP6Managers(save) {
+  if (!save || !managersNeedBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildManagersBackfill(save, teams);
+  if (migration.managers.length) await putManagersBulk(migration.managers);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
+export async function ensureP7ClubPhilosophy(save) {
+  if (!save || !clubPhilosophiesNeedBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildClubPhilosophyBackfill(save, teams);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
+export async function ensureP7ClubFinance(save) {
+  if (!save || !financeNeedsBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildClubFinanceBackfill(save, teams);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
+export async function ensureP7BoardContract(save) {
+  if (!save || !boardContractNeedsBackfill(save)) return save;
+  const userTeam = await getTeam(save.userTeamId);
+  const migration = buildBoardContractBackfill(save, userTeam, save.userLeague);
+  await putSave(migration.save);
+  return migration.save;
+}
+
+export async function ensureP7Facilities(save) {
+  if (!save || !facilitiesNeedBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildFacilitiesBackfill(save, teams);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -219,6 +270,11 @@ export async function initApp() {
     save = await ensureP3PlayerModel(save);
     save = await ensureP4TransferMarket(save);
     save = await ensureP5CareerDepth(save);
+    save = await ensureP6Managers(save);
+    save = await ensureP7ClubPhilosophy(save);
+    save = await ensureP7ClubFinance(save);
+    save = await ensureP7BoardContract(save);
+    save = await ensureP7Facilities(save);
   }
   return save ?? null;
 }
@@ -252,17 +308,37 @@ export async function startNewGame(userTeamId, managerName) {
   const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague)
     .map(normalizePlayerModel);
 
-  const teams = allTeamData.map(({ players: _, ...rest }) => withDefaultCoaching({
-    ...rest,
-    budget: startingBudget(rest.reputation ?? 70),
-    academyInvestment: 0,
-  }));
+  const currentDate = new Date(seasonYear, 7, 9).toISOString();
+  const userManager = createUserManager({ name:managerName, currentClubId:userTeamId, currentDate });
+  const aiManagers = allTeamData
+    .filter(team => team.id !== userTeamId)
+    .map(team => generateAIManagerForClub(team, { currentDate, seasonStartYear:seasonYear }));
+  const managerIdByClub = new Map([[userTeamId, userManager.id], ...aiManagers.map(m => [m.currentClubId, m.id])]);
+
+  const teams = allTeamData.map(({ players: _, ...rest }) => {
+    const budget = startingBudget(rest.reputation ?? 70);
+    return withDefaultCoaching({
+      ...rest,
+      budget,
+      academyInvestment: 0,
+      managerId: managerIdByClub.get(rest.id) ?? null,
+      philosophy: generateClubPhilosophy(rest, rest.league ?? userLeague),
+      finance: createClubFinance(budget),
+      facilities: createFacilities(),
+    });
+  });
 
   const save = {
     userTeamId,
     userLeague,
     managerName:     managerName || 'The Manager',
-    currentDate:     new Date(seasonYear, 7, 9).toISOString(),
+    managerModelVersion: MANAGER_MODEL_VERSION,
+    clubPhilosophyVersion: CLUB_PHILOSOPHY_VERSION,
+    clubFinanceVersion: CLUB_FINANCE_VERSION,
+    facilitiesVersion: FACILITIES_VERSION,
+    userManagerId:   userManager.id,
+    managerMarket:   createEmptyManagerMarket(),
+    currentDate,
     season,
     currentGameweek: 1,
     totalGameweeks:  (leagueTeams.length - 1) * 2,
@@ -283,6 +359,8 @@ export async function startNewGame(userTeamId, managerName) {
     inbox:           [],
     youthCohort:     initialCohort,
     boardObjective:  generateBoardObjective(userTeamData, userLeague),
+    boardContract:   generateBoardContract(userTeamData, userLeague),
+    boardContractVersion: BOARD_CONTRACT_VERSION,
     jobSecurity:     65,
     sacked:          false,
   };
@@ -300,6 +378,7 @@ export async function startNewGame(userTeamId, managerName) {
   const world = buildWorldLeagueSeason(teams, seasonYear);
 
   await putTeamsBulk(teams);
+  await putManagersBulk([userManager, ...aiManagers]);
   const assignedPlayers = assignDefaultSquadRoles(
     assignPotentials(players).map(normalizePlayerModel),
     { currentYear:seasonYear, managedTeamId:userTeamId },

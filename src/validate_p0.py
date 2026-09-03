@@ -121,6 +121,44 @@ SUPERSEDED_LEGACY_CHECKS = {
     'REG: ST primary boost is attack',
     'REG: CB primary boost is defence',
     'REG: GK primary boost is goalkeeping',
+
+    # P7 WP2 routes every budget-mutating write through clubFinance.js's
+    # applyLedgerMovement/syncLedgerCash instead of hand-rolled
+    # `budget: team.budget +/- x` arithmetic, so team.budget can never drift
+    # from the new finance.cash ledger. These three legacy checks match the
+    # literal retired expressions; transfersLoanFinance.test.js exercises
+    # loanOutPlayer/loanInPlayer's real financial outcomes directly.
+    'LOAN: loan club deducted total cost',
+    'LOAN: parent club receives loan fee',
+    'LOAN: user loan-out gives full wage relief',
+
+    # P7 WP4/WP5 grew processEndOfSeason's board-contract/identity-evolution
+    # section past this legacy check's fixed 10,000-character scan window
+    # from the start of the function — the real `generateBoardObjective(
+    # userTeamUpdated...)` call this check looks for is still there, just
+    # further into the function than the window can see (the same
+    # fixed-window limitation already documented above for the P1/rollover
+    # checks). seasonP1.test.js's own P7 WP5 test asserts the same fact
+    # directly against the real, untruncated function source.
+    'Season end sets a fresh objective for next season',
+
+    # P7 WP6 grew processEndOfSeason further still (facility-investment
+    # section) — the same fixed-window limitation now also hides
+    # evaluateBoardObjective/nextJobSecurity and runYouthIntake from their
+    # own legacy checks. seasonP1.test.js's dedicated P7 test asserts all
+    # three literally against the real, untruncated source.
+    'Season end evaluates the outgoing objective',
+    'runYouthIntake called in processEndOfSeason',
+
+    # P7 WP7: dismissal (job security or the board contract's own judgment)
+    # now executes through the same soft dismissAndCaretake path P6 already
+    # built for voluntary resignation, replacing the old hard
+    # resetForNewCareer() reset — a fired manager keeps their save/career and
+    # becomes a free agent, same as resigning. The legacy check's literal
+    # "Start New Career" button text is gone by design; seasonP1.test.js's
+    # dedicated P7 WP7 test asserts the real replacement contract (the
+    # dismissAndCaretake call, the unified dismissed flag, no reset call).
+    'Sacked end-state offers Start New Career, not Start Next Season',
 }
 
 P0_TEST_FILES = [
@@ -141,6 +179,8 @@ P0_TEST_FILES = [
     'src/modules/playerPathways.test.js',
     'src/modules/playerDevelopment.test.js',
     'src/modules/playerRehabilitation.test.js',
+    # P7 WP2 replacement for the retired loan-financials source-shape checks.
+    'src/modules/transfersLoanFinance.test.js',
 ]
 
 

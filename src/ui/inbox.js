@@ -262,3 +262,10 @@ export async function newsYouthIntake(count, wonderkids, save) {
   const body  = `${count} new prospects joined the academy${wkStr}`;
   await addNewsItem(_makeNewsItem('academy', title, body, { gw: save.currentGameweek, icon: 'academy' }));
 }
+
+/** P7 WP7: the board's own dismissal (job security or the multi-objective board contract) — a caretaker takes over immediately; the user stays a free agent, browsing/applying for jobs from Settings' Manager Career card. */
+export async function newsManagerDismissed(teamName, save) {
+  const title = 'Relieved of your duties';
+  const body  = `The ${teamName} board have run out of patience. A caretaker takes charge — you're a free agent now, and clubs may come calling.`;
+  await addNewsItem(_makeNewsItem('season', title, body, { gw: save.currentGameweek, icon: 'inbox' }));
+}

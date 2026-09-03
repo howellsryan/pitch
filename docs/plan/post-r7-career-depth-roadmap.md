@@ -4,7 +4,7 @@
 
 **Baseline:** `main` after PR #14 (`767b31656d58f00acc42431cc3bca6df131b1b5b`) — R0-R7 shipped.
 
-**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA complete (31 August 2026). P3 — Player Model 2.0 complete (1 September 2026). P4 — Transfer Market and Contracts 2.0 complete (1 September 2026). P5 — Scouting, Coaching, Training and Squad Planning complete (1 September 2026). P6 — Manager Career and Club Movement is next.**
+**Programme status:** **P0 complete (30 August 2026). P1 — The Living Football World complete (31 August 2026). P2 — Match Engine 2.0, Tactics and Manager DNA complete (31 August 2026). P3 — Player Model 2.0 complete (1 September 2026). P4 — Transfer Market and Contracts 2.0 complete (1 September 2026). P5 — Scouting, Coaching, Training and Squad Planning complete (1 September 2026). P6 — Manager Career and Living Manager Market complete (2 September 2026). P7 — Club Identity, Finance, Board and Facilities complete (3 September 2026). P8 — Story Engine, Press, Fans and Rivalries is next.**
 
 **Verification note:** the Playwright/E2E suite referenced by earlier phase gates
 in this document has been removed from the repository. Those browser-suite
@@ -175,7 +175,7 @@ Pitch's European competition model should be data-driven enough that rule change
 
 ## 5.1 Delivery contract for future agents
 
-**P0-P5 are implemented and verified. P6-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested delivery slices so a later agent can pick it up without reopening the main product and architecture decisions.
+**P0-P6 are implemented and verified. P7-P12 remain programme phases**, not instructions to implement an entire phase in one pull request. Each remaining phase below has a high-level delivery route and suggested delivery slices so a later agent can pick it up without reopening the main product and architecture decisions.
 
 **Detailed execution guides:** [P3–P12 implementation guide index](post-r7-implementation-guides/README.md). Use the roadmap for priority and scope, then the phase guide for contracts, migration, work packages, verification and commit boundaries.
 
@@ -774,9 +774,36 @@ Optional: a **simulated tactical scrimmage/lab** against reserves that returns a
 
 ## P6 — Manager Career and Living Manager Market
 
-**Priority:** #6.
+**Status: ✅ COMPLETE — 2 September 2026.**
+
+**Priority:** completed manager-career foundation; **P7 — Club Identity, Finance, Board and Facilities is now next.**
 
 This absorbs and expands the old `ROADMAP.md` Manager Career Progression item.
+
+### Shipped in P6
+
+- `src/modules/managers.js` is the manager entity schema/store (new `managers` IndexedDB store, `DB_VERSION` 3→4). Every club — the user's own included — has exactly one manager entity, migrated/backfilled idempotently from existing saves' `managerName`/`managerDNA`.
+- `src/modules/managerCareer.js`/`p6Runtime.js` accrue league match records and run a bounded in-season review checkpoint from the same safe world-week boundary P4/P5 already tick from; a vacated AI role (dismissed, resigned, or retired via seeded `shouldRetire`/`shouldResign` rolls) is immediately handed to a caretaker so no club is ever managerless, and `team.managerId` always tracks who actually runs the club.
+- `src/modules/managerAppointments.js` is the one shared appointment state machine (candidates → offer → accepted/declined → completed) both AI and user hires go through, with explainable bounded fit scoring and same-tick reservations so two vacancies can never be awarded the same manager.
+- `src/modules/managerCompetitionHandoff.js` and `managerClubHandover.js` are the competition control-transfer adapter and atomic club-control handover — the phase's own critical design gate. `save.cups` (single-perspective, synthetic UEFA opponents) and `save.worldCompetitions` (every other club's real progress) are different shapes by design; this is a bounded, tested projection between them rather than a full unification, with a documented, disclosed set of edge-case simplifications (a mid-tie handover resolves by walkover before projection; a UEFA transfer mid-season shifts future round-robin pairings for other clubs; full match-by-match cup history doesn't survive the shape boundary).
+- `src/modules/managerUserJourney.js`/`managerUserActions.js` are the user's own resignation/approach/application/accept flow, safe-boundary gated exactly like every other P6 control change, with club-initiated approaches and the user's own proactive applications kept distinct (`source: 'approach' | 'application'`) so the UI never conflates the two.
+- One product surface: a "Manager Career" card and sheet on `SettingsScreen.svelte` (profile, resign, approaches/applications/open jobs while unemployed) — the only UI needed to reach the whole backend, since accepting an offer completes automatically at the next safe boundary (every screen mounts unconditionally at boot, so the completion check runs on every app load, not just a Settings visit).
+- `season.js` now ages every manager by one year at rollover, so age-based retirement can actually occur across a multi-season career instead of every manager staying frozen at their starting age.
+
+### Explicit deferrals
+
+- The full `manager → tactics → squad-role fit → recruitment needs → transfers → results` feedback loop is only partly realised: AI tactical identity still comes from `tactics.js`'s team-based profile, not a per-manager one, and a manager change does not yet retune recruitment priorities. The roadmap's own P6 route (bullet 5) anticipated this — "P7 enriches this contract with persistent club philosophy" — so this is deepened by P7, not a P6 shortfall.
+- Rich club philosophy, finance and board objectives belong to P7; press conferences and rivalry narratives belong to P8; international manager jobs belong to P12 (unchanged from the original plan).
+
+### Completion evidence
+
+- 471/471 Vitest tests passed, including deterministic contracts for manager generation/backfill, the review/dismissal/caretaker checkpoint, the shared appointment state machine, the competition control-transfer adapter (idempotency, pending-tie walkover, league-phase-vs-knockout detection), the atomic club handover, and the user resignation/approach/application flow;
+- legacy compatibility bridge (`src/build.py` + `validate_p0.py`) passed, with every new P6 module's functions confirmed present in the emitted bundle by grep (not just a green build — this phase's own review caught two real legacy-bundler traps: `export class` isn't rewritten by the module stripper, and top-level `const`/`function` names collide across the whole flat bundle, not just within one file);
+- production Vite build and ESLint passed;
+- **186/186 club accent checks** passed;
+- the Manager Career card/sheet was hand-verified at **390×844** against the built `dist/` (a scripted headless-Chromium check, since the raw Vite dev server's `root: 'web'` + relative `../src/main.js` entry needs the SPA-fallback-aware production preview to resolve for automation — `npm run dev` is unaffected for a human in a real browser): both the employed state (profile, resign gated correctly behind the empty-event-queue safe boundary) and the unemployed state (approaches, applications, open jobs, accept/decline/apply, all rendering distinctly) were confirmed with no new console errors, and the full accept → pending-handover → opportunistic-completion-on-next-load loop was verified end-to-end against real IndexedDB state (`userTeamId` swapped, `pendingUserHandover` cleared, lineup reset, fresh board objective).
+
+
 
 ### Manager profile
 
@@ -839,9 +866,36 @@ This is where P1/P2/P4 become a single living system rather than separate featur
 
 ## P7 — Club Identity, Finance, Board and Facilities
 
-**Priority:** #7.
+**Status: ✅ COMPLETE — 3 September 2026.**
+
+**Priority:** completed club-identity/finance/board/facilities foundation; **P8 — Story Engine, Press, Fans and Rivalries is now next.**
 
 Make clubs behave differently over many seasons.
+
+### Shipped in P7
+
+- `src/modules/clubPhilosophy.js`: an additive, versioned `team.philosophy` (8 weighted 0-100 traits) seeded deterministically from reputation/league/existing AI tactical archetype, consumed by manager-fit scoring and squad-planning budget/age nudges; `evolveClubPhilosophy` lets a season's board-contract outcome nudge specific traits by exactly ±2, clamped [0,100].
+- `src/modules/clubFinance.js`: an additive, versioned `team.finance` ledger (cash, seasonTotals, a capped audit trail, and scheduled obligations for P4's deferred transfer installments). Every budget-mutating write in the codebase — transfers, wages, prize money, coaching costs, academy investment, facility upgrades — routes through one `applyLedgerMovement`/`syncLedgerCash` pair, so the legacy `team.budget` field can never drift out of sync with `finance.cash`. A deterministic `operatingIncomeFor(reputation)` gives every club, the user's included, a real recurring commercial-income credit each season, replacing the old destructive full-budget reset.
+- `src/modules/boardContract.js`: a weighted 3-objective board contract (sporting 0.5, financial 0.25, youth 0.25) replacing the old single finish-target, each objective scored ok/warning/review with a weighted 0-1 season-close verdict.
+- `src/modules/facilities.js`: three bounded, integer-tiered (1-5) infrastructure tracks — training, medical, scouting — each with a real, capped P3/P5 consumer for the user's own managed squad (coaching multiplier, injury-recovery speed, scouting assignment capacity/confidence).
+- `src/modules/p7Runtime.js`: one weekly tick (`advanceP7ClubFinanceWeek`) settling due obligations and completing due facility upgrades per club, wired into `gameweek.js`'s existing world-week boundary; `startFacilityUpgrade` is the IO command a UI calls to begin an upgrade.
+- Product surfaces: the existing end-of-season "Board Objective" section (`src/ui/home_transfers.js`) now shows the real 3-objective breakdown, not just the legacy single verdict; `SettingsScreen.svelte` gained a "Club" card (available funds, the board's financial-health read, recent ledger entries, and an Upgrade action per facility track).
+- **Board-driven dismissal is executed, not just surfaced.** `evaluateBoardContractSeasonClose`'s `dismissalRecommended` (true only when the sporting objective is itself in review and the overall weighted score is poor) and the pre-existing job-security trigger now both route through the same soft `dismissAndCaretake` handover P6 already built for voluntary resignation: a caretaker takes the club immediately, the user's manager becomes a free agent with career/honors intact, and a vacancy opens for the user to browse/apply/be approached for from Settings. This replaced a genuine, previously-undiscovered inconsistency: `summary.sacked` used to trigger a hard `resetForNewCareer()` save wipe, while P6's own unemployment flow was soft — two incompatible endings for "you lost your job" that this phase reconciled onto the one consistent with P6's own manager-career premise.
+
+### Explicit deferrals
+
+- Bonus payments (appearance/goals/clean-sheets/promotion/trophy-triggered) and sell-on percentages — `terms.contract`/`normalizeBonuses` already exist but are unconsumed; both need their own dedicated design pass.
+- AI clubs' facilities are inert: `decideAIFacilityInvestment` is built and tested but not called from `season.js`, since none of the facility consumer wiring reaches a background AI club's players yet (that needs threading a multiplier through the world-wide P3 settlement path — separate, larger work).
+- Inbox posts for facility-upgrade completion and obligations settling are not yet wired — the guide's own lower-priority bullet among several; the Inbox system itself is real and already used for season/transfer/injury/academy news, so this is additive follow-up work, not a redesign.
+- **Home/Squad/Transfers/League are not yet unemployment-aware.** Only `SettingsScreen.svelte` reads the user manager's employment status, so after any unemployment (this phase's new dismissal path, or P6's pre-existing voluntary resignation) the old club stays nominally playable from Home until the user accepts a new job. Making every screen react to unemployment (gating Play, a dedicated unemployed state) is a separate, larger multi-screen feature this phase disclosed rather than rushed.
+
+### Completion evidence
+
+- 591/591 Vitest tests passed, including deterministic contracts for the philosophy/finance/board-contract/facilities modules, the P7 weekly runtime tick, and the reconciled dismissal-execution path (the real `dismissAndCaretake` call, the unified `dismissed` flag, no reachable hard-reset call);
+- legacy compatibility bridge (`src/build.py` + `validate_p0.py`) passed — 92/92 deterministic replacement contracts, including one added this phase for the retired "Start New Career" sacked-modal check, paired with a real Vitest assertion of the new behaviour;
+- production Vite build and ESLint passed;
+- **186/186 club accent checks** passed;
+- the new Settings "Club" card, the extended board-objective breakdown and the rewritten sacked-flow modal follow the same established markup/CSS-class patterns as P6's already-hand-verified Manager Career card, and passed lint/build/legacy-bundle checks — but unlike every P6/P7 WP1-6 UI slice, **these specific additions were not hand-verified with a rendered screenshot**; the user explicitly chose to skip that step for this slice. This is a real, disclosed gap against this guide's own §7 visual-verification rule, not a silent skip — worth a follow-up screenshot pass before treating this UI as fully proven in the running app.
 
 ### Club philosophy
 
@@ -1261,9 +1315,9 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 | ✅ | **P3 — Player Model 2.0 (COMPLETE)** | Meaningful selection, rotation and development |
 | ✅ | **P4 — Transfer Market and Contracts 2.0 (COMPLETE)** | Staged deals, contracts and need-led AI recruitment |
 | ✅ | **P5 — Scouting/Coaching/Training/Squad Planning (COMPLETE)** | Less omniscience and strategic long-term planning |
-| 1 | **P6 — Manager Career + AI Manager Market (NEXT)** | A career across clubs, not one club forever |
-| 2 | P7 — Club/Finance/Board ecosystem | Clubs gain persistent identities and pressures |
-| 3 | P8 — Story/Press/Fans/Rivalries | Systems turn into memorable narratives |
+| ✅ | **P6 — Manager Career + AI Manager Market (COMPLETE)** | A career across clubs, not one club forever |
+| ✅ | **P7 — Club/Finance/Board ecosystem (COMPLETE)** | Clubs gain persistent identities and pressures |
+| 1 | **P8 — Story/Press/Fans/Rivalries (NEXT)** | Systems turn into memorable narratives |
 | 4 | P9 — Academy/Loans 2.0 | Deep long-term player pathways |
 | 5 | P10 — Career settings | Depth remains approachable/configurable |
 | 6 | P11 — Creator Challenges/Live starts | Replayability and community sharing |
@@ -1277,7 +1331,7 @@ Follow the existing plan discipline: no phase may leave the career half-migrated
 - **P1 shared data spine is satisfied:** P2 and P3 consume its canonical match/history records rather than recreating world state.
 - **P2 tactics/simulation gate is satisfied:** seeded RNG, one authoritative managed-input contract, tactical causality, Manager DNA and Quick Sim/Broadcast parity form the stable baseline for P3.
 - **P2 + P3 market-loop gate is satisfied:** P4 owns the minimal shared squad-needs projection; P5 expands it rather than replacing it.
-- **P4 + P5 unlock career movement:** P6 can ship manager entities and movement with a basic fit contract; P7 later enriches club identity and finance.
+- **P4 + P5 career-movement gate is satisfied:** P6 shipped manager entities and movement with a basic fit contract; P7 now enriches club identity and finance.
 - **P3 + P6 + P7 unlock narrative consequences:** P8 should not invent placeholder morale, job or finance state.
 - **P1 + P3 + P5 unlock development pathways:** P9 reuses canonical players, reports and match histories.
 - **P10 is cross-cutting:** its settings contract may land early, while individual controls land with the subsystem they configure.

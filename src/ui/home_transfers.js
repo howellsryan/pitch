@@ -1,8 +1,8 @@
-import { getAllTeams, getSave, getTeam, resetForNewCareer } from '../modules/db.js';
+import { getAllTeams, getSave, getTeam } from '../modules/db.js';
 import { CUP_META } from '../modules/cups.js';
 import { processEndOfSeason } from '../modules/season.js';
 import { fmt, hideLoader, showLoader, showModal, toast } from './helpers.js';
-import { newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
+import { newsManagerDismissed, newsPromotion, newsRelegation, newsSeasonEnd, newsYouthIntake } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 
 // ══════════════════════════════════════════════════════════════
@@ -121,27 +121,55 @@ export async function handleEndOfSeason(){
     if(summary.boardObjective){
       const metColor=summary.objectiveMet?'var(--acc)':'var(--acc3)';
       const metLabel=summary.objectiveMet?'MET':'MISSED';
+      // P7 WP7: the sporting MET/MISSED line above is the pre-P7 contract,
+      // kept byte-identical for saves without a board contract yet. Below it,
+      // a compact 3-objective breakdown from the new multi-objective board
+      // contract (WP4) — sporting/financial/youth — using the real semantic
+      // status colors (--color-live/--acc2/--acc3), not the club accent.
+      const statusColor={ok:'var(--color-live)',warning:'var(--acc2)',review:'var(--acc3)'};
+      const statusLabel={ok:'On track',warning:'Under review',review:'At risk'};
+      const objectives=summary.boardContract?.objectives||[];
+      const financialObj=objectives.find(o=>o.kind==='financial');
+      const youthObj=objectives.find(o=>o.kind==='youth');
+      const row=(label,status,detail)=>{
+        if(!status) return '';
+        return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:11px;padding:3px 0">
+          <span style="color:var(--tx2)">${label}${detail?` — ${detail}`:''}</span>
+          <span style="color:${statusColor[status]||'var(--tx2)'};font-weight:600;white-space:nowrap">${statusLabel[status]||status}</span>
+        </div>`;
+      };
+      const breakdownHtml=objectives.length?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr)">
+        ${row(summary.boardObjective.label,objectives.find(o=>o.kind==='sporting')?.status)}
+        ${row('Financial stability',financialObj?.status,financialObj?.pressure)}
+        ${row('Youth development',youthObj?.status,youthObj?`${youthObj.progress??0}/${youthObj.target} U21 appearances`:'')}
+      </div>`:'';
       boardHtml=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:8px">
         <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">${eosIcon('target')}Board Objective</div>
         <div style="font-size:12px;color:var(--tx2)">${summary.boardObjective.label}</div>
         <div style="font-size:12px;margin-top:4px;color:${metColor};font-weight:600">${metLabel} — ${summary.objectiveMet?'Objective met':'Objective missed'}</div>
+        ${breakdownHtml}
       </div>`;
     }
 
-    if(summary.sacked){
-      showModal('You Were Sacked',`<div>${tHtml}
-        <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
-        ${boardHtml}
-        <div style="font-size:13px;color:var(--acc3);font-weight:600">The board has run out of patience and relieved you of your duties.</div>
-        <div style="font-size:12px;color:var(--tx2);margin-top:6px">Your honors and career history are kept — starting a new career picks a fresh club to manage.</div>
-      </div>`,
-      [{id:'newcareer',label:'Start New Career',cls:'btn-p',handler:async()=>{ await resetForNewCareer(); window.location.reload(); }}]);
-      return;
-    }
+    // P7 WP7: a dismissal (job security or the board contract's own
+    // judgment) hands the club to a caretaker via the same soft
+    // dismissAndCaretake path P6 already uses for voluntary resignation —
+    // never a hard resetForNewCareer() wipe. The save/career/honors survive;
+    // the modal just tells the user, and the normal season-complete flow
+    // below still runs (new fixtures, inbox news) since the club's own
+    // season genuinely did complete, just under a new caretaker going
+    // forward. Known limitation: Home/Squad/Transfers aren't yet
+    // unemployment-aware, so this club stays nominally playable from Home
+    // until the user accepts a new job via Settings — see CLAUDE.md.
+    const sackedHtml=summary.sacked?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="font-size:13px;color:var(--acc3);font-weight:600">${eosIcon('user')}The board has run out of patience and relieved you of your duties.</div>
+      <div style="font-size:12px;color:var(--tx2);margin-top:4px">A caretaker takes over immediately. Your honors and career history are kept — you're a free agent now, and can browse or be approached for a new job from Settings.</div>
+    </div>`:'';
 
-    showModal('Season Complete!',`<div>${tHtml}
+    showModal(summary.sacked?'You Were Sacked':'Season Complete!',`<div>${tHtml}
       <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
       ${prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">${eosIcon('money')}Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
+      ${sackedHtml}
       ${boardHtml}
       ${lcHtml}
       ${summary.retirements&&summary.retirements.length?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
@@ -150,11 +178,12 @@ export async function handleEndOfSeason(){
       </div>`:''}
       <div style="font-size:12px;color:var(--tx2)">All players aged +1 year. New season fixtures generated.</div>
     </div>`,
-    [{id:'ok',label:'Start Next Season →',cls:'btn-p',handler:async()=>{await renderHome();}}]);
+    [{id:'ok',label:summary.sacked?'Continue →':'Start Next Season →',cls:'btn-p',handler:async()=>{await renderHome();}}]);
     // ── Inbox news ──────────────────────────────────────────
     if(typeof newsSeasonEnd==='function'){
       const _uTeam=await getTeam(newSave.userTeamId);
       newsSeasonEnd(summary.userFinish,newSave.userLeague||_uTeam?.league||'League',trophies,prizeMoney,newSave).catch(()=>{});
+      if(summary.sacked&&typeof newsManagerDismissed==='function') newsManagerDismissed(_uTeam?.name||'the club',newSave).catch(()=>{});
     }
     if(typeof newsPromotion==='function'&&leagueChanges?.userRelInfo?.promoted){
       const _uTeam=await getTeam(newSave.userTeamId);

@@ -124,8 +124,14 @@ export function settleRehabilitation(player, gameweek, season = null) {
   let medicallyAvailable = Boolean(rehab.medicallyAvailable);
   let nextStatus = status;
 
+  // P7 WP6: a club's medical facility level speeds up weekly readiness
+  // gain — bounded (facilities.js's medicalRecoveryMultiplier caps at
+  // 1.12), read straight off the player row so this file stays import-free
+  // (its own architectural rule); defaults to 1 for every AI club's player
+  // and any save that predates the facility field.
+  const facilityMultiplier = rehabClamp(Number(rehab.facilityRecoveryMultiplier) || 1, 1, 1.12);
   if (subject.injured) {
-    readiness = rehabClamp(readiness + (severity === 'major' ? 6 : severity === 'moderate' ? 8 : 10), 0, 70);
+    readiness = rehabClamp(readiness + Math.round((severity === 'major' ? 6 : severity === 'moderate' ? 8 : 10) * facilityMultiplier), 0, 70);
     medicallyAvailable = false;
     reinjuryRisk = 0;
   } else {
@@ -136,7 +142,7 @@ export function settleRehabilitation(player, gameweek, season = null) {
       reinjuryRisk = severity === 'major' ? .28 : severity === 'moderate' ? .20 : .14;
     } else {
       const exposurePenalty = Number(subject.minutes ?? 0) > Number(subject.rehabilitationMinutes ?? subject.minutes ?? 0) ? 2 : 0;
-      readiness = rehabClamp(readiness + (rehab.earlyReturn ? 7 : 11) - exposurePenalty, 0, 100);
+      readiness = rehabClamp(readiness + Math.round((rehab.earlyReturn ? 7 : 11) * facilityMultiplier) - exposurePenalty, 0, 100);
       reinjuryRisk = rehabClamp(reinjuryRisk - (rehab.earlyReturn ? .025 : .045), 0, .6);
       if (readiness >= 92 && reinjuryRisk <= .08) {
         nextStatus = 'match_fit';
