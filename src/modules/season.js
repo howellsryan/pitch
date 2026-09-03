@@ -317,12 +317,19 @@ export async function processEndOfSeason() {
   };
 
   // Managers age exactly like players do at rollover. Nothing else here
-  // decides retirement/dismissal — that stays p6Runtime.js's one weekly
+  // decides AI retirement/dismissal — that stays p6Runtime.js's one weekly
   // checkpoint (managerCareer.js's shouldRetire), which already runs every
   // season on the same cadence; this just feeds it a real, moving age
   // instead of leaving every manager frozen at their starting age forever.
-  const allManagers = await getAllManagers();
-  if (allManagers.length) await putManagersBulk(allManagers.map(manager => ({ ...manager, age:(manager.age ?? 45) + 1 })));
+  // `allManagers` is reassigned to the aged array (not left pointing at the
+  // stale pre-increment objects) because the board-contract dismissal below
+  // reads the user's manager from this same array — using the stale copy
+  // there would silently revert this age bump when that patch is written.
+  let allManagers = await getAllManagers();
+  if (allManagers.length) {
+    allManagers = allManagers.map(manager => ({ ...manager, age:(manager.age ?? 45) + 1 }));
+    await putManagersBulk(allManagers);
+  }
 
   const allTeamsForAcademy = await getAllTeams();
   const newYouthCohort = await runYouthIntake(save, allTeamsForAcademy);

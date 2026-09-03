@@ -43,7 +43,7 @@ describe('P1 season rollover compatibility contracts', () => {
 
   it('ages every manager by one year at rollover, feeding P6 age-based retirement a real moving age', () => {
     const source = functionBody('processEndOfSeason');
-    const managersIndex = source.indexOf('const allManagers = await getAllManagers()');
+    const managersIndex = source.indexOf('let allManagers = await getAllManagers()');
     const academyIndex = source.indexOf('const allTeamsForAcademy = await getAllTeams()');
     expect(managersIndex).toBeGreaterThan(-1);
     expect(academyIndex).toBeGreaterThan(managersIndex);
