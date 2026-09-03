@@ -35,6 +35,7 @@ import {
   normalizePlayerModel,
   playerModelNeedsNormalization,
 } from './playerModel.js';
+import { normalizePlayerStatus } from './playerStatus.js';
 import { generateCohort } from './youthAcademy.js';
 import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
@@ -44,6 +45,7 @@ import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
 import { withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
+import { createFreshP9SaveFields, ensureP9CareerPathways } from './p9Runtime.js';
 import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
 import { CLUB_PHILOSOPHY_VERSION, buildClubPhilosophyBackfill, clubPhilosophiesNeedBackfill, generateClubPhilosophy } from './clubPhilosophy.js';
 import { CLUB_FINANCE_VERSION, buildClubFinanceBackfill, createClubFinance, financeNeedsBackfill } from './clubFinance.js';
@@ -285,6 +287,7 @@ export async function initApp() {
     save = await ensureP7ClubFinance(save);
     save = await ensureP7BoardContract(save);
     save = await ensureP7Facilities(save);
+    save = await ensureP9CareerPathways(save);
     save = await ensureP8CareerEventsSave(save);
   }
   return save ?? null;
@@ -321,6 +324,18 @@ export async function startNewGame(userTeamId, managerName) {
   const season = `${seasonYear}/${String(seasonYear + 1).slice(2)}`;
   const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague)
     .map(normalizePlayerModel);
+  const canonicalInitialCohort = initialCohort.map(player => normalizePlayerStatus({
+    ...player,
+    teamId:userTeamId,
+    youthTeamId:userTeamId,
+    isYouth:true,
+    playerStatus:'academy',
+    contractTeamId:userTeamId,
+    registeredTeamId:userTeamId,
+    inSquad:false,
+    onLoan:false,
+    contractExpiry:null,
+  }));
 
   const currentDate = new Date(seasonYear, 7, 9).toISOString();
   const userManager = createUserManager({ name:managerName, currentClubId:userTeamId, currentDate });
@@ -370,9 +385,9 @@ export async function startNewGame(userTeamId, managerName) {
     collapsedDeals:  [],
     transferMarket:  createEmptyTransferMarket(),
     ...createFreshP5SaveFields(),
+    ...createFreshP9SaveFields(),
     inbox:           [],
     careerEvents:    createCareerEventsState(),
-    youthCohort:     initialCohort,
     boardObjective:  generateBoardObjective(userTeamData, userLeague),
     boardContract:   generateBoardContract(userTeamData, userLeague),
     boardContractVersion: BOARD_CONTRACT_VERSION,
@@ -398,7 +413,7 @@ export async function startNewGame(userTeamId, managerName) {
     assignPotentials(players).map(normalizePlayerModel),
     { currentYear:seasonYear, managedTeamId:userTeamId },
   );
-  await putPlayersBulk(assignedPlayers);
+  await putPlayersBulk([...assignedPlayers, ...canonicalInitialCohort]);
   await replaceAllStandings(world.standings);
   await replaceAllFixtures(world.fixtures);
 
@@ -408,6 +423,7 @@ export async function startNewGame(userTeamId, managerName) {
 
   await putSave(save);
   await seedVerifiedStartingFreeAgents();
+  await ensureP9CareerPathways(save);
   return await getSave();
 }
 
