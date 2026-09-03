@@ -1,7 +1,8 @@
 import { getAllTeams, getSave, getTeam, putTeam, putTeamsBulk } from './db.js';
 import { settleDueObligations } from './clubFinance.js';
 import { beginFacilityUpgrade, completeDueFacilityUpgrades } from './facilities.js';
-import { advanceP9PostMarketWeek, advanceP9PreDevelopmentWeek } from './p9Runtime.js';
+import { advanceP9PostMarketWeek } from './p9Runtime.js';
+import { advanceP9AcademyScoutingWeek } from './p9ScoutingRuntime.js';
 
 /**
  * modules/p7Runtime.js — P7 weekly club-side tick, called from gameweek.js's
@@ -12,11 +13,10 @@ import { advanceP9PostMarketWeek, advanceP9PreDevelopmentWeek } from './p9Runtim
  * or a retry after a partial failure, simply finds nothing left to settle.
  *
  * P9 deliberately reuses this already-existing post-market IO boundary rather
- * than adding another gameweek orchestrator. P3 itself now generates academy
- * evidence before development; the P9 calls here progress bounded regional
- * scouting, refresh canonical loan agreements and emit reports from the P1
- * participation that has already settled. Their own week/report keys make the
- * calls strict retry-safe no-ops.
+ * than adding another gameweek orchestrator. P3 is the sole academy-evidence
+ * and development clock; the P9 calls here progress bounded regional scouting,
+ * refresh canonical loan agreements and emit reports from the P1 participation
+ * that has already settled. Their own week/report keys make retries no-ops.
  */
 export async function advanceP7ClubFinanceWeek(save) {
   if (!save) return {
@@ -24,7 +24,7 @@ export async function advanceP7ClubFinanceWeek(save) {
     academyScoutingCompleted:[], academyProspectsAdded:[], loanReports:[],
   };
 
-  const academyPathways = await advanceP9PreDevelopmentWeek(save).catch(() => ({
+  const academyPathways = await advanceP9AcademyScoutingWeek(save).catch(() => ({
     scoutingCompleted:[], prospectsAdded:[],
   }));
   const loanPathways = await advanceP9PostMarketWeek(await getSave()).catch(() => ({ loanReports:[] }));
