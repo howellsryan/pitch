@@ -2,7 +2,7 @@ import { applyClubTheme } from '../lib/theme.mjs';
 import { getSave, getTeam, openDB } from '../modules/db.js';
 import { navigateTo, registerScreen, restoreScreenFromHistory } from './helpers.js';
 import { renderHome } from './home_transfers.js';
-import { _updateInboxBadge, renderInbox } from './inbox.js';
+import { _updateInboxBadge } from './inbox.js';
 import { screenTicks } from '../lib/state/screens.svelte.js';
 import { entryState } from '../lib/state/entry.svelte.js';
 import { captureTokenFromHash, isSignedIn } from '../cloud/api.js';
@@ -62,7 +62,7 @@ export function initUI(){
   registerScreen('trophies',     () => { screenTicks.trophies++; });
   registerScreen('squad',        () => { screenTicks.squad++; });
   registerScreen('academy',      () => { screenTicks.academy++; });
-  registerScreen('inbox',        renderInbox);
+  registerScreen('inbox',        () => { screenTicks.inbox++; });
   registerScreen('settings',     () => { screenTicks.settings++; });
 
   // Desktop sidebar is legacy HTML. The mobile Broadcast pill owns its own

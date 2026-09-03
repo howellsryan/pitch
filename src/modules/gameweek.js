@@ -9,6 +9,7 @@ import { advanceTransferMarketWeek } from './transfers.js';
 import { advanceP5CareerDepthWeek } from './p5Runtime.js';
 import { advanceP6ManagerCareerWeek } from './p6Runtime.js';
 import { advanceP7ClubFinanceWeek } from './p7Runtime.js';
+import { advanceP8StoryWeek } from './p8Runtime.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
@@ -318,6 +319,7 @@ async function runEndOfWorldGameweek(save, fixtures) {
   await advanceP7ClubFinanceWeek(await getSave()).catch(() => ({ settledTeamIds:[] }));
   await payWeeklyWages().catch(() => {});
   await updateTeamMorale(save.userTeamId).catch(() => {});
+  const storyResult = await advanceP8StoryWeek(await getSave()).catch(() => ({ added:[], expired:[] }));
   return {
     recoveredPlayers,
     newOffers,
@@ -328,6 +330,7 @@ async function runEndOfWorldGameweek(save, fixtures) {
     dismissedManagers:managerCareerResult.dismissed ?? [],
     managerWarnings:managerCareerResult.warnings ?? [],
     hiredManagers:managerCareerResult.hired ?? [],
+    careerEvents:storyResult.added ?? [],
   };
 }
 

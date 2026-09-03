@@ -126,6 +126,8 @@
       destination: 'transfers',
     }));
     if (unread.length > 0) items.push({ id: `news-${unread[0].id}`, tone: 'neutral', label: unread[0].title, destination: 'inbox' });
+    const story = (save?.careerEvents?.active ?? [])[0];
+    if (story) items.unshift({ id: `story-${story.id}`, tone: 'warn', label: 'Career decision awaiting response', destination: 'inbox' });
     if (!cloudSignedIn) items.push({ id: 'cloud-save', tone: 'warn', label: 'Progress is local-only on this browser', action: startGoogleLogin });
     return items;
   });
