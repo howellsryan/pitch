@@ -57,15 +57,28 @@ function needReasons({ shortfall, aging, expiring, unavailable, tacticalGap, loa
   if (academyReady > 0) reasons.push('academy_pathway');
   return reasons;
 }
+function isSeniorPlanningRow(player) {
+  if (!player) return false;
+  if (player.inSquad === false || player.isYouth === true || player.playerStatus === 'academy') return false;
+  return true;
+}
 function activeClubSquad(team, players) {
-  return (players ?? []).filter(player => player?.teamId === team?.id && (!player?.onLoan || Boolean(player?.loanedFrom)));
+  return (players ?? []).filter(player => player?.teamId === team?.id && isSeniorPlanningRow(player) && (!player?.onLoan || Boolean(player?.loanedFrom)));
 }
 function loanReturnsFor(team, players) {
   return (players ?? []).filter(player => player?.onLoan && String(player?.loanOriginalTeamId ?? '') === String(team?.id));
 }
-function academyPlayersFor(team, options) {
-  const rows = Array.isArray(options.academyPlayers) ? options.academyPlayers : Array.isArray(team?.youthPlayers) ? team.youthPlayers : [];
-  return rows.filter(Boolean);
+function academyPlayersFor(team, options, players = []) {
+  const canonical = (players ?? []).filter(player =>
+    player?.playerStatus === 'academy'
+    && String(player?.contractTeamId ?? player?.youthTeamId ?? player?.teamId ?? '') === String(team?.id),
+  );
+  const legacy = Array.isArray(options.academyPlayers)
+    ? options.academyPlayers
+    : Array.isArray(team?.youthPlayers) ? team.youthPlayers : [];
+  const byId = new Map();
+  for (const row of [...canonical, ...legacy].filter(Boolean)) byId.set(String(row.id ?? `${row.name}:${row.position}`), row);
+  return [...byId.values()];
 }
 function futureProjection(group, groupPlayers, loanReturns, academyPlayers, currentYear, target) {
   const result = [];
@@ -91,7 +104,7 @@ function futureProjection(group, groupPlayers, loanReturns, academyPlayers, curr
 export function buildSquadNeeds(team, players, options = {}) {
   const squad = activeClubSquad(team, players);
   const loanReturns = loanReturnsFor(team, players);
-  const academyPlayers = academyPlayersFor(team, options);
+  const academyPlayers = academyPlayersFor(team, options, players);
   const currentYear = Number.isFinite(options.currentYear) ? options.currentYear : squadPlanningSeasonStartYear(options.season);
   const tacticalProfile = options.tacticalProfile ?? getAITacticalProfile(team);
   const squadAverage = squadPlanningAverage(squad.map(player => Number(currentEffectiveLevel(player)) || 50), Number(team?.reputation) || 60);
@@ -148,8 +161,8 @@ export function buildSquadNeeds(team, players, options = {}) {
 }
 
 export function assessSquadSafety({ buyerSquad = [], sellerSquad = [], player, exchangePlayer = null } = {}) {
-  const buyerActive = buyerSquad.filter(row => !row?.onLoan || row?.loanedFrom);
-  const sellerActive = sellerSquad.filter(row => !row?.onLoan || row?.loanedFrom);
+  const buyerActive = buyerSquad.filter(row => isSeniorPlanningRow(row) && (!row?.onLoan || row?.loanedFrom));
+  const sellerActive = sellerSquad.filter(row => isSeniorPlanningRow(row) && (!row?.onLoan || row?.loanedFrom));
   if (buyerActive.length + (exchangePlayer ? 0 : 1) > 30) return { ok:false, reason:'buyer_squad_full' };
   if (sellerActive.length - 1 + (exchangePlayer ? 1 : 0) < 16) return { ok:false, reason:'seller_squad_floor' };
   if (squadPlanningGroup(player) === 'GK') {
@@ -193,7 +206,7 @@ export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById
   const ranked = [];
   const requiresObservation = Boolean(observationFor || teamsById?.size);
   for (const player of players) {
-    if (!player || player.teamId === buyer.id || player.teamId === 'free_agents' || player.onLoan || player.signedThisSeason) continue;
+    if (!player || !isSeniorPlanningRow(player) || player.teamId === buyer.id || player.teamId === 'free_agents' || player.onLoan || player.signedThisSeason) continue;
     if (squadPlanningGroup(player) !== need.group || !canSign(buyer, player)) continue;
     const observation = recruitmentObservation(player, buyer, teamsById, observationFor);
     if (requiresObservation && !observation) continue;
@@ -218,12 +231,12 @@ export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById
 
 export function rankStandoutRecruitmentCandidates({ buyer, buyerSquad = [], players = [], teamsById = new Map(), marketValueFor = player => Number(player?.value) || 0, canSign = () => true, likelihoodFor = () => 50, observationFor = null, limit = 12 } = {}) {
   if (!buyer) return [];
-  const squadAverage = squadPlanningAverage(buyerSquad.filter(player => !player?.onLoan || player?.loanedFrom).map(player => Number(currentEffectiveLevel(player)) || 50), Number(buyer.reputation) || 60);
+  const squadAverage = squadPlanningAverage(buyerSquad.filter(player => isSeniorPlanningRow(player) && (!player?.onLoan || player?.loanedFrom)).map(player => Number(currentEffectiveLevel(player)) || 50), Number(buyer.reputation) || 60);
   const availableBudget = Math.max(0, Number(buyer.budget) || 0);
   const ranked = [];
   const requiresObservation = Boolean(observationFor || teamsById?.size);
   for (const player of players) {
-    if (!player || player.teamId === buyer.id || player.teamId === 'free_agents' || player.onLoan || player.signedThisSeason || !canSign(buyer, player)) continue;
+    if (!player || !isSeniorPlanningRow(player) || player.teamId === buyer.id || player.teamId === 'free_agents' || player.onLoan || player.signedThisSeason || !canSign(buyer, player)) continue;
     const observation = recruitmentObservation(player, buyer, teamsById, observationFor);
     if (requiresObservation && !observation) continue;
     const value = Math.max(0, Number(marketValueFor(player)) || 0);
