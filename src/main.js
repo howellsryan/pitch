@@ -26,7 +26,8 @@ import TabBar from './lib/ui/TabBar.svelte';
 import LeagueScreen from './lib/ui/LeagueScreen.svelte';
 import HomeScreen from './lib/ui/HomeScreen.svelte';
 import SquadScreen from './lib/ui/SquadScreen.svelte';
-import AcademyScreen from './lib/ui/AcademyScreen.svelte';
+import AcademyScreen from './lib/ui/AcademyPathwaysScreen.svelte';
+import LoanPathwaysPanel from './lib/ui/LoanPathwaysPanel.svelte';
 import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
 import SettingsScreen from './lib/ui/SettingsScreenClean.svelte';
 import TransfersScreen from './lib/ui/TransfersScreen.svelte';
@@ -55,14 +56,9 @@ window.navigateTo = navigateTo;
 // shows only once a save exists, so they stay inert until then exactly like
 // the rest of the legacy screens do.
 
-// ENTRY (R1, docs/plan/07-redesign.md) is the exception: it lives in #ng, the
-// pre-game stage, and is the first thing a stranger sees.
 const entryMount = document.getElementById('entry-mount');
 if (entryMount) mount(EntryScreen, { target: entryMount });
 
-// R7's saved-career title menu is a second, conditionally-rendered island in
-// the same #ng stage. It stays absent on a cold start and overlays EntryScreen
-// only after Settings explicitly routes a running career back to the title.
 const entryStage = document.getElementById('ng');
 if (entryStage) mount(CareerMenu, { target: entryStage });
 
@@ -76,7 +72,13 @@ const homeMount = document.getElementById('screen-home');
 if (homeMount) mount(HomeScreen, { target: homeMount });
 
 const squadMount = document.getElementById('screen-squad');
-if (squadMount) mount(SquadScreen, { target: squadMount });
+if (squadMount) {
+  mount(SquadScreen, { target: squadMount });
+  // P9 uses a sibling island instead of forking SquadScreen's roster/tactics
+  // implementation. The drawer reads the same canonical player rows and stays
+  // hidden with the parent screen when Squad is not active.
+  mount(LoanPathwaysPanel, { target:squadMount, props:{ surface:'squad' } });
+}
 
 const academyMount = document.getElementById('screen-academy');
 if (academyMount) mount(AcademyScreen, { target: academyMount });
@@ -91,6 +93,7 @@ const transfersMount = document.getElementById('screen-transfers');
 if (transfersMount) {
   mount(TransfersScreen, { target: transfersMount });
   mount(ScoutingDrawer, { target: transfersMount });
+  mount(LoanPathwaysPanel, { target:transfersMount, props:{ surface:'transfers' } });
 }
 
 const matchMount = document.getElementById('screen-match');
