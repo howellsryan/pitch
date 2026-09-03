@@ -60,7 +60,7 @@
   }
 
   async function recall(player) {
-    if (!confirm(`Recall ${player.name} from ${teams.get(player.registeredTeamId)?.name ?? 'their loan club'}?`)) return;
+    if (!window.confirm(`Recall ${player.name} from ${teams.get(player.registeredTeamId)?.name ?? 'their loan club'}?`)) return;
     try {
       await recallManagedLoan(player.id);
       toast(`${player.name} recalled`, 'success');
@@ -123,7 +123,7 @@
         <div class="section-head"><h3>Find a pathway</h3><span>{candidates.length} eligible</span></div>
         <p class="hint">Scores combine expected minutes, positional depth, tactical fit, coaching, facilities and affordability. A high score is an opportunity projection, not guaranteed development.</p>
         {#if candidates.length}
-          <div class="compare-controls"><select bind:value={selectedId}>{#each candidates as player}<option value={String(player.id)}>{player.name} · {player.position} · {primaryRating(player)}</option>{/each}</select><button class="primary" disabled={comparing} onclick={compare}>{comparing ? 'Comparing…' : 'Compare clubs'}</button></div>
+          <div class="compare-controls"><select bind:value={selectedId}>{#each candidates as player (player.id)}<option value={String(player.id)}>{player.name} · {player.position} · {primaryRating(player)}</option>{/each}</select><button class="primary" disabled={comparing} onclick={compare}>{comparing ? 'Comparing…' : 'Compare clubs'}</button></div>
         {:else}<div class="empty small">No under-24 senior player is currently eligible for a new loan.</div>{/if}
         {#if destinations.length}
           <div class="destinations">
