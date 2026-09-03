@@ -6,6 +6,7 @@ import {
   createEventInstance,
   deriveFanContext,
   expireCareerEvents,
+  invalidateCareerEvents,
   selectCareerEvents,
 } from './careerEvents.js';
 
@@ -58,17 +59,36 @@ describe('P8 deterministic story selection', () => {
       ...save,
       managerMarket:{ userApproaches:[{ id:'approach_big', clubId:'big', vacancyId:'vac_big', source:'approach', status:'pending', fit:82 }] },
     };
-    const snapshot = {
-      save:managerSave,
+    const employedSnapshot = {
+      save:{ ...managerSave, managerMarket:{ userApproaches:[] } },
+      userManager:{ id:'user_manager', status:'employed' },
       players:[youngster, star],
       teams:[{ id:'big', name:'Big Club' }],
       standing:{ form:[] },
       team:{ morale:55, budget:12_000_000 },
       fanContext:{ pressure:0 },
     };
-    const selected = selectCareerEvents(snapshot, createCareerEventsState());
-    expect(selected.map(item => item.templateId)).toEqual(['manager_approach','star_contract','youngster_loan']);
+    expect(selectCareerEvents(employedSnapshot, createCareerEventsState()).map(item => item.templateId)).toEqual(['star_contract','youngster_loan']);
+
+    const unemployedSnapshot = {
+      ...employedSnapshot,
+      save:managerSave,
+      userManager:{ id:'user_manager', status:'unemployed' },
+    };
+    const selected = selectCareerEvents(unemployedSnapshot, createCareerEventsState());
+    expect(selected.map(item => item.templateId)).toEqual(['manager_approach']);
     expect(selected[0].tokens.clubName).toBe('Big Club');
+  });
+
+  it('invalidates stale participant stories when a player moves or the manager leaves the club', () => {
+    const playerEvent = createEventInstance({ templateId:'broken_promise', participantIds:{ playerId:'captain' }, tokens:{ playerName:'Captain' } }, save);
+    const boardEvent = createEventInstance({ templateId:'board_pressure', participantIds:{}, tokens:{} }, save);
+    const result = invalidateCareerEvents(
+      { ...createCareerEventsState(), active:[playerEvent, boardEvent] },
+      { save, userManager:{ status:'unemployed' }, players:[{ ...player, teamId:'elsewhere' }] },
+    );
+    expect(result.state.active).toEqual([]);
+    expect(result.invalid.map(item => item.resolutionCode)).toEqual(['participant_moved','manager_unemployed']);
   });
 });
 
