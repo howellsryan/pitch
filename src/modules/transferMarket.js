@@ -233,20 +233,52 @@ export function createMarketDeal(input, marketInput = null) {
   const market = marketInput && typeof marketInput === 'object' && !Array.isArray(marketInput)
     ? marketInput
     : createEmptyTransferMarket();
-  const type = DEAL_TYPES.includes(input?.type) ? input.type : 'transfer';
+  const sellerTeamId = input?.sellerTeamId == null ? null : String(input.sellerTeamId);
+  // The AI recruitment generator considers the shared free-agent pool alongside
+  // club-owned players. Older/current callers may still describe that approach
+  // as a normal transfer; normalise it here so there is no imaginary seller or
+  // transfer fee and the deal goes directly to player terms. This also repairs
+  // malformed persisted AI free-agent approaches on load.
+  const inferredFreeAgent = sellerTeamId === 'free_agents' && !['renewal','loan'].includes(input?.type);
+  const type = inferredFreeAgent ? 'free_agent' : (DEAL_TYPES.includes(input?.type) ? input.type : 'transfer');
   const createdWeekKey = input?.createdWeekKey ?? 'legacy:0';
   const ordinal = Math.max(1, Number(input?.ordinal ?? market.nextDealOrdinal) || 1);
   const id = input?.id ?? createDealId({
     type,
     playerId:input?.playerId,
     buyerTeamId:input?.buyerTeamId,
-    sellerTeamId:input?.sellerTeamId,
+    sellerTeamId,
     createdWeekKey,
     ordinal,
   });
-  const state = DEAL_STATES.includes(input?.state) ? input.state : 'interest';
-  const validation = validateDealTerms(input?.terms, { type, buyerTeamId:input?.buyerTeamId, sellerTeamId:input?.sellerTeamId });
+  const requestedState = DEAL_STATES.includes(input?.state) ? input.state : 'interest';
+  const state = inferredFreeAgent && ['interest','seller_terms','club_negotiation'].includes(requestedState)
+    ? 'player_negotiation'
+    : requestedState;
+  const freeAgentTerms = inferredFreeAgent
+    ? {
+        ...(input?.terms ?? {}),
+        fee:{
+          ...(input?.terms?.fee ?? {}),
+          upfront:0,
+          guaranteedFee:0,
+          amount:0,
+          installments:[],
+          sellOnPercentage:0,
+          performanceBonuses:[],
+          exchangePlayerId:null,
+          loanBack:false,
+        },
+      }
+    : input?.terms;
+  const validation = validateDealTerms(freeAgentTerms, { type, buyerTeamId:input?.buyerTeamId, sellerTeamId });
   const seed = String(input?.seed ?? `${id}:${createdWeekKey}`);
+  const awaiting = inferredFreeAgent && state === 'player_negotiation' && (input?.awaiting == null || input.awaiting === 'seller')
+    ? 'player'
+    : (input?.awaiting ?? null);
+  const stateOwner = inferredFreeAgent && state === 'player_negotiation' && (input?.stateOwner == null || input.stateOwner === 'seller' || input.stateOwner === 'system')
+    ? 'player'
+    : (input?.stateOwner ?? 'system');
   return {
     version:1,
     id,
@@ -255,11 +287,11 @@ export function createMarketDeal(input, marketInput = null) {
     playerId:String(input?.playerId ?? ''),
     playerName:String(input?.playerName ?? ''),
     buyerTeamId:input?.buyerTeamId == null ? null : String(input.buyerTeamId),
-    sellerTeamId:input?.sellerTeamId == null ? null : String(input.sellerTeamId),
+    sellerTeamId,
     createdBy:input?.createdBy === 'ai' ? 'ai' : 'user',
     userSide:['buyer','seller','club'].includes(input?.userSide) ? input.userSide : null,
-    stateOwner:input?.stateOwner ?? 'system',
-    awaiting:input?.awaiting ?? null,
+    stateOwner,
+    awaiting,
     delegated:Boolean(input?.delegated),
     createdWeekKey,
     updatedWeekKey:input?.updatedWeekKey ?? createdWeekKey,
