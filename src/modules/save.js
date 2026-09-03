@@ -47,6 +47,7 @@ import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
 import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
 import { CLUB_PHILOSOPHY_VERSION, buildClubPhilosophyBackfill, clubPhilosophiesNeedBackfill, generateClubPhilosophy } from './clubPhilosophy.js';
 import { CLUB_FINANCE_VERSION, buildClubFinanceBackfill, createClubFinance, financeNeedsBackfill } from './clubFinance.js';
+import { buildCareerEventsBackfill, createCareerEventsState, careerEventsNeedBackfill } from './careerEvents.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -261,6 +262,13 @@ export async function ensureP7Facilities(save) {
   return migration.save;
 }
 
+export async function ensureP8CareerEventsSave(save) {
+  if (!save || !careerEventsNeedBackfill(save)) return save;
+  const migrated = buildCareerEventsBackfill(save);
+  await putSave(migrated);
+  return migrated;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -276,6 +284,7 @@ export async function initApp() {
     save = await ensureP7ClubFinance(save);
     save = await ensureP7BoardContract(save);
     save = await ensureP7Facilities(save);
+    save = await ensureP8CareerEventsSave(save);
   }
   return save ?? null;
 }
@@ -361,6 +370,7 @@ export async function startNewGame(userTeamId, managerName) {
     transferMarket:  createEmptyTransferMarket(),
     ...createFreshP5SaveFields(),
     inbox:           [],
+    careerEvents:    createCareerEventsState(),
     youthCohort:     initialCohort,
     boardObjective:  generateBoardObjective(userTeamData, userLeague),
     boardContract:   generateBoardContract(userTeamData, userLeague),

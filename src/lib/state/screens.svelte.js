@@ -7,4 +7,4 @@
  * becomes active again registers an onEnter hook via registerScreen() that
  * bumps its counter here instead of duplicating navigation state.
  */
-export const screenTicks = $state({ competitions: 0, home: 0, squad: 0, academy: 0, trophies: 0, settings: 0, transfers: 0, match: 0 });
+export const screenTicks = $state({ competitions: 0, home: 0, squad: 0, academy: 0, trophies: 0, settings: 0, transfers: 0, inbox: 0, match: 0 });

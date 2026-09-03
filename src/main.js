@@ -32,6 +32,7 @@ import SettingsScreen from './lib/ui/SettingsScreen.svelte';
 import TransfersScreen from './lib/ui/TransfersScreen.svelte';
 import ScoutingDrawer from './lib/ui/ScoutingDrawer.svelte';
 import MatchScreen from './lib/ui/MatchScreen.svelte';
+import InboxScreen from './lib/ui/InboxScreen.svelte';
 
 // ui/renderers.js registers the DOMContentLoaded → boot() handler, so importing
 // these for their side effects is what starts the game. Order mirrors
@@ -94,3 +95,6 @@ if (transfersMount) {
 
 const matchMount = document.getElementById('screen-match');
 if (matchMount) mount(MatchScreen, { target: matchMount });
+
+const inboxMount = document.getElementById('screen-inbox');
+if (inboxMount) mount(InboxScreen, { target: inboxMount });
