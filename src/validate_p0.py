@@ -149,6 +149,16 @@ SUPERSEDED_LEGACY_CHECKS = {
     # three literally against the real, untruncated source.
     'Season end evaluates the outgoing objective',
     'runYouthIntake called in processEndOfSeason',
+
+    # P7 WP7: dismissal (job security or the board contract's own judgment)
+    # now executes through the same soft dismissAndCaretake path P6 already
+    # built for voluntary resignation, replacing the old hard
+    # resetForNewCareer() reset — a fired manager keeps their save/career and
+    # becomes a free agent, same as resigning. The legacy check's literal
+    # "Start New Career" button text is gone by design; seasonP1.test.js's
+    # dedicated P7 WP7 test asserts the real replacement contract (the
+    # dismissAndCaretake call, the unified dismissed flag, no reset call).
+    'Sacked end-state offers Start New Career, not Start Next Season',
 }
 
 P0_TEST_FILES = [

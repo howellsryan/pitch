@@ -58,7 +58,22 @@ describe('P1 season rollover compatibility contracts', () => {
     const contractIndex = source.indexOf('evaluateBoardContractSeasonClose(');
     const sackedIndex = source.indexOf('const sacked = newJobSecurity <= 0');
     expect(contractIndex).toBeGreaterThan(sackedIndex);
-    expect(source).toContain('summary.dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended)');
+    expect(source).toContain('const dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended)');
+    expect(source).toContain('summary.dismissalRecommended = dismissalRecommended');
+  });
+
+  it('P7 WP7: executes dismissal (job security or the board contract judgment) through the soft dismissAndCaretake path, never a hard reset', () => {
+    const source = functionBody('processEndOfSeason');
+    expect(source).toContain('const dismissed = sacked || dismissalRecommended');
+    expect(source).toContain('summary.sacked = dismissed');
+    expect(source).toContain("dismissAndCaretake(userManagerRow, caretaker, { weekKey, reason:'dismissed' })");
+    expect(source).toContain('createCaretakerManager(userTeamRec');
+    expect(source).not.toContain('resetForNewCareer');
+    // newSave must carry the unified `dismissed` flag, not the narrower
+    // job-security-only `sacked` — otherwise a board-contract-only dismissal
+    // would show the sacked modal but leave the persisted save undismissed.
+    expect(source).toContain('sacked:dismissed');
+    expect(source).toContain('jobSecurity:dismissed ? 65 : newJobSecurity');
   });
 
   it('P7 WP5: evolves club philosophy from the season\'s board-contract outcome before generating next season\'s board contract, and records a compact identity/finance snapshot in season history', () => {

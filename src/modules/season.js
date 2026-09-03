@@ -19,6 +19,8 @@ import { rolloverTransferMarket } from './transferMarket.js';
 import { applyLedgerMovement, financialPressure, operatingIncomeFor } from './clubFinance.js';
 import { evaluateBoardContractSeasonClose, evaluateBoardObjective, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { evolveClubPhilosophy } from './clubPhilosophy.js';
+import { dismissAndCaretake, reviewCheckpointKey } from './managerCareer.js';
+import { createCaretakerManager, createEmptyManagerMarket } from './managers.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -362,9 +364,10 @@ export async function processEndOfSeason() {
   // P7 WP4: the weighted contract (sporting+financial+youth) is a separate,
   // additive judgment — never blended into nextJobSecurity/sacked above, so
   // the live "MET"/job-security number a title-winning-but-cash-strapped
-  // club sees stays exactly what it was pre-WP4. dismissalRecommended is
-  // surfaced only, never executed — see boardContract.js's header for why
-  // (no Inbox surface yet, WP7).
+  // club sees stays exactly what it was pre-WP4 (dismissalRecommended can
+  // only ever be true when the sporting objective's own status is REVIEW,
+  // which requires it to be unmet — see boardContract.js — so it can never
+  // fire alongside a MET verdict).
   const boardContractResult = save.boardContract
     ? evaluateBoardContractSeasonClose(save.boardContract, { team:userTeamRec, players, finalPosition:userPosition, totalTeams:sorted.length, wasRelegated:leagueChanges.userRelInfo?.relegated ?? false })
     : null;
@@ -372,8 +375,35 @@ export async function processEndOfSeason() {
   summary.boardContract = boardContractResult;
   summary.objectiveMet = objectiveResult.met;
   summary.jobSecurity = newJobSecurity;
-  summary.sacked = sacked;
-  summary.dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended);
+  const dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended);
+  summary.dismissalRecommended = dismissalRecommended;
+
+  // P7 WP7: execute the dismissal. Job security running out (pre-P7) and the
+  // board contract's own independent judgment (new) both end the user's
+  // tenure — reusing the exact soft dismissAndCaretake path P6 already built
+  // for voluntary resignation (reason:'dismissed' is literally its default
+  // case) rather than the old hard-reset save-wipe path: a caretaker
+  // takes over the club immediately, the user's manager becomes a free agent
+  // (record.sackings increments, honors/career history survive) and can be
+  // approached/apply for a new job from Settings' Manager Career card, same
+  // as resigning. Known limitation, shared with resignation and not
+  // introduced by this change: Home/Squad/Transfers aren't yet unemployment-
+  // aware, so the old club's fixtures stay nominally playable from Home
+  // until the user accepts a new job — see CLAUDE.md.
+  const dismissed = sacked || dismissalRecommended;
+  summary.sacked = dismissed;
+  if (dismissed) {
+    const userManagerRow = allManagers.find(manager => manager.id === save.userManagerId);
+    if (userManagerRow?.status === 'employed' && userTeamRec) {
+      const weekKey = reviewCheckpointKey(save);
+      const caretaker = createCaretakerManager(userTeamRec, { weekKey, currentDate:save.currentDate });
+      const { dismissedManager, caretakerManager, vacancy } = dismissAndCaretake(userManagerRow, caretaker, { weekKey, reason:'dismissed' });
+      await putManagersBulk([dismissedManager, caretakerManager]);
+      userTeamRec = { ...userTeamRec, managerId:caretakerManager.id };
+      await putTeam(userTeamRec);
+      summary.dismissalVacancy = vacancy;
+    }
+  }
   // P7 WP5: compact identity/finance trajectory, not the full ledger.
   summary.clubIdentity = userTeamRec ? {
     philosophy:userTeamRec.philosophy?.traits ?? null,
@@ -424,8 +454,11 @@ export async function processEndOfSeason() {
     youthCohort:newYouthCohort,
     boardObjective:nextBoardObjective,
     boardContract:nextBoardContract,
-    jobSecurity:sacked ? 65 : newJobSecurity,
-    sacked,
+    jobSecurity:dismissed ? 65 : newJobSecurity,
+    sacked:dismissed,
+    managerMarket:summary.dismissalVacancy
+      ? { ...(save.managerMarket ?? createEmptyManagerMarket()), vacancies:[...(save.managerMarket ?? createEmptyManagerMarket()).vacancies, summary.dismissalVacancy].slice(-200) }
+      : save.managerMarket,
     inboundOffers:[],
     collapsedDeals:[],
     transferMarket:rolloverTransferMarket(save.transferMarket, nextSeason),
