@@ -101,4 +101,34 @@ describe('P9 canonical player lifecycle', () => {
     expect(returned.onLoan).toBe(false);
     expect(returned.loanedFrom).toBeNull();
   });
+
+  it('absorbs a legacy loan-return write even when explicit P9 loan fields are stale', () => {
+    const canonicalLoan = normalizePlayerStatus(player({
+      teamId:'loan_club', onLoan:true, loanedFrom:'parent', loanOriginalTeamId:'parent',
+      activeLoanAgreement:{ id:'deal_2', parentTeamId:'parent', loanTeamId:'loan_club' },
+    }));
+    const legacyReturn = {
+      ...canonicalLoan,
+      teamId:'parent',
+      onLoan:false,
+      loanedFrom:null,
+      loanOriginalTeamId:null,
+      loanedTo:null,
+      loanRecallable:false,
+    };
+    const normalized = normalizePlayerStatus(legacyReturn);
+    expect(normalized.playerStatus).toBe('first_team');
+    expect(normalized.contractTeamId).toBe('parent');
+    expect(normalized.registeredTeamId).toBe('parent');
+    expect(normalized.activeAgreementId).toBeNull();
+  });
+
+  it('absorbs a legacy permanent-transfer teamId write instead of reverting it to the old owner', () => {
+    const oldClub = normalizePlayerStatus(player({ teamId:'seller' }));
+    const legacyTransfer = { ...oldClub, teamId:'buyer' };
+    const normalized = normalizePlayerStatus(legacyTransfer);
+    expect(normalized.playerStatus).toBe('first_team');
+    expect(normalized.contractTeamId).toBe('buyer');
+    expect(normalized.registeredTeamId).toBe('buyer');
+  });
 });
