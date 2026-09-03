@@ -11,12 +11,16 @@ const db = vi.hoisted(() => ({
 }));
 
 const pathways = vi.hoisted(() => ({
-  advanceP9PreDevelopmentWeek: vi.fn(async save => ({ save, scoutingCompleted:[], prospectsAdded:[] })),
   advanceP9PostMarketWeek: vi.fn(async () => ({ loanReports:[] })),
+}));
+
+const academyScouting = vi.hoisted(() => ({
+  advanceP9AcademyScoutingWeek: vi.fn(async save => ({ save, scoutingCompleted:[], prospectsAdded:[] })),
 }));
 
 vi.mock('./db.js', () => db);
 vi.mock('./p9Runtime.js', () => pathways);
+vi.mock('./p9ScoutingRuntime.js', () => academyScouting);
 
 import { advanceP7ClubFinanceWeek } from './p7Runtime.js';
 
@@ -42,14 +46,14 @@ describe('advanceP7ClubFinanceWeek', () => {
     expect(patch[0].finance.obligations).toEqual([]);
   });
 
-  it('runs P9 academy/scouting and loan reporting once from the post-market boundary', async () => {
+  it('runs P9 scouting-only academy IO and loan reporting once from the post-market boundary', async () => {
     const save = { season:'2025/26', currentGameweek:5 };
-    pathways.advanceP9PreDevelopmentWeek.mockResolvedValue({ scoutingCompleted:[{ id:'scout-1' }], prospectsAdded:[{ id:'y1' }] });
+    academyScouting.advanceP9AcademyScoutingWeek.mockResolvedValue({ scoutingCompleted:[{ id:'scout-1' }], prospectsAdded:[{ id:'y1' }] });
     pathways.advanceP9PostMarketWeek.mockResolvedValue({ loanReports:[{ id:'report-1' }] });
 
     const result = await advanceP7ClubFinanceWeek(save);
 
-    expect(pathways.advanceP9PreDevelopmentWeek).toHaveBeenCalledWith(save);
+    expect(academyScouting.advanceP9AcademyScoutingWeek).toHaveBeenCalledWith(save);
     expect(pathways.advanceP9PostMarketWeek).toHaveBeenCalledTimes(1);
     expect(result.academyScoutingCompleted).toEqual([{ id:'scout-1' }]);
     expect(result.academyProspectsAdded).toEqual([{ id:'y1' }]);
@@ -79,7 +83,7 @@ describe('advanceP7ClubFinanceWeek', () => {
       academyScoutingCompleted:[], academyProspectsAdded:[], loanReports:[],
     });
     expect(db.getAllTeams).not.toHaveBeenCalled();
-    expect(pathways.advanceP9PreDevelopmentWeek).not.toHaveBeenCalled();
+    expect(academyScouting.advanceP9AcademyScoutingWeek).not.toHaveBeenCalled();
   });
 
   it('completes a due facility upgrade and leaves a not-yet-due one in progress', async () => {
