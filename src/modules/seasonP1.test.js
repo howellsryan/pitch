@@ -61,6 +61,21 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('summary.dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended)');
   });
 
+  it('P7 WP5: evolves club philosophy from the season\'s board-contract outcome before generating next season\'s board contract, and records a compact identity/finance snapshot in season history', () => {
+    const source = functionBody('processEndOfSeason');
+    const evolveIndex = source.indexOf('evolveClubPhilosophy(userTeamUpdated.philosophy, boardContractResult)');
+    const nextContractIndex = source.indexOf('generateBoardContract(userTeamUpdated, userNewLeague)');
+    expect(evolveIndex).toBeGreaterThan(-1);
+    expect(nextContractIndex).toBeGreaterThan(evolveIndex);
+    expect(source).toContain('summary.clubIdentity');
+    expect(source).toContain('financialPressure(userTeamRec)');
+    // Same fact src/validate.js's legacy "Season end sets a fresh objective
+    // for next season" check looks for — its fixed-size text window can no
+    // longer see this far into the function; this Vitest assertion covers
+    // the real, untruncated source (see validate_p0.py's allow-list entry).
+    expect(source).toContain('generateBoardObjective(userTeamUpdated');
+  });
+
   it('compacts the outgoing competition ledger and seeds a fresh P1 world for the next season', () => {
     const source = functionBody('processEndOfSeason');
     const historyIndex = source.indexOf('buildLivingWorldSeasonSummary');

@@ -120,6 +120,52 @@ export function describeClubPhilosophy(philosophy, { max = 2 } = {}) {
   return described.length ? described.join(', ') : 'Balanced club identity';
 }
 
+const IDENTITY_NUDGE_PER_SEASON = 2;
+
+/**
+ * P7 WP5: lets a season's sustained board-contract outcome nudge a club's
+ * own trait weights by exactly +/-2 per season (never more, whatever the
+ * starting value — a plain [0,100] clamp only stops overflow at the same
+ * bounds `generateClubPhilosophy` already seeds within, it never widens a
+ * single season's move) so identity stays "more stable than manager
+ * tenure" — a single good or bad season barely moves it; only years of
+ * consistent results under one manager's approach meaningfully shift it.
+ * Pure: takes the season's already-computed board-contract result
+ * (boardContract.js's `evaluateBoardContractSeasonClose` — its objective
+ * `status` strings 'ok'/'warning'/'review' are read directly rather than
+ * imported, since boardContract.js already imports from this module and a
+ * reverse import would cycle; `clubPhilosophy.test.js` cross-checks the
+ * literals against boardContract.js's own `OBJECTIVE_STATUS` so a rename
+ * there fails a test instead of silently desyncing). A missing/malformed
+ * result, or a season where nothing actually moved, returns the exact same
+ * `philosophy` reference — never a same-value copy — so a caller can use
+ * `!==` to decide whether a write is worth persisting.
+ */
+export function evolveClubPhilosophy(philosophy, boardContractResult) {
+  if (!philosophy?.traits || !Array.isArray(boardContractResult?.objectives)) return philosophy;
+  const clamp = value => Math.max(0, Math.min(100, value));
+  let traits = philosophy.traits;
+  let changed = false;
+  const nudge = (trait, direction) => {
+    const next = clamp((traits[trait] ?? 50) + direction * IDENTITY_NUDGE_PER_SEASON);
+    if (next === traits[trait]) return;
+    if (!changed) traits = { ...traits };
+    changed = true;
+    traits[trait] = next;
+  };
+  for (const objective of boardContractResult.objectives) {
+    const direction = objective.status === 'ok' ? 1 : objective.status === 'review' ? -1 : 0;
+    if (!direction) continue;
+    if (objective.kind === 'financial') nudge('financialCaution', direction);
+    if (objective.kind === 'youth') nudge('youthPathway', direction);
+    // A sustained sporting success (not just an average one) is read as
+    // growing ambition — ties the manager's track record to the club's
+    // long-term appetite for star recruitment, not just to their own tenure.
+    if (objective.kind === 'sporting' && direction > 0) nudge('starRecruitment', 1);
+  }
+  return changed ? { ...philosophy, traits } : philosophy;
+}
+
 export function clubPhilosophiesNeedBackfill(save) {
   return !save || Number(save.clubPhilosophyVersion ?? 0) < CLUB_PHILOSOPHY_VERSION;
 }

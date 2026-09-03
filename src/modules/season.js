@@ -16,8 +16,9 @@ import {
 } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { rolloverTransferMarket } from './transferMarket.js';
-import { applyLedgerMovement, operatingIncomeFor } from './clubFinance.js';
+import { applyLedgerMovement, financialPressure, operatingIncomeFor } from './clubFinance.js';
 import { evaluateBoardContractSeasonClose, evaluateBoardObjective, generateBoardContract, generateBoardObjective } from './boardContract.js';
+import { evolveClubPhilosophy } from './clubPhilosophy.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -358,13 +359,27 @@ export async function processEndOfSeason() {
   summary.jobSecurity = newJobSecurity;
   summary.sacked = sacked;
   summary.dismissalRecommended = Boolean(boardContractResult?.dismissalRecommended);
+  // P7 WP5: compact identity/finance trajectory, not the full ledger.
+  summary.clubIdentity = userTeamRec ? {
+    philosophy:userTeamRec.philosophy?.traits ?? null,
+    financialPressure:financialPressure(userTeamRec),
+    cash:userTeamRec.finance?.cash ?? userTeamRec.budget ?? null,
+  } : null;
 
   // One immutable compact season record. Current detailed ledgers are reset on
   // players/fixtures below and are not duplicated into historical match blobs.
   await addSeason(summary);
 
   const allTeamsRefreshed = await getAllTeams();
-  const userTeamUpdated = allTeamsRefreshed.find(team => team.id === save.userTeamId);
+  let userTeamUpdated = allTeamsRefreshed.find(team => team.id === save.userTeamId);
+  // P7 WP5: bounded, slow identity drift from this season's board outcome.
+  if (userTeamUpdated?.philosophy && boardContractResult) {
+    const evolvedPhilosophy = evolveClubPhilosophy(userTeamUpdated.philosophy, boardContractResult);
+    if (evolvedPhilosophy !== userTeamUpdated.philosophy) {
+      userTeamUpdated = { ...userTeamUpdated, philosophy:evolvedPhilosophy };
+      await putTeam(userTeamUpdated);
+    }
+  }
   const userNewLeague = userTeamUpdated?.league ?? userLeague;
   const leagueTeamsNext = allTeamsRefreshed.filter(team => (team.league ?? 'Premier League') === userNewLeague);
   const nextTotalGWs = Math.max(0, (leagueTeamsNext.length - 1) * 2);

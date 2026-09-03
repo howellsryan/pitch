@@ -131,6 +131,16 @@ SUPERSEDED_LEGACY_CHECKS = {
     'LOAN: loan club deducted total cost',
     'LOAN: parent club receives loan fee',
     'LOAN: user loan-out gives full wage relief',
+
+    # P7 WP4/WP5 grew processEndOfSeason's board-contract/identity-evolution
+    # section past this legacy check's fixed 10,000-character scan window
+    # from the start of the function — the real `generateBoardObjective(
+    # userTeamUpdated...)` call this check looks for is still there, just
+    # further into the function than the window can see (the same
+    # fixed-window limitation already documented above for the P1/rollover
+    # checks). seasonP1.test.js's own P7 WP5 test asserts the same fact
+    # directly against the real, untruncated function source.
+    'Season end sets a fresh objective for next season',
 }
 
 P0_TEST_FILES = [

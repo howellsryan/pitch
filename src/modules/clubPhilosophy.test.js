@@ -7,9 +7,11 @@ import {
   clubPhilosophyTraitValue,
   defaultClubPhilosophy,
   describeClubPhilosophy,
+  evolveClubPhilosophy,
   generateClubPhilosophy,
   normalizeClubPhilosophy,
 } from './clubPhilosophy.js';
+import { OBJECTIVE_STATUS } from './boardContract.js';
 
 const bigClub = { id:'club_big', name:'Big FC', league:'Premier League', reputation:88 };
 const smallClub = { id:'club_small', name:'Small FC', league:'League Two', reputation:40 };
@@ -124,5 +126,70 @@ describe('buildClubPhilosophyBackfill', () => {
 
   it('returns no patches for a null save', () => {
     expect(buildClubPhilosophyBackfill(null, [smallClub])).toEqual({ save:null, teamPatches:[] });
+  });
+});
+
+describe('evolveClubPhilosophy', () => {
+  const philosophy = { version:CLUB_PHILOSOPHY_VERSION, traits:{ ...defaultClubPhilosophy().traits, financialCaution:50, youthPathway:50, starRecruitment:50 } };
+
+  it('nudges a trait up by exactly the per-season amount when its objective is ok', () => {
+    const result = { objectives:[{ kind:'financial', status:'ok' }] };
+    const evolved = evolveClubPhilosophy(philosophy, result);
+    expect(evolved.traits.financialCaution).toBe(52);
+  });
+
+  it('nudges a trait down when its objective is in review', () => {
+    const result = { objectives:[{ kind:'youth', status:'review' }] };
+    const evolved = evolveClubPhilosophy(philosophy, result);
+    expect(evolved.traits.youthPathway).toBe(48);
+  });
+
+  it('does not move a trait for a warning status (only ok/review are decisive)', () => {
+    const result = { objectives:[{ kind:'financial', status:'warning' }] };
+    const evolved = evolveClubPhilosophy(philosophy, result);
+    expect(evolved.traits.financialCaution).toBe(50);
+  });
+
+  it('only nudges starRecruitment up on a met sporting objective, never down', () => {
+    const met = evolveClubPhilosophy(philosophy, { objectives:[{ kind:'sporting', status:'ok' }] });
+    expect(met.traits.starRecruitment).toBe(52);
+    const missed = evolveClubPhilosophy(philosophy, { objectives:[{ kind:'sporting', status:'review' }] });
+    expect(missed.traits.starRecruitment).toBe(50);
+  });
+
+  it('never moves a trait by more than the fixed per-season amount, even starting near the [0,100] edge', () => {
+    const nearCeiling = { ...philosophy, traits:{ ...philosophy.traits, financialCaution:99 } };
+    const evolved = evolveClubPhilosophy(nearCeiling, { objectives:[{ kind:'financial', status:'ok' }] });
+    expect(evolved.traits.financialCaution).toBe(100);
+
+    const nearFloor = { ...philosophy, traits:{ ...philosophy.traits, youthPathway:1 } };
+    const low = evolveClubPhilosophy(nearFloor, { objectives:[{ kind:'youth', status:'review' }] });
+    expect(low.traits.youthPathway).toBe(0);
+  });
+
+  it('never exceeds [0, 100] even after many consecutive seasons of the same outcome', () => {
+    let evolved = philosophy;
+    for (let i = 0; i < 30; i++) evolved = evolveClubPhilosophy(evolved, { objectives:[{ kind:'financial', status:'ok' }] });
+    expect(evolved.traits.financialCaution).toBe(100);
+  });
+
+  it('is a no-op for a missing philosophy or malformed board-contract result', () => {
+    expect(evolveClubPhilosophy(null, { objectives:[] })).toBeNull();
+    expect(evolveClubPhilosophy(philosophy, null)).toBe(philosophy);
+    expect(evolveClubPhilosophy(philosophy, {})).toBe(philosophy);
+  });
+
+  it('returns the exact same reference when nothing actually moves — a caller can use !== to decide whether to persist', () => {
+    expect(evolveClubPhilosophy(philosophy, { objectives:[{ kind:'financial', status:'warning' }] })).toBe(philosophy);
+    expect(evolveClubPhilosophy(philosophy, { objectives:[{ kind:'sporting', status:'review' }] })).toBe(philosophy);
+    expect(evolveClubPhilosophy(philosophy, { objectives:[] })).toBe(philosophy);
+
+    const atCeiling = { ...philosophy, traits:{ ...philosophy.traits, financialCaution:100 } };
+    expect(evolveClubPhilosophy(atCeiling, { objectives:[{ kind:'financial', status:'ok' }] })).toBe(atCeiling);
+  });
+
+  it('reads the same status strings boardContract.js actually produces — a rename there must fail this test, not silently desync', () => {
+    expect(OBJECTIVE_STATUS.OK).toBe('ok');
+    expect(OBJECTIVE_STATUS.REVIEW).toBe('review');
   });
 });

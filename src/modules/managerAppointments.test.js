@@ -72,6 +72,18 @@ describe('scoreCandidateFit', () => {
     const youthMismatched = createManager({ id:'m2', reputation:{ overall:70, youth:10, tactical:50, financial:50 }, record:{ matches:10, wins:4, draws:3, losses:3 } });
     expect(scoreCandidateFit(youthAligned, youthClub).overall).toBeGreaterThan(scoreCandidateFit(youthMismatched, youthClub).overall);
   });
+
+  it('P7 WP5: a club under real financial pressure weighs financial fit more heavily than a healthy club', () => {
+    const philosophy = { version:1, traits:{ youthPathway:50, financialCaution:90, starRecruitment:50 } };
+    const healthyClub = { ...team, philosophy, finance:{ cash:20_000_000, obligations:[] } };
+    const strugglingClub = { ...team, philosophy, finance:{ cash:-5_000_000, obligations:[] } };
+    // Same manager, same mismatch (low financial reputation against a high-financialCaution club) —
+    // only the club's own cash position differs.
+    const spendthrift = createManager({ id:'m', reputation:{ overall:70, youth:50, tactical:50, financial:10 } });
+    const healthyFit = scoreCandidateFit(spendthrift, healthyClub).reasons.clubFit;
+    const strugglingFit = scoreCandidateFit(spendthrift, strugglingClub).reasons.clubFit;
+    expect(strugglingFit).toBeLessThan(healthyFit);
+  });
 });
 
 describe('assembleCandidates', () => {

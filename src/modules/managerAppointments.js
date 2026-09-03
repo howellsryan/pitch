@@ -16,6 +16,7 @@
  */
 
 import { clubPhilosophyTraitValue } from './clubPhilosophy.js';
+import { financialPressure } from './clubFinance.js';
 
 export const HARD_BLOCK_REASONS = Object.freeze({
   NOT_AVAILABLE:'not_available',
@@ -37,28 +38,39 @@ export function isEligibleCandidate(manager, vacancy) {
  * disciplined one. Missing philosophy (pre-P7 team row, or a team object a
  * test builds without one) reads as neutral (50 on every trait), so this
  * never penalises a club that hasn't been through the P7 backfill yet.
+ *
+ * P7 WP5: a club actually under financial pressure right now weighs the
+ * financial-fit component more heavily than the flat three-way average —
+ * the board cares more about hiring a fiscally disciplined manager when the
+ * books are already strained than when finances are healthy.
  */
-function philosophyFit(manager, team) {
+function philosophyFit(manager, team, precomputedPressure) {
   if (!team?.philosophy?.traits) return 50;
   const youthGap = Math.abs(clubPhilosophyTraitValue(team.philosophy, 'youthPathway') - (manager.reputation?.youth ?? 50));
   const financialGap = Math.abs(clubPhilosophyTraitValue(team.philosophy, 'financialCaution') - (manager.reputation?.financial ?? 50));
   const starGap = Math.abs(clubPhilosophyTraitValue(team.philosophy, 'starRecruitment') - (manager.reputation?.overall ?? 50));
-  const avgGap = (youthGap + financialGap + starGap) / 3;
+  const pressure = precomputedPressure ?? financialPressure(team);
+  const financialWeight = pressure === 'critical' ? 0.6 : pressure === 'strained' ? 0.45 : 1 / 3;
+  const remainingWeight = (1 - financialWeight) / 2;
+  const avgGap = financialGap * financialWeight + youthGap * remainingWeight + starGap * remainingWeight;
   return Math.max(0, 100 - avgGap * 1.2);
 }
 
 /**
  * Explainable, bounded fit score in [0, 100]. Every input is named so a
  * rejection reason can be surfaced later without recomputing anything.
+ * `pressure` lets a caller scoring many candidates against the same club
+ * (assembleCandidates) hoist financialPressure(team) out of the per-
+ * candidate loop instead of recomputing an identical reduce every time.
  */
-export function scoreCandidateFit(manager, team) {
+export function scoreCandidateFit(manager, team, { pressure } = {}) {
   const reputationGap = Math.abs((manager.reputation?.overall ?? 50) - (team.reputation ?? 50));
   const reputationFit = Math.max(0, 100 - reputationGap * 1.4);
   const matches = manager.record?.matches ?? 0;
   const winRate = matches > 0 ? (manager.record.wins / matches) : 0.4;
   const trackRecord = Math.round(winRate * 100);
   const youthFit = manager.reputation?.youth ?? 50;
-  const clubFit = philosophyFit(manager, team);
+  const clubFit = philosophyFit(manager, team, pressure);
   const overall = Math.round(reputationFit * 0.48 + trackRecord * 0.27 + youthFit * 0.10 + clubFit * 0.15);
   return {
     overall:Math.max(0, Math.min(100, overall)),
@@ -74,9 +86,10 @@ export function scoreCandidateFit(manager, team) {
  */
 export function assembleCandidates(vacancy, team, managerPool, { excludeIds = [] } = {}) {
   const excluded = new Set(excludeIds);
+  const pressure = financialPressure(team);
   return managerPool
     .filter(manager => !excluded.has(manager.id) && isEligibleCandidate(manager, vacancy))
-    .map(manager => ({ managerId:manager.id, fit:scoreCandidateFit(manager, team) }))
+    .map(manager => ({ managerId:manager.id, fit:scoreCandidateFit(manager, team, { pressure }) }))
     .sort((a, b) => b.fit.overall - a.fit.overall);
 }
 
