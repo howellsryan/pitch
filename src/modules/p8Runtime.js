@@ -14,6 +14,7 @@ import {
   eventWeekKey,
   expireCareerEvents,
   isCareerEventExpired,
+  invalidateCareerEvents,
   normalizeCareerEvents,
   selectCareerEvents,
 } from './careerEvents.js';
@@ -35,8 +36,8 @@ export async function advanceP8StoryWeek(saveInput = null) {
   let state = normalizeCareerEvents(save.careerEvents ?? createCareerEventsState());
   const key = eventWeekKey(save);
   if (state.processedWeekKeys.includes(key)) return { save, added:[], expired:[], followUps:[], alreadyProcessed:true };
-  const [team, teams, players, standings, nextFixtures] = await Promise.all([
-    getTeam(save.userTeamId), getAllTeams(), getAllPlayers(), getAllStandings(), getFixturesByGW(Number(save.currentGameweek ?? 0) + 1),
+  const [team, teams, players, standings, nextFixtures, userManager] = await Promise.all([
+    getTeam(save.userTeamId), getAllTeams(), getAllPlayers(), getAllStandings(), getFixturesByGW(Number(save.currentGameweek ?? 0) + 1), getManager(save.userManagerId),
   ]);
   const standing = standingForUser(standings, save.userTeamId);
   const rivalries = buildRivalries(team, teams, state.rivalries);
@@ -47,7 +48,9 @@ export async function advanceP8StoryWeek(saveInput = null) {
   const nextOpponentId = nextFixture && (nextFixture.homeTeamId === save.userTeamId ? nextFixture.awayTeamId : nextFixture.homeTeamId);
   const nextOpponent = teams.find(candidate => candidate.id === nextOpponentId);
   const nextOpponentIsRival = Object.values(rivalries).some(rivalry => rivalry.clubIds?.includes(save.userTeamId) && rivalry.clubIds?.includes(nextOpponentId) && Number(rivalry.intensity ?? 0) >= 45);
-  const snapshot = { save, team, teams, players, standing, fanContext, nextOpponentIsRival, nextOpponentId, nextOpponentName:nextOpponent?.name };
+  const snapshot = { save, team, teams, players, standing, fanContext, userManager, nextOpponentIsRival, nextOpponentId, nextOpponentName:nextOpponent?.name };
+  const invalidation = invalidateCareerEvents(state, snapshot);
+  state = invalidation.state;
   const followUps = advanceCareerEventFollowUps(state, snapshot);
   state = followUps.state;
   const candidates = selectCareerEvents(snapshot, state);
@@ -64,7 +67,7 @@ export async function advanceP8StoryWeek(saveInput = null) {
     },
   };
   await putSave(next);
-  return { save:next, added, expired:expiry.expired, followUps:followUps.promoted, autoResolved:followUps.autoResolved, alreadyProcessed:false };
+  return { save:next, added, expired:expiry.expired, invalidated:invalidation.invalid, followUps:followUps.promoted, autoResolved:followUps.autoResolved, alreadyProcessed:false };
 }
 
 function assertPendingEvent(event, save) {
