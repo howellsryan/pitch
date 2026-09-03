@@ -193,7 +193,30 @@ export function normalizePlayerStatus(player) {
   // carry no professional wage until promotion creates their first contract.
   if (playerStatus === 'academy') normalized.wage = 0;
   if (playerStatus === 'academy' && !normalized.squadRole) normalized.squadRole = 'prospect';
-  return normalized;
+
+  // Normalisation is itself an idempotent boundary. Preserve the exact row
+  // object when every canonical field/projection is already equivalent so a
+  // repeated pure command can be a literal no-op rather than an equal clone.
+  const unchanged = player.lifecycleVersion === normalized.lifecycleVersion
+    && player.playerStatus === normalized.playerStatus
+    && player.contractTeamId === normalized.contractTeamId
+    && player.registeredTeamId === normalized.registeredTeamId
+    && player.activeAgreementId === normalized.activeAgreementId
+    && JSON.stringify(player.activeLoanAgreement ?? null) === JSON.stringify(normalized.activeLoanAgreement ?? null)
+    && JSON.stringify(player.registrationSpells ?? []) === JSON.stringify(normalized.registrationSpells ?? [])
+    && JSON.stringify(player.lifecycleTransitionKeys ?? []) === JSON.stringify(normalized.lifecycleTransitionKeys ?? [])
+    && player.teamId === normalized.teamId
+    && player.isYouth === normalized.isYouth
+    && player.youthTeamId === normalized.youthTeamId
+    && player.onLoan === normalized.onLoan
+    && player.loanedFrom === normalized.loanedFrom
+    && player.loanOriginalTeamId === normalized.loanOriginalTeamId
+    && player.loanedTo === normalized.loanedTo
+    && player.loanRecallable === normalized.loanRecallable
+    && player.inSquad === normalized.inSquad
+    && player.wage === normalized.wage
+    && player.squadRole === normalized.squadRole;
+  return unchanged ? player : normalized;
 }
 
 export function playerStatusNeedsNormalization(player) {
