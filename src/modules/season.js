@@ -16,7 +16,7 @@ import {
 } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { rolloverTransferMarket } from './transferMarket.js';
-import { applyLedgerMovement } from './clubFinance.js';
+import { applyLedgerMovement, operatingIncomeFor } from './clubFinance.js';
 
 /** modules/season.js — End-of-season: aging, honors, prize money, P1 world rollover */
 
@@ -189,9 +189,9 @@ export async function processEndOfSeason() {
   const populationBefore = worldPopulationReport(players);
 
   const prizeMoney = calculatePrizeMoney(userPosition, save.cups, userLeague);
-  const userTeamRec = await getTeam(save.userTeamId);
+  let userTeamRec = await getTeam(save.userTeamId);
   if (userTeamRec) {
-    await putTeam(applyLedgerMovement(userTeamRec, { category:'prize_money', amount:prizeMoney, description:'Season prize money' }));
+    userTeamRec = applyLedgerMovement(userTeamRec, { category:'prize_money', amount:prizeMoney, description:'Season prize money' });
     summary.prizeMoney = prizeMoney;
   }
 
@@ -204,20 +204,21 @@ export async function processEndOfSeason() {
     }
   }
 
-  // P7 WP2: AI clubs no longer get a destructive annual budget reset to a
-  // fresh reputation-formula figure — that discarded any in-season spending
-  // or windfalls every year. Instead nudge cash a bounded 25% of the way
-  // toward the reputation-implied target each season: directionally the
-  // same correction as before (a club whose reputation has grown drifts
-  // richer, a fallen club drifts poorer) without a jarring one-time wealth
-  // swing or runaway compounding. WP3 replaces this placeholder with the
-  // fuller operating/commercial income abstraction the guide calls for.
-  const nonUserTeams = allTeams.filter(team => team.id !== save.userTeamId);
-  for (const team of nonUserTeams) {
-    const target = reputationBudget(team.reputation ?? 70, false);
-    const current = team.finance?.cash ?? team.budget ?? 0;
-    const delta = Math.round((target - current) * 0.25);
-    await putTeam(applyLedgerMovement(team, { category:'operating_income', amount:delta, description:'Season operating income adjustment' }));
+  // P7 WP3: every club (user included, per the guide's "AI uses the same
+  // affordability and solvency rules as the user") earns a real recurring
+  // commercial/operating income each season, scaled by reputation — not a
+  // destructive reset to a fresh reputation-formula figure (that discarded
+  // all in-season spending/windfalls every year, WP2's own reason for
+  // retiring it), and not WP2's interim 25%-convergence placeholder either.
+  // The user's own club is credited separately above via prizeMoney; this
+  // loop adds its operating income the same as every AI club.
+  for (const team of allTeams) {
+    if (team.id === save.userTeamId) continue;
+    await putTeam(applyLedgerMovement(team, { category:'operating_income', amount:operatingIncomeFor(team.reputation ?? 70), description:'Season commercial/operating income' }));
+  }
+  if (userTeamRec) {
+    userTeamRec = applyLedgerMovement(userTeamRec, { category:'operating_income', amount:operatingIncomeFor(userTeamRec.reputation ?? 70), description:'Season commercial/operating income' });
+    await putTeam(userTeamRec);
   }
 
   const loanReturnUpdates = players
@@ -428,6 +429,11 @@ export async function getHonorsForTeam(teamId) {
   return { combined, earned:myEarned };
 }
 
+// Retained only because src/validate.js's legacy "Budget Scaling" section
+// calls this by bare identifier and crashes (not a clean FAIL) if it's
+// missing. P7 WP3 no longer uses this for any actual budget movement —
+// clubFinance.js's operatingIncomeFor() is the real, deterministic
+// commercial-income formula every club's season rollover uses instead.
 export function reputationBudget(reputation, isUserTeam = false) {
   const base = Math.round(
     reputation >= 95 ? 180_000_000 + (reputation - 95) * 10_000_000 :

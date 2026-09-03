@@ -6,7 +6,7 @@
  * receive their own IndexedDB database. The active slot is only a pointer;
  * every existing domain/store API continues to operate on one active DB.
  */
-import { applyLedgerMovement } from './clubFinance.js';
+import { applyLedgerMovement, availableFunds, scheduleObligation } from './clubFinance.js';
 export const DB_NAME = 'pitch_fc';
 export const DB_VERSION = 4;
 export const LEGACY_SLOT_ID = 'legacy';
@@ -303,14 +303,23 @@ export function settleTransferMarketDealAtomic(dealId) {
 
           const terms = deal.terms;
           const installments = terms.fee?.installments ?? [];
-          const fee = deal.type === 'loan'
-            ? Number(terms.loan?.fee ?? 0)
-            : Number(terms.fee?.upfront ?? 0) + installments.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+          // P7 WP3: installments are deferred to their own dueSeason/dueGameweek
+          // (below) rather than paid upfront. `fee` stays the TOTAL deal value
+          // (upfront + every installment) for the transfer-history record and
+          // UI display; `upfrontFee` is what actually moves at settlement.
+          const upfrontFee = deal.type === 'loan' ? Number(terms.loan?.fee ?? 0) : Number(terms.fee?.upfront ?? 0);
+          const installmentsTotal = installments.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+          const fee = upfrontFee + installmentsTotal;
           const signingBonus = Number(terms.contract?.signingBonus ?? 0);
           const remainingWeeks = Math.max(0, Number(save.totalGameweeks ?? 38) - Number(save.currentGameweek ?? 1) + 1);
           const loanWages = deal.type === 'loan' ? Number(terms.contract?.wage ?? 0) * remainingWeeks * Number(terms.loan?.wageContributionPercentage ?? 100) / 100 : 0;
-          const cost = deal.type === 'renewal' || deal.type === 'free_agent' ? signingBonus : fee + signingBonus + loanWages;
-          if (Number(buyer.budget ?? 0) < cost) { rejectSettlement('insufficient_funds'); return; }
+          const upfrontCost = deal.type === 'renewal' || deal.type === 'free_agent' ? signingBonus : upfrontFee + signingBonus + loanWages;
+          // Reserve the buyer's own already-scheduled-but-unpaid installments
+          // (from earlier deals) as well as other active deals' reservations —
+          // raw `buyer.budget` alone doesn't know what this club has already
+          // committed to pay later, so a club could otherwise serially agree
+          // to more installment debt than it could ever actually service.
+          if (availableFunds(buyer, market, deal.id) < upfrontCost) { rejectSettlement('insufficient_funds'); return; }
 
           const exchangePlayerId = terms.fee?.exchangePlayerId;
           const exchangePlayer = exchangePlayerId ? allPlayers.find(item => String(item.id) === String(exchangePlayerId)) : null;
@@ -321,9 +330,19 @@ export function settleTransferMarketDealAtomic(dealId) {
           if (seller && !['renewal','free_agent'].includes(deal.type) && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
           if (seller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
 
-          const nextBuyer = applyLedgerMovement(buyer, { category:'transfer_fee_out', amount:-cost, description:`Deal ${deal.id} settled`, weekKey:market.lastTickKey ?? deal.updatedWeekKey });
-          const changedTeams = new Map([[nextBuyer.id, nextBuyer]]);
-          if (seller && seller.id !== buyer.id && fee > 0) changedTeams.set(seller.id, applyLedgerMovement(seller, { category:'transfer_fee_in', amount:fee, description:`Deal ${deal.id} settled`, weekKey:market.lastTickKey ?? deal.updatedWeekKey }));
+          const settlementWeekKey = market.lastTickKey ?? deal.updatedWeekKey;
+          let nextBuyer = applyLedgerMovement(buyer, { category:'transfer_fee_out', amount:-upfrontCost, description:`Deal ${deal.id} settled (upfront)`, weekKey:settlementWeekKey });
+          const changedTeams = new Map();
+          const creditsSeller = seller && seller.id !== buyer.id;
+          if (creditsSeller && upfrontFee > 0) changedTeams.set(seller.id, applyLedgerMovement(seller, { category:'transfer_fee_in', amount:upfrontFee, description:`Deal ${deal.id} settled (upfront)`, weekKey:settlementWeekKey }));
+          for (const installment of installments) {
+            nextBuyer = scheduleObligation(nextBuyer, { id:`${deal.id}:installment:${installment.id}`, category:'transfer_fee_out', amount:-installment.amount, description:`Deal ${deal.id} installment`, dueSeason:installment.dueSeason, dueGameweek:installment.dueGameweek });
+            if (creditsSeller) {
+              const sellerSoFar = changedTeams.get(seller.id) ?? seller;
+              changedTeams.set(seller.id, scheduleObligation(sellerSoFar, { id:`${deal.id}:installment:${installment.id}`, category:'transfer_fee_in', amount:installment.amount, description:`Deal ${deal.id} installment`, dueSeason:installment.dueSeason, dueGameweek:installment.dueGameweek }));
+            }
+          }
+          changedTeams.set(nextBuyer.id, nextBuyer);
           for (const team of changedTeams.values()) teamsStore.put(team);
 
           const seasonYear = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 0;

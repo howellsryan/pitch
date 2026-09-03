@@ -7,13 +7,17 @@ import {
   createClubFinance,
   financeNeedsBackfill,
   financialPressure,
+  isObligationDue,
+  operatingIncomeFor,
+  scheduleObligation,
+  settleDueObligations,
   syncLedgerCash,
 } from './clubFinance.js';
 
 describe('createClubFinance', () => {
-  it('opens cash at the given amount with empty totals/entries', () => {
+  it('opens cash at the given amount with empty totals/entries/obligations', () => {
     const finance = createClubFinance(10_000_000);
-    expect(finance).toEqual({ version:CLUB_FINANCE_VERSION, cash:10_000_000, seasonTotals:{}, recentEntries:[] });
+    expect(finance).toEqual({ version:CLUB_FINANCE_VERSION, cash:10_000_000, seasonTotals:{}, recentEntries:[], obligations:[] });
   });
 
   it('defaults a missing/invalid opening amount to zero', () => {
@@ -130,5 +134,105 @@ describe('financialPressure', () => {
     expect(financialPressure({ finance:{ cash:-1 } })).toBe('critical');
     expect(financialPressure({ finance:{ cash:1_999_999 } })).toBe('strained');
     expect(financialPressure({ finance:{ cash:2_000_000 } })).toBe('stable');
+  });
+
+  it('weighs unpaid payable obligations, not just raw cash — cash that is already spoken for does not read as stable', () => {
+    const team = { finance:{ cash:3_000_000, obligations:[{ amount:-2_000_000 }] } };
+    expect(financialPressure(team)).toBe('strained');
+  });
+
+  it('does not let a receivable (positive-amount) obligation mask real pressure', () => {
+    const team = { finance:{ cash:1_000_000, obligations:[{ amount:5_000_000 }] } };
+    expect(financialPressure(team)).toBe('strained');
+  });
+});
+
+describe('a team.finance predating the obligations field', () => {
+  it('normalizes to an empty obligations array without a version bump / re-backfill', () => {
+    const preObligations = { id:'club_a', budget:5_000_000, finance:{ version:1, cash:5_000_000, seasonTotals:{ wages:-10_000 }, recentEntries:[{ category:'wages', amount:-10_000 }] } };
+    const updated = applyLedgerMovement(preObligations, { category:'other', amount:1 });
+    expect(updated.finance.obligations).toEqual([]);
+    // Existing accrued state must survive — this is why we don't bump CLUB_FINANCE_VERSION.
+    expect(updated.finance.seasonTotals.wages).toBe(-10_000);
+  });
+});
+
+describe('scheduleObligation / isObligationDue / settleDueObligations', () => {
+  it('schedules without moving cash', () => {
+    const team = { id:'club_a', budget:10_000_000, finance:createClubFinance(10_000_000) };
+    const updated = scheduleObligation(team, { id:'ob1', category:'transfer_fee_out', amount:-2_000_000, dueSeason:'2025/26', dueGameweek:12 });
+    expect(updated.budget).toBe(10_000_000);
+    expect(updated.finance.cash).toBe(10_000_000);
+    expect(updated.finance.obligations).toEqual([{ id:'ob1', category:'transfer_fee_out', amount:-2_000_000, description:null, dueSeason:'2025/26', dueGameweek:12 }]);
+  });
+
+  it('isObligationDue: true once the gameweek is reached in the scheduled season', () => {
+    const save = { season:'2025/26', currentGameweek:12 };
+    expect(isObligationDue({ dueSeason:'2025/26', dueGameweek:12 }, save)).toBe(true);
+    expect(isObligationDue({ dueSeason:'2025/26', dueGameweek:13 }, save)).toBe(false);
+  });
+
+  it('isObligationDue: true as a catch-up safety net once the save has moved to a different season entirely', () => {
+    const save = { season:'2026/27', currentGameweek:1 };
+    expect(isObligationDue({ dueSeason:'2025/26', dueGameweek:40 }, save)).toBe(true);
+  });
+
+  it('settleDueObligations pays only what is due, leaving the rest scheduled', () => {
+    let team = { id:'club_a', budget:10_000_000, finance:createClubFinance(10_000_000) };
+    team = scheduleObligation(team, { id:'due', category:'transfer_fee_out', amount:-2_000_000, dueSeason:'2025/26', dueGameweek:5 });
+    team = scheduleObligation(team, { id:'not_due', category:'transfer_fee_out', amount:-3_000_000, dueSeason:'2025/26', dueGameweek:20 });
+    const save = { season:'2025/26', currentGameweek:5 };
+    const settled = settleDueObligations(team, save);
+    expect(settled.budget).toBe(8_000_000);
+    expect(settled.finance.obligations).toEqual([{ id:'not_due', category:'transfer_fee_out', amount:-3_000_000, description:null, dueSeason:'2025/26', dueGameweek:20 }]);
+    expect(settled.finance.seasonTotals.transfer_fee_out).toBe(-2_000_000);
+  });
+
+  it('is idempotent — a second call with nothing newly due is a no-op', () => {
+    let team = { id:'club_a', budget:10_000_000, finance:createClubFinance(10_000_000) };
+    team = scheduleObligation(team, { id:'due', category:'transfer_fee_out', amount:-2_000_000, dueSeason:'2025/26', dueGameweek:5 });
+    const save = { season:'2025/26', currentGameweek:5 };
+    const once = settleDueObligations(team, save);
+    const twice = settleDueObligations(once, save);
+    expect(twice.budget).toBe(once.budget);
+    expect(twice.finance.obligations).toEqual([]);
+  });
+
+  it('returns the same team reference when nothing is due (cheap no-op)', () => {
+    let team = { id:'club_a', budget:10_000_000, finance:createClubFinance(10_000_000) };
+    team = scheduleObligation(team, { id:'later', category:'transfer_fee_out', amount:-2_000_000, dueSeason:'2025/26', dueGameweek:30 });
+    const save = { season:'2025/26', currentGameweek:5 };
+    expect(settleDueObligations(team, save)).toBe(team);
+  });
+});
+
+describe('operatingIncomeFor', () => {
+  it('is deterministic — no variance', () => {
+    expect(operatingIncomeFor(75)).toBe(operatingIncomeFor(75));
+  });
+
+  it('is non-decreasing with reputation and always positive', () => {
+    const reps = [99, 96, 90, 85, 80, 77, 70, 65, 60];
+    const incomes = reps.map(operatingIncomeFor);
+    expect(incomes.every((income, i) => i === 0 || income <= incomes[i - 1])).toBe(true);
+    expect(incomes.every(income => income > 0 && Number.isInteger(income))).toBe(true);
+  });
+
+  it('defaults a missing reputation to a neutral 65', () => {
+    expect(operatingIncomeFor()).toBe(operatingIncomeFor(65));
+  });
+});
+
+describe('availableFunds reserves unpaid payables alongside active deal commitments', () => {
+  it('subtracts this club\'s own owed (negative-amount) obligations from spending power', () => {
+    let team = { id:'club_a', budget:10_000_000, finance:createClubFinance(10_000_000) };
+    team = scheduleObligation(team, { id:'ob1', category:'transfer_fee_out', amount:-4_000_000, dueSeason:'2025/26', dueGameweek:20 });
+    expect(availableFunds(team)).toBe(6_000_000);
+  });
+
+  it('does not reserve a receivable (positive-amount) obligation — that is future income, not committed spend', () => {
+    let team = { id:'club_a', budget:10_000_000, finance:createClubFinance(10_000_000) };
+    team = scheduleObligation(team, { id:'ob1', category:'transfer_fee_in', amount:4_000_000, dueSeason:'2025/26', dueGameweek:20 });
+    expect(availableFunds(team)).toBe(10_000_000);
   });
 });

@@ -26,6 +26,23 @@ describe('P4 transfer-market runtime integration', () => {
     expect(settlement).not.toContain('budget:Number(seller.budget');
   });
 
+  it('P7 WP3: pays only the upfront portion now and schedules each installment as a due-dated obligation instead of paying the full deal value immediately', () => {
+    const source = readFileSync(new URL('./db.js', import.meta.url), 'utf8');
+    const start = source.indexOf('export function settleTransferMarketDealAtomic');
+    const end = source.indexOf('export const getAllHonors', start);
+    const settlement = source.slice(start, end);
+    expect(settlement).toContain('const upfrontFee = deal.type');
+    expect(settlement).toContain('const upfrontCost = deal.type');
+    // Affordability must reserve the buyer's own already-scheduled unpaid
+    // installments (availableFunds), not just compare raw budget — otherwise
+    // a club could serially agree to more installment debt than it can service.
+    expect(settlement).toContain('availableFunds(buyer, market, deal.id) < upfrontCost');
+    expect(settlement).not.toContain('Number(buyer.budget ?? 0) < upfrontCost');
+    expect(settlement).toContain("scheduleObligation(nextBuyer, { id:`${deal.id}:installment:${installment.id}`, category:'transfer_fee_out'");
+    expect(settlement).toContain("scheduleObligation(sellerSoFar, { id:`${deal.id}:installment:${installment.id}`, category:'transfer_fee_in'");
+    expect(settlement).toContain('dueSeason:installment.dueSeason, dueGameweek:installment.dueGameweek');
+  });
+
   it('advances the persisted market once from the shared world-week closeout', () => {
     const source = readFileSync(new URL('./gameweek.js', import.meta.url), 'utf8');
     const start = source.indexOf('async function runEndOfWorldGameweek');

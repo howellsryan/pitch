@@ -74,6 +74,7 @@ MODULES += [
     ('modules/save.js',             'SAVE'),
     ('modules/season.js',           'SEASON'),
     ('modules/p6Runtime.js',        'P6 MANAGER CAREER RUNTIME'),
+    ('modules/p7Runtime.js',        'P7 CLUB FINANCE RUNTIME'),
     ('modules/gameweek.js',         'GAMEWEEK'),
     ('modules/managerClubHandover.js', 'MANAGER CLUB HANDOVER'),
     ('modules/managerUserActions.js', 'MANAGER USER ACTIONS'),
