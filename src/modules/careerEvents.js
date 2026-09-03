@@ -127,7 +127,10 @@ export function buildRivalries(userTeam, teams = [], existing = {}) {
 function eligibleCandidates(snapshot) {
   const save = snapshot.save ?? {};
   const userTeamId = save.userTeamId;
-  const userPlayers = (snapshot.players ?? []).filter(player => player.teamId === userTeamId);
+  const userManager = snapshot.userManager ?? null;
+  const managesClub = !userManager || userManager.status === 'employed';
+  const canTakeApproach = !userManager || userManager.status !== 'employed';
+  const userPlayers = managesClub ? (snapshot.players ?? []).filter(player => player.teamId === userTeamId) : [];
   const broken = userPlayers
     .filter(player => player.playingTimeAgreement?.status === 'broken')
     .sort((a, b) => Number(a.individualMorale ?? 50) - Number(b.individualMorale ?? 50) || String(a.id).localeCompare(String(b.id)))[0];
@@ -146,7 +149,7 @@ function eligibleCandidates(snapshot) {
     .filter(player => ['crucial','important'].includes(player.squadRole) || Number(player.value ?? 0) >= 20_000_000)
     .filter(player => contractYearsRemaining(player, save) <= 1)
     .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0) || Number(a.individualMorale ?? 50) - Number(b.individualMorale ?? 50) || String(a.id).localeCompare(String(b.id)))[0];
-  const approach = (save.managerMarket?.userApproaches ?? [])
+  const approach = (canTakeApproach ? (save.managerMarket?.userApproaches ?? []) : [])
     .filter(item => item?.source === 'approach' && (item.status ?? 'pending') === 'pending')
     .sort((a, b) => Number(b.fit ?? 0) - Number(a.fit ?? 0) || String(a.id).localeCompare(String(b.id)))[0];
   const approachTeam = approach ? (snapshot.teams ?? []).find(team => team.id === approach.clubId) : null;
@@ -171,9 +174,9 @@ function eligibleCandidates(snapshot) {
       participantIds:{ playerId:youngster.id },
       tokens:{ playerName:youngster.name ?? 'A young player', age:Number(youngster.age ?? 0) },
     } : null,
-    (pressure >= 52 || (form.slice(-4).filter(result => result === 'L').length >= 3)) ? { templateId:'board_pressure', participantIds:{}, tokens:{ pressure } } : null,
-    cash < 3_000_000 ? { templateId:'budget_pressure', participantIds:{}, tokens:{ cash } } : null,
-    snapshot.nextOpponentIsRival && pressure >= 35 ? { templateId:'press_derby', participantIds:{ opponentId:snapshot.nextOpponentId ?? null }, tokens:{ opponentName:snapshot.nextOpponentName ?? 'your rivals' } } : null,
+    managesClub && (pressure >= 52 || (form.slice(-4).filter(result => result === 'L').length >= 3)) ? { templateId:'board_pressure', participantIds:{}, tokens:{ pressure } } : null,
+    managesClub && cash < 3_000_000 ? { templateId:'budget_pressure', participantIds:{}, tokens:{ cash } } : null,
+    managesClub && snapshot.nextOpponentIsRival && pressure >= 35 ? { templateId:'press_derby', participantIds:{ opponentId:snapshot.nextOpponentId ?? null }, tokens:{ opponentName:snapshot.nextOpponentName ?? 'your rivals' } } : null,
   ].filter(Boolean);
 }
 
@@ -235,6 +238,40 @@ export function expireCareerEvents(stateInput, save) {
   if (!expired.length) return { state, expired:[] };
   const resolved = [...state.resolved, ...expired.map(event => ({ ...event, status:'expired', resolutionCode:'expired', resolvedGameweek:week }))].slice(-MAX_RESOLVED_CAREER_EVENTS);
   return { state:{ ...state, active:state.active.filter(event => !expired.includes(event)), resolved }, expired };
+}
+
+export function invalidateCareerEvents(stateInput, snapshot) {
+  const state = normalizeCareerEvents(stateInput);
+  const save = snapshot?.save ?? {};
+  const userTeamId = save.userTeamId;
+  const userManager = snapshot?.userManager ?? null;
+  const approachIds = new Set((save.managerMarket?.userApproaches ?? []).map(item => item.id));
+  const playersById = new Map((snapshot?.players ?? []).map(player => [player.id, player]));
+  const invalid = [];
+  const active = [];
+
+  for (const event of state.active) {
+    if (event.status !== 'pending') { active.push(event); continue; }
+    let resolutionCode = null;
+    const playerId = event.participantIds?.playerId;
+    if (playerId) {
+      const player = playersById.get(playerId);
+      if (!player) resolutionCode = 'participant_unavailable';
+      else if (player.teamId !== userTeamId) resolutionCode = 'participant_moved';
+    } else if (event.templateId === 'manager_approach' && !approachIds.has(event.participantIds?.approachId)) {
+      resolutionCode = 'approach_unavailable';
+    } else if (userManager && userManager.status !== 'employed' && event.templateId !== 'manager_approach') {
+      resolutionCode = 'manager_unemployed';
+    }
+    if (!resolutionCode) { active.push(event); continue; }
+    invalid.push({ ...event, status:'resolved', resolutionCode, resolvedGameweek:Number(save.currentGameweek ?? 0) });
+  }
+
+  if (!invalid.length) return { state, invalid:[] };
+  return {
+    state:{ ...state, active, resolved:[...state.resolved, ...invalid].slice(-MAX_RESOLVED_CAREER_EVENTS) },
+    invalid,
+  };
 }
 
 const FOLLOW_UP_RULES = Object.freeze({
