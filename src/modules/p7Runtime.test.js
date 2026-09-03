@@ -4,10 +4,23 @@ import { beginFacilityUpgrade, createFacilities } from './facilities.js';
 
 const db = vi.hoisted(() => ({
   getAllTeams: vi.fn(async () => []),
+  getSave: vi.fn(async () => null),
+  getTeam: vi.fn(async () => null),
+  putTeam: vi.fn(async () => {}),
   putTeamsBulk: vi.fn(async () => {}),
 }));
 
+const pathways = vi.hoisted(() => ({
+  advanceP9PostMarketWeek: vi.fn(async () => ({ loanReports:[] })),
+}));
+
+const academyScouting = vi.hoisted(() => ({
+  advanceP9AcademyScoutingWeek: vi.fn(async save => ({ save, scoutingCompleted:[], prospectsAdded:[] })),
+}));
+
 vi.mock('./db.js', () => db);
+vi.mock('./p9Runtime.js', () => pathways);
+vi.mock('./p9ScoutingRuntime.js', () => academyScouting);
 
 import { advanceP7ClubFinanceWeek } from './p7Runtime.js';
 
@@ -33,6 +46,20 @@ describe('advanceP7ClubFinanceWeek', () => {
     expect(patch[0].finance.obligations).toEqual([]);
   });
 
+  it('runs P9 scouting-only academy IO and loan reporting once from the post-market boundary', async () => {
+    const save = { season:'2025/26', currentGameweek:5 };
+    academyScouting.advanceP9AcademyScoutingWeek.mockResolvedValue({ scoutingCompleted:[{ id:'scout-1' }], prospectsAdded:[{ id:'y1' }] });
+    pathways.advanceP9PostMarketWeek.mockResolvedValue({ loanReports:[{ id:'report-1' }] });
+
+    const result = await advanceP7ClubFinanceWeek(save);
+
+    expect(academyScouting.advanceP9AcademyScoutingWeek).toHaveBeenCalledWith(save);
+    expect(pathways.advanceP9PostMarketWeek).toHaveBeenCalledTimes(1);
+    expect(result.academyScoutingCompleted).toEqual([{ id:'scout-1' }]);
+    expect(result.academyProspectsAdded).toEqual([{ id:'y1' }]);
+    expect(result.loanReports).toEqual([{ id:'report-1' }]);
+  });
+
   it('is a no-op write when nothing is due anywhere', async () => {
     let notDue = { id:'club_a', budget:5_000_000, finance:createClubFinance(5_000_000) };
     notDue = scheduleObligation(notDue, { id:'ob1', category:'transfer_fee_out', amount:-1_000_000, dueSeason:'2025/26', dueGameweek:30 });
@@ -51,14 +78,17 @@ describe('advanceP7ClubFinanceWeek', () => {
 
   it('returns an empty result for a missing save rather than throwing', async () => {
     const result = await advanceP7ClubFinanceWeek(null);
-    expect(result).toEqual({ settledTeamIds:[], facilityUpgradesCompleted:[] });
+    expect(result).toEqual({
+      settledTeamIds:[], facilityUpgradesCompleted:[],
+      academyScoutingCompleted:[], academyProspectsAdded:[], loanReports:[],
+    });
     expect(db.getAllTeams).not.toHaveBeenCalled();
+    expect(academyScouting.advanceP9AcademyScoutingWeek).not.toHaveBeenCalled();
   });
 
   it('completes a due facility upgrade and leaves a not-yet-due one in progress', async () => {
     let team = { id:'club_a', budget:20_000_000, finance:createClubFinance(20_000_000), facilities:createFacilities() };
     team = beginFacilityUpgrade(team, 'training', { weekKey:'x', season:'2025/26', currentGameweek:1 });
-    // Force the upgrade due now by rewriting its dueGameweek directly (beginFacilityUpgrade always adds the fixed lead time).
     team = { ...team, facilities:{ ...team.facilities, tracks:{ ...team.facilities.tracks, training:{ ...team.facilities.tracks.training, upgrading:{ ...team.facilities.tracks.training.upgrading, dueGameweek:5 } } } } };
     db.getAllTeams.mockResolvedValue([team]);
 

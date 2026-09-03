@@ -64,7 +64,6 @@ export function getActiveSlotId() {
 }
 
 export function getCareerSlotIds() {
-  // Always probe legacy once: pre-P0 users have no registry entry yet.
   return [...new Set([LEGACY_SLOT_ID, ..._readRegistry()])];
 }
 
@@ -304,10 +303,6 @@ export function settleTransferMarketDealAtomic(dealId) {
 
           const terms = deal.terms;
           const installments = terms.fee?.installments ?? [];
-          // P7 WP3: installments are deferred to their own dueSeason/dueGameweek
-          // (below) rather than paid upfront. `fee` stays the TOTAL deal value
-          // (upfront + every installment) for the transfer-history record and
-          // UI display; `upfrontFee` is what actually moves at settlement.
           const upfrontFee = deal.type === 'loan' ? Number(terms.loan?.fee ?? 0) : Number(terms.fee?.upfront ?? 0);
           const installmentsTotal = installments.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
           const fee = upfrontFee + installmentsTotal;
@@ -315,18 +310,17 @@ export function settleTransferMarketDealAtomic(dealId) {
           const remainingWeeks = Math.max(0, Number(save.totalGameweeks ?? 38) - Number(save.currentGameweek ?? 1) + 1);
           const loanWages = deal.type === 'loan' ? Number(terms.contract?.wage ?? 0) * remainingWeeks * Number(terms.loan?.wageContributionPercentage ?? 100) / 100 : 0;
           const upfrontCost = deal.type === 'renewal' || deal.type === 'free_agent' ? signingBonus : upfrontFee + signingBonus + loanWages;
-          // Reserve the buyer's own already-scheduled-but-unpaid installments
-          // (from earlier deals) as well as other active deals' reservations —
-          // raw `buyer.budget` alone doesn't know what this club has already
-          // committed to pay later, so a club could otherwise serially agree
-          // to more installment debt than it could ever actually service.
           if (availableFunds(buyer, market, deal.id) < upfrontCost) { rejectSettlement('insufficient_funds'); return; }
 
           const exchangePlayerId = terms.fee?.exchangePlayerId;
           const exchangePlayer = exchangePlayerId ? allPlayers.find(item => String(item.id) === String(exchangePlayerId)) : null;
           if (exchangePlayerId && (!exchangePlayer || exchangePlayer.teamId !== buyer.id || buyer.id === seller?.id)) { rejectSettlement('invalid_exchange_player'); return; }
-          const buyerSquad = allPlayers.filter(item => item.teamId === buyer.id && !item.onLoan);
-          const sellerSquad = allPlayers.filter(item => item.teamId === seller?.id && !item.onLoan);
+          // P9 academy rows deliberately retain their owning club's `teamId` so
+          // the existing by_team index remains canonical. They are not senior
+          // registrations, however, and must never consume the 30-player senior
+          // cap or satisfy the seller's senior squad/GK safety floor.
+          const buyerSquad = allPlayers.filter(item => item.teamId === buyer.id && !item.onLoan && item.inSquad !== false);
+          const sellerSquad = allPlayers.filter(item => item.teamId === seller?.id && !item.onLoan && item.inSquad !== false);
           if (deal.type !== 'renewal' && buyerSquad.length + (exchangePlayer ? 0 : 1) > 30) { rejectSettlement('buyer_squad_full'); return; }
           if (seller && !['renewal','free_agent'].includes(deal.type) && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
           if (seller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
@@ -417,9 +411,6 @@ function _deleteNamedDB(name) {
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = resolve;
     req.onerror = () => reject(req.error);
-    // The stores are cleared before generated databases reach this best-effort
-    // physical cleanup. If another tab still has a connection open, semantic
-    // deletion is already complete and the UI must not hang indefinitely.
     req.onblocked = resolve;
   });
 }
@@ -437,12 +428,6 @@ function _closeOpenSlot(slotId) {
   _dbSlotId = null;
 }
 
-/**
- * Give a committed new career an empty active store set while preserving the
- * slot registry, other career databases and cloud authentication. This also
- * covers a partially-written legacy database left behind by an interrupted
- * first-time setup.
- */
 export async function prepareActiveCareerSlotForNewSave() {
   const slotId = getActiveSlotId();
   _closeOpenSlot(slotId);
@@ -456,29 +441,18 @@ export async function prepareActiveCareerSlotForNewSave() {
 export async function deleteCareerSlot(slotId) {
   if (!SAFE_SLOT_ID.test(slotId)) throw new Error('Invalid career slot ID.');
   _closeOpenSlot(slotId);
-  // The legacy DB name is deliberately probed forever so pre-P0 browsers can
-  // be discovered without a registry entry. Reset it in place; generated slot
-  // DBs have no compatibility role and are physically deleted when possible.
   await _resetNamedSlot(slotId);
   _unregisterSlot(slotId);
-
   if (getActiveSlotId() === slotId) {
     const next = _readRegistry().find(id => id !== slotId) ?? LEGACY_SLOT_ID;
     _storage()?.setItem(ACTIVE_SLOT_KEY, next);
   }
 }
 
-// Compatibility: "Reset Game" now deletes the active career only. Other P0
-// slots are intentionally isolated and must never be destroyed by this path.
 export function deleteDB() {
   return deleteCareerSlot(getActiveSlotId());
 }
 
-/**
- * Stable metadata shared by local slot cards, .pitch envelopes and cloud rows.
- * UI-only state such as `isActive` is deliberately added by callers instead
- * of becoming part of the persisted metadata contract.
- */
 export function buildCareerMetadata(slotId, save, team = null, standing = null) {
   return {
     slotId,
@@ -531,7 +505,6 @@ export async function getCareerSlotSummaries() {
   });
 }
 
-// ─── Versioned .pitch / cloud save envelope ───────────────────
 export const _PITCH_SALT = 'pitch_fc_v3_2025';
 export const _PITCH_MAGIC = 'PITCH_SAVE_V2';
 export const _PITCH_LEGACY_MAGIC = 'PITCH_SAVE_V1';

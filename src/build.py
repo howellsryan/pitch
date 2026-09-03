@@ -26,9 +26,11 @@ for df in _data_files:
     MODULES.append((f'data/{df.name}', label))
 
 # Core modules (dependencies first). P5 training is consumed by P3 development,
-# while coaching is dependency-free and is shared by scouting/runtime. Scouting
-# loads after player/tactics selectors and before the shared P4/P5 squad planner.
-# P3 rehabilitation/player model then compose the canonical weekly player state.
+# while coaching is dependency-free and is shared by scouting/runtime. P9's
+# canonical player-status contract sits before P3 development so academy evidence
+# can feed the existing growth clock. Academy/loan projections load after the
+# P3/P5 selectors they consume, and the P9 persistence runtime loads only after
+# youthAcademy so migration/intake can reuse the existing calibrated generator.
 # P4's market state/facade follow the shared planner. P5 runtime sits after those
 # pure contracts and before save/gameweek, where migration and closeout consume
 # it. P1 world helpers remain after youthAcademy and before worldRuntime/save.
@@ -42,6 +44,7 @@ MODULES += [
     ('modules/db.js',               'DATABASE'),
     ('modules/contracts.js',        'PLAYER CONTRACTS'),
     ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
+    ('modules/playerStatus.js',     'PLAYER STATUS'),
     ('modules/training.js',         'TRAINING'),
     ('modules/coaching.js',         'COACHING'),
     ('modules/playerDevelopment.js', 'PLAYER DEVELOPMENT'),
@@ -58,6 +61,7 @@ MODULES += [
     ('modules/competitionRules.js', 'COMPETITION RULES'),
     ('modules/cups.js',             'CUPS'),
     ('modules/scouting.js',         'SCOUTING'),
+    ('modules/academyPathways.js',  'ACADEMY PATHWAYS'),
     ('modules/squadPlanning.js',    'SQUAD PLANNING'),
     ('modules/transferMarket.js',   'TRANSFER MARKET'),
     ('modules/transfers.js',        'TRANSFERS'),
@@ -66,6 +70,7 @@ MODULES += [
     ('modules/injuries.js',         'INJURIES'),
     ('modules/promotion.js',        'PROMOTION'),
     ('modules/youthAcademy.js',     'YOUTH ACADEMY'),
+    ('modules/p9Runtime.js',        'P9 CAREER PATHWAYS RUNTIME'),
     ('modules/managers.js',         'MANAGERS'),
     ('modules/managerCareer.js',    'MANAGER CAREER'),
     ('modules/managerAppointments.js', 'MANAGER APPOINTMENTS'),

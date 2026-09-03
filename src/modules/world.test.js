@@ -5,6 +5,7 @@ import {
   buildLivingWorldSeasonSummary,
   buildWorldBackfill,
   buildWorldLeagueSeason,
+  compactPlayerRegistrationSpells,
   generateReplacementNewgens,
   resetSeasonPlayerStats,
   resultFromCanonicalLeagueRecord,
@@ -158,6 +159,45 @@ describe('P1 living-world contracts', () => {
     expect(history.competitionHistory[0].topAssists).toMatchObject({ playerId:'maker', value:12 });
     expect(history.clubHistory.find(row => row.teamId === 'a')).toMatchObject({ finish:1, manager:'Manager' });
     expect(history.playerHistory.find(row => row.playerId === 'ace').transfers).toHaveLength(1);
+  });
+
+  it('P9 stores separate academy and loan registration spells without changing aggregate season totals', () => {
+    const p = {
+      ...player('pathway', 'loan_club', 'CM'),
+      appearances:8, starts:6, minutes:540, ratingTotal:49, ratingApps:8, averageRating:6.13,
+      registrationSpells:[
+        {
+          id:'spell-academy', status:'academy', contractTeamId:'parent', registeredTeamId:'parent',
+          startSeason:'2025/26', startGameweek:1, endSeason:'2025/26', endGameweek:5,
+          startStats:{ appearances:0, starts:0, minutes:0, goals:0, assists:0, cleanSheets:0, ratingTotal:0, ratingApps:0 },
+          endStats:{ appearances:0, starts:0, minutes:0, goals:0, assists:0, cleanSheets:0, ratingTotal:0, ratingApps:0 },
+          startAcademyEvidence:{ appearances:0, starts:0, minutes:0, goals:0, assists:0, cleanSheets:0, ratingTotal:0, ratingApps:0 },
+          endAcademyEvidence:{ appearances:2, starts:2, minutes:170, goals:0, assists:1, cleanSheets:0, ratingTotal:13.6, ratingApps:2 },
+        },
+        {
+          id:'spell-loan', status:'loan', contractTeamId:'parent', registeredTeamId:'loan_club',
+          startSeason:'2025/26', startGameweek:8, endSeason:null, endGameweek:null,
+          startStats:{ appearances:0, starts:0, minutes:0, goals:0, assists:0, cleanSheets:0, ratingTotal:0, ratingApps:0 },
+          startAcademyEvidence:null,
+        },
+      ],
+    };
+
+    const spells = compactPlayerRegistrationSpells(p, '2025/26');
+    expect(spells).toHaveLength(2);
+    expect(spells[0]).toMatchObject({ status:'academy', registeredTeamId:'parent', academy:{ appearances:2, minutes:170, assists:1, averageRating:6.8 } });
+    expect(spells[0].senior.appearances).toBe(0);
+    expect(spells[1]).toMatchObject({ status:'loan', registeredTeamId:'loan_club', senior:{ appearances:8, starts:6, minutes:540 } });
+
+    const history = buildLivingWorldSeasonSummary({
+      save:{ season:'2025/26', userTeamId:'parent', managerName:'Manager' },
+      teams:[team('parent', 'League A'), team('loan_club', 'League A')],
+      standings:[],
+      players:[p],
+    });
+    const row = history.playerHistory[0];
+    expect(row.appearances).toBe(8);
+    expect(row.spells).toEqual(spells);
   });
 
   it('replaces retirees one-for-one with context-calibrated generated players', () => {
