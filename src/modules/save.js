@@ -36,6 +36,7 @@ import {
 } from './playerModel.js';
 import { generateCohort } from './youthAcademy.js';
 import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
+import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
@@ -250,6 +251,15 @@ export async function ensureP7BoardContract(save) {
   return migration.save;
 }
 
+export async function ensureP7Facilities(save) {
+  if (!save || !facilitiesNeedBackfill(save)) return save;
+  const teams = await getAllTeams();
+  const migration = buildFacilitiesBackfill(save, teams);
+  if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
+  await putSave(migration.save);
+  return migration.save;
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -264,6 +274,7 @@ export async function initApp() {
     save = await ensureP7ClubPhilosophy(save);
     save = await ensureP7ClubFinance(save);
     save = await ensureP7BoardContract(save);
+    save = await ensureP7Facilities(save);
   }
   return save ?? null;
 }
@@ -313,6 +324,7 @@ export async function startNewGame(userTeamId, managerName) {
       managerId: managerIdByClub.get(rest.id) ?? null,
       philosophy: generateClubPhilosophy(rest, rest.league ?? userLeague),
       finance: createClubFinance(budget),
+      facilities: createFacilities(),
     });
   });
 
@@ -323,6 +335,7 @@ export async function startNewGame(userTeamId, managerName) {
     managerModelVersion: MANAGER_MODEL_VERSION,
     clubPhilosophyVersion: CLUB_PHILOSOPHY_VERSION,
     clubFinanceVersion: CLUB_FINANCE_VERSION,
+    facilitiesVersion: FACILITIES_VERSION,
     userManagerId:   userManager.id,
     managerMarket:   createEmptyManagerMarket(),
     currentDate,

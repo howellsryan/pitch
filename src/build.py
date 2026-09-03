@@ -48,6 +48,7 @@ MODULES += [
     ('modules/playerModel.js',      'PLAYER MODEL'),
     ('modules/tactics.js',          'TACTICS'),
     ('modules/clubPhilosophy.js',   'CLUB PHILOSOPHY'),
+    ('modules/facilities.js',       'CLUB FACILITIES'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/standings.js',        'STANDINGS'),

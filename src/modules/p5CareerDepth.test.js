@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildCoachCandidates, coachingEffects, withDefaultCoaching } from './coaching.js';
 import { settlePlayerDevelopment } from './playerDevelopment.js';
-import { buildP5CareerDepthBackfill } from './p5Runtime.js';
+import { applyMedicalFacilityMultiplier, buildP5CareerDepthBackfill, refreshPlanContext } from './p5Runtime.js';
 import { advanceScoutingState, createScoutingAssignment, createScoutingState, latestScoutingReport } from './scouting.js';
 import { projectScoutedPlayerView } from './scoutingView.js';
 import { buildSquadNeeds, rankStandoutRecruitmentCandidates } from './squadPlanning.js';
@@ -147,5 +147,54 @@ describe('P5 coaching, training, scouting and squad planning', () => {
     expect(migration.save.scouting.defaultKnowledge).toBe(.68);
     expect(migration.teamPatches).toHaveLength(2);
     expect(migration.teamPatches.every(team => team.coachingVersion === 1)).toBe(true);
+  });
+
+  describe('P7 WP6: applyMedicalFacilityMultiplier', () => {
+    it('is a no-op for a player with no rehabilitation', () => {
+      const p = player('a', 'club', 'CB', 70);
+      expect(applyMedicalFacilityMultiplier(p, 1.06)).toBe(p);
+    });
+
+    it('is a no-op once match_fit, even with an active multiplier passed in', () => {
+      const p = player('a', 'club', 'CB', 70, { rehabilitation:{ status:'match_fit', matchReadiness:100 } });
+      expect(applyMedicalFacilityMultiplier(p, 1.06)).toBe(p);
+    });
+
+    it('sets the multiplier for an actively rehabbing player', () => {
+      const p = player('a', 'club', 'CB', 70, { rehabilitation:{ status:'available_high_risk', matchReadiness:60 } });
+      const updated = applyMedicalFacilityMultiplier(p, 1.06);
+      expect(updated).not.toBe(p);
+      expect(updated.rehabilitation.facilityRecoveryMultiplier).toBe(1.06);
+    });
+
+    it('is idempotent — the same call twice returns the same reference the second time', () => {
+      const p = player('a', 'club', 'CB', 70, { rehabilitation:{ status:'available_high_risk', matchReadiness:60 } });
+      const once = applyMedicalFacilityMultiplier(p, 1.06);
+      expect(applyMedicalFacilityMultiplier(once, 1.06)).toBe(once);
+    });
+  });
+
+  describe('P7 WP6: refreshPlanContext folds training facility level into coachingMultiplier', () => {
+    it('multiplies coaching quality by the team\'s training facility multiplier', () => {
+      const base = player('st', 'club', 'ST', 70, { developmentProgress:0, growthPoints:0 });
+      const plan = createDevelopmentPlan('finishing', base, { teamId:'club', weekKey:'2025/26:1' });
+      const withPlan = { ...base, developmentPlan:plan };
+      const baselineTeam = withDefaultCoaching({ id:'club', reputation:70, facilities:{ version:1, tracks:{ training:{ level:1, upgrading:null }, medical:{ level:1, upgrading:null }, scouting:{ level:1, upgrading:null } } } });
+      const upgradedTeam = withDefaultCoaching({ id:'club', reputation:70, facilities:{ version:1, tracks:{ training:{ level:5, upgrading:null }, medical:{ level:1, upgrading:null }, scouting:{ level:1, upgrading:null } } } });
+
+      const baseline = refreshPlanContext(withPlan, baselineTeam, '2025/26:2');
+      const upgraded = refreshPlanContext(withPlan, upgradedTeam, '2025/26:2');
+      expect(upgraded.developmentPlan.coachingMultiplier).toBeGreaterThan(baseline.developmentPlan.coachingMultiplier);
+    });
+
+    it('is unaffected by facility level for a team with no facilities field (pre-P7 safety)', () => {
+      const base = player('st', 'club', 'ST', 70, { developmentProgress:0, growthPoints:0 });
+      const plan = createDevelopmentPlan('finishing', base, { teamId:'club', weekKey:'2025/26:1' });
+      const withPlan = { ...base, developmentPlan:plan };
+      const team = withDefaultCoaching({ id:'club', reputation:70 });
+      const effects = coachingEffects(team, withPlan);
+      const result = refreshPlanContext(withPlan, team, '2025/26:2');
+      expect(result.developmentPlan.coachingMultiplier).toBe(effects.development);
+    });
   });
 });

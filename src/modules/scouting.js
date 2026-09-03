@@ -2,6 +2,7 @@ import { currentEffectiveLevel } from './playerModel.js';
 import { durableLevel, potentialEstimate } from './playerDevelopment.js';
 import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
 import { coachingEffects } from './coaching.js';
+import { scoutingConfidenceMultiplier } from './facilities.js';
 
 /*
  * modules/scouting.js — pure P5 scouting observations and uncertainty.
@@ -124,11 +125,13 @@ export function scoutingAssignmentIsCurrent(assignment, season) {
   return String(assignment.season) === String(season);
 }
 
+/** `context.assignmentCap` lets a caller raise the cap for a P7 facility-upgraded club; defaults to the base cap unchanged for every other caller. */
 export function createScoutingAssignment(stateInput, assignment, context = {}) {
   const state = normalizeScoutingState(stateInput);
   const live = state.assignments.filter(item => scoutingAssignmentIsCurrent(item, context.season));
   const inTheField = live.filter(item => item.status === 'active');
-  if (inTheField.length >= MAX_SCOUTING_ASSIGNMENTS) throw new Error('SCOUTING_ASSIGNMENT_CAP');
+  const assignmentCap = Number(context.assignmentCap) || MAX_SCOUTING_ASSIGNMENTS;
+  if (inTheField.length >= assignmentCap) throw new Error('SCOUTING_ASSIGNMENT_CAP');
   const type = ['player','position','league','shortlist'].includes(assignment?.type) ? assignment.type : 'player';
   if (type === 'player' && assignment?.playerId == null) throw new Error('SCOUTING_PLAYER_REQUIRED');
   // A dedicated scout is only ever pointed at one named player; every other
@@ -264,7 +267,9 @@ export function buildScoutingReport(player, context = {}) {
   const userTeam = context.userTeam ?? null;
   const seller = context.teamsById?.get?.(player.teamId) ?? null;
   const coachAssessment = coachingEffects(userTeam, player).assessment;
-  const adjustedConfidence = scoutingClamp(confidence * coachAssessment, .2, .96);
+  // P7 WP6: scouting facility level nudges report confidence alongside
+  // coach quality — same bounded shape, absorbed by the same clamp below.
+  const adjustedConfidence = scoutingClamp(confidence * coachAssessment * scoutingConfidenceMultiplier(userTeam), .2, .96);
   const seed = `${player.id}:${season}:${gameweek}:${Math.round(adjustedConfidence * 100)}`;
   // Durable ability, on the same basis as the exact report and as potential.
   // Reporting the form-inflated effective level here meant a range like 78-88

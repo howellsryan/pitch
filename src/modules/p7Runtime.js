@@ -1,26 +1,46 @@
-import { getAllTeams, putTeamsBulk } from './db.js';
+import { getAllTeams, getSave, getTeam, putTeam, putTeamsBulk } from './db.js';
 import { settleDueObligations } from './clubFinance.js';
+import { beginFacilityUpgrade, completeDueFacilityUpgrades } from './facilities.js';
 
 /**
- * modules/p7Runtime.js — P7 WP3 weekly finance tick. Pays every club's due
- * transfer-installment obligations (scheduled by db.js's
- * settleTransferMarketDealAtomic) once per completed world gameweek, called
- * from gameweek.js's runEndOfWorldGameweek alongside P5/P6's own weekly
- * advances. No separate weekKey/idempotency guard is needed here the way
- * p5Runtime.js/p6Runtime.js need one: settleDueObligations removes a paid
- * obligation from the array, so a second call in the same week (or a retry
- * after a partial failure) simply finds nothing left to pay — the mechanism
- * is naturally idempotent, not merely idempotency-guarded.
+ * modules/p7Runtime.js — P7 weekly club-side tick, called from gameweek.js's
+ * runEndOfWorldGameweek alongside P5/P6's own weekly advances. Both steps
+ * below are naturally idempotent by removal — settleDueObligations drops a
+ * paid obligation from its array, completeDueFacilityUpgrades clears a
+ * completed upgrade's `upgrading` marker — so a second call in the same
+ * week, or a retry after a partial failure, simply finds nothing left to
+ * settle. No separate weekKey/idempotency guard is needed the way
+ * p5Runtime.js/p6Runtime.js need one.
  */
 export async function advanceP7ClubFinanceWeek(save) {
-  if (!save) return { settledTeamIds:[] };
+  if (!save) return { settledTeamIds:[], facilityUpgradesCompleted:[] };
   const teams = await getAllTeams();
   const patches = [];
+  const facilityUpgradesCompleted = [];
   for (const team of teams) {
-    if (!team.finance?.obligations?.length) continue;
-    const settled = settleDueObligations(team, save);
-    if (settled !== team) patches.push(settled);
+    let next = team;
+    if (team.finance?.obligations?.length) next = settleDueObligations(next, save);
+    if (team.facilities?.tracks) {
+      const withFacilities = completeDueFacilityUpgrades(next, save);
+      if (withFacilities !== next) facilityUpgradesCompleted.push(team.id);
+      next = withFacilities;
+    }
+    if (next !== team) patches.push(next);
   }
   if (patches.length) await putTeamsBulk(patches);
-  return { settledTeamIds:patches.map(team => team.id) };
+  return { settledTeamIds:patches.map(team => team.id), facilityUpgradesCompleted };
+}
+
+/** IO command for the user's own club, wired to a product surface in WP7. */
+export async function startFacilityUpgrade(track) {
+  const save = await getSave();
+  if (!save) throw new Error('NO_ACTIVE_SAVE');
+  const team = await getTeam(save.userTeamId);
+  if (!team) throw new Error('TEAM_NOT_FOUND');
+  const weekKey = `${save.season}:${save.currentGameweek}`;
+  const updated = beginFacilityUpgrade(team, track, {
+    weekKey, season:save.season, currentGameweek:save.currentGameweek, transferMarket:save.transferMarket,
+  });
+  await putTeam(updated);
+  return updated.facilities.tracks[track];
 }

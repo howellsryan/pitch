@@ -214,6 +214,14 @@ export async function processEndOfSeason() {
   // retiring it), and not WP2's interim 25%-convergence placeholder either.
   // The user's own club is credited separately above via prizeMoney; this
   // loop adds its operating income the same as every AI club.
+  // P7 WP6's decideAIFacilityInvestment (facilities.js) is deliberately NOT
+  // called here yet: facility consumer effects (trainingEfficiencyMultiplier
+  // etc.) are only wired for the user's own managed squad (p5Runtime.js),
+  // never for a background AI club's players — extending that would mean
+  // threading a facility multiplier through the world-wide P3 settlement
+  // path, a bigger and separate piece of work. Calling it now would have AI
+  // clubs spend real ledgered money on upgrades with no gameplay effect at
+  // all, which code review confirmed is worse than not shipping it.
   for (const team of allTeams) {
     if (team.id === save.userTeamId) continue;
     await putTeam(applyLedgerMovement(team, { category:'operating_income', amount:operatingIncomeFor(team.reputation ?? 70), description:'Season commercial/operating income' }));

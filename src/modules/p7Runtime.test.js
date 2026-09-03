@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createClubFinance, scheduleObligation } from './clubFinance.js';
+import { beginFacilityUpgrade, createFacilities } from './facilities.js';
 
 const db = vi.hoisted(() => ({
   getAllTeams: vi.fn(async () => []),
@@ -50,7 +51,35 @@ describe('advanceP7ClubFinanceWeek', () => {
 
   it('returns an empty result for a missing save rather than throwing', async () => {
     const result = await advanceP7ClubFinanceWeek(null);
-    expect(result).toEqual({ settledTeamIds:[] });
+    expect(result).toEqual({ settledTeamIds:[], facilityUpgradesCompleted:[] });
     expect(db.getAllTeams).not.toHaveBeenCalled();
+  });
+
+  it('completes a due facility upgrade and leaves a not-yet-due one in progress', async () => {
+    let team = { id:'club_a', budget:20_000_000, finance:createClubFinance(20_000_000), facilities:createFacilities() };
+    team = beginFacilityUpgrade(team, 'training', { weekKey:'x', season:'2025/26', currentGameweek:1 });
+    // Force the upgrade due now by rewriting its dueGameweek directly (beginFacilityUpgrade always adds the fixed lead time).
+    team = { ...team, facilities:{ ...team.facilities, tracks:{ ...team.facilities.tracks, training:{ ...team.facilities.tracks.training, upgrading:{ ...team.facilities.tracks.training.upgrading, dueGameweek:5 } } } } };
+    db.getAllTeams.mockResolvedValue([team]);
+
+    const result = await advanceP7ClubFinanceWeek({ season:'2025/26', currentGameweek:5 });
+    expect(result.facilityUpgradesCompleted).toEqual(['club_a']);
+    const patch = db.putTeamsBulk.mock.calls[0][0][0];
+    expect(patch.facilities.tracks.training).toEqual({ level:2, upgrading:null });
+  });
+
+  it('settles obligations and completes facility upgrades for the same team in one pass', async () => {
+    let team = { id:'club_a', budget:20_000_000, finance:createClubFinance(20_000_000), facilities:createFacilities() };
+    team = scheduleObligation(team, { id:'ob1', category:'transfer_fee_out', amount:-1_000_000, dueSeason:'2025/26', dueGameweek:5 });
+    team = beginFacilityUpgrade(team, 'medical', { weekKey:'x', season:'2025/26', currentGameweek:1 });
+    team = { ...team, facilities:{ ...team.facilities, tracks:{ ...team.facilities.tracks, medical:{ ...team.facilities.tracks.medical, upgrading:{ ...team.facilities.tracks.medical.upgrading, dueGameweek:5 } } } } };
+    db.getAllTeams.mockResolvedValue([team]);
+
+    const result = await advanceP7ClubFinanceWeek({ season:'2025/26', currentGameweek:5 });
+    expect(result.settledTeamIds).toEqual(['club_a']);
+    expect(result.facilityUpgradesCompleted).toEqual(['club_a']);
+    const patch = db.putTeamsBulk.mock.calls[0][0][0];
+    expect(patch.finance.obligations).toEqual([]);
+    expect(patch.facilities.tracks.medical.level).toBe(2);
   });
 });

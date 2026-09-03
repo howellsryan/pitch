@@ -1,8 +1,10 @@
 import { getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
 import { applyLedgerMovement } from './clubFinance.js';
+import { medicalRecoveryMultiplier, scoutingCapacityBonus, trainingEfficiencyMultiplier } from './facilities.js';
 import { buildSquadNeeds } from './squadPlanning.js';
 import { formAdjustedValue } from './transfers.js';
 import {
+  MAX_SCOUTING_ASSIGNMENTS,
   advanceScoutingState,
   cancelScoutingAssignment,
   createScoutingAssignment,
@@ -63,18 +65,36 @@ export function createFreshP5SaveFields() {
   };
 }
 
-function refreshPlanContext(player, team, weekKey) {
+/**
+ * P7 WP6: sets the bounded medical-facility readiness-gain multiplier a
+ * currently-rehabbing player carries into playerRehabilitation.js's
+ * settleRehabilitation. Pure and exported for direct testing of the exact
+ * change-detection this needs: returns the SAME player reference when
+ * there's no active rehab or the value already matches, so the weekly loop
+ * below never writes a no-op patch just for this.
+ */
+export function applyMedicalFacilityMultiplier(player, recoveryMultiplier) {
+  if (!player?.rehabilitation || player.rehabilitation.status === 'match_fit') return player;
+  if (player.rehabilitation.facilityRecoveryMultiplier === recoveryMultiplier) return player;
+  return { ...player, rehabilitation:{ ...player.rehabilitation, facilityRecoveryMultiplier:recoveryMultiplier } };
+}
+
+export function refreshPlanContext(player, team, weekKey) {
   const explicit = player?.developmentPlan;
   if (!explicit || typeof explicit !== 'object') return player;
   const effects = coachingEffects(team, player);
   const plan = effectiveDevelopmentPlan(player);
   const sharpnessBonus = developmentPlanSharpnessBonus(player);
   const recoveryMultiplier = developmentPlanRecoveryMultiplier(player);
+  // P7 WP6: training facility level is a small, bounded multiplicative
+  // nudge on top of coaching quality — developmentPlanProgressMultiplier's
+  // own [.91, 1.09] clamp absorbs the combined figure, so this can't push
+  // development speed past the pre-existing bounded envelope.
   let next = {
     ...player,
     developmentPlan:{
       ...explicit,
-      coachingMultiplier:effects.development,
+      coachingMultiplier:effects.development * trainingEfficiencyMultiplier(team),
       recoveryMultiplier:effects.recovery,
     },
   };
@@ -134,10 +154,13 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
 
   const playerPatches = [];
   if (userTeam) {
+    const recoveryMultiplier = medicalRecoveryMultiplier(userTeam);
     for (const player of players) {
-      if (player.teamId !== save.userTeamId || !player.developmentPlan) continue;
-      const next = refreshPlanContext(player, userTeam, weekKey);
-      if (JSON.stringify(next) !== JSON.stringify(player)) playerPatches.push(next);
+      if (player.teamId !== save.userTeamId) continue;
+      const afterPlan = player.developmentPlan ? refreshPlanContext(player, userTeam, weekKey) : player;
+      const planChanged = afterPlan !== player && JSON.stringify(afterPlan) !== JSON.stringify(player);
+      const next = applyMedicalFacilityMultiplier(afterPlan, recoveryMultiplier);
+      if (planChanged || next !== afterPlan) playerPatches.push(next);
     }
   }
   if (playerPatches.length) await putPlayersBulk(playerPatches);
@@ -164,7 +187,9 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
 
 export async function addScoutingAssignment(assignment) {
   let save = await ensureP5CareerDepth();
-  const nextScouting = createScoutingAssignment(save.scouting, assignment, { season:save.season, gameweek:save.currentGameweek });
+  const userTeam = await getTeam(save.userTeamId);
+  const assignmentCap = MAX_SCOUTING_ASSIGNMENTS + scoutingCapacityBonus(userTeam);
+  const nextScouting = createScoutingAssignment(save.scouting, assignment, { season:save.season, gameweek:save.currentGameweek, assignmentCap });
   save = { ...save, scouting:nextScouting };
   await putSave(save);
   return save.scouting;

@@ -141,6 +141,14 @@ SUPERSEDED_LEGACY_CHECKS = {
     # checks). seasonP1.test.js's own P7 WP5 test asserts the same fact
     # directly against the real, untruncated function source.
     'Season end sets a fresh objective for next season',
+
+    # P7 WP6 grew processEndOfSeason further still (facility-investment
+    # section) — the same fixed-window limitation now also hides
+    # evaluateBoardObjective/nextJobSecurity and runYouthIntake from their
+    # own legacy checks. seasonP1.test.js's dedicated P7 test asserts all
+    # three literally against the real, untruncated source.
+    'Season end evaluates the outgoing objective',
+    'runYouthIntake called in processEndOfSeason',
 }
 
 P0_TEST_FILES = [

@@ -76,6 +76,13 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('generateBoardObjective(userTeamUpdated');
   });
 
+  it('P7: still evaluates the outgoing sporting objective and still calls runYouthIntake — validate.js\'s legacy checks for both can no longer see this far into a function P7 has kept growing, so this Vitest assertion is their real replacement contract', () => {
+    const source = functionBody('processEndOfSeason');
+    expect(source).toContain('evaluateBoardObjective(save.boardObjective');
+    expect(source).toContain('nextJobSecurity(save.jobSecurity');
+    expect(source).toContain('runYouthIntake(save, allTeamsForAcademy)');
+  });
+
   it('compacts the outgoing competition ledger and seeds a fresh P1 world for the next season', () => {
     const source = functionBody('processEndOfSeason');
     const historyIndex = source.indexOf('buildLivingWorldSeasonSummary');
