@@ -8,7 +8,9 @@ import { applyLedgerMovement } from './clubFinance.js';
  */
 export function remainingContractWeeks(player, save) {
   const currentYear = Number.parseInt(String(save?.season ?? '').split('/')[0], 10) || 0;
-  const expiryYear = Number(player?.contractExpiry);
+  // Pre-contract saves historically treat a missing expiry as two years left;
+  // termination must preserve that compatibility rather than permit a free release.
+  const expiryYear = player?.contractExpiry == null ? currentYear + 2 : Number(player.contractExpiry);
   if (!Number.isFinite(expiryYear) || expiryYear <= currentYear) return 0;
 
   const weeksPerSeason = Math.max(1, Number(save?.worldTotalGameweeks ?? save?.totalGameweeks ?? 38) || 38);
