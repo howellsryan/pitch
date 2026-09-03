@@ -121,10 +121,35 @@ export async function handleEndOfSeason(){
     if(summary.boardObjective){
       const metColor=summary.objectiveMet?'var(--acc)':'var(--acc3)';
       const metLabel=summary.objectiveMet?'MET':'MISSED';
+      // P7 WP7: the sporting MET/MISSED line above is the pre-P7 contract,
+      // kept byte-identical for saves without a board contract yet. Below it,
+      // a compact 3-objective breakdown from the new multi-objective board
+      // contract (WP4) — sporting/financial/youth — using the real semantic
+      // status colors (--color-live/--acc2/--acc3), not the club accent.
+      const statusColor={ok:'var(--color-live)',warning:'var(--acc2)',review:'var(--acc3)'};
+      const statusLabel={ok:'On track',warning:'Under review',review:'At risk'};
+      const objectives=summary.boardContract?.objectives||[];
+      const financialObj=objectives.find(o=>o.kind==='financial');
+      const youthObj=objectives.find(o=>o.kind==='youth');
+      const row=(label,status,detail)=>{
+        if(!status) return '';
+        return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:11px;padding:3px 0">
+          <span style="color:var(--tx2)">${label}${detail?` — ${detail}`:''}</span>
+          <span style="color:${statusColor[status]||'var(--tx2)'};font-weight:600;white-space:nowrap">${statusLabel[status]||status}</span>
+        </div>`;
+      };
+      const breakdownHtml=objectives.length?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr)">
+        ${row(summary.boardObjective.label,objectives.find(o=>o.kind==='sporting')?.status)}
+        ${row('Financial stability',financialObj?.status,financialObj?.pressure)}
+        ${row('Youth development',youthObj?.status,youthObj?`${youthObj.progress??0}/${youthObj.target} U21 appearances`:'')}
+      </div>`:'';
+      const concernHtml=(summary.dismissalRecommended&&!summary.sacked)?`<div style="font-size:11px;color:var(--acc3);margin-top:6px">The board is unhappy with the season overall — results and finances are both under scrutiny.</div>`:'';
       boardHtml=`<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:8px">
         <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:4px">${eosIcon('target')}Board Objective</div>
         <div style="font-size:12px;color:var(--tx2)">${summary.boardObjective.label}</div>
         <div style="font-size:12px;margin-top:4px;color:${metColor};font-weight:600">${metLabel} — ${summary.objectiveMet?'Objective met':'Objective missed'}</div>
+        ${breakdownHtml}
+        ${concernHtml}
       </div>`;
     }
 

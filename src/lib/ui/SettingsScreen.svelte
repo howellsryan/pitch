@@ -1,6 +1,6 @@
 <script>
   import {
-    deleteDB, exportSaveFile, getAllPlayers, getAllSeasons, getSave, importSaveFile,
+    deleteDB, exportSaveFile, getAllPlayers, getAllSeasons, getSave, getTeam, importSaveFile,
     importSaveFromCode, openDB, putPlayersBulk,
   } from '../../modules/db.js';
   import { assignPotentials } from '../../modules/potential.js';
@@ -14,6 +14,14 @@
     applyForVacancy, getManagerCareerView, resignAsManager, respondToApproach, tryCompletePendingUserHandover,
   } from '../../modules/managerUserActions.js';
   import { summarizeManagerDNA } from '../../modules/tactics.js';
+  import { availableFunds, financialPressure } from '../../modules/clubFinance.js';
+  import {
+    describeFacilityConsumer, FACILITY_LEAD_TIME_WEEKS, facilityUpgradeCost, FACILITY_MAX_LEVEL, FACILITY_TRACKS,
+  } from '../../modules/facilities.js';
+  import { startFacilityUpgrade } from '../../modules/p7Runtime.js';
+
+  const FACILITY_LABELS = { training:'Training', medical:'Medical', scouting:'Scouting' };
+  const PRESSURE_LABELS = { stable:'Stable', strained:'Strained', critical:'Critical' };
 
   const TROPHY_NAMES = {
     premier_league: 'Premier League', championship: 'Championship', league_one: 'League One', league_two: 'League Two',
@@ -46,6 +54,9 @@
   let managerView = $state(null);
   let managerBusy = $state(false);
   let resignConfirming = $state(false);
+
+  let clubView = $state(null); // { team, available, pressure }
+  let facilityBusy = $state(false);
 
   async function loadCloudIdentity() {
     cloudSignedIn = isSignedIn();
@@ -100,6 +111,8 @@
     void loadCloudIdentity();
     managerView = await getManagerCareerView().catch(() => null);
     if (save) {
+      const team = await getTeam(save.userTeamId).catch(() => null);
+      clubView = team ? { team, available:availableFunds(team, save.transferMarket), pressure:financialPressure(team) } : null;
       managerName = save.managerName || 'The Manager';
       const { earned } = await getHonorsForTeam(save.userTeamId);
       totalEarned = earned.length;
@@ -202,6 +215,25 @@
       _removeFullOverlay();
       await refreshManagerView();
       managerBusy = false;
+    }
+  }
+
+  const FACILITY_ERROR_MESSAGES = {
+    INSUFFICIENT_FUNDS: 'Not enough available funds for this upgrade.',
+    UPGRADE_ALREADY_IN_PROGRESS: 'This facility is already being upgraded.',
+    FACILITY_AT_MAX_LEVEL: 'Already at the maximum level.',
+  };
+
+  async function doUpgradeFacility(track) {
+    facilityBusy = true;
+    try {
+      await startFacilityUpgrade(track);
+      toast(`Upgrading ${FACILITY_LABELS[track] ?? track} — ready in ${FACILITY_LEAD_TIME_WEEKS} weeks.`, 'success', 5000);
+      await load();
+    } catch (err) {
+      toast(FACILITY_ERROR_MESSAGES[err.message] || `Could not start upgrade: ${err.message}`, 'error');
+    } finally {
+      facilityBusy = false;
     }
   }
 
@@ -355,6 +387,58 @@
               <button class="btn-set btn-secondary" onclick={openManagerCareer}>Career</button>
             </div>
           {/if}
+        </div>
+      {/if}
+
+      {#if clubView}
+        <div class="set-card">
+          <div class="set-card-title">Club</div>
+          <div class="set-card-sub">Finance &amp; facilities</div>
+
+          <div class="set-row">
+            <div><div class="set-nm">Available Funds</div><div class="set-desc">Cash minus committed spending and unpaid obligations</div></div>
+            <div style="font-weight:700;color:var(--tx)">{fmt.money(clubView.available)}</div>
+          </div>
+          <div class="set-row">
+            <div><div class="set-nm">Financial Health</div><div class="set-desc">The board's own read of your finances</div></div>
+            <div style="font-weight:700;color:{clubView.pressure === 'stable' ? 'var(--color-live)' : clubView.pressure === 'strained' ? 'var(--acc2)' : 'var(--acc3)'}">{PRESSURE_LABELS[clubView.pressure] ?? clubView.pressure}</div>
+          </div>
+
+          {#if clubView.team.finance?.recentEntries?.length}
+            <div class="set-season-list">
+              {#each clubView.team.finance.recentEntries.slice(0, 4) as entry, i (i)}
+                <div class="set-season-row">
+                  <div class="set-season-name">{entry.description || entry.category}</div>
+                  <div class="set-season-detail" style="color:{entry.amount >= 0 ? 'var(--color-live)' : 'var(--acc3)'}">{entry.amount >= 0 ? '+' : ''}{fmt.money(entry.amount)}</div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#each FACILITY_TRACKS as track (track)}
+            {@const info = clubView.team.facilities?.tracks?.[track]}
+            {@const level = info?.level ?? 1}
+            {@const upgrading = info?.upgrading}
+            {@const atMax = level >= FACILITY_MAX_LEVEL}
+            {@const cost = facilityUpgradeCost(level)}
+            <div class="set-row">
+              <div>
+                <div class="set-nm">{FACILITY_LABELS[track] ?? track} — Lv {level}/{FACILITY_MAX_LEVEL}</div>
+                <div class="set-desc">
+                  {#if upgrading}
+                    Upgrading to Lv {upgrading.targetLevel} — ready season {upgrading.dueSeason}, GW {upgrading.dueGameweek}
+                  {:else if atMax}
+                    Maximum level reached
+                  {:else}
+                    {describeFacilityConsumer(track)} · {fmt.money(cost)}
+                  {/if}
+                </div>
+              </div>
+              <button class="btn-set btn-secondary" disabled={facilityBusy || Boolean(upgrading) || atMax || clubView.available < cost} onclick={() => doUpgradeFacility(track)}>
+                {upgrading ? 'In Progress' : 'Upgrade'}
+              </button>
+            </div>
+          {/each}
         </div>
       {/if}
 
