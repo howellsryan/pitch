@@ -14,7 +14,11 @@
 import { onRequestGet as googleStart } from './api/auth/google.js';
 import { onRequestGet as googleCallback } from './api/auth/google/callback.js';
 import { onRequestGet as authMe } from './api/auth/me.js';
-import { onRequestGet as saveGet, onRequestPut as savePut } from './api/save.js';
+import {
+  onRequestDelete as saveDelete,
+  onRequestGet as saveGet,
+  onRequestPut as savePut,
+} from './api/save.js';
 
 const ROUTES = {
   'GET /api/auth/google': googleStart,
@@ -22,6 +26,7 @@ const ROUTES = {
   'GET /api/auth/me': authMe,
   'GET /api/save': saveGet,
   'PUT /api/save': savePut,
+  'DELETE /api/save': saveDelete,
 };
 
 export default {

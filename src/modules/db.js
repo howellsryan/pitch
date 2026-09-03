@@ -3,7 +3,8 @@
  *
  * P0 keeps the existing `pitch_fc` database as the legacy/first career so an
  * installed browser career is never orphaned by the migration. New careers
- * receive their own IndexedDB database. The active slot is only a pointer;
+ * receive their own IndexedDB database. Deleted generated databases are
+ * physically removed when no other tab blocks cleanup. The active slot is only a pointer;
  * every existing domain/store API continues to operate on one active DB.
  */
 import { applyLedgerMovement, availableFunds, scheduleObligation } from './clubFinance.js';
@@ -416,32 +417,48 @@ function _deleteNamedDB(name) {
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = resolve;
     req.onerror = () => reject(req.error);
-    // A CareerMenu refresh can still be finishing a read-only summary against
-    // this inactive DB. `blocked` is therefore a wait state, not successful
-    // deletion: that reader closes in its finally block and IndexedDB then
-    // delivers onsuccess.
-    req.onblocked = () => {};
+    // The stores are cleared before generated databases reach this best-effort
+    // physical cleanup. If another tab still has a connection open, semantic
+    // deletion is already complete and the UI must not hang indefinitely.
+    req.onblocked = resolve;
   });
 }
 
 async function _resetNamedSlot(slotId) {
-  if (slotId === LEGACY_SLOT_ID) {
-    await _clearNamedDB(DB_NAME);
-  } else {
-    await _deleteNamedDB(careerSlotDbName(slotId));
-  }
+  const name = careerSlotDbName(slotId);
+  await _clearNamedDB(name);
+  if (slotId !== LEGACY_SLOT_ID) await _deleteNamedDB(name);
+}
+
+function _closeOpenSlot(slotId) {
+  if (!_db || _dbSlotId !== slotId) return;
+  try { _db.close(); } catch {}
+  _db = null;
+  _dbSlotId = null;
+}
+
+/**
+ * Give a committed new career an empty active store set while preserving the
+ * slot registry, other career databases and cloud authentication. This also
+ * covers a partially-written legacy database left behind by an interrupted
+ * first-time setup.
+ */
+export async function prepareActiveCareerSlotForNewSave() {
+  const slotId = getActiveSlotId();
+  _closeOpenSlot(slotId);
+  await _clearNamedDB(careerSlotDbName(slotId));
+  _registerSlot(slotId);
+  _storage()?.setItem(ACTIVE_SLOT_KEY, slotId);
+  await openDB();
+  return slotId;
 }
 
 export async function deleteCareerSlot(slotId) {
   if (!SAFE_SLOT_ID.test(slotId)) throw new Error('Invalid career slot ID.');
-  if (_db && _dbSlotId === slotId) {
-    try { _db.close(); } catch {}
-    _db = null;
-    _dbSlotId = null;
-  }
+  _closeOpenSlot(slotId);
   // The legacy DB name is deliberately probed forever so pre-P0 browsers can
   // be discovered without a registry entry. Reset it in place; generated slot
-  // DBs have no compatibility role and are physically deleted.
+  // DBs have no compatibility role and are physically deleted when possible.
   await _resetNamedSlot(slotId);
   _unregisterSlot(slotId);
 

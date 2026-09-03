@@ -1,6 +1,6 @@
 <script>
   import {
-    deleteDB, exportSaveFile, getAllPlayers, getAllSeasons, getSave, getTeam, importSaveFile,
+    exportSaveFile, getAllPlayers, getAllSeasons, getSave, getTeam, importSaveFile,
     importSaveFromCode, openDB, putPlayersBulk,
   } from '../../modules/db.js';
   import { assignPotentials } from '../../modules/potential.js';
@@ -9,7 +9,7 @@
   import { _removeFullOverlay, _showFullOverlay, showEntryMenu } from '../../ui/renderers.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import { api, clearAuth, isSignedIn, startGoogleLogin } from '../../cloud/api.js';
-  import { pushSaveToCloud } from '../../cloud/sync.js';
+  import { deleteCareerEverywhere, pushSaveToCloud } from '../../cloud/sync.js';
   import {
     applyForVacancy, getManagerCareerView, resignAsManager, respondToApproach, tryCompletePendingUserHandover,
   } from '../../modules/managerUserActions.js';
@@ -302,8 +302,14 @@
   async function confirmReset() {
     busy = true;
     _showFullOverlay('Starting new career…');
-    try { await deleteDB(); } catch (e) { console.error(e); }
-    window.location.reload();
+    try {
+      await deleteCareerEverywhere();
+      window.location.reload();
+    } catch (err) {
+      _removeFullOverlay();
+      busy = false;
+      toast('Could not delete career: ' + (err?.message || 'unknown error'), 'error');
+    }
   }
 
   async function recalcPotentials() {

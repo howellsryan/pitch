@@ -1,4 +1,4 @@
-// GET/PUT /api/save — opaque cloud save blobs scoped by stable career slot.
+// GET/PUT/DELETE /api/save — opaque cloud save blobs scoped by stable career slot.
 // The server never parses game state; it stores the same versioned envelope
 // used by .pitch exports. Existing pre-P0 rows migrate to slot_id='legacy'.
 // A small metadata JSON column mirrors the local career-summary contract so
@@ -101,4 +101,19 @@ export async function onRequestPut({ request, env }) {
   ).bind(auth.identity.id, slotId, save_blob, metadataJson, nextRevision, now).run();
 
   return json({ ok:true, slotId, updatedAt:now, save_revision:nextRevision, metadata:body?.metadata ?? null });
+}
+
+export async function onRequestDelete({ request, env }) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ error:auth.error }, auth.status);
+
+  const url = new URL(request.url);
+  const slotId = readSlotId(url.searchParams.get('slotId'));
+  if (!slotId) return json({ error:'Invalid slotId' }, 400);
+
+  const result = await env.DB.prepare(
+    'DELETE FROM saves WHERE user_id = ? AND slot_id = ?',
+  ).bind(auth.identity.id, slotId).run();
+
+  return json({ ok:true, slotId, deleted:Number(result?.meta?.changes) > 0 });
 }

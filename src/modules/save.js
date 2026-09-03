@@ -16,6 +16,7 @@ import {
   getSave,
   getTeam,
   openDB,
+  prepareActiveCareerSlotForNewSave,
   putFixturesBulk,
   putManagersBulk,
   putPlayersBulk,
@@ -294,11 +295,14 @@ export function startingBudget(reputation) {
 }
 
 export async function startNewGame(userTeamId, managerName) {
-  await openDB();
-
   const allTeamData  = getAllTeamData();
   const userTeamData = allTeamData.find(t => t.id === userTeamId);
   if (!userTeamData) throw new Error(`Unknown team: ${userTeamId}`);
+
+  // The active pointer selects the destination slot. Empty every one of its
+  // stores before rebuilding so interrupted setup or an earlier career can
+  // never leak players, history or transfer rows into this save.
+  await prepareActiveCareerSlotForNewSave();
 
   const userLeague  = userTeamData.league ?? 'Premier League';
   const leagueTeams = allTeamData.filter(t => (t.league ?? 'Premier League') === userLeague);

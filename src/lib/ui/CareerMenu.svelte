@@ -1,11 +1,12 @@
 <script>
   import {
     activateCareerSlot,
-    deleteCareerSlot,
     exportSaveFile,
     getCareerSlotSummaries,
     openDB,
   } from '../../modules/db.js';
+  import { deleteCareerEverywhere } from '../../cloud/sync.js';
+  import { toast } from '../../ui/helpers.js';
   import { entryState } from '../state/entry.svelte.js';
   import Button from './kit/Button.svelte';
   import Crest from './kit/Crest.svelte';
@@ -85,7 +86,7 @@
     const target = deleteTarget;
     busySlot = target.slotId;
     try {
-      await deleteCareerSlot(target.slotId);
+      await deleteCareerEverywhere(target.slotId);
       deleteOpen = false;
       deleteTarget = null;
       if (target.isActive) {
@@ -93,6 +94,8 @@
         return;
       }
       await refreshCareers();
+    } catch (err) {
+      toast('Could not delete career: ' + (err?.message || 'unknown error'), 'error');
     } finally {
       busySlot = null;
     }
