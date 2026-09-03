@@ -288,8 +288,20 @@ chk('shell keeps #ng as the entry stage', shellSrc.includes('id="ng"'));
 chk('shell has the entry mount point', shellSrc.includes('id="entry-mount"'));
 chk('legacy team grid markup is gone from shell', !shellSrc.includes('id="team-grid"') && !shellSrc.includes('id="btn-start"'));
 chk('EntryScreen starts a career via startNewGame', entryScreenSrc.includes('startNewGame('));
-chk('EntryScreen hands off through enterGame (not its own show/hide)', entryScreenSrc.includes('enterGame(') && !entryScreenSrc.includes("getElementById('app')"));
-chk('EntryScreen themes the club before entering', entryScreenSrc.includes('themeForTeam('));
+chk('EntryScreen reloads after committing a career (not its own show/hide)', (() => {
+  const start = entryScreenSrc.indexOf('async function start()');
+  const end = entryScreenSrc.indexOf('// Both import paths', start);
+  const fn = entryScreenSrc.slice(start, end);
+  return start > -1 && fn.includes('startNewGame(') && fn.includes('window.location.reload()')
+    && !fn.includes('enterGame(') && !entryScreenSrc.includes("getElementById('app')");
+})());
+chk('boot themes the committed club before entering', (() => {
+  const start = code.indexOf('async function boot()');
+  const fn = code.slice(start, start + 2200);
+  const theme = fn.indexOf('await themeForTeam(save.userTeamId)');
+  const enter = fn.indexOf('await enterGame()');
+  return start > -1 && theme > -1 && enter > theme;
+})());
 chk('EntryScreen advertises the budget the save will actually hold', entryScreenSrc.includes('startingBudget('));
 chk('startNewGame uses the same startingBudget the picker shows', (() => {
   const fn = code.indexOf('async function startNewGame(');

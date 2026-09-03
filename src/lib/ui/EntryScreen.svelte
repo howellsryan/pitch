@@ -16,8 +16,8 @@
    * hero's button only scrolls — it is not a step, so it does not count.
    *
    * boot() (src/ui/renderers.js) still owns whether this screen is shown at
-   * all; it hands off to enterGame() below, exactly as its own resume branch
-   * does, so a new career and a resumed one reveal the shell identically.
+   * all. A committed career reloads through boot so every mounted screen and
+   * module reads only the newly-active IndexedDB slot.
    */
   import {
     activateCareerSlot,
@@ -32,7 +32,7 @@
   import { resolveAccent } from '../theme.mjs';
   import { entryState } from '../state/entry.svelte.js';
   import { fmt, toast } from '../../ui/helpers.js';
-  import { _removeFullOverlay, _showFullOverlay, enterGame, themeForTeam } from '../../ui/renderers.js';
+  import { _removeFullOverlay, _showFullOverlay } from '../../ui/renderers.js';
   import Button from './kit/Button.svelte';
   import Chip from './kit/Chip.svelte';
   import Crest from './kit/Crest.svelte';
@@ -202,14 +202,12 @@
   async function start() {
     if (!selected || busy) return;
     busy = true;
+    _showFullOverlay('Starting career…');
     try {
       await inRequestedCareerSlot(() => startNewGame(selected.id, managerName.trim() || undefined));
-      await themeForTeam(selected.id);
-      clubSheet = false;
-      // enterGame() hides #ng and moves focus to the shell; the sheet's own
-      // focus restore would otherwise land on the now-hidden club card.
-      await enterGame();
+      window.location.reload();
     } catch (err) {
+      _removeFullOverlay();
       toast(err.message, 'error');
     } finally {
       // EntryScreen stays mounted behind #app and is reused by P0's New Career

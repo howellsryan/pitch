@@ -78,6 +78,9 @@ export const api = {
   me: () => request('/api/auth/me'),
   getSave: (slotId = 'legacy') => request(`/api/save?slotId=${encodeURIComponent(slotId)}`),
   listSaves: () => request('/api/save?list=1'),
+  deleteSave: (slotId = 'legacy') => request(`/api/save?slotId=${encodeURIComponent(slotId)}`, {
+    method: 'DELETE',
+  }),
   putSave: (slotId, save_blob, metadata = null) => request('/api/save', {
     method: 'PUT',
     body: JSON.stringify({ slot_id: slotId, save_blob, metadata }),

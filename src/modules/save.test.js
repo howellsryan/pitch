@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const db = vi.hoisted(() => ({
   openDB: vi.fn(async () => {}),
   getSave: vi.fn(async () => null),
+  prepareActiveCareerSlotForNewSave: vi.fn(async () => {}),
   putPlayersBulk: vi.fn(async () => {}),
   putManagersBulk: vi.fn(async () => {}),
   putSave: vi.fn(async () => {}),
@@ -28,6 +29,9 @@ describe('P1 new-career living-world persistence', () => {
     expect(target).toBeTruthy();
     await startNewGame(target.id, 'P1 Test Manager');
 
+    expect(db.prepareActiveCareerSlotForNewSave).toHaveBeenCalledTimes(1);
+    expect(db.prepareActiveCareerSlotForNewSave.mock.invocationCallOrder[0])
+      .toBeLessThan(db.putTeamsBulk.mock.invocationCallOrder[0]);
     expect(db.replaceAllStandings).toHaveBeenCalledTimes(1);
     expect(db.replaceAllFixtures).toHaveBeenCalledTimes(1);
 
