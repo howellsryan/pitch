@@ -69,13 +69,14 @@ describe('P9 academy isolation from senior market planning', () => {
 
   it('keeps academy rows out of opportunistic standout targeting and senior squad-cap checks', () => {
     const buyer = { id:'buyer', reputation:75, budget:50_000_000, league:'Premier League' };
-    const seniors = Array.from({ length:30 }, (_, index) => player(`senior-${index}`, 'buyer', 'CM', 68));
+    const seniors = Array.from({ length:29 }, (_, index) => player(`senior-${index}`, 'buyer', 'CM', 68));
+    const buyerAcademy = academy('buyer-academy', 'buyer', 'CM', 85);
     const prospect = academy('academy-target', 'seller', 'ST', 80);
     const sellerSquad = [player('moving', 'seller', 'ST', 72), ...Array.from({ length:16 }, (_, index) => player(`seller-${index}`, 'seller', 'CM', 65))];
 
     const ranked = rankStandoutRecruitmentCandidates({
       buyer,
-      buyerSquad:[...seniors, academy('buyer-academy', 'buyer', 'CM', 85)],
+      buyerSquad:[...seniors, buyerAcademy],
       players:[prospect],
       marketValueFor:item => item.value,
       canSign:() => true,
@@ -84,10 +85,10 @@ describe('P9 academy isolation from senior market planning', () => {
     expect(ranked).toEqual([]);
 
     const safety = assessSquadSafety({
-      buyerSquad:[...seniors, academy('buyer-academy', 'buyer', 'CM', 85)],
+      buyerSquad:[...seniors, buyerAcademy],
       sellerSquad,
       player:sellerSquad[0],
     });
-    expect(safety).toEqual({ ok:false, reason:'buyer_squad_full' });
+    expect(safety).toEqual({ ok:true, reason:null });
   });
 });
