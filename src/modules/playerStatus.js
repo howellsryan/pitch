@@ -11,18 +11,18 @@ export const PLAYER_STATUSES = Object.freeze(['academy', 'first_team', 'loan', '
 export const MAX_REGISTRATION_SPELLS = 24;
 export const MAX_LIFECYCLE_TRANSITION_KEYS = 24;
 
-const STATUS_SET = new Set(PLAYER_STATUSES);
+const PLAYER_STATUS_SET = new Set(PLAYER_STATUSES);
 
-function asTeamId(value) {
+function playerStatusTeamId(value) {
   return value == null || value === '' ? null : String(value);
 }
 
-function clampPercent(value, fallback = 100) {
+function playerStatusPercent(value, fallback = 100) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : fallback;
 }
 
-function statSnapshot(player) {
+function playerStatusStats(player) {
   return {
     appearances:Math.max(0, Number(player?.appearances ?? 0)),
     starts:Math.max(0, Number(player?.starts ?? 0)),
@@ -35,27 +35,53 @@ function statSnapshot(player) {
   };
 }
 
+/**
+ * Legacy writers remain in P4/season while P9 rolls through the codebase, so
+ * their concrete registration flags deliberately win over an older explicit
+ * status. This makes normalisation a compatibility boundary rather than a trap:
+ * a direct legacy loan, return, release or transfer is absorbed on the next P9
+ * pass instead of being reverted by stale lifecycle metadata.
+ */
 export function inferPlayerStatus(player) {
   if (!player) return null;
-  if (STATUS_SET.has(player.playerStatus)) return player.playerStatus;
   if (player.teamId === 'free_agents') return 'free_agent';
+  if (player.onLoan || player.loanedFrom || player.loanOriginalTeamId || player.loanedTo) return 'loan';
   if (player.isYouth || player.youthTeamId) return 'academy';
-  if (player.onLoan || player.loanedFrom || player.loanOriginalTeamId) return 'loan';
-  return 'first_team';
+  if (player.playerStatus === 'free_agent' && player.teamId == null) return 'free_agent';
+  if (player.playerStatus === 'academy' && player.inSquad === false && player.contractTeamId) return 'academy';
+  if (player.playerStatus === 'loan'
+    && player.activeLoanAgreement
+    && player.registeredTeamId
+    && player.contractTeamId
+    && String(player.registeredTeamId) !== String(player.contractTeamId)) return 'loan';
+  return PLAYER_STATUS_SET.has(player.playerStatus) && player.playerStatus === 'first_team'
+    ? 'first_team'
+    : 'first_team';
 }
 
 export function normalizeLoanAgreement(agreement, player = null) {
   const status = inferPlayerStatus(player);
   if ((!agreement || typeof agreement !== 'object' || Array.isArray(agreement)) && status !== 'loan') return null;
   const source = agreement && typeof agreement === 'object' && !Array.isArray(agreement) ? agreement : {};
-  const parentTeamId = asTeamId(source.parentTeamId ?? player?.contractTeamId ?? player?.owningTeamId ?? player?.loanOriginalTeamId ?? player?.loanedFrom);
-  const loanTeamId = asTeamId(source.loanTeamId ?? player?.registeredTeamId ?? player?.loanedTo ?? player?.teamId);
+  const parentTeamId = playerStatusTeamId(
+    source.parentTeamId
+    ?? player?.loanOriginalTeamId
+    ?? player?.loanedFrom
+    ?? player?.contractTeamId
+    ?? player?.owningTeamId,
+  );
+  const loanTeamId = playerStatusTeamId(
+    source.loanTeamId
+    ?? player?.loanedTo
+    ?? player?.teamId
+    ?? player?.registeredTeamId,
+  );
   if (!parentTeamId || !loanTeamId) return null;
   const startSeason = source.startSeason ?? player?.loanSeason ?? null;
   const id = String(source.id ?? player?.activeAgreementId ?? `legacy-loan:${player?.id ?? 'player'}:${startSeason ?? 'unknown'}`);
   const baseline = source.baselineStats && typeof source.baselineStats === 'object'
     ? { ...source.baselineStats }
-    : statSnapshot(player);
+    : playerStatusStats(player);
   return {
     id,
     status:source.status === 'returning' ? 'returning' : 'active',
@@ -68,7 +94,7 @@ export function normalizeLoanAgreement(agreement, player = null) {
     recallAllowed:Boolean(source.recallAllowed ?? player?.loanRecallable),
     optionToBuy:Math.max(0, Number(source.optionToBuy ?? 0)),
     obligationToBuy:Math.max(0, Number(source.obligationToBuy ?? 0)),
-    wageContributionPercentage:clampPercent(source.wageContributionPercentage, 100),
+    wageContributionPercentage:playerStatusPercent(source.wageContributionPercentage, 100),
     expectedRole:source.expectedRole ?? player?.squadRole ?? 'rotation',
     baselineStats:baseline,
     lastReportStats:source.lastReportStats && typeof source.lastReportStats === 'object'
@@ -78,7 +104,7 @@ export function normalizeLoanAgreement(agreement, player = null) {
   };
 }
 
-function normalizeSpells(spells) {
+function playerStatusSpells(spells) {
   if (!Array.isArray(spells)) return [];
   return spells
     .filter(spell => spell && typeof spell === 'object' && spell.id)
@@ -86,27 +112,41 @@ function normalizeSpells(spells) {
     .slice(-MAX_REGISTRATION_SPELLS);
 }
 
-function lifecycleIds(player, status, agreement) {
+function playerStatusIds(player, status, agreement) {
   if (status === 'free_agent') return { contractTeamId:null, registeredTeamId:'free_agents' };
   if (status === 'loan') {
     return {
-      contractTeamId:asTeamId(player.contractTeamId ?? player.owningTeamId ?? agreement?.parentTeamId ?? player.loanOriginalTeamId ?? player.loanedFrom),
-      registeredTeamId:asTeamId(player.registeredTeamId ?? agreement?.loanTeamId ?? player.loanedTo ?? player.teamId),
+      contractTeamId:playerStatusTeamId(
+        player.loanOriginalTeamId
+        ?? player.loanedFrom
+        ?? agreement?.parentTeamId
+        ?? player.contractTeamId
+        ?? player.owningTeamId,
+      ),
+      registeredTeamId:playerStatusTeamId(
+        player.loanedTo
+        ?? player.teamId
+        ?? agreement?.loanTeamId
+        ?? player.registeredTeamId,
+      ),
     };
   }
   if (status === 'academy') {
-    const teamId = asTeamId(player.contractTeamId ?? player.owningTeamId ?? player.youthTeamId ?? player.teamId);
+    const teamId = playerStatusTeamId(player.youthTeamId ?? player.teamId ?? player.contractTeamId ?? player.owningTeamId);
     return { contractTeamId:teamId, registeredTeamId:teamId };
   }
-  const teamId = asTeamId(player.registeredTeamId ?? player.teamId ?? player.contractTeamId ?? player.owningTeamId);
-  return { contractTeamId:asTeamId(player.contractTeamId ?? player.owningTeamId ?? teamId), registeredTeamId:teamId };
+  // A legacy permanent transfer writes teamId only. In first-team state that
+  // current concrete registration is also ownership, so it must beat stale P9
+  // fields from the seller or normalisation would silently undo the transfer.
+  const teamId = playerStatusTeamId(player.teamId ?? player.registeredTeamId ?? player.contractTeamId ?? player.owningTeamId);
+  return { contractTeamId:teamId, registeredTeamId:teamId };
 }
 
 export function normalizePlayerStatus(player) {
   if (!player) return player;
   const playerStatus = inferPlayerStatus(player);
   const activeLoanAgreement = playerStatus === 'loan' ? normalizeLoanAgreement(player.activeLoanAgreement, player) : null;
-  const ids = lifecycleIds(player, playerStatus, activeLoanAgreement);
+  const ids = playerStatusIds(player, playerStatus, activeLoanAgreement);
   const transitionKeys = Array.isArray(player.lifecycleTransitionKeys)
     ? player.lifecycleTransitionKeys.filter(key => typeof key === 'string').slice(-MAX_LIFECYCLE_TRANSITION_KEYS)
     : [];
@@ -118,15 +158,13 @@ export function normalizePlayerStatus(player) {
     registeredTeamId:ids.registeredTeamId,
     activeAgreementId:activeLoanAgreement?.id ?? null,
     activeLoanAgreement,
-    registrationSpells:normalizeSpells(player.registrationSpells),
+    registrationSpells:playerStatusSpells(player.registrationSpells),
     lifecycleTransitionKeys:transitionKeys,
   };
 
   // Compatibility projections. These are deliberately derived from canonical
   // status so old consumers remain stable while P9 callers migrate to selectors.
-  normalized.teamId = playerStatus === 'academy'
-    ? ids.contractTeamId
-    : ids.registeredTeamId;
+  normalized.teamId = playerStatus === 'academy' ? ids.contractTeamId : ids.registeredTeamId;
   normalized.isYouth = playerStatus === 'academy';
   normalized.youthTeamId = playerStatus === 'academy' ? ids.contractTeamId : null;
   normalized.onLoan = playerStatus === 'loan';
@@ -186,7 +224,7 @@ export function isOwnedByTeam(player, teamId) {
   return Boolean(normalized && normalized.contractTeamId === String(teamId));
 }
 
-function closeActiveSpell(spells, player, season, gameweek, reason) {
+function playerStatusCloseSpell(spells, player, season, gameweek, reason) {
   if (!spells.length) return spells;
   const last = spells[spells.length - 1];
   if (last.endSeason != null) return spells;
@@ -196,14 +234,14 @@ function closeActiveSpell(spells, player, season, gameweek, reason) {
       ...last,
       endSeason:season ?? null,
       endGameweek:Number.isFinite(Number(gameweek)) ? Number(gameweek) : null,
-      endStats:statSnapshot(player),
+      endStats:playerStatusStats(player),
       endAcademyEvidence:player.academyEvidence ? { ...player.academyEvidence } : null,
       endReason:reason ?? null,
     },
   ];
 }
 
-function openSpell(player, status, contractTeamId, registeredTeamId, season, gameweek, reason) {
+function playerStatusOpenSpell(player, status, contractTeamId, registeredTeamId, season, gameweek, reason) {
   return {
     id:`spell:${player.id}:${status}:${season ?? 'season'}:${Number(gameweek) || 0}:${registeredTeamId ?? contractTeamId ?? 'none'}`,
     status,
@@ -211,7 +249,7 @@ function openSpell(player, status, contractTeamId, registeredTeamId, season, gam
     registeredTeamId,
     startSeason:season ?? null,
     startGameweek:Number.isFinite(Number(gameweek)) ? Number(gameweek) : null,
-    startStats:statSnapshot(player),
+    startStats:playerStatusStats(player),
     startAcademyEvidence:player.academyEvidence ? { ...player.academyEvidence } : null,
     reason:reason ?? null,
     endSeason:null,
@@ -228,37 +266,64 @@ export function transitionPlayerStatus(playerInput, transition = {}) {
   if (!player) return player;
   const idempotencyKey = transition.idempotencyKey ? String(transition.idempotencyKey) : null;
   if (idempotencyKey && player.lifecycleTransitionKeys.includes(idempotencyKey)) return player;
-  const targetStatus = STATUS_SET.has(transition.status) ? transition.status : player.playerStatus;
+  const targetStatus = PLAYER_STATUS_SET.has(transition.status) ? transition.status : player.playerStatus;
   const season = transition.season ?? null;
   const gameweek = transition.gameweek ?? null;
+  const requestedContractTeamId = targetStatus === 'free_agent'
+    ? null
+    : playerStatusTeamId(transition.contractTeamId ?? player.contractTeamId);
+  const requestedRegisteredTeamId = targetStatus === 'free_agent'
+    ? 'free_agents'
+    : playerStatusTeamId(
+        transition.registeredTeamId
+        ?? (targetStatus === 'academy' ? requestedContractTeamId : player.registeredTeamId ?? player.teamId),
+      );
   const loanAgreement = targetStatus === 'loan'
     ? normalizeLoanAgreement(transition.activeLoanAgreement ?? player.activeLoanAgreement, {
         ...player,
         playerStatus:'loan',
-        contractTeamId:transition.contractTeamId ?? player.contractTeamId,
-        registeredTeamId:transition.registeredTeamId ?? player.registeredTeamId,
-        teamId:transition.registeredTeamId ?? player.registeredTeamId,
+        teamId:requestedRegisteredTeamId,
+        contractTeamId:requestedContractTeamId,
+        registeredTeamId:requestedRegisteredTeamId,
+        onLoan:true,
+        loanOriginalTeamId:requestedContractTeamId,
+        loanedFrom:requestedContractTeamId,
+        loanedTo:requestedRegisteredTeamId,
       })
     : null;
-  const contractTeamId = targetStatus === 'free_agent'
-    ? null
-    : asTeamId(transition.contractTeamId ?? loanAgreement?.parentTeamId ?? player.contractTeamId);
-  const registeredTeamId = targetStatus === 'free_agent'
-    ? 'free_agents'
-    : asTeamId(transition.registeredTeamId ?? loanAgreement?.loanTeamId ?? (targetStatus === 'academy' ? contractTeamId : player.registeredTeamId ?? player.teamId));
+  const contractTeamId = targetStatus === 'loan'
+    ? playerStatusTeamId(transition.contractTeamId ?? loanAgreement?.parentTeamId ?? player.contractTeamId)
+    : requestedContractTeamId;
+  const registeredTeamId = targetStatus === 'loan'
+    ? playerStatusTeamId(transition.registeredTeamId ?? loanAgreement?.loanTeamId ?? player.registeredTeamId)
+    : requestedRegisteredTeamId;
 
-  let spells = closeActiveSpell(normalizeSpells(player.registrationSpells), player, season, gameweek, transition.reason);
+  let spells = playerStatusCloseSpell(playerStatusSpells(player.registrationSpells), player, season, gameweek, transition.reason);
   const prior = spells[spells.length - 1];
   const materiallyChanged = targetStatus !== player.playerStatus
     || contractTeamId !== player.contractTeamId
     || registeredTeamId !== player.registeredTeamId
     || (loanAgreement?.id ?? null) !== player.activeAgreementId;
   if (materiallyChanged || !prior) {
-    spells = [...spells, openSpell(player, targetStatus, contractTeamId, registeredTeamId, season, gameweek, transition.reason)].slice(-MAX_REGISTRATION_SPELLS);
+    spells = [
+      ...spells,
+      playerStatusOpenSpell(player, targetStatus, contractTeamId, registeredTeamId, season, gameweek, transition.reason),
+    ].slice(-MAX_REGISTRATION_SPELLS);
   }
 
+  const compatibility = {
+    teamId:targetStatus === 'academy' ? contractTeamId : registeredTeamId,
+    isYouth:targetStatus === 'academy',
+    youthTeamId:targetStatus === 'academy' ? contractTeamId : null,
+    onLoan:targetStatus === 'loan',
+    loanedFrom:targetStatus === 'loan' ? contractTeamId : null,
+    loanOriginalTeamId:targetStatus === 'loan' ? contractTeamId : null,
+    loanedTo:targetStatus === 'loan' ? registeredTeamId : null,
+    loanRecallable:targetStatus === 'loan' ? Boolean(loanAgreement?.recallAllowed) : false,
+  };
   return normalizePlayerStatus({
     ...player,
+    ...compatibility,
     playerStatus:targetStatus,
     contractTeamId,
     registeredTeamId,
@@ -279,7 +344,7 @@ export function ensureOpenRegistrationSpell(playerInput, { season = null, gamewe
     ...player,
     registrationSpells:[
       ...player.registrationSpells,
-      openSpell(player, player.playerStatus, player.contractTeamId, player.registeredTeamId, season, gameweek, 'migration'),
+      playerStatusOpenSpell(player, player.playerStatus, player.contractTeamId, player.registeredTeamId, season, gameweek, 'migration'),
     ].slice(-MAX_REGISTRATION_SPELLS),
   };
 }
