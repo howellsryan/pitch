@@ -1,4 +1,5 @@
 import { developmentPlanAttributePreference, developmentPlanProgressMultiplier } from './training.js';
+import { isAcademyPlayer } from './playerStatus.js';
 
 /*
  * modules/playerDevelopment.js — pure P3 development and potential knowledge.
@@ -7,7 +8,9 @@ import { developmentPlanAttributePreference, developmentPlanProgressMultiplier }
  * deterministic growth-profile assignment, user-facing potential estimates and
  * once-per-world-week development projections. No DB or UI imports.
  * P5 development plans only shape this existing boundary; they do not add a
- * second growth clock.
+ * second growth clock. P9 academy players feed this same clock from their
+ * separate aggregate academyEvidence ledger; senior/loan players continue to
+ * use the authoritative P1 appearance/minute ledger.
  */
 
 export const GROWTH_PROFILE_DEFS = Object.freeze({
@@ -98,10 +101,23 @@ export function potentialEstimate(player, knowledge = player?.potentialKnowledge
 }
 
 function developmentSnapshot(player) {
+  if (isAcademyPlayer(player)) {
+    const evidence = player?.academyEvidence ?? {};
+    return {
+      appearances:Math.max(0, Number(evidence.appearances ?? 0)),
+      minutes:Math.max(0, Number(evidence.minutes ?? 0)),
+    };
+  }
   return {
     appearances:Math.max(0, Number(player?.appearances ?? 0)),
     minutes:Math.max(0, Number(player?.minutes ?? 0)),
   };
+}
+
+function developmentRating(player) {
+  const value = isAcademyPlayer(player) ? player?.academyEvidence?.lastRating : player?.lastMatchRating;
+  const rating = Number(value);
+  return Number.isFinite(rating) ? rating : null;
 }
 
 function weeklyExposure(player) {
@@ -138,7 +154,7 @@ function boostAttribute(player, seed, preferredAttribute = null) {
       : primary === 'defence' ? 'midfield'
         : 'defence';
   const validPreference = ['attack','midfield','defence','goalkeeping'].includes(preferredAttribute) ? preferredAttribute : null;
-  const attribute = validPreference && roll < .72 ? validPreference : roll < .78 ? primary : secondary;
+  const attribute = validPreference && roll < .72 ? preferredAttribute : roll < .78 ? primary : secondary;
   next[attribute] = Math.min(99, Number(next[attribute] ?? 50) + 1);
   return next;
 }
@@ -159,7 +175,8 @@ function declineAttribute(player, seed) {
  * Pure once-per-completed-world-week development. The caller supplies the
  * player's total league/cup/European exposure for the week before settlement;
  * a matching key is therefore a strict replay no-op. P5 training changes only
- * the bounded progress/focus inputs to this same settlement.
+ * the bounded progress/focus inputs to this same settlement. P9 academy rows
+ * use academyEvidence as their exposure source without touching senior stats.
  */
 export function settlePlayerDevelopment(player, gameweek, season = null) {
   if (!player) return player;
@@ -180,7 +197,7 @@ export function settlePlayerDevelopment(player, gameweek, season = null) {
   let boostedThisWeek = false;
 
   if (exposure.appeared && currentLevel < potential && age <= profileState.peakAge + 1) {
-    const rating = Number(player.lastMatchRating);
+    const rating = developmentRating(player);
     const ratingBonus = Number.isFinite(rating) ? devClamp((rating - 6) * 1.2, -1, 3) : 0;
     const minutesScore = devClamp(exposure.minutes / 45, .35, 2);
     const morale = devClamp(Number(player.individualMorale ?? 50), 0, 100);
