@@ -38,12 +38,6 @@ export function buildWorldLeagueSeason(teams, seasonYear) {
   return { fixtures, standings };
 }
 
-/**
- * Existing P0 careers contain only the managed club's league schedule/table.
- * P1 backfills missing leagues and adds league metadata to legacy rows. Played
- * P0 fixtures are preserved byte-for-byte apart from additive metadata, so a
- * migrated career never has an already-played result simulated again.
- */
 export function buildWorldBackfill(teams, fixtures, standings, seasonYear) {
   const teamsByLeague = groupTeamsByLeague(teams);
   const teamLeague = new Map(teams.map(team => [team.id, team.league ?? 'Premier League']));
@@ -179,7 +173,6 @@ export function tickPlayerSuspensions(players) {
   return players;
 }
 
-/** Apply current-season P1 player projections to an in-memory player map. */
 export function applyWorldPlayerStats(cache, results) {
   for (const result of results) {
     const participations = participantsForResult(result);
@@ -287,6 +280,75 @@ function indexTransfers(transfers) {
   return { byPlayer, byTeam };
 }
 
+function worldSpellSeniorStats(player) {
+  return {
+    appearances:Math.max(0, Number(player?.appearances ?? 0)),
+    starts:Math.max(0, Number(player?.starts ?? 0)),
+    minutes:Math.max(0, Number(player?.minutes ?? 0)),
+    goals:Math.max(0, Number(player?.goals ?? 0)),
+    assists:Math.max(0, Number(player?.assists ?? 0)),
+    cleanSheets:Math.max(0, Number(player?.cleanSheets ?? 0)),
+    ratingTotal:Math.max(0, Number(player?.ratingTotal ?? 0)),
+    ratingApps:Math.max(0, Number(player?.ratingApps ?? 0)),
+  };
+}
+
+function worldSpellAcademyStats(player) {
+  const evidence = player?.academyEvidence ?? {};
+  return {
+    appearances:Math.max(0, Number(evidence.appearances ?? 0)),
+    starts:Math.max(0, Number(evidence.starts ?? 0)),
+    minutes:Math.max(0, Number(evidence.minutes ?? 0)),
+    goals:Math.max(0, Number(evidence.goals ?? 0)),
+    assists:Math.max(0, Number(evidence.assists ?? 0)),
+    cleanSheets:Math.max(0, Number(evidence.cleanSheets ?? 0)),
+    ratingTotal:Math.max(0, Number(evidence.ratingTotal ?? 0)),
+    ratingApps:Math.max(0, Number(evidence.ratingApps ?? 0)),
+  };
+}
+
+function worldSpellDelta(end, start = {}) {
+  const out = {};
+  for (const key of ['appearances','starts','minutes','goals','assists','cleanSheets','ratingTotal','ratingApps']) {
+    out[key] = Math.max(0, Number(end?.[key] ?? 0) - Number(start?.[key] ?? 0));
+  }
+  out.averageRating = out.ratingApps > 0 ? Math.round((out.ratingTotal / out.ratingApps) * 100) / 100 : null;
+  return out;
+}
+
+/** P9 season-history projection; existing aggregate fields remain untouched. */
+export function compactPlayerRegistrationSpells(player, season) {
+  const spells = Array.isArray(player?.registrationSpells) ? player.registrationSpells : [];
+  const currentSenior = worldSpellSeniorStats(player);
+  const currentAcademy = worldSpellAcademyStats(player);
+  return spells.flatMap(spell => {
+    const belongsToSeason = String(spell.startSeason ?? '') === String(season)
+      || String(spell.endSeason ?? '') === String(season)
+      || spell.endSeason == null;
+    if (!belongsToSeason) return [];
+    const seniorEnd = spell.endSeason != null
+      ? (spell.endStats ?? {})
+      : currentSenior;
+    const academyEnd = spell.endSeason != null
+      ? (spell.endAcademyEvidence ?? {})
+      : currentAcademy;
+    const seniorStart = String(spell.startSeason ?? '') === String(season) ? (spell.startStats ?? {}) : {};
+    const academyStart = String(spell.startSeason ?? '') === String(season) ? (spell.startAcademyEvidence ?? {}) : {};
+    return [{
+      id:spell.id,
+      status:spell.status ?? 'first_team',
+      contractTeamId:spell.contractTeamId ?? null,
+      registeredTeamId:spell.registeredTeamId ?? null,
+      startGameweek:String(spell.startSeason ?? '') === String(season) ? spell.startGameweek ?? null : 1,
+      endGameweek:String(spell.endSeason ?? '') === String(season) ? spell.endGameweek ?? null : null,
+      reason:spell.reason ?? null,
+      endReason:spell.endReason ?? null,
+      senior:worldSpellDelta(seniorEnd, seniorStart),
+      academy:worldSpellDelta(academyEnd, academyStart),
+    }];
+  });
+}
+
 export function buildLivingWorldSeasonSummary({ save, teams, standings, players, transfers = [], leagueChanges = null, awards = [] }) {
   const teamsById = new Map(teams.map(team => [team.id, team]));
   const transfersBy = indexTransfers(transfers);
@@ -297,6 +359,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
   }
   const playersByLeague = new Map();
   for (const player of players) {
+    if (player.inSquad === false) continue;
     const league = teamsById.get(player.teamId)?.league;
     if (!league) continue;
     if (!playersByLeague.has(league)) playersByLeague.set(league, []);
@@ -322,6 +385,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
       majorInjuries:player.seasonMajorInjuries ?? [],
       transfers:moves.map(move => ({ fromTeamId:move.fromTeamId, toTeamId:move.toTeamId, fee:move.fee ?? 0, type:move.type, date:move.date })),
       individualAwards:(awardsByPlayer.get(player.id) ?? []).map(award => award.kind),
+      spells:compactPlayerRegistrationSpells(player, save.season),
     };
   });
 
@@ -356,7 +420,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
   for (const [league, rows] of groupStandingsByLeague(standings)) {
     const table = sortTable(rows);
     const leaguePlayers = playersByLeague.get(league) ?? [];
-    const by = (field) => [...leaguePlayers].filter(player => Number(player[field] ?? 0) > 0)
+    const by = field => [...leaguePlayers].filter(player => Number(player[field] ?? 0) > 0)
       .sort((a, b) => Number(b[field] ?? 0) - Number(a[field] ?? 0) || String(a.name).localeCompare(String(b.name)))[0] ?? null;
     competitionHistory.push({
       competition:league,
@@ -407,6 +471,7 @@ export function buildSeasonAwards(players, teams) {
   const awards = [];
   const grouped = new Map();
   for (const player of players) {
+    if (player.inSquad === false) continue;
     const league = teamsById.get(player.teamId)?.league;
     if (!league) continue;
     if (!grouped.has(league)) grouped.set(league, []);
@@ -432,7 +497,7 @@ export function buildSeasonAwards(players, teams) {
 function newgenRatingForContext(team, retiredPlayer) {
   const retired = Number(primaryRating(retiredPlayer) ?? 60);
   const clubBase = 48 + Math.max(0, Math.min(45, (team?.reputation ?? 60) - 45)) * 0.48;
-  const blended = clubBase * 0.72 + Math.min(retired, 84) * 0.28;
+  const blended = clubBase * .72 + Math.min(retired, 84) * .28;
   return Math.max(45, Math.min(78, Math.round(blended + (Math.random() * 8 - 4))));
 }
 
@@ -475,11 +540,13 @@ export function generateReplacementNewgens(retirees, teams, season) {
 }
 
 export function worldPopulationReport(players) {
-  const active = players.filter(player => player.teamId && player.teamId !== 'free_agents');
+  const academy = players.filter(player => player.teamId && player.teamId !== 'free_agents' && player.inSquad === false);
+  const active = players.filter(player => player.teamId && player.teamId !== 'free_agents' && player.inSquad !== false);
   const ratings = active.map(player => Number(primaryRating(player) ?? 0)).filter(Number.isFinite);
   const averageRating = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : 0;
   return {
     activePlayers:active.length,
+    academyPlayers:academy.length,
     generatedPlayers:active.filter(player => player.generated).length,
     averageRating:Math.round(averageRating * 100) / 100,
     under21:active.filter(player => (player.age ?? 99) <= 21).length,
