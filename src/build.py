@@ -40,6 +40,7 @@ MODULES += [
     # must load before db.js.
     ('modules/clubFinance.js',      'CLUB FINANCE'),
     ('modules/db.js',               'DATABASE'),
+    ('modules/contracts.js',        'PLAYER CONTRACTS'),
     ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
     ('modules/training.js',         'TRAINING'),
     ('modules/coaching.js',         'COACHING'),
@@ -51,6 +52,7 @@ MODULES += [
     ('modules/facilities.js',       'CLUB FACILITIES'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
+    ('modules/startingFreeAgents.js','STARTING FREE AGENTS'),
     ('modules/standings.js',        'STANDINGS'),
     ('modules/fixtures.js',         'FIXTURES'),
     ('modules/competitionRules.js', 'COMPETITION RULES'),

@@ -48,6 +48,7 @@ import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket,
 import { CLUB_PHILOSOPHY_VERSION, buildClubPhilosophyBackfill, clubPhilosophiesNeedBackfill, generateClubPhilosophy } from './clubPhilosophy.js';
 import { CLUB_FINANCE_VERSION, buildClubFinanceBackfill, createClubFinance, financeNeedsBackfill } from './clubFinance.js';
 import { buildCareerEventsBackfill, createCareerEventsState, careerEventsNeedBackfill } from './careerEvents.js';
+import { seedVerifiedStartingFreeAgents } from './startingFreeAgents.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
 
@@ -406,7 +407,8 @@ export async function startNewGame(userTeamId, managerName) {
   save.lineup = xi.map(p => p.id);
 
   await putSave(save);
-  return save;
+  await seedVerifiedStartingFreeAgents();
+  return await getSave();
 }
 
 export async function patchSave(patch) {

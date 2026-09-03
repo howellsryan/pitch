@@ -1,7 +1,6 @@
 <script>
   import {
     activateCareerSlot,
-    exportSaveFile,
     getCareerSlotSummaries,
     openDB,
   } from '../../modules/db.js';
@@ -17,7 +16,6 @@
   let busySlot = $state(null);
   let deleteTarget = $state.raw(null);
   let deleteOpen = $state(false);
-  let exportMessage = $state('');
   let loading = $state(false);
 
   // Visibility owns refreshes. `loading` is display state only: reading it in
@@ -53,20 +51,6 @@
     // Until then the existing active career remains a safe reload fallback.
     entryState.newCareerRequested = true;
     entryState.hasSave = false;
-  }
-
-  async function exportCareer(career) {
-    if (!career || busySlot) return;
-    busySlot = career.slotId;
-    exportMessage = '';
-    try {
-      const result = await exportSaveFile(career.slotId);
-      exportMessage = `${career.clubName} exported as ${result.filename}`;
-    } catch (err) {
-      exportMessage = err?.message || 'Could not export this career.';
-    } finally {
-      busySlot = null;
-    }
   }
 
   function askDelete(career) {
@@ -161,7 +145,6 @@
                 <Button variant="accent" size="md" onclick={() => continueCareer(career)} disabled={!!busySlot}>
                   {busySlot === career.slotId ? 'Opening…' : 'Continue'}
                 </Button>
-                <Button variant="ghost" size="md" onclick={() => exportCareer(career)} disabled={!!busySlot}>Export</Button>
                 <Button variant="ghost" size="md" onclick={() => askDelete(career)} disabled={!!busySlot}>Delete</Button>
               </div>
             </article>
@@ -173,7 +156,6 @@
         + New career
       </Button>
 
-      {#if exportMessage}<p class="status" role="status">{exportMessage}</p>{/if}
       <p class="note">Each career is stored independently. Starting or deleting one career never overwrites another.</p>
     </main>
   </div>
@@ -181,7 +163,7 @@
   <Sheet bind:open={deleteOpen} title="Delete career?">
     {#if deleteTarget}
       <p class="confirm-copy">
-        Delete <strong>{deleteTarget.managerName}</strong> at <strong>{deleteTarget.clubName}</strong>? This only removes this career slot. Export a <code>.pitch</code> backup first if you may want it later.
+        Delete <strong>{deleteTarget.managerName}</strong> at <strong>{deleteTarget.clubName}</strong>? This permanently removes this career slot.
       </p>
       <div class="sheet-actions">
         <Button variant="danger" size="lg" full onclick={confirmDelete} disabled={!!busySlot}>
@@ -212,7 +194,7 @@
   .menu-card { position: relative; z-index: 1; width: min(100%, 560px); margin-top: auto; }
   .wordmark { font-family: var(--font-display); font-size: clamp(58px, 19vw, 92px); font-weight: 800; line-height: .82; letter-spacing: .02em; }
   .title-row { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin: 12px 0 14px; }
-  .kicker, .slot-count, .career-meta, .last-played, .status { font-family: var(--font-mono); }
+  .kicker, .slot-count, .career-meta, .last-played { font-family: var(--font-mono); }
   .kicker { margin-bottom: 4px; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-accent); }
   h1 { margin: 0; font-family: var(--font-display); font-size: 25px; line-height: 1; text-transform: uppercase; }
   .slot-count { flex: 0 0 auto; padding-bottom: 2px; color: var(--color-tx-3); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
@@ -228,13 +210,11 @@
   .career-meta { display: flex; flex-wrap: wrap; gap: 5px 11px; margin-top: 11px; color: var(--color-tx-2); font-size: 9px; text-transform: uppercase; }
   .career-meta span:not(:last-child)::after { content: '·'; margin-left: 11px; color: var(--color-tx-3); }
   .last-played { margin-top: 5px; color: var(--color-tx-3); font-size: 9px; }
-  .career-actions { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr); gap: 7px; margin-top: 12px; }
+  .career-actions { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 7px; margin-top: 12px; }
   .loading { padding: 22px 0; color: var(--color-tx-2); font-size: 11px; font-family: var(--font-mono); }
   .note, .confirm-copy { margin: 10px 0 0; color: var(--color-tx-3); font-size: 11px; line-height: 1.55; }
-  .status { margin: 9px 0 0; color: var(--color-accent); font-size: 9px; }
   .confirm-copy { margin-top: 0; color: var(--color-tx-2); font-size: 13px; }
   .confirm-copy strong { color: var(--color-tx); }
-  .confirm-copy code { font-family: var(--font-mono); color: var(--color-tx); }
   .sheet-actions { display: grid; gap: 8px; margin-top: 18px; }
 
   @media (min-width: 720px) {

@@ -20,7 +20,7 @@ import './p5.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
-import EntryScreen from './lib/ui/EntryScreen.svelte';
+import EntryScreen from './lib/ui/EntryScreenClean.svelte';
 import CareerMenu from './lib/ui/CareerMenu.svelte';
 import TabBar from './lib/ui/TabBar.svelte';
 import LeagueScreen from './lib/ui/LeagueScreen.svelte';
@@ -28,7 +28,7 @@ import HomeScreen from './lib/ui/HomeScreen.svelte';
 import SquadScreen from './lib/ui/SquadScreen.svelte';
 import AcademyScreen from './lib/ui/AcademyScreen.svelte';
 import TrophiesScreen from './lib/ui/TrophiesScreen.svelte';
-import SettingsScreen from './lib/ui/SettingsScreen.svelte';
+import SettingsScreen from './lib/ui/SettingsScreenClean.svelte';
 import TransfersScreen from './lib/ui/TransfersScreen.svelte';
 import ScoutingDrawer from './lib/ui/ScoutingDrawer.svelte';
 import MatchScreen from './lib/ui/MatchScreen.svelte';
