@@ -2,6 +2,7 @@
   import { getSave, openDB } from '../../modules/db.js';
   import { careerEventChoices } from '../../modules/careerEvents.js';
   import { resolveCareerEvent } from '../../modules/p8Runtime.js';
+  import { tryCompletePendingUserHandover } from '../../modules/managerUserActions.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import { toast } from '../../ui/helpers.js';
 
@@ -18,14 +19,83 @@
   const resolved = $derived(save?.careerEvents?.resolved ?? []);
   const news = $derived(save?.inbox ?? []);
   const list = $derived(tab === 'pending' ? events : tab === 'resolved' ? resolved : news);
-  const titleFor = event => ({ broken_promise:'A promise has been broken', early_return:'Medical team request', board_pressure:'Board confidence is slipping', budget_pressure:'Financial pressure', press_derby:'Press conference: derby week' }[event.templateId] ?? 'Career decision');
-  const bodyFor = event => ({ broken_promise:`${event.tokens?.playerName ?? 'A player'} feels their agreed role has not been honoured.`, early_return:`${event.tokens?.playerName ?? 'A player'} is ${event.tokens?.readiness ?? 0}% ready. The medical team wants your call.`, board_pressure:'Recent results have sharpened the board and supporter focus on your decisions.', budget_pressure:'The club needs a response to a tightening cash position.', press_derby:`The media are waiting for your words before the match against ${event.tokens?.opponentName ?? 'your rivals'}.` }[event.templateId] ?? 'A decision requires your attention.');
+
+  const titleFor = event => ({
+    broken_promise:'A promise has been broken',
+    early_return:'Medical team request',
+    board_pressure:'Board confidence is slipping',
+    budget_pressure:'Financial pressure',
+    press_derby:'Press conference: derby week',
+    youngster_loan:'A youngster wants a clearer pathway',
+    star_contract:'A senior player wants clarity',
+    manager_approach:'A club wants to speak to you',
+    promise_review:'Promise review',
+    youngster_path_review:'Pathway review',
+    contract_review:'Contract situation unresolved',
+    budget_review:'Financial plan review',
+  }[event.templateId] ?? 'Career decision');
+
+  const bodyFor = event => ({
+    broken_promise:`${event.tokens?.playerName ?? 'A player'} feels their agreed role has not been honoured.`,
+    early_return:`${event.tokens?.playerName ?? 'A player'} is ${event.tokens?.readiness ?? 0}% ready. The medical team wants your call.`,
+    board_pressure:'Recent results have sharpened the board and supporter focus on your decisions.',
+    budget_pressure:'The club needs a response to a tightening cash position.',
+    press_derby:`The media are waiting for your words before the match against ${event.tokens?.opponentName ?? 'your rivals'}.`,
+    youngster_loan:`${event.tokens?.playerName ?? 'A young player'} is worried about their minutes and wants a clearer route to first-team football.`,
+    star_contract:`${event.tokens?.playerName ?? 'A senior player'} has ${event.tokens?.yearsLeft ?? 1} year${Number(event.tokens?.yearsLeft ?? 1) === 1 ? '' : 's'} left and wants to know where they stand.`,
+    manager_approach:`${event.tokens?.clubName ?? 'Another club'} have made an approach${event.tokens?.fit ? ` and see you as a ${event.tokens.fit}% fit` : ''}.`,
+    promise_review:`You recommitted to ${event.tokens?.playerName ?? 'this player'} earlier. The underlying playing-time problem is still unresolved.`,
+    youngster_path_review:`${event.tokens?.playerName ?? 'The youngster'} stayed to fight for minutes, but the pathway still has not improved.`,
+    contract_review:`You reassured ${event.tokens?.playerName ?? 'the player'} that their future would be addressed, but the contract situation is still unresolved.`,
+    budget_review:'You protected the squad when finances first tightened. The cash position still needs a decision.',
+  }[event.templateId] ?? 'A decision requires your attention.');
+
+  const resolutionFor = event => ({
+    morale:'Player relationship affected',
+    transfer_list:'Player made available',
+    early_return:'Early return approved',
+    team_morale:'Squad mood affected',
+    finance:'Financial plan applied',
+    job_security:'Board confidence affected',
+    loan_out:'Loan move approved',
+    manager_approach_accept:'Job approach accepted',
+    manager_approach_decline:'Job approach declined',
+    expired:'Decision expired',
+    followup_expired:'Follow-up expired',
+    promise_recovered:'Promise recovered before review',
+    pathway_improved:'Pathway improved before review',
+    pathway_loaned:'Loan pathway started before review',
+    contract_resolved:'Contract resolved before review',
+    finances_stabilised:'Finances stabilised before review',
+    participant_moved:'Player moved before review',
+    participant_unavailable:'Participant unavailable',
+  }[event.resolutionCode] ?? event.resolutionCode ?? event.status);
+
   async function choose(event, choice) {
     if (busy) return;
     busy = event.id;
-    try { await resolveCareerEvent(event.id, choice.id); toast('Decision recorded.', 'success'); await load(); }
-    catch (error) { toast(error.message === 'CAREER_EVENT_EXPIRED' ? 'This decision has expired.' : 'This decision is no longer available.', 'warning'); await load(); }
-    finally { busy = ''; }
+    try {
+      const result = await resolveCareerEvent(event.id, choice.id);
+      if (result.event?.resolutionCode === 'manager_approach_accept') {
+        const handover = await tryCompletePendingUserHandover();
+        toast(handover.completed ? 'Job accepted. Club handover complete.' : 'Job accepted. The handover will complete when the current match queue is clear.', 'success', 5500);
+      } else {
+        toast(result.followUp ? 'Decision recorded. This story may return later.' : 'Decision recorded.', 'success');
+      }
+      await load();
+    } catch (error) {
+      const message = error.message === 'CAREER_EVENT_EXPIRED'
+        ? 'This decision has expired.'
+        : error.message === 'WINDOW_CLOSED'
+          ? 'A loan cannot be completed while the transfer window is closed.'
+          : error.message === 'NO_LOAN_TAKERS'
+            ? 'No suitable club is currently available for that loan.'
+            : 'This decision is no longer available.';
+      toast(message, 'warning');
+      await load();
+    } finally {
+      busy = '';
+    }
   }
 </script>
 
@@ -43,7 +113,7 @@
         <article class="card news"><strong>{item.title}</strong>{#if item.body}<p>{item.body}</p>{/if}</article>
       {:else}
         <article class="card" class:muted={tab === 'resolved'}>
-          <div class="meta">{item.category} · {tab === 'pending' ? `Respond by GW ${item.expiryGameweek}` : item.resolutionCode ?? item.status}</div>
+          <div class="meta">{item.category} · {tab === 'pending' ? `Respond by GW ${item.expiryGameweek}` : resolutionFor(item)}</div>
           <h2>{titleFor(item)}</h2><p>{bodyFor(item)}</p>
           {#if tab === 'pending'}<div class="choices">{#each careerEventChoices(item) as choice (choice.id)}<button disabled={busy === item.id} onclick={() => choose(item, choice)}>{choice.label}</button>{/each}</div>{/if}
         </article>
