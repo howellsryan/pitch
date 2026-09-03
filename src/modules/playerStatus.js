@@ -174,6 +174,11 @@ export function normalizePlayerStatus(player) {
   normalized.loanRecallable = playerStatus === 'loan' ? Boolean(activeLoanAgreement?.recallAllowed) : false;
   if (playerStatus === 'academy' || playerStatus === 'free_agent') normalized.inSquad = false;
   else if (normalized.inSquad == null) normalized.inSquad = true;
+  // Legacy youth objects carried a display-only wage while they lived outside
+  // the players store. Once P9 makes them canonical rows that field would be
+  // picked up by the senior weekly wage bill. Academy footballers therefore
+  // carry no professional wage until promotion creates their first contract.
+  if (playerStatus === 'academy') normalized.wage = 0;
   if (playerStatus === 'academy' && !normalized.squadRole) normalized.squadRole = 'prospect';
   return normalized;
 }
@@ -195,7 +200,8 @@ export function playerStatusNeedsNormalization(player) {
     || player.loanOriginalTeamId !== normalized.loanOriginalTeamId
     || player.loanedTo !== normalized.loanedTo
     || player.loanRecallable !== normalized.loanRecallable
-    || player.inSquad !== normalized.inSquad;
+    || player.inSquad !== normalized.inSquad
+    || player.wage !== normalized.wage;
 }
 
 export function isAcademyPlayer(player, teamId = null) {
