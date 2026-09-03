@@ -106,7 +106,7 @@ describe('P9 outbound loan agreement bridge', () => {
     const persisted = db.putSave.mock.calls[0][0];
     expect(persisted.transferMarket.activeDeals).toHaveLength(1);
     expect(persisted.transferMarket.activeDeals[0].state).toBe('club_negotiation');
-    expect(db.getPlayer.mock.results[0].value).resolves.toMatchObject({ teamId:'parent', onLoan:false });
+    await expect(db.getPlayer.mock.results[0].value).resolves.toMatchObject({ teamId:'parent', onLoan:false });
   });
 
   it('does not create a second agreement while that player already has an active market deal', async () => {
