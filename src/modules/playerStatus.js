@@ -49,6 +49,19 @@ export function inferPlayerStatus(player) {
   if (player.isYouth || player.youthTeamId) return 'academy';
   if (player.playerStatus === 'free_agent' && player.teamId == null) return 'free_agent';
   if (player.playerStatus === 'academy' && player.inSquad === false && player.contractTeamId) return 'academy';
+  // Legacy season-return writers clear the concrete loan flags and move teamId
+  // back to the parent club before P9 gets another normalisation pass. Those
+  // concrete facts must beat stale explicit P9 agreement/registration fields,
+  // otherwise the next read silently moves the player back to the loan club.
+  const legacyLoanReturned = player.playerStatus === 'loan'
+    && player.onLoan === false
+    && !player.loanedFrom
+    && !player.loanOriginalTeamId
+    && !player.loanedTo
+    && player.teamId
+    && player.contractTeamId
+    && String(player.teamId) === String(player.contractTeamId);
+  if (legacyLoanReturned) return 'first_team';
   if (player.playerStatus === 'loan'
     && player.activeLoanAgreement
     && player.registeredTeamId
@@ -268,10 +281,16 @@ function playerStatusOpenSpell(player, status, contractTeamId, registeredTeamId,
  * player ID; callers persist that row rather than deleting/copying the player.
  */
 export function transitionPlayerStatus(playerInput, transition = {}) {
+  const idempotencyKey = transition.idempotencyKey ? String(transition.idempotencyKey) : null;
+  // A replay is a literal no-op, including object identity. Checking the raw
+  // input before normalisation avoids allocating an equivalent clone and makes
+  // retry semantics observable to callers/tests as well as persistence.
+  if (idempotencyKey
+    && Array.isArray(playerInput?.lifecycleTransitionKeys)
+    && playerInput.lifecycleTransitionKeys.includes(idempotencyKey)) return playerInput;
   const player = normalizePlayerStatus(playerInput);
   if (!player) return player;
-  const idempotencyKey = transition.idempotencyKey ? String(transition.idempotencyKey) : null;
-  if (idempotencyKey && player.lifecycleTransitionKeys.includes(idempotencyKey)) return player;
+  if (idempotencyKey && player.lifecycleTransitionKeys.includes(idempotencyKey)) return playerInput ?? player;
   const targetStatus = PLAYER_STATUS_SET.has(transition.status) ? transition.status : player.playerStatus;
   const season = transition.season ?? null;
   const gameweek = transition.gameweek ?? null;
