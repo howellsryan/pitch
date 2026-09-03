@@ -1,3 +1,5 @@
+import { contractYearsRemaining } from './transfers.js';
+
 /**
  * P8 story engine: pure template/evaluation layer. Instances deliberately
  * keep IDs, state and compact tokens only; the UI owns the prose.
@@ -44,17 +46,6 @@ function addWeeksIso(value, weeks) {
   const time = parseCareerDate(value);
   if (time == null) return null;
   return new Date(time + Math.max(0, Number(weeks) || 0) * 7 * 86_400_000).toISOString();
-}
-
-function seasonStartYear(save) {
-  const parsed = parseInt(String(save?.season ?? '').split('/')[0], 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function contractYearsRemaining(player, save) {
-  const currentYear = seasonStartYear(save);
-  if (player?.contractExpiry == null) return 2;
-  return Math.max(0, Number(player.contractExpiry) - currentYear);
 }
 
 function financeCash(snapshot) {
