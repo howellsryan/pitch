@@ -91,7 +91,7 @@
   }
 
   async function promote(player) {
-    if (!confirm(`Promote ${player.name} to the first team?`)) return;
+    if (!window.confirm(`Promote ${player.name} to the first team?`)) return;
     try {
       await promoteManagedAcademyPlayer(player.id);
       toast(`${player.name} promoted to the first team`, 'success');
@@ -103,7 +103,7 @@
   }
 
   async function release(player) {
-    if (!confirm(`Release ${player.name} to free agency?`)) return;
+    if (!window.confirm(`Release ${player.name} to free agency?`)) return;
     await releaseManagedAcademyPlayer(player.id);
     toast(`${player.name} released`, 'info');
     screenTicks.academy++;
@@ -136,8 +136,8 @@
       <section class="panel">
         <div class="panel-head"><div><h2>Regional scouting</h2><p>Brief the academy network by region and position group. Reports narrow the quality band; they never guarantee a star.</p></div></div>
         <div class="controls">
-          <label>Region<select bind:value={scoutingRegion}>{#each regions as region}<option value={region}>{region}</option>{/each}</select></label>
-          <label>Position<select bind:value={scoutingGroup}>{#each positionGroups as group}<option value={group}>{group}</option>{/each}</select></label>
+          <label>Region<select bind:value={scoutingRegion}>{#each regions as region (region)}<option value={region}>{region}</option>{/each}</select></label>
+          <label>Position<select bind:value={scoutingGroup}>{#each positionGroups as group (group)}<option value={group}>{group}</option>{/each}</select></label>
           <button class="primary" disabled={busy} onclick={assignScout}>Assign scout</button>
         </div>
         {#if activeAssignments.length}
@@ -186,7 +186,7 @@
               </div>
               <div class="actions">
                 <select value={player.developmentPlan?.id ?? 'balanced'} onchange={event => setPlan(player, event.currentTarget.value)}>
-                  {#each plans as plan}<option value={plan.id}>{plan.label}</option>{/each}
+                  {#each plans as plan (plan.id)}<option value={plan.id}>{plan.label}</option>{/each}
                 </select>
                 <button class="primary" onclick={() => promote(player)}>Promote</button>
                 <button onclick={() => release(player)}>Release</button>
