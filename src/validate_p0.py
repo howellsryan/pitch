@@ -159,6 +159,16 @@ SUPERSEDED_LEGACY_CHECKS = {
     # dedicated P7 WP7 test asserts the real replacement contract (the
     # dismissAndCaretake call, the unified dismissed flag, no reset call).
     'Sacked end-state offers Start New Career, not Start Next Season',
+
+    # P9 retires academy-only persistence. Prospects now live in the canonical
+    # players store from new-career seed through academy, promotion, loan and
+    # release. The old validator searches exact P7 source strings/arrays, so
+    # youthAcademyP9.test.js replaces these checks with executable lifecycle
+    # contracts: same-ID AI promotion, three-year first pro deal, and canonical
+    # intake with an intentionally empty save.youthCohort compatibility field.
+    'AI auto-promotes talented youth',
+    'Youth promotion (AI) sets a 3-year contract',
+    'youthCohort seeded in startNewGame',
 }
 
 P0_TEST_FILES = [
@@ -181,6 +191,11 @@ P0_TEST_FILES = [
     'src/modules/playerRehabilitation.test.js',
     # P7 WP2 replacement for the retired loan-financials source-shape checks.
     'src/modules/transfersLoanFinance.test.js',
+    # P9 replacement contracts for the retired academy-array/source assertions.
+    'src/modules/playerStatus.test.js',
+    'src/modules/academyPathways.test.js',
+    'src/modules/playerDevelopmentP9.test.js',
+    'src/modules/youthAcademyP9.test.js',
 ]
 
 
