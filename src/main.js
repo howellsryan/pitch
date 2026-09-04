@@ -17,6 +17,7 @@ import './mobile-ux.css';
 import './r7.css';
 import './r7-mobile-fixes.css';
 import './p5.css';
+import './touchline-ledger-polish.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
