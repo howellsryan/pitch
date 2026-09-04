@@ -32,6 +32,7 @@ import { assignPotentials } from './potential.js';
 import {
   PLAYER_MODEL_VERSION,
   assignDefaultSquadRoles,
+  attributeProfileFromSeed,
   normalizePlayerModel,
   playerModelNeedsNormalization,
 } from './playerModel.js';
@@ -171,12 +172,33 @@ function roleContractChanged(before, after) {
     || JSON.stringify(before?.playingTimeAgreement ?? null) !== JSON.stringify(after?.playingTimeAgreement ?? null);
 }
 
-export function buildP3PlayerModelBackfill(save, players = [], teams = []) {
+function seedPlayersById(seedTeams) {
+  const byId = new Map();
+  for (const team of seedTeams ?? []) {
+    for (const player of team?.players ?? []) {
+      if (player?.id && !byId.has(player.id)) byId.set(player.id, player);
+    }
+  }
+  return byId;
+}
+
+function normalizeMigratingPlayer(player, seedById) {
+  if (!player) return player;
+  const seedPlayer = seedById.get(player.id) ?? null;
+  return normalizePlayerModel({
+    ...player,
+    attributeProfile:attributeProfileFromSeed(player, seedPlayer),
+  });
+}
+
+export function buildP3PlayerModelBackfill(save, players = [], teams = [], seedTeams = getAllTeamData()) {
   if (!save || Number(save.playerModelVersion ?? 0) >= PLAYER_MODEL_VERSION) {
     return { save, playerPatches:[], teamPatches:[] };
   }
 
-  const normalizedPlayers = players.map(normalizePlayerModel);
+  const seedById = seedPlayersById(seedTeams);
+  const normalizeForMigration = player => normalizeMigratingPlayer(player, seedById);
+  const normalizedPlayers = players.map(normalizeForMigration);
   const preparedPlayers = assignDefaultSquadRoles(normalizedPlayers, {
     currentYear:seasonStartYear(save),
     managedTeamId:save.userTeamId,
@@ -187,15 +209,17 @@ export function buildP3PlayerModelBackfill(save, players = [], teams = []) {
 
   const teamPatches = teams.flatMap(team => {
     if (!Array.isArray(team.youthPlayers)) return [];
-    const needsPatch = team.youthPlayers.some(playerModelNeedsNormalization);
+    const normalizedYouth = team.youthPlayers.map(normalizeForMigration);
+    const needsPatch = team.youthPlayers.some((player, index) => playerModelNeedsNormalization(player)
+      || JSON.stringify(player.attributeProfile ?? null) !== JSON.stringify(normalizedYouth[index].attributeProfile));
     if (!needsPatch) return [];
-    return [{ ...team, youthPlayers:team.youthPlayers.map(normalizePlayerModel) }];
+    return [{ ...team, youthPlayers:normalizedYouth }];
   });
 
   const migratedSave = {
     ...save,
     ...(Array.isArray(save.youthCohort)
-      ? { youthCohort:save.youthCohort.map(normalizePlayerModel) }
+      ? { youthCohort:save.youthCohort.map(normalizeForMigration) }
       : {}),
     playerModelVersion:PLAYER_MODEL_VERSION,
   };
