@@ -29,9 +29,15 @@ export default [
     },
   },
   {
-    // tools/ and the config files run in Node, not the browser.
+    // tools/ and the config files run in Node, not the browser. Node 22 also
+    // exposes fetch/timers globally; Buffer remains the standard Node global.
     files: ['tools/**/*.mjs', '*.config.mjs', '*.config.ts'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } },
+    languageOptions: {
+      globals: {
+        process: 'readonly', console: 'readonly', URL: 'readonly',
+        fetch: 'readonly', Buffer: 'readonly', setTimeout: 'readonly',
+      },
+    },
   },
   {
     // functions/ (ROADMAP.md item 7) runs in the Cloudflare Workers runtime —
