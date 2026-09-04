@@ -66,6 +66,19 @@ const ROUTE_XG_BASE = Object.freeze({
   wide_delivery:.14,
 });
 
+const MENTALITY_ROUTE_MULTIPLIERS = Object.freeze({
+  defensive:Object.freeze({ circulation:1.24, direct_pass:.86, pass_into_space:.72, carry:.82, wide_delivery:.86 }),
+  possession:Object.freeze({ circulation:1.30, direct_pass:.74, pass_into_space:.78, carry:1.04, wide_delivery:.88 }),
+  attacking:Object.freeze({ circulation:.78, direct_pass:1.16, pass_into_space:1.30, carry:1.16, wide_delivery:1.14 }),
+  balanced:Object.freeze({}),
+});
+
+const RISK_ROUTE_MULTIPLIERS = Object.freeze({
+  chase:Object.freeze({ circulation:.72, direct_pass:1.20, pass_into_space:1.34, carry:1.16, wide_delivery:1.12 }),
+  protect:Object.freeze({ circulation:1.30, direct_pass:.82, pass_into_space:.72, carry:.86, wide_delivery:.86 }),
+  normal:Object.freeze({}),
+});
+
 const PASS_ROUTES = new Set(['circulation', 'direct_pass', 'pass_into_space', 'wide_delivery']);
 
 function actionClamp(value, min, max) {
@@ -170,6 +183,12 @@ function actionRouteAvailability(players, rolesById, route) {
   return actionClamp(total / outfield.length, .10, 1.15);
 }
 
+function actionRouteIntentMultiplier(route, mentality, riskMode) {
+  const mentalityMultiplier = Number(MENTALITY_ROUTE_MULTIPLIERS[mentality]?.[route] ?? 1);
+  const riskMultiplier = Number(RISK_ROUTE_MULTIPLIERS[riskMode]?.[route] ?? 1);
+  return mentalityMultiplier * riskMultiplier;
+}
+
 export function fixedPhaseRngPacket(nextRandom) {
   const packet = { version:MATCH_RNG_PACKET_VERSION };
   for (const field of MATCH_RNG_PACKET_FIELDS) packet[field] = Number(nextRandom());
@@ -186,11 +205,13 @@ export function actionContestProbability(edge) {
   return actionClamp(.18 + sigmoid * .67, .18, .85);
 }
 
-function actionChooseRoute(players, rolesById, instructions, packet) {
+function actionChooseRoute(players, rolesById, instructions, packet, mentality, riskMode) {
   const usage = tacticalActionUsage(instructions);
   const routes = AUTHORITATIVE_ROUTES.map(route => ({
     route,
-    weight:usage[route] * (.55 + actionRouteAvailability(players, rolesById, route)),
+    weight:usage[route]
+      * (.55 + actionRouteAvailability(players, rolesById, route))
+      * actionRouteIntentMultiplier(route, mentality, riskMode),
   })).filter(entry => entry.weight > 0);
   return actionWeightedPick(routes, packet.route, entry => entry.weight)?.route ?? 'circulation';
 }
@@ -231,15 +252,22 @@ function actionRouteCounter(route, defender) {
   return actionWeightedDetailed(defender, TACTICAL_ACTION_DEFS[route]?.counter);
 }
 
-function actionTacticalChanceAdjustments(instructions) {
+function actionTacticalChanceAdjustments(instructions, mentality = 'balanced', riskMode = 'normal') {
   const normalized = normalizeTeamInstructions(instructions);
-  if (normalized.chanceCreation === 'work_ball') return { frequency:.82, xg:.045 };
-  if (normalized.chanceCreation === 'early_delivery') return { frequency:1.08, xg:-.018 };
-  return { frequency:1, xg:0 };
+  let frequency = 1;
+  let xg = 0;
+  if (normalized.chanceCreation === 'work_ball') { frequency *= .82; xg += .045; }
+  if (normalized.chanceCreation === 'early_delivery') { frequency *= 1.08; xg -= .018; }
+  if (mentality === 'attacking') frequency *= 1.10;
+  if (mentality === 'defensive') frequency *= .86;
+  if (mentality === 'possession') frequency *= .94;
+  if (riskMode === 'chase') frequency *= 1.10;
+  if (riskMode === 'protect') frequency *= .88;
+  return { frequency, xg };
 }
 
-function actionChanceQuality(route, edge, instructions, packet) {
-  const adjustment = actionTacticalChanceAdjustments(instructions);
+function actionChanceQuality(route, edge, instructions, packet, mentality, riskMode) {
+  const adjustment = actionTacticalChanceAdjustments(instructions, mentality, riskMode);
   const jitter = (actionClamp(packet.chance, 0, 1) - .5) * .06;
   const xg = actionClamp((ROUTE_XG_BASE[route] ?? .12) + edge * .0022 + adjustment.xg + jitter, .035, .48);
   return actionRound(xg, 3);
@@ -316,6 +344,8 @@ export function resolveAuthoritativePhase({
   opponentRolesById = {},
   instructions = {},
   opponentInstructions = {},
+  mentality = 'balanced',
+  riskMode = 'normal',
   packet,
   isHome = false,
 } = {}) {
@@ -323,7 +353,7 @@ export function resolveAuthoritativePhase({
 
   const normalized = normalizeTeamInstructions(instructions);
   const opponentNormalized = normalizeTeamInstructions(opponentInstructions);
-  const route = actionChooseRoute(attackers, rolesById, normalized, packet);
+  const route = actionChooseRoute(attackers, rolesById, normalized, packet, mentality, riskMode);
   const actionDef = TACTICAL_ACTION_DEFS[route];
   const actor = actionChooseActor(attackers, rolesById, route, packet.actor);
   const target = actionChooseTarget(attackers, rolesById, route, actor?.id, packet.target);
@@ -343,10 +373,10 @@ export function resolveAuthoritativePhase({
   let shot = null;
 
   if (success) {
-    const chanceAdjustments = actionTacticalChanceAdjustments(normalized);
+    const chanceAdjustments = actionTacticalChanceAdjustments(normalized, mentality, riskMode);
     const chanceProbability = actionClamp((ROUTE_CHANCE_BASE[route] ?? .14) * chanceAdjustments.frequency * (1 + edge * .015), .025, .48);
     if (packet.chance < chanceProbability) {
-      xg = actionChanceQuality(route, edge, normalized, packet);
+      xg = actionChanceQuality(route, edge, normalized, packet, mentality, riskMode);
       chance = actionChanceBucket(xg);
       outcome = 'chance_created';
       shooter = actionChooseShooter(attackers, rolesById, packet.shooter) ?? actor;
@@ -372,6 +402,8 @@ export function resolveAuthoritativePhase({
     counter:actionRound(counter),
     contextEdge:actionRound(context),
     successChance:actionRound(successChance),
+    mentality,
+    riskMode,
     outcome,
     ...(chance ? { chance } : {}),
     ...(xg != null ? { xg } : {}),
