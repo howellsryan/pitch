@@ -70,6 +70,7 @@
 
 /* ── Loans: Loanees is part of the same segmented control as In / Out. */
 #screen-transfers .pathway-launcher {
+  position: absolute;
   min-height: 32px;
   height: 32px;
   padding: 0 10px;
@@ -102,4 +103,17 @@
   border-radius: 999px;
   background: color-mix(in oklch, currentColor 13%, transparent);
   font-size: 8px;
+}
+
+/* The visual pills remain 32px high, while their hit areas remain 44px. */
+#screen-transfers .tr-panel-title + .ftabs .ftab,
+#screen-transfers .pathway-launcher {
+  position: relative;
+}
+
+#screen-transfers .tr-panel-title + .ftabs .ftab::before,
+#screen-transfers .pathway-launcher::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
