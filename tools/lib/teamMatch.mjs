@@ -1,14 +1,10 @@
 // tools/lib/teamMatch.mjs
-// Resolves a footy-sim TEAM name to a pitch team_id. Exact-string matching is
-// not safe here: footy-sim and pitch spell the same club differently often
+// Resolves an external TEAM name to a pitch team_id. Exact-string matching is
+// not safe here: providers and Pitch spell the same club differently often
 // enough ("Brighton & Hove Albion" vs "Brighton", "1. FSV Mainz 05" vs
 // "Mainz 05") that a real fuzzy step is required. This intentionally does
-// NOT try to bridge genuine tier mismatches (a club footy-sim puts in one
-// division that pitch has in another) - those are real upstream data errors,
-// not naming variants, and are left unmatched on purpose so the caller can
-// fall back to pitch's existing roster for that club. See docs/plan/
-// 06-data-reconciliation.md Step 2: "fail loudly on a miss, never invent a
-// club."
+// NOT bridge genuine club/tier mismatches: those are data changes, not naming
+// variants, and must be handled by the caller rather than silently invented.
 
 function stripDiacritics(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -34,13 +30,35 @@ export function normalizeTeamName(name) {
   return words.join(' ');
 }
 
-// Hand-verified bridges for real abbreviations that normalization can't
-// reach algorithmically (no shared substring). Keyed by normalized
-// footy-sim name -> normalized pitch name. Extend when audit-rosters.mjs
-// reports a new unmatched name that is actually the same club.
+// Hand-verified bridges for real provider/licensing abbreviations that
+// normalization cannot reach algorithmically. The FC27 names below are taken
+// from EA's own ratings database/team pages; keeping these explicit is safer
+// than making fuzzy matching permissive enough to join unrelated clubs.
 const ALIASES = {
   'nottingham forest': 'nottm forest',
   'borussia monchengladbach': "borussia m'gladbach",
+
+  // EA SPORTS FC 27 abbreviations.
+  'sheffield wed': 'sheffield wednesday',
+  'huddersfield': 'huddersfield town',
+  'rotherham utd': 'rotherham united',
+  'paris sg': 'paris saint-germain',
+  'n e c nijmegen': 'nec nijmegen',
+  'az': 'az alkmaar',
+  'nac': 'nac breda',
+  'heracles': 'heracles almelo',
+
+  // Serie A licensing names in EA SPORTS FC 27.
+  'lombardia': 'inter milan',
+  'milano': 'ac milan',
+  'bergamo': 'atalanta bc',
+  'latium': 'ss lazio',
+
+  // Pitch stores legal prefixes which EA omits.
+  'fiorentina': 'acf fiorentina',
+  'lecce': 'us lecce',
+  'sassuolo': 'us sassuolo',
+  'cremonese': 'us cremonese',
 };
 
 export function buildTeamIndex(pitchTeams) {
@@ -52,8 +70,8 @@ export function buildTeamIndex(pitchTeams) {
 }
 
 // Returns { teamId, method } on a match, or null - never invents a club.
-export function resolveTeam(footySimName, teamIndex) {
-  let n = normalizeTeamName(footySimName);
+export function resolveTeam(externalName, teamIndex) {
+  const n = normalizeTeamName(externalName);
   if (ALIASES[n]) {
     const aliased = normalizeTeamName(ALIASES[n]);
     if (teamIndex.has(aliased)) return { teamId: teamIndex.get(aliased), method: 'alias' };
