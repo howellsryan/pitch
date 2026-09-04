@@ -568,6 +568,8 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
   let hStr = state.hStr, aStr = state.aStr;
   const actionLedger = [...(state.actionLedger ?? [])];
   const segEvents = [];
+  const hBaseMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
+  const aBaseMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
 
   const inferredControlled = controlledTeamId
     ?? (state.homePlanSource === 'user' && state.awayPlanSource !== 'user' ? homeTeam.id
@@ -576,8 +578,6 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
   for (let phase = startPhase; phase <= endPhase; phase++) {
     const minute = Math.ceil((phase / MATCH_PHASES) * 90);
     const packet = fixedPhaseRngPacket(() => cursor.next());
-    const hBaseMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
-    const aBaseMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
     const hMods = scoreAdjustedMods(hBaseMods, state.homePlanSource, curHGoals, curAGoals, minute);
     const aMods = scoreAdjustedMods(aBaseMods, state.awayPlanSource, curAGoals, curHGoals, minute);
     const hMidShare = midfieldShare(hStr, aStr, hMods, aMods);
@@ -691,8 +691,6 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     }
   }
 
-  const hMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
-  const aMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
   return {
     segEvents,
     updatedState:{
@@ -705,7 +703,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       hActive:curHActive, aActive:curAActive, hBenchLeft:curHBench, aBenchLeft:curABench,
       hFitness, aFitness, hSubsLeft:curHSubs, aSubsLeft:curASubs,
       hGoals:curHGoals, aGoals:curAGoals, hPhases:curHPhases, aPhases:curAPhases,
-      hStr, aStr, hMods, aMods, hMidShare:midfieldShare(hStr, aStr, hMods, aMods), rngState:cursor.state,
+      hStr, aStr, hMods:hBaseMods, aMods:aBaseMods, hMidShare:midfieldShare(hStr, aStr, hBaseMods, aBaseMods), rngState:cursor.state,
     },
   };
 }
