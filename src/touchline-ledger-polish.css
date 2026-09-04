@@ -106,8 +106,7 @@
 }
 
 /* The visual pills remain 32px high, while their hit areas remain 44px. */
-#screen-transfers .tr-panel-title + .ftabs .ftab,
-#screen-transfers .pathway-launcher {
+#screen-transfers .tr-panel-title + .ftabs .ftab {
   position: relative;
 }
 
