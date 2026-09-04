@@ -482,8 +482,20 @@ function actionRiskMode(source, ownGoals, oppGoals, minute) {
   return 'normal';
 }
 
+const matchFitnessViewCache = new WeakMap();
+
 function withCurrentMatchFitness(players, fitnessMap) {
-  return (players ?? []).map(player => ({ ...player, fitness:fitnessMap.get(player.id) ?? player.fitness ?? 90 }));
+  const views = [];
+  for (const player of players ?? []) {
+    let view = matchFitnessViewCache.get(player);
+    if (!view) {
+      view = { ...player };
+      matchFitnessViewCache.set(player, view);
+    }
+    view.fitness = fitnessMap.get(player.id) ?? player.fitness ?? 90;
+    views.push(view);
+  }
+  return views;
 }
 
 function pickDisciplineTarget(candidates, roll) {
