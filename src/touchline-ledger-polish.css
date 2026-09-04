@@ -1,0 +1,257 @@
+/*
+ * Touchline Ledger polish — PR #26 visual corrections.
+ *
+ * These rules are intentionally screen-scoped and behavioural-neutral. They
+ * resolve control hierarchy regressions introduced by the denser market pass
+ * without changing Transfers or P9 loan-pathway state.
+ */
+
+/* ── Deals: one self-contained negotiation row. ─────────────────── */
+/*
+ * .sell-scroll is a column flex scroller. Deal rows must never shrink to fit
+ * that viewport: when they shrink, their action buttons overflow through the
+ * row divider and into the next negotiation. Let the scroller scroll instead.
+ */
+#screen-transfers .deal-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "type info value"
+    "type actions actions";
+  align-items: start;
+  column-gap: 10px;
+  row-gap: 7px;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  height: auto !important;
+  min-height: max-content !important;
+  overflow: visible;
+  padding: 10px 4px 11px;
+}
+
+#screen-transfers .deal-row > .pl-flag-sm {
+  grid-area: type;
+  align-self: start;
+  margin-top: 1px;
+}
+
+#screen-transfers .deal-row > .pl-info {
+  grid-area: info;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+#screen-transfers .deal-row > .pl-right {
+  grid-area: value;
+  align-self: start;
+  padding-top: 3px;
+}
+
+#screen-transfers .deal-row .pl-name {
+  line-height: 1.15;
+}
+
+#screen-transfers .deal-row .pl-meta {
+  line-height: 1.35;
+}
+
+#screen-transfers .deal-actions {
+  grid-area: actions;
+  width: auto;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 0;
+}
+
+#screen-transfers .deal-actions .sell-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-bug);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow: none;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Preserve a forgiving mobile hit area without making the button look huge. */
+#screen-transfers .deal-actions .sell-btn::before {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+}
+
+#screen-transfers .deal-actions .sell-btn.btn-secondary {
+  border-color: var(--color-line);
+  background: transparent;
+  color: var(--color-tx-2);
+}
+
+#screen-transfers .deal-actions .sell-btn.btn-secondary:hover {
+  border-color: color-mix(in oklch, var(--color-tx) 24%, var(--color-line));
+  background: var(--color-surface);
+  color: var(--color-tx);
+}
+
+#screen-transfers .deal-actions .sell-btn:not(.btn-secondary):hover {
+  background: color-mix(in oklch, var(--color-accent) 88%, white);
+}
+
+@media (max-width: 560px) {
+  #screen-transfers .deal-row {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    column-gap: 9px;
+    row-gap: 6px;
+    padding-block: 9px 10px;
+  }
+
+  #screen-transfers .deal-row > .pl-flag-sm {
+    width: 30px;
+    height: 30px;
+  }
+
+  #screen-transfers .deal-actions {
+    gap: 5px;
+  }
+
+  #screen-transfers .deal-actions .sell-btn {
+    height: 38px;
+    min-height: 38px;
+    padding-inline: 10px;
+    font-size: 9px;
+  }
+}
+
+/* ── Loans: Loanees is part of the same segmented control as In / Out. */
+#screen-transfers .pathway-launcher {
+  position: absolute;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-tx-2);
+  box-shadow: none;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+#screen-transfers .pathway-launcher:hover {
+  border-color: color-mix(in oklch, var(--color-tx) 22%, var(--color-line));
+  background: transparent;
+  color: var(--color-tx);
+}
+
+#screen-transfers .pathway-launcher.open {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+#screen-transfers .pathway-launcher span {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in oklch, currentColor 13%, transparent);
+  font-size: 8px;
+}
+
+/* The visual pills remain 32px high, while their hit areas remain 44px. */
+#screen-transfers .tr-panel-title + .ftabs .ftab {
+  position: relative;
+}
+
+#screen-transfers .tr-panel-title + .ftabs .ftab::before,
+#screen-transfers .pathway-launcher::before {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
+/* ── Loanee drawer: content determines height; never stretch player rows. */
+#screen-transfers .pathway-drawer {
+  display: block !important;
+}
+
+#screen-transfers .pathway-drawer > section {
+  display: block !important;
+  box-sizing: border-box;
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
+
+#screen-transfers .pathway-drawer .loan-row {
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) auto !important;
+  grid-auto-rows: max-content !important;
+  align-items: start !important;
+  align-content: start !important;
+  box-sizing: border-box;
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  padding: 10px 0 !important;
+}
+
+/*
+ * LoanPathwaysPanel historically calls the player-copy cell `.main`. That
+ * collides with the shell's global `.main`, whose job is to be viewport-high.
+ * Neutralise only the shell geometry here while retaining the component's
+ * own flex/typography rules. This is the source of the giant loanee gap.
+ */
+#screen-transfers .pathway-drawer .loan-row > .main {
+  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+}
+
+#screen-transfers .pathway-drawer .loan-row > * {
+  align-self: start;
+}
+
+#screen-transfers .pathway-drawer .loan-row + .loan-row {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 620px) {
+  #screen-transfers .pathway-drawer .loan-row {
+    grid-template-columns: 40px minmax(0, 1fr) !important;
+    row-gap: 5px;
+  }
+
+  #screen-transfers .pathway-drawer .loan-row > button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
