@@ -76,7 +76,12 @@ function team(id, instructions = {}) {
 }
 
 function clonePlayers(players) {
-  return players.map(player => structuredClone(player));
+  return players.map(player => ({
+    ...player,
+    attributeProfile:{ ...player.attributeProfile },
+    positionSuitability:{ ...(player.positionSuitability ?? {}) },
+    traits:[...(player.traits ?? [])],
+  }));
 }
 
 function finalShape(result) {
