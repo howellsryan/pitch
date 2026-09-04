@@ -80,6 +80,8 @@ const RISK_ROUTE_MULTIPLIERS = Object.freeze({
 });
 
 const PASS_ROUTES = new Set(['circulation', 'direct_pass', 'pass_into_space', 'wide_delivery']);
+const ACTION_TACTIC_CACHE = new WeakMap();
+const ACTION_CONTEXT_EDGE_CACHE = new WeakMap();
 
 function actionClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -99,8 +101,9 @@ function actionIsOutfield(player) {
 }
 
 function actionRoleIdFor(player, rolesById = {}) {
-  const requested = rolesById?.[player?.id] ?? player?.tacticalRole;
-  return resolvePlayerRole(player, requested)?.id ?? null;
+  const assigned = rolesById?.[player?.id];
+  if (assigned != null && ROLE_ACTION_WEIGHTS[assigned]) return assigned;
+  return resolvePlayerRole(player, player?.tacticalRole)?.id ?? null;
 }
 
 function actionRoleWeight(player, rolesById, actionId) {
@@ -189,6 +192,39 @@ function actionRouteIntentMultiplier(route, mentality, riskMode) {
   return mentalityMultiplier * riskMultiplier;
 }
 
+function actionTacticContext(input = {}) {
+  if (input && typeof input === 'object') {
+    const cached = ACTION_TACTIC_CACHE.get(input);
+    if (cached) return cached;
+    const normalized = normalizeTeamInstructions(input);
+    const context = { normalized, usage:tacticalActionUsage(normalized) };
+    ACTION_TACTIC_CACHE.set(input, context);
+    ACTION_TACTIC_CACHE.set(normalized, context);
+    return context;
+  }
+  const normalized = normalizeTeamInstructions(input);
+  return { normalized, usage:tacticalActionUsage(normalized) };
+}
+
+function actionCachedContextEdge(route, selfInstructions, opponentInstructions) {
+  if (selfInstructions && opponentInstructions
+    && typeof selfInstructions === 'object' && typeof opponentInstructions === 'object') {
+    let byOpponent = ACTION_CONTEXT_EDGE_CACHE.get(selfInstructions);
+    if (!byOpponent) {
+      byOpponent = new WeakMap();
+      ACTION_CONTEXT_EDGE_CACHE.set(selfInstructions, byOpponent);
+    }
+    let byRoute = byOpponent.get(opponentInstructions);
+    if (!byRoute) {
+      byRoute = new Map();
+      byOpponent.set(opponentInstructions, byRoute);
+    }
+    if (!byRoute.has(route)) byRoute.set(route, tacticalContextEdge(route, selfInstructions, opponentInstructions));
+    return byRoute.get(route);
+  }
+  return tacticalContextEdge(route, selfInstructions, opponentInstructions);
+}
+
 export function fixedPhaseRngPacket(nextRandom) {
   const packet = { version:MATCH_RNG_PACKET_VERSION };
   for (const field of MATCH_RNG_PACKET_FIELDS) packet[field] = Number(nextRandom());
@@ -205,8 +241,7 @@ export function actionContestProbability(edge) {
   return actionClamp(.18 + sigmoid * .67, .18, .85);
 }
 
-function actionChooseRoute(players, rolesById, instructions, packet, mentality, riskMode) {
-  const usage = tacticalActionUsage(instructions);
+function actionChooseRoute(players, rolesById, usage, packet, mentality, riskMode) {
   const routes = AUTHORITATIVE_ROUTES.map(route => ({
     route,
     weight:usage[route]
@@ -253,7 +288,7 @@ function actionRouteCounter(route, defender) {
 }
 
 function actionTacticalChanceAdjustments(instructions, mentality = 'balanced', riskMode = 'normal') {
-  const normalized = normalizeTeamInstructions(instructions);
+  const normalized = actionTacticContext(instructions).normalized;
   let frequency = 1;
   let xg = 0;
   if (normalized.chanceCreation === 'work_ball') { frequency *= .82; xg += .045; }
@@ -309,7 +344,11 @@ export function resolveShotOutcome({ shooter, defender, defenders = [], xg, pack
 
   const shootingModifier = actionClamp(1 + (shooting - 75) * .012, .72, 1.32);
   const keeperModifier = actionClamp(1 - (keeping - 75) * .010, .62, 1.38);
-  const goalGivenTarget = actionClamp((xg / Math.max(.18, onTargetChance)) * 1.08 * shootingModifier * keeperModifier, .06, .74);
+  // xG represents the chance before the shot is resolved. Once the attempt is
+  // on target, Shooting and goalkeeping should move the conversion probability
+  // monotonically; dividing by onTargetChance made elite shooting perversely
+  // lower conditional conversion because elite shooters also hit the target more.
+  const goalGivenTarget = actionClamp(xg * 2.15 * shootingModifier * keeperModifier, .06, .74);
   const goal = actionClamp(packet.finish, 0, .999999) < goalGivenTarget;
   return {
     finish:goal ? 'goal' : 'saved',
@@ -351,16 +390,18 @@ export function resolveAuthoritativePhase({
 } = {}) {
   if (!packet || packet.version !== MATCH_RNG_PACKET_VERSION) throw new Error('T3 requires a versioned fixed RNG packet');
 
-  const normalized = normalizeTeamInstructions(instructions);
-  const opponentNormalized = normalizeTeamInstructions(opponentInstructions);
-  const route = actionChooseRoute(attackers, rolesById, normalized, packet, mentality, riskMode);
+  const selfTactics = actionTacticContext(instructions);
+  const opponentTactics = actionTacticContext(opponentInstructions);
+  const normalized = selfTactics.normalized;
+  const opponentNormalized = opponentTactics.normalized;
+  const route = actionChooseRoute(attackers, rolesById, selfTactics.usage, packet, mentality, riskMode);
   const actionDef = TACTICAL_ACTION_DEFS[route];
   const actor = actionChooseActor(attackers, rolesById, route, packet.actor);
   const target = actionChooseTarget(attackers, rolesById, route, actor?.id, packet.target);
   const defender = actionChooseDefender(defenders, opponentRolesById, actionDef, packet.defender);
   const execution = actionRouteExecution(route, actor, target);
   const counter = actionRouteCounter(route, defender);
-  const context = tacticalContextEdge(route, normalized, opponentNormalized) + (isHome ? .9 : 0);
+  const context = actionCachedContextEdge(route, normalized, opponentNormalized) + (isHome ? .9 : 0);
   const edge = execution - counter + context;
   const successChance = actionContestProbability(edge);
   const success = packet.execution < successChance;
