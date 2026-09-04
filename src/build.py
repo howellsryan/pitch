@@ -54,6 +54,13 @@ MODULES += [
     ('modules/clubPhilosophy.js',   'CLUB PHILOSOPHY'),
     ('modules/facilities.js',       'CLUB FACILITIES'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
+    # T3 makes the previously shadow-only action stack authoritative. Keep the
+    # reviewed vocabulary/projection/resolver order immediately before the
+    # orchestrating match engine so the stripped legacy bundle sees every
+    # dependency before use.
+    ('modules/matchActionVocabulary.js', 'MATCH ACTION VOCABULARY'),
+    ('modules/tacticalProjection.js', 'TACTICAL PROJECTION'),
+    ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/startingFreeAgents.js','STARTING FREE AGENTS'),
     ('modules/standings.js',        'STANDINGS'),
