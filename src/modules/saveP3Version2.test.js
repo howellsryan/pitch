@@ -52,7 +52,7 @@ describe('P3 player contract v2 to final backfill', () => {
     const migration = buildP3PlayerModelBackfill(save, [before], []);
     const [after] = migration.playerPatches;
 
-    expect(PLAYER_MODEL_VERSION).toBe(4);
+    expect(PLAYER_MODEL_VERSION).toBe(5);
     expect(migration.save.playerModelVersion).toBe(PLAYER_MODEL_VERSION);
     expect(migration.save.lineup).toEqual(save.lineup);
     expect(migration.save.pendingEvents).toEqual(save.pendingEvents);
@@ -71,12 +71,18 @@ describe('P3 player contract v2 to final backfill', () => {
     expect(after.growthProfile).toBeTruthy();
     expect(after.potentialKnowledge).toBeGreaterThan(0);
     expect(after.traits.length).toBeGreaterThan(0);
+    expect(after.attributeProfile).toMatchObject({ version:1 });
+    expect(after.attack).toBe(before.attack);
+    expect(after.midfield).toBe(before.midfield);
+    expect(after.defence).toBe(before.defence);
+    expect(after.goalkeeping).toBe(before.goalkeeping);
     expect(baselineLevel(after)).toBe(baselineLevel(before));
   });
 
   it('does not rescan once the final P3 save marker is current', () => {
     const current = {
       ...v2Player('current'),
+      attributeProfile:{ version:1, pace:75, shooting:70, passing:82, dribbling:79, defending:67, physical:73 },
       squadRole:'crucial',
       squadRoleSource:'auto',
       squadRoleTeamId:'club',

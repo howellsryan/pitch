@@ -14,10 +14,15 @@ import { settleRehabilitation } from './playerRehabilitation.js';
  * This module is deliberately pure and DOM/DB-free. Durable football quality
  * remains the existing attack/midfield/defence/goalkeeping attributes; P3
  * derives short-term effective level from that baseline rather than storing a
- * competing overall rating.
+ * competing overall rating. T1 adds a versioned six-attribute execution
+ * profile while retaining the four headline ratings as compatibility fields.
  */
 
-export const PLAYER_MODEL_VERSION = 4;
+export const PLAYER_MODEL_VERSION = 5;
+export const ATTRIBUTE_PROFILE_VERSION = 1;
+export const DETAILED_ATTRIBUTE_KEYS = Object.freeze([
+  'pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical',
+]);
 export const DEFAULT_INDIVIDUAL_MORALE = 50;
 export const DEFAULT_SHARPNESS = 50;
 export const MAX_PLAYER_TRAITS = 3;
@@ -60,6 +65,15 @@ const BASELINE_ATTRIBUTE_BY_POSITION = Object.freeze({
   ST:'attack', CF:'attack', RW:'attack', LW:'attack', CAM:'attack',
   CM:'midfield', CDM:'midfield', RM:'midfield', LM:'midfield',
   CB:'defence', RB:'defence', LB:'defence', GK:'goalkeeping',
+});
+
+const DETAILED_ATTRIBUTE_SET = new Set(DETAILED_ATTRIBUTE_KEYS);
+const HEADLINE_ATTRIBUTE_KEYS = Object.freeze(['attack', 'midfield', 'defence', 'goalkeeping']);
+const DETAILED_BY_HEADLINE = Object.freeze({
+  attack:Object.freeze(['shooting', 'dribbling', 'pace', 'physical']),
+  midfield:Object.freeze(['passing', 'dribbling', 'pace', 'physical']),
+  defence:Object.freeze(['defending', 'physical', 'pace']),
+  goalkeeping:Object.freeze([]),
 });
 
 // Effective level is queried frequently by match and market consumers. Keep a
@@ -129,6 +143,199 @@ function sameObject(left, right) {
 
 function sameJson(left, right) {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function playerModelStableHash(value) {
+  let hash = 2166136261;
+  for (const char of String(value ?? '')) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function deterministicDetailedJitter(player, attribute) {
+  const hash = playerModelStableHash(`${player?.id ?? player?.name ?? 'player'}:${attribute}:t1`);
+  return (hash % 5) - 2;
+}
+
+function finiteHeadline(player, attribute, fallback = 50) {
+  const value = Number(player?.[attribute]);
+  return Number.isFinite(value) ? playerModelClamp(value, 1, 99) : fallback;
+}
+
+function legacyDetailedBase(player, attribute) {
+  const attack = finiteHeadline(player, 'attack');
+  const midfield = finiteHeadline(player, 'midfield');
+  const defence = finiteHeadline(player, 'defence');
+  const goalkeeping = finiteHeadline(player, 'goalkeeping', 10);
+  const position = String(player?.position ?? '').toUpperCase();
+
+  if (position === 'GK') {
+    const outfieldBase = playerModelClamp(Math.round((attack + midfield + defence) / 3), 10, 55);
+    if (attribute === 'physical') return playerModelClamp(Math.max(outfieldBase, Math.round(goalkeeping * .62)), 10, 70);
+    if (attribute === 'passing') return playerModelClamp(Math.max(midfield, Math.round(goalkeeping * .55)), 10, 65);
+    return outfieldBase;
+  }
+
+  if (attribute === 'shooting') {
+    if (['ST', 'CF'].includes(position)) return attack + 2;
+    if (['RW', 'LW', 'CAM'].includes(position)) return attack + 1;
+    if (['CB', 'RB', 'LB'].includes(position)) return attack - 3;
+    return attack;
+  }
+  if (attribute === 'passing') {
+    if (['CM', 'CDM', 'CAM', 'RM', 'LM'].includes(position)) return midfield + 2;
+    if (['RW', 'LW', 'RB', 'LB'].includes(position)) return midfield + 1;
+    return midfield;
+  }
+  if (attribute === 'dribbling') {
+    if (['RW', 'LW', 'CAM'].includes(position)) return Math.max(attack, midfield) + 2;
+    if (['ST', 'CF'].includes(position)) return Math.round((attack * 2 + midfield) / 3);
+    if (['CB'].includes(position)) return midfield - 4;
+    return midfield;
+  }
+  if (attribute === 'defending') {
+    if (['CB', 'RB', 'LB', 'CDM'].includes(position)) return defence + 2;
+    if (['ST', 'CF', 'RW', 'LW'].includes(position)) return defence - 2;
+    return defence;
+  }
+  if (attribute === 'physical') {
+    if (['CB', 'ST', 'CF', 'CDM'].includes(position)) return Math.max(defence, Math.round((attack + midfield) / 2)) + 1;
+    return Math.round((attack + midfield + defence) / 3) + 1;
+  }
+  if (attribute === 'pace') {
+    if (['RW', 'LW', 'RB', 'LB'].includes(position)) return Math.max(attack, midfield, defence) + 3;
+    if (['ST', 'CF'].includes(position)) return attack + 1;
+    if (position === 'CB') return Math.round((defence + midfield) / 2) - 1;
+    return Math.round((attack + midfield) / 2);
+  }
+  return 50;
+}
+
+function profileSourceValue(profile, player, attribute) {
+  const nested = Number(profile?.[attribute]);
+  if (Number.isFinite(nested)) return nested;
+  const direct = Number(player?.[attribute]);
+  return Number.isFinite(direct) ? direct : null;
+}
+
+export function normalizeAttributeProfile(profile, player = null) {
+  const normalized = { version:ATTRIBUTE_PROFILE_VERSION };
+  for (const attribute of DETAILED_ATTRIBUTE_KEYS) {
+    const explicit = profileSourceValue(profile, player, attribute);
+    const fallback = legacyDetailedBase(player, attribute) + deterministicDetailedJitter(player, attribute);
+    normalized[attribute] = Math.round(playerModelClamp(explicit ?? fallback, 1, 99));
+  }
+  return normalized;
+}
+
+export function attributeProfileFromSeed(player, seedPlayer = null) {
+  if (!player) return normalizeAttributeProfile(null, null);
+  const existingComplete = player?.attributeProfile?.version === ATTRIBUTE_PROFILE_VERSION
+    && DETAILED_ATTRIBUTE_KEYS.every(attribute => Number.isFinite(Number(player.attributeProfile?.[attribute])));
+  if (existingComplete) return normalizeAttributeProfile(player.attributeProfile, player);
+  if (!seedPlayer) return normalizeAttributeProfile(player.attributeProfile, player);
+
+  const seedProfile = normalizeAttributeProfile(seedPlayer.attributeProfile, seedPlayer);
+  const savedBaseline = Number(baselineLevel(player));
+  const seedBaseline = Number(baselineLevel(seedPlayer));
+  const delta = Number.isFinite(savedBaseline) && Number.isFinite(seedBaseline)
+    ? savedBaseline - seedBaseline
+    : 0;
+  const rescaled = { version:ATTRIBUTE_PROFILE_VERSION };
+  for (const attribute of DETAILED_ATTRIBUTE_KEYS) {
+    rescaled[attribute] = Math.round(playerModelClamp(seedProfile[attribute] + delta, 1, 99));
+  }
+  return rescaled;
+}
+
+export function detailedAttribute(player, attribute) {
+  if (!player || !DETAILED_ATTRIBUTE_SET.has(attribute)) return undefined;
+  const value = Number(player.attributeProfile?.[attribute]);
+  if (Number.isFinite(value)) return value;
+  return normalizeAttributeProfile(player.attributeProfile, player)[attribute];
+}
+
+function roleDetailedPreferences(position) {
+  const normalized = String(position ?? '').toUpperCase();
+  if (['ST', 'CF'].includes(normalized)) return ['shooting', 'shooting', 'physical', 'pace'];
+  if (['RW', 'LW', 'CAM'].includes(normalized)) return ['dribbling', 'dribbling', 'pace', 'passing', 'shooting'];
+  if (['CM', 'RM', 'LM'].includes(normalized)) return ['passing', 'passing', 'dribbling', 'physical'];
+  if (normalized === 'CDM') return ['defending', 'passing', 'physical', 'pace'];
+  if (['CB', 'RB', 'LB'].includes(normalized)) return ['defending', 'defending', 'physical', 'pace'];
+  return [];
+}
+
+function preferredDetailedAttributes(player, headline) {
+  const plan = player?.developmentPlan?.id;
+  if (plan === 'finishing') return ['shooting', 'shooting', 'shooting', 'dribbling', 'physical'];
+  if (plan === 'creation') return ['passing', 'passing', 'dribbling'];
+  if (plan === 'defending') return ['defending', 'defending', 'physical', 'pace'];
+  if (plan === 'physical') return ['pace', 'physical'];
+  if (plan === 'role') return roleDetailedPreferences(player?.position);
+  if (plan === 'position_conversion') {
+    return roleDetailedPreferences(player?.developmentPlan?.targetPosition ?? player?.positionConversion?.targetPosition);
+  }
+  return [];
+}
+
+function chooseDetailedDevelopmentAttribute(player, headline, seed) {
+  const allowed = DETAILED_BY_HEADLINE[headline] ?? [];
+  const candidates = preferredDetailedAttributes(player, headline)
+    .filter(attribute => allowed.includes(attribute));
+  if (candidates.length) {
+    return candidates[playerModelStableHash(`${player?.id ?? player?.name}:${seed}:${headline}:plan`) % candidates.length];
+  }
+  if (!allowed.length) return null;
+  // Balanced development catches up a relevant weakness before adding more
+  // specialisation. Hash only breaks ties so retries remain deterministic.
+  const profile = normalizeAttributeProfile(player?.attributeProfile, player);
+  return [...allowed].sort((left, right) =>
+    profile[left] - profile[right]
+      || playerModelStableHash(`${player?.id}:${seed}:${left}`) - playerModelStableHash(`${player?.id}:${seed}:${right}`)
+  )[0];
+}
+
+function chooseDetailedDeclineAttribute(player, headline, seed) {
+  const allowed = DETAILED_BY_HEADLINE[headline] ?? [];
+  if (!allowed.length) return null;
+  const age = Number(player?.age ?? 28);
+  const athleticBias = age >= 29 ? 3 : age >= 27 ? 2 : 1;
+  const weighted = [];
+  for (const attribute of allowed) {
+    const repeats = ['pace', 'physical'].includes(attribute) ? athleticBias : 1;
+    for (let index = 0; index < repeats; index++) weighted.push(attribute);
+  }
+  return weighted[playerModelStableHash(`${player?.id ?? player?.name}:${seed}:${headline}:decline`) % weighted.length];
+}
+
+/**
+ * T1 keeps the existing four headline development/decline behaviour exactly,
+ * then mirrors any durable change into the detailed profile. This lets training
+ * and age curves start shaping future action attributes without changing the
+ * current match engine before T2/T3.
+ */
+export function syncDetailedProfileAfterHeadlineChange(before, after, seed = 'development') {
+  if (!before || !after || before === after) return after;
+  const profile = normalizeAttributeProfile(after.attributeProfile ?? before.attributeProfile, before);
+  let changed = false;
+  for (const headline of HEADLINE_ATTRIBUTE_KEYS) {
+    const beforeValue = Number(before[headline]);
+    const afterValue = Number(after[headline]);
+    if (!Number.isFinite(beforeValue) || !Number.isFinite(afterValue) || beforeValue === afterValue) continue;
+    // Goalkeepers retain the existing single goalkeeping rating in T1. Do not
+    // invent detailed shot-stopping/handling attributes from a headline delta.
+    if (headline === 'goalkeeping') continue;
+    const delta = afterValue - beforeValue;
+    const detailed = delta < 0
+      ? chooseDetailedDeclineAttribute(after, headline, seed)
+      : chooseDetailedDevelopmentAttribute(after, headline, seed);
+    if (!detailed) continue;
+    profile[detailed] = Math.round(playerModelClamp(profile[detailed] + delta, 1, 99));
+    changed = true;
+  }
+  return changed ? { ...after, attributeProfile:profile } : after;
 }
 
 /**
@@ -231,7 +438,7 @@ function inferredProspectRole(player) {
 }
 
 /**
- * Additive P3 row normaliser. It owns only P3's player-state fields and spreads
+ * Additive P3 row normaliser. It owns only P3/T1 player-state fields and spreads
  * every legacy/career field through unchanged. Settlement snapshots initialise
  * from cumulative stats so upgrading an old career never treats the season so
  * far as one week's activity.
@@ -251,6 +458,7 @@ export function normalizePlayerModel(player) {
   const developmentMinutes = nonNegativeNumber(player.developmentMinutes, nonNegativeNumber(player.minutes));
   return {
     ...player,
+    attributeProfile:normalizeAttributeProfile(player.attributeProfile, player),
     positionSuitability:normalizePositionSuitability(player.positionSuitability, player.position),
     positionConversion:player.positionConversion ?? null,
     traits:normalizePlayerTraits(player.traits, player),
@@ -278,7 +486,8 @@ export function normalizePlayerModel(player) {
 export function playerModelNeedsNormalization(player) {
   if (!player) return false;
   const normalized = normalizePlayerModel(player);
-  return !sameObject(player.positionSuitability, normalized.positionSuitability)
+  return !sameJson(player.attributeProfile, normalized.attributeProfile)
+    || !sameObject(player.positionSuitability, normalized.positionSuitability)
     || !sameJson(player.positionConversion, normalized.positionConversion)
     || !sameArray(player.traits, normalized.traits)
     || player.individualMorale !== normalized.individualMorale
@@ -440,6 +649,20 @@ export function effectiveAttribute(player, attribute) {
   if (!Number.isFinite(raw)) return undefined;
   const trait = playerModelClamp(traitAttributeModifier(player, attribute), 0, EFFECTIVE_LEVEL_LIMITS.traitSwing);
   return round1(playerModelClamp(raw + effectiveStateModifier(player) + trait, 1, 99));
+}
+
+/**
+ * Detailed-action selector for T2/T3. T1 exposes it without wiring it into the
+ * authoritative match engine. It inherits the same bounded transient delta as
+ * the player's current effective level so form/readiness stay single-source.
+ */
+export function effectiveDetailedAttribute(player, attribute, { position = player?.position } = {}) {
+  const raw = detailedAttribute(player, attribute);
+  if (!Number.isFinite(raw)) return undefined;
+  const baseline = Number(baselineLevel(player, position));
+  const effective = Number(currentEffectiveLevel(player, { position }));
+  const delta = Number.isFinite(baseline) && Number.isFinite(effective) ? effective - baseline : 0;
+  return round1(playerModelClamp(raw + delta, 1, 99));
 }
 
 export function personalStateWeekKey(season, gameweek) {
@@ -734,7 +957,9 @@ export function buildPersonalStatePatches(players, gameweek, season = null) {
       settled = settlePlayingTimeAgreement(settled, gameweek, season);
     }
     settled = settlePlayerPersonalState(settled, gameweek, season);
+    const beforeDevelopment = settled;
     settled = settlePlayerDevelopment(settled, gameweek, season);
+    settled = syncDetailedProfileAfterHeadlineChange(beforeDevelopment, settled, `${String(season ?? 'unknown')}:${gameweek}`);
     settled = settlePositionConversion(settled, gameweek, season);
     settled = settleRehabilitation(settled, gameweek, season);
     if (settled !== original) patches.push(settled);

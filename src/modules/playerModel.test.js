@@ -38,7 +38,7 @@ function player(position, overrides = {}) {
 
 describe('P3 canonical player-model selectors', () => {
   it('versions the final additive player-model contract', () => {
-    expect(PLAYER_MODEL_VERSION).toBe(4);
+    expect(PLAYER_MODEL_VERSION).toBe(5);
   });
 
   it.each(CASES)('preserves established %s grouping and neutral baseline parity', (position, group, attribute) => {
