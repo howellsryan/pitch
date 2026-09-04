@@ -1,8 +1,8 @@
 // tools/lib/leagueSchema.mjs
-// Central registry of the 7 leagues footy-sim has CSVs for, and where each
-// side's files live. Serie A and Eredivisie are deliberately absent - they
-// stay on pitch's own data per docs/plan/06-data-reconciliation.md
-// ("footy-sim has no CSVs for either").
+// Central registry for every league Pitch currently models. Seven were
+// originally sourced from footy-sim; Serie A and Eredivisie are now included
+// in the same generation/refresh surface so roster freshness cannot silently
+// stop at the old reconciliation boundary.
 
 export const VALID_POSITIONS = new Set([
   'GK', 'RB', 'LB', 'CB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'RW', 'LW', 'CF', 'ST',
@@ -57,18 +57,19 @@ export const LEAGUES = [
   },
 ];
 
-// Leagues that stay on pitch's own data - footy-sim has no CSV for either.
 export const PITCH_NATIVE_LEAGUES = [
   {
-    key: 'serie_a', label: 'Serie A', dataFile: 'serieA.js', arrayName: 'SERIE_A_TEAMS',
+    key: 'serie_a', label: 'Serie A', dataFile: 'serieA.js', arrayName: 'SERIE_A_TEAMS', helperName: 'sap',
     pitchPlayersCsv: 'serie_a_players.csv', pitchTeamsCsv: 'serie_a_teams.csv',
   },
   {
-    key: 'eredivisie', label: 'Eredivisie', dataFile: 'eredivisie.js', arrayName: 'EREDIVISIE_TEAMS',
+    key: 'eredivisie', label: 'Eredivisie', dataFile: 'eredivisie.js', arrayName: 'EREDIVISIE_TEAMS', helperName: 'erp',
     pitchPlayersCsv: 'eredivisie_players.csv', pitchTeamsCsv: 'eredivisie_teams.csv',
   },
 ];
 
+export const ALL_LEAGUES = Object.freeze([...LEAGUES, ...PITCH_NATIVE_LEAGUES]);
+
 export function allTrackedLeagueKeys() {
-  return [...LEAGUES.map((l) => l.key), ...PITCH_NATIVE_LEAGUES.map((l) => l.key)];
+  return ALL_LEAGUES.map((league) => league.key);
 }

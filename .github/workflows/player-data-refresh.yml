@@ -1,0 +1,91 @@
+name: Refresh football data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+  # Bootstrap/validate the FC27-authoritative implementation branch, including
+  # verified EA aliases, the FC27-supported Pitch club universe, the accepted
+  # one-goalkeeper minimum, retired pre-FC27 roster assertions, data-driven
+  # club/free-agent tests, and a generated audit report. Generated data does not
+  # match this path filter, so the bot's generated-data commit cannot loop.
+  push:
+    branches: [data/refresh-2026-rosters-ratings]
+    paths:
+      - .github/workflows/player-data-refresh.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Refresh FC27 squads and ratings
+        run: npm run refresh:players
+
+      - name: Verify refreshed data
+        run: |
+          npm run build:legacy
+          npm run build:app
+          npm run lint
+          npm run test
+          npm run check:accents
+
+      - name: Commit refresh to implementation branch
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No football-data changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data tools/player-data-report.json
+          git commit -m "Data: refresh squads and ratings from FC27"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Open scheduled refresh PR
+        if: github.event_name != 'push' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No football-data changes."
+            exit 0
+          fi
+          BRANCH="data/player-refresh-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add src/data tools/player-data-report.json
+          git commit -m "Data: refresh squads and ratings from FC27"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Data: refresh squads and ratings from FC27" \
+            --body "Automated weekly football-data refresh. EA SPORTS FC 27 is the source of truth for player club affiliation, overall rating, position and public face attributes. Pitch preserves/fits game-specific value, wage and potential fields. The refresh passed Pitch's build, lint, unit-test and accent gates before this PR was opened. Review tools/player-data-report.json for club resolution, roster coverage, rating swings and sanity checks."
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: player-data-report
+          path: tools/player-data-report.json
+          if-no-files-found: ignore
+          retention-days: 14
