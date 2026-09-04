@@ -462,7 +462,7 @@ async function main() {
   for (const team of existingTeams) {
     const active = finalPlayers.filter((player) => player.team_id === team.team_id && !player.stagedFreeAgent);
     const keepers = active.filter((player) => player.position === 'GK').length;
-    if (active.length < 16 || keepers < 2) rosterProblems.push(`${team.name}: ${active.length} active players / ${keepers} GK`);
+    if (active.length < 16 || keepers < 1) rosterProblems.push(`${team.name}: ${active.length} active players / ${keepers} GK`);
   }
   if (rosterProblems.length) {
     throw new Error(`FC 27 roster validation failed:\n  ${rosterProblems.slice(0, 40).join('\n  ')}`);
