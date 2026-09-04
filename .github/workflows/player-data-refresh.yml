@@ -6,9 +6,9 @@ on:
     - cron: '17 5 * * 1'
   # Bootstrap/validate the FC27-authoritative implementation branch, including
   # verified EA aliases, the FC27-supported Pitch club universe, the accepted
-  # one-goalkeeper minimum, retired pre-FC27 roster assertions, and data-driven
-  # club/free-agent tests. Generated data does not match this path filter, so
-  # the bot's generated-data commit cannot trigger a loop.
+  # one-goalkeeper minimum, retired pre-FC27 roster assertions, data-driven
+  # club/free-agent tests, and a generated audit report. Generated data does not
+  # match this path filter, so the bot's generated-data commit cannot loop.
   push:
     branches: [data/refresh-2026-rosters-ratings]
     paths:
