@@ -9,7 +9,7 @@
   const primaryDestinations = [
     { id: 'home', label: 'Home', icon: 'home' },
     { id: 'squad', label: 'Squad', icon: 'squad' },
-    { id: 'match', label: 'Play', icon: 'kickoff', emphasis: true },
+    { id: 'match', label: 'Play', icon: 'play', emphasis: true },
     { id: 'transfers', label: 'Market', icon: 'market' },
   ];
 
