@@ -351,7 +351,10 @@ body > .sheet {
   #screen-transfers .tr-tabs { padding-inline: 16px; }
   #screen-transfers .tr-panel {
     padding-inline: 16px;
-    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+    /* The shell already ends above the persistent bottom command strip and
+       its safe area. Do not reserve that navigation height a second time here:
+       the market's flex scrollers should own the complete working viewport. */
+    padding-bottom: 10px;
   }
   #screen-transfers .tr-budget-val { font-size: 19px; }
   #screen-transfers .tr-wage-lbl { max-width: 130px; }
@@ -493,19 +496,4 @@ body > .sheet {
   color: var(--color-tx);
   font-size: 15px;
   font-weight: 800;
-}
-
-@media (min-width: 900px) {
-  #screen-competitions .league-screen {
-    padding-inline: 28px;
-    padding-bottom: 28px;
-  }
-  #screen-competitions .league-body {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 24px;
-  }
-  #screen-competitions .league-results-list {
-    max-height: calc(100vh - 190px);
-    overflow-y: auto;
-  }
 }
