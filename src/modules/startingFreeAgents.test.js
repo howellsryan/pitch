@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { isVerifiedStartingFreeAgent, normalizeFreeAgentName, prepareStartingFreeAgent } from './startingFreeAgents.js';
+import {
+  STARTING_FREE_AGENT_NAMES,
+  isVerifiedStartingFreeAgent,
+  normalizeFreeAgentName,
+  prepareStartingFreeAgent,
+} from './startingFreeAgents.js';
 
 describe('starting free agents', () => {
-  it('matches verified names without losing accent variants', () => {
+  it('normalizes accents and recognizes every generated free-agent name', () => {
     expect(normalizeFreeAgentName('  Nathan Aké ')).toBe('nathan ake');
-    expect(isVerifiedStartingFreeAgent('Nathan Ake')).toBe(true);
-    expect(isVerifiedStartingFreeAgent('Dušan Vlahović')).toBe(true);
+    expect(Array.isArray(STARTING_FREE_AGENT_NAMES)).toBe(true);
+    for (const name of STARTING_FREE_AGENT_NAMES) {
+      expect(normalizeFreeAgentName(name)).not.toBe('');
+      expect(isVerifiedStartingFreeAgent(name), name).toBe(true);
+    }
   });
 
   it('does not classify ordinary contracted players', () => {
@@ -14,7 +22,7 @@ describe('starting free agents', () => {
 
   it('moves the existing canonical row into the shared pool', () => {
     const player = {
-      id:'ake', name:'Nathan Aké', teamId:'man_city', contractExpiry:2028,
+      id:'test-player', name:'Test Player', teamId:'test-club', contractExpiry:2028,
       transferListed:true, inSquad:true, signedThisSeason:true, squadRole:'important',
     };
     const prepared = prepareStartingFreeAgent(player);
