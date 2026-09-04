@@ -1,0 +1,88 @@
+name: Refresh football data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+  # Bootstrap the first refresh on the implementation branch. Generated data
+  # does not match this path filter, so the bot's data commit cannot loop.
+  push:
+    branches: [data/refresh-2026-rosters-ratings]
+    paths:
+      - .github/workflows/player-data-refresh.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Refresh current squads and ratings
+        run: npm run refresh:players
+
+      - name: Verify refreshed data
+        run: |
+          npm run build:legacy
+          npm run build:app
+          npm run lint
+          npm run test
+          npm run check:accents
+
+      - name: Commit refresh to implementation branch
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No football-data changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data tools/player-data-report.json
+          git commit -m "Data: refresh current squads and FC27 ratings"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Open scheduled refresh PR
+        if: github.event_name != 'push' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No football-data changes."
+            exit 0
+          fi
+          BRANCH="data/player-refresh-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add src/data tools/player-data-report.json
+          git commit -m "Data: refresh current squads and FC27 ratings"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Data: refresh current squads and FC27 ratings" \
+            --body "Automated weekly football-data refresh. Current club membership comes from the weekly Transfermarkt dataset; ratings come from EA SPORTS FC 27. The refresh passed Pitch's build, lint, unit-test and accent gates before this PR was opened. Review tools/player-data-report.json for coverage, moves, omissions and rating swings."
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: player-data-report
+          path: tools/player-data-report.json
+          if-no-files-found: ignore
+          retention-days: 14
