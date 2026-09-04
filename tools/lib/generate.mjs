@@ -13,7 +13,9 @@ function escapeJs(s) {
 }
 
 function detailedArg(player, key) {
-  const value = Number(player?.[key]);
+  const raw = player?.[key];
+  if (raw == null || raw === '') return 'null';
+  const value = Number(raw);
   return Number.isFinite(value) ? String(Math.round(value)) : 'null';
 }
 
