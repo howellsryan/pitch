@@ -49,11 +49,15 @@ const DRY_RUN = process.argv.includes('--dry-run');
 const EA_MAX_PAGES = Number(process.env.PITCH_EA_MAX_PAGES || 500);
 const EA_LIST = 'https://www.ea.com/games/ea-sports-fc/ratings';
 const UA = 'Mozilla/5.0 (compatible; PitchRosterRefresh/2.0; +https://github.com/howellsryan/pitch)';
+const DETAILED_ATTRIBUTE_KEYS = Object.freeze([
+  'pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical',
+]);
 
 const PLAYER_HEADER = [
   'team_id', 'player_id', 'name', 'nationality', 'position', 'age',
-  'attack', 'midfield', 'defence', 'goalkeeping', 'value_millions',
-  'wage_thousands', 'potential', 'is_wonderkid',
+  'attack', 'midfield', 'defence', 'goalkeeping',
+  ...DETAILED_ATTRIBUTE_KEYS,
+  'value_millions', 'wage_thousands', 'potential', 'is_wonderkid',
 ];
 const TEAM_HEADER = [
   'team_id', 'name', 'short_name', 'crest', 'league', 'stadium',
@@ -331,6 +335,35 @@ function makeLeagueModels(existingPlayers) {
   return { wages, values };
 }
 
+function detailedProfileComplete(player) {
+  return DETAILED_ATTRIBUTE_KEYS.every(key => Number.isFinite(Number(player?.[key])));
+}
+
+function summarizeDetailedAttributes(players) {
+  const complete = (players ?? []).filter(detailedProfileComplete);
+  const attributes = Object.fromEntries(DETAILED_ATTRIBUTE_KEYS.map(key => {
+    const values = complete.map(player => Number(player[key]));
+    if (!values.length) return [key, { count:0, min:null, max:null, mean:null }];
+    const mean = Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100;
+    return [key, { count:values.length, min:Math.min(...values), max:Math.max(...values), mean }];
+  }));
+  return { players:(players ?? []).length, complete:complete.length, attributes };
+}
+
+function detailedAttributeAudit(players) {
+  const outfield = (players ?? []).filter(player => player.position !== 'GK');
+  const missing = outfield.filter(player => !detailedProfileComplete(player));
+  const leagueKeys = [...new Set((players ?? []).map(player => player.leagueKey).filter(Boolean))].sort();
+  const positions = [...new Set((players ?? []).map(player => player.position).filter(Boolean))].sort();
+  return {
+    requiredNonGoalkeepers:outfield.length,
+    completeNonGoalkeepers:outfield.length - missing.length,
+    missingNonGoalkeepers:missing.length,
+    byLeague:Object.fromEntries(leagueKeys.map(key => [key, summarizeDetailedAttributes(players.filter(player => player.leagueKey === key))])),
+    byPosition:Object.fromEntries(positions.map(position => [position, summarizeDetailedAttributes(players.filter(player => player.position === position))])),
+  };
+}
+
 async function main() {
   console.log('=== Pitch FC 27 player refresh ===');
   console.log(`Mode: ${DRY_RUN ? 'dry run' : 'write'}\n`);
@@ -410,6 +443,7 @@ async function main() {
       midfield: aggregates.midfield,
       defence: aggregates.defence,
       goalkeeping: aggregates.goalkeeping,
+      ...(attrs ?? {}),
       value_millions: valueMillions,
       wage_thousands: wageThousands,
       potential,
@@ -468,6 +502,14 @@ async function main() {
     throw new Error(`FC 27 roster validation failed:\n  ${rosterProblems.slice(0, 40).join('\n  ')}`);
   }
 
+  const detailedProblems = finalPlayers
+    .filter(player => player.position !== 'GK' && !detailedProfileComplete(player))
+    .map(player => `${player.name} [${player.player_id}] (${player.position}, ${player.team_id})`);
+  if (detailedProblems.length) {
+    throw new Error(`FC 27 detailed-attribute validation failed for ${detailedProblems.length} non-goalkeepers:\n  ${detailedProblems.slice(0, 40).join('\n  ')}`);
+  }
+  const detailedAttributes = detailedAttributeAudit(finalPlayers);
+
   const finalByName = new Map(finalPlayers.map((player) => [normalizePersonName(player.name), player]));
   const sanity = Object.fromEntries(['Milos Kerkez', 'Antony'].map((name) => {
     const player = finalByName.get(normalizePersonName(name));
@@ -479,6 +521,7 @@ async function main() {
       midfield: player.midfield,
       defence: player.defence,
       goalkeeping: player.goalkeeping,
+      attributes:Object.fromEntries(DETAILED_ATTRIBUTE_KEYS.map(key => [key, player[key] ?? null])),
     } : null];
   }));
 
@@ -520,6 +563,7 @@ async function main() {
       ratingsFallback: 0,
       ageFallbacks: ageFallbacks.length,
       nationalityFallbacks: nationalityFallbacks.length,
+      detailedAttributes,
     },
     teamResolution: {
       clubs: clubResolution,
@@ -537,6 +581,7 @@ async function main() {
   console.log(`\nFC 27 clubs resolved: ${pitchToEaClub.size}/${existingTeams.length}`);
   console.log(`Players imported: ${finalPlayers.length}; moved clubs: ${movedPlayers}; new to Pitch: ${newPlayers}; free agents staged: ${freeAgentNames.length}`);
   console.log(`Ratings: ${finalPlayers.length}/${finalPlayers.length} from EA FC 27 (100.0%)`);
+  console.log(`Detailed attributes: ${detailedAttributes.completeNonGoalkeepers}/${detailedAttributes.requiredNonGoalkeepers} required non-goalkeepers complete`);
   console.log(`Metadata fallbacks: age=${ageFallbacks.length}, nationality=${nationalityFallbacks.length}`);
   console.log(`Sanity: Kerkez=${JSON.stringify(sanity['Milos Kerkez'])}; Antony=${JSON.stringify(sanity.Antony)}`);
 
