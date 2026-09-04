@@ -7,6 +7,13 @@
  *      six face attributes. FC 27 is the post-2025/26 rating baseline, so this
  *      avoids hand-tuned reputation guesses after the 2024/25 + 2025/26 seasons.
  *
+ * Transfermarkt's curated clubs table only contains clubs tied to the dataset's
+ * tracked competition set. The much broader players table also carries each
+ * player's current club ID/name/domestic competition, so this tool derives the
+ * complete current-club map from players and then enriches it with clubs.csv.
+ * That is what keeps Championship, League One and League Two in the same refresh
+ * path as the top-flight leagues.
+ *
  * This tool deliberately does NOT run from `npm run build`: normal builds stay
  * deterministic/offline. Run `npm run refresh:players`; the scheduled workflow
  * runs the same command and opens a reviewable data PR.
@@ -124,6 +131,33 @@ async function fetchTransfermarktTable(name) {
   const response = await fetchWithRetry(url, { binary: true });
   const text = gunzipSync(response.body).toString('utf8');
   return { rows: parseRfc4180(text), url, lastModified: response.lastModified || response.date };
+}
+
+function buildCurrentClubRows(tmPlayers, tmClubs) {
+  const byId = new Map();
+  for (const club of tmClubs) {
+    const id = cleanId(club.club_id);
+    if (id) byId.set(id, { ...club, club_id: id });
+  }
+  for (const player of tmPlayers) {
+    const id = cleanId(player.current_club_id);
+    const name = String(player.current_club_name || '').trim();
+    if (!id || !name) continue;
+    const competition = String(player.current_club_domestic_competition_id || '').trim();
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, {
+        club_id: id,
+        name,
+        domestic_competition_id: competition,
+        derived_from_players: true,
+      });
+      continue;
+    }
+    if (!existing.name) existing.name = name;
+    if (!existing.domestic_competition_id && competition) existing.domestic_competition_id = competition;
+  }
+  return [...byId.values()];
 }
 
 function parseNextData(html) {
@@ -345,7 +379,8 @@ async function main() {
   ]);
   const tmPlayers = tmPlayersResult.rows;
   const tmClubs = tmClubsResult.rows;
-  console.log(`  Transfermarkt: ${tmClubs.length} clubs, ${tmPlayers.length} players`);
+  const currentClubs = buildCurrentClubRows(tmPlayers, tmClubs);
+  console.log(`  Transfermarkt: ${tmClubs.length} curated clubs, ${currentClubs.length} current clubs derived, ${tmPlayers.length} players`);
 
   console.log('Fetching official EA SPORTS FC 27 ratings...');
   const eaResult = await fetchEaPlayers();
@@ -354,12 +389,11 @@ async function main() {
 
   const leagueByKey = new Map(ALL_LEAGUES.map((league) => [league.key, league]));
   const pitchTeamIndex = buildTeamIndex(existingTeams);
-  const sourceClubById = new Map(tmClubs.map((club) => [cleanId(club.club_id), club]));
+  const sourceClubById = new Map(currentClubs.map((club) => [cleanId(club.club_id), club]));
   const sourceClubToPitch = new Map();
   const pitchToSourceClub = new Map();
-  const sourceResolutionMethods = new Map();
 
-  for (const club of tmClubs) {
+  for (const club of currentClubs) {
     const resolved = resolveTeam(club.name, pitchTeamIndex);
     if (!resolved) continue;
     const clubId = cleanId(club.club_id);
@@ -373,7 +407,6 @@ async function main() {
     }
     sourceClubToPitch.set(clubId, resolved.teamId);
     pitchToSourceClub.set(resolved.teamId, club);
-    sourceResolutionMethods.set(resolved.teamId, resolved.method);
   }
 
   const unresolvedPitchTeams = existingTeams
@@ -404,7 +437,7 @@ async function main() {
     if (team.leagueKey !== targetLeague) movedTeams.push({ teamId: team.team_id, name: team.name, from: team.leagueKey, to: targetLeague });
   }
 
-  const missingPitchClubs = tmClubs
+  const missingPitchClubs = currentClubs
     .filter((club) => TRANSFERMARKT_COMPETITION_TO_LEAGUE[club.domestic_competition_id] && !sourceClubToPitch.has(cleanId(club.club_id)))
     .map((club) => ({ clubId: cleanId(club.club_id), name: club.name, competition: club.domestic_competition_id }));
 
@@ -477,7 +510,6 @@ async function main() {
   const finalPlayers = [];
   const finalPlayerIds = new Set();
   const ratingSwings = [];
-  const eaMatchedIds = new Set();
 
   function finalizeDraft(draft, { forcePlayerId = null } = {}) {
     const rating = Math.max(1, Math.min(99, Math.round(draft.rating)));
@@ -501,7 +533,6 @@ async function main() {
     if (!playerId) playerId = mintPlayerId(draft.targetTeamId, draft.source.name, usedIds);
     if (finalPlayerIds.has(playerId)) playerId = mintPlayerId(draft.targetTeamId, draft.source.name, usedIds);
     finalPlayerIds.add(playerId);
-    if (draft.ea) eaMatchedIds.add(playerId);
     const previousOverall = overallOfPitchRow(existing);
     if (existing && Math.abs(previousOverall - rating) >= 4) {
       ratingSwings.push({ name: draft.source.name, team: draft.targetTeamId, from: previousOverall, to: rating, source: draft.ea ? 'EA FC 27' : 'market-value fallback' });
@@ -574,9 +605,9 @@ async function main() {
   if (duplicateIds.length) throw new Error(`Duplicate player IDs after refresh: ${duplicateIds.slice(0, 10).join(', ')}`);
 
   const rosterProblems = [];
+  const freeKeys = new Set(freeAgentNames.map(normalizePersonName));
   for (const team of finalTeams) {
     const roster = finalPlayers.filter((player) => player.team_id === team.team_id);
-    const freeKeys = new Set(freeAgentNames.map(normalizePersonName));
     const activeRoster = roster.filter((player) => !freeKeys.has(normalizePersonName(player.name)));
     const keepers = activeRoster.filter((player) => player.position === 'GK').length;
     if (activeRoster.length < 16 || keepers < 2) rosterProblems.push(`${team.name}: ${activeRoster.length} active players / ${keepers} GK`);
@@ -630,7 +661,8 @@ async function main() {
       fallbackRatings: eaMisses.length,
     },
     teamResolution: {
-      exactOrContains: finalTeams.length,
+      currentClubsDerived: currentClubs.length,
+      resolvedPitchTeams: finalTeams.length,
       unresolvedPitchTeams,
       sourceClubsInTrackedLeaguesWithoutPitchTeam: missingPitchClubs,
       movedTeams,
