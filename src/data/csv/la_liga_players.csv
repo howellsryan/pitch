@@ -1,524 +1,557 @@
 team_id,player_id,name,nationality,position,age,attack,midfield,defence,goalkeeping,value_millions,wage_thousands,potential,is_wonderkid
-real_madrid,rma_courtois,Thibaut Courtois,Belgian,GK,33,14,16,20,89,70,220,89,0
-real_madrid,rma_lunin,Andriy Lunin,Ukrainian,GK,26,10,10,12,82,18,55,84,0
-real_madrid,real_madrid_gonzalez,Fran González,Spanish,GK,20,10,11,13,70,9,20,78,0
-real_madrid,real_madrid_mestre,Sergio Mestre,Spanish,GK,20,10,11,13,68,6.9,16,76,0
-real_madrid,rma_taa,Trent Alexander-Arnold,English,RB,26,78,72,83,10,85,195,89,0
-real_madrid,rma_militao,Éder Militão,Brazilian,CB,27,50,55,84,10,72,185,86,0
-real_madrid,rma_rudiger,Antonio Rüdiger,German,CB,32,47,53,82,10,42,165,85,0
-real_madrid,real_madrid_alaba,David Alaba,Austrian,CB,33,65,63,89,10,56.6,194,89,0
-real_madrid,rma_asencio,Raúl Asencio,Spanish,CB,22,49,53,77,10,15,25,84,1
-real_madrid,rma_huijsen,Dean Huijsen,Spanish,CB,20,50,53,75,10,42,55,87,1
-real_madrid,rma_mendy,Ferland Mendy,French,LB,30,64,63,79,10,42,155,82,0
-real_madrid,rma_carreras,Álvaro Carreras,Spanish,LB,22,62,61,74,10,35,65,83,0
-real_madrid,rma_fran_garcia,Fran García,Spanish,LB,26,65,63,72,10,22,55,82,0
-real_madrid,rma_tchouameni,Aurélien Tchouaméni,French,CDM,25,60,80,68,10,105,185,90,0
-real_madrid,rma_camavinga,Eduardo Camavinga,French,CM,22,64,79,63,10,115,165,90,0
-real_madrid,rma_valverde,Federico Valverde,Uruguayan,CM,27,72,82,71,10,125,285,88,0
-real_madrid,rma_bellingham,Jude Bellingham,English,CAM,22,78,86,64,10,220,310,93,1
-real_madrid,real_madrid_ceballos,Dani Ceballos,Spanish,CM,29,67,77,57,10,15.5,47,79,0
-real_madrid,rma_guler,Arda Güler,Turkish,CAM,20,79,80,55,10,72,75,88,1
-real_madrid,rma_brahim,Brahim Díaz,Moroccan,RW,26,82,75,52,10,42,75,83,0
-real_madrid,real_madrid_junior,Vinícius Júnior,Brazilian,LW,25,89,80,55,10,102.9,194,92,0
-real_madrid,rma_rodrygo,Rodrygo,Brazilian,RW,24,87,78,54,10,125,225,89,0
-real_madrid,rma_mastantuono,Franco Mastantuono,Argentine,RW,18,79,72,51,10,52,42,90,1
-real_madrid,rma_mbappe,Kylian Mbappé,French,ST,26,90,75,52,10,250,520,93,0
-real_madrid,real_madrid_endrick,Endrick,Brazilian,ST,19,83,69,48,10,54.3,95,89,0
-real_madrid,rma_garcia_g,Gonzalo García,Spanish,ST,21,74,62,44,10,18,32,80,0
-real_madrid,real_madrid_konate,Ibrahima Konaté,French,CB,26,46,53,83,10,42.9,95,86,0
-real_madrid,real_madrid_cucurella,Marc Cucurella,Spanish,LB,27,68,63,77,10,17.8,47,79,0
-real_madrid,real_madrid_diomande,Yan Diomande,Ivorian,LW,18,68,60,42,10,7,16,88,1
-barcelona,bar_ter_stegen,Marc-André ter Stegen,German,GK,33,14,16,20,88,58,195,88,0
-barcelona,bar_joan_garcia,Joan García,Spanish,GK,24,10,12,16,82,18,45,86,0
-barcelona,barcelona_szczesny,Wojciech Szczęsny,Polish,GK,35,10,11,13,82,17.5,85,82,0
-barcelona,barcelona_kounde3,Jules Koundé,French,CB,26,54,57,83,10,85,185,86,0
-barcelona,bar_araujo,Ronald Araújo,Uruguayan,CB,26,48,55,85,10,92,195,89,0
-barcelona,bar_cubarsi,Pau Cubarsí,Spanish,CB,18,49,52,83,10,72,55,92,1
-barcelona,bar_christensen,Andreas Christensen,Danish,CB,29,48,53,84,10,42,95,84,0
-barcelona,bar_eric_garcia,Eric García,Spanish,CB,24,48,51,80,10,22,42,82,0
-barcelona,bar_balde,Alejandro Balde,Spanish,LB,21,70,65,77,10,62,95,90,0
-barcelona,bar_g_martin,Gerard Martín,Spanish,LB,23,59,58,76,10,18,28,82,0
-barcelona,barcelona_kounde,Jules Koundé,French,CB,26,54,57,83,10,85,185,86,0
-barcelona,barcelona_fort,Héctor Fort,Spanish,RB,19,58,57,72,10,12,26,83,0
-barcelona,bar_casado,Marc Casadó,Spanish,CDM,21,51,71,61,10,45,42,84,1
-barcelona,bar_de_jong,Frenkie de Jong,Dutch,CM,28,69,82,62,10,95,225,88,0
-barcelona,bar_pedri,Pedri,Spanish,CM,22,74,83,57,10,155,285,92,0
-barcelona,bar_gavi,Gavi,Spanish,CM,21,65,79,60,10,145,255,90,1
-barcelona,bar_olmo,Dani Olmo,Spanish,CAM,27,80,81,58,10,92,195,86,0
-barcelona,bar_fermin,Fermín López,Spanish,CAM,22,75,78,56,10,52,65,86,0
-barcelona,bar_raphinha,Raphinha,Brazilian,RW,28,87,78,55,10,88,195,87,0
-barcelona,bar_yamal,Lamine Yamal,Spanish,RW,18,84,79,56,10,280,195,94,1
-barcelona,bar_ferran,Ferran Torres,Spanish,CF,25,85,76,54,10,58,125,85,0
-barcelona,bar_lewandowski,Robert Lewandowski,Polish,ST,37,86,69,48,10,22,325,86,0
-barcelona,bar_bardghji,Roony Bardghji,Swedish,RW,19,78,70,49,10,28,35,86,1
-barcelona,barcelona_gordon,Anthony Gordon,English,LW,24,81,72,50,10,36,75,82,0
-barcelona,barcelona_adeyemi,Karim Adeyemi,German,RW,23,83,71,48,10,49.3,95,86,0
-atletico,atm_oblak,Jan Oblak,Slovenian,GK,32,14,16,20,88,62,195,88,0
-atletico,atm_musso,Juan Musso,Argentine,GK,31,12,14,18,81,18,75,81,0
-atletico,atletico_luis,Mario de Luis,Spanish,GK,23,10,11,13,72,10.9,26,78,0
-atletico,atletico_esquivel,Salvador Esquivel,Spanish,GK,20,10,11,13,66,5.2,13,80,1
-atletico,atletico_pubill,Marc Pubill,Spanish,RB,22,61,60,75,10,17.1,37,82,0
-atletico,atm_gimenez,José María Giménez,Uruguayan,CB,30,44,51,83,10,52,155,84,0
-atletico,atm_le_normand,Robin Le Normand,Spanish,CB,28,43,50,83,10,48,105,85,0
-atletico,atletico_hancko,Dávid Hancko,Slovak,CB,27,51,55,84,10,46.4,107,84,0
-atletico,atm_lenglet,Clément Lenglet,French,CB,30,51,53,81,10,22,65,81,0
-atletico,atletico_kostis,Ilias Kostis,Cypriot,CB,22,45,49,76,10,19.6,42,80,0
-atletico,atm_galan,Javi Galán,Spanish,LB,30,67,62,74,10,18,52,80,0
-atletico,atm_koke,Koke,Spanish,CM,33,68,84,67,10,18,115,84,0
-atletico,atm_llorente,Marcos Llorente,Spanish,CM,30,72,79,66,10,38,115,84,0
-atletico,atm_barrios,Pablo Barrios,Spanish,CM,22,67,78,62,10,28,35,87,0
-atletico,atletico_cardoso,Johnny Cardoso,American,CM,23,55,72,61,10,10.9,26,83,0
-atletico,atm_de_paul,Rodrigo De Paul,Argentine,CM,31,70,81,63,10,42,145,84,0
-atletico,atletico_almada,Thiago Almada,Argentine,CAM,24,82,80,59,10,41.3,85,86,0
-atletico,atletico_baena,Álex Baena,Spanish,LM,24,78,79,58,10,27.4,59,86,0
-atletico,atm_samuel_lino,Samuel Lino,Brazilian,LM,25,76,72,53,10,22,42,84,0
-atletico,atletico_lemar,Thomas Lemar,French,LM,29,76,75,54,10,13.5,42,80,0
-atletico,atm_griezmann,Antoine Griezmann,French,CF,34,88,79,58,10,32,245,88,0
-atletico,atm_alvarez,Julián Álvarez,Argentine,ST,25,91,79,56,10,95,185,91,0
-atletico,atm_sorloth,Alexander Sørloth,Norwegian,ST,29,79,57,39,10,42,105,83,0
-atletico,atletico_raspadori,Giacomo Raspadori,Italian,ST,25,86,76,53,10,68.2,136,86,0
-atletico,atm_giuliano,Giuliano Simeone,Argentine,RW,22,75,65,45,10,16,32,82,0
-atletico,atletico_martin,Carlos Martín,Spanish,ST,23,74,62,44,10,14.4,33,80,0
-real_sociedad,rso_remiro,Álex Remiro,Spanish,GK,30,12,14,18,84,28,75,84,0
-real_sociedad,real_sociedad_marrero,Unai Marrero,Spanish,GK,23,10,11,13,74,14.4,33,80,0
-real_sociedad,real_sociedad_arana,Egoitz Arana,Spanish,GK,23,10,11,13,70,8.3,20,76,0
-real_sociedad,real_sociedad_traore,Hamari Traoré,Malian,RB,33,59,59,73,10,6.3,29,78,0
-real_sociedad,real_sociedad_odriozola,Álvaro Odriozola,Spanish,RB,29,62,60,73,10,9,29,78,0
-real_sociedad,rso_aramburu,Jon Aramburu,Venezuelan,RB,23,60,59,72,10,18,38,82,0
-real_sociedad,real_sociedad_caletacar,Duje Ćaleta-Car,Croatian,CB,28,43,50,77,10,16.7,47,79,0
-real_sociedad,rso_elustondo,Aritz Elustondo,Spanish,CB,31,43,50,76,10,10,42,78,0
-real_sociedad,real_sociedad_zubeldia,Igor Zubeldia,Spanish,CB,28,45,51,79,10,21.9,59,80,0
-real_sociedad,real_sociedad_martin,Jon Martín,Spanish,CB,19,43,48,73,10,13.8,29,82,0
-real_sociedad,real_sociedad_lopez,Javi López,Spanish,LB,23,60,59,74,10,14.4,33,82,0
-real_sociedad,real_sociedad_munoz,Aihen Muñoz,Spanish,LB,28,63,61,75,10,12.7,37,77,0
-real_sociedad,real_sociedad_gomez,Sergio Gómez,Spanish,LB,24,70,65,75,10,15.8,37,84,0
-real_sociedad,real_sociedad_zarate,Urko González de Zárate,Spanish,CDM,24,50,69,59,10,7,18,80,0
-real_sociedad,real_sociedad_gorrotxategi,Jon Gorrotxategi,Spanish,CDM,23,50,67,57,10,5.5,14,78,0
-real_sociedad,rso_sucic,Luka Sučić,Croatian,CM,22,69,78,62,10,32,55,86,1
-real_sociedad,rso_turrientes,Beñat Turrientes,Spanish,CM,23,63,75,61,10,14,32,84,0
-real_sociedad,rso_brais,Brais Méndez,Spanish,CAM,28,77,81,58,10,18,52,83,0
-real_sociedad,real_sociedad_zakharyan,Arsen Zakharyan,Russian,CAM,22,74,76,53,10,19.6,42,88,0
-real_sociedad,real_sociedad_marin,Pablo Marín,Spanish,CAM,22,68,73,55,10,13,29,82,0
-real_sociedad,real_sociedad_goti,Mikel Goti,Spanish,CAM,23,67,68,48,10,6.3,16,78,0
-real_sociedad,rso_kubo,Takefusa Kubo,Japanese,RW,24,84,78,54,10,62,98,88,0
-real_sociedad,rso_barrenetxea,Ander Barrenetxea,Spanish,LW,23,79,72,50,10,42,62,84,0
-real_sociedad,real_sociedad_guedes,Gonçalo Guedes,Portuguese,LW,28,84,76,53,10,43.5,107,84,0
-real_sociedad,rso_oyarzabal,Mikel Oyarzabal,Spanish,ST,28,83,71,51,10,65,158,84,0
-real_sociedad,real_sociedad_karrikaburu,Jon Karrikaburu,Spanish,ST,22,73,60,42,10,13,29,80,0
-real_sociedad,rso_oskarsson,Orri Óskarsson,Icelandic,ST,20,75,61,42,10,32,52,84,0
-real_sociedad,real_sociedad_mariezkurrena,Arkaitz Mariezkurrena,Spanish,ST,20,71,59,41,10,10.3,23,80,0
-athletic_bilbao,ath_simon,Unai Simón,Spanish,GK,28,12,14,18,85,32,78,85,0
-athletic_bilbao,athletic_bilbao_padilla,Álex Padilla,Mexican,GK,22,10,11,13,72,11.3,26,80,0
-athletic_bilbao,athletic_bilbao_santos,Mikel Santos,Spanish,GK,20,10,11,13,68,6.9,16,78,0
-athletic_bilbao,athletic_bilbao_gorosabel,Andoni Gorosabel,Spanish,RB,29,62,60,76,10,13.5,42,78,0
-athletic_bilbao,athletic_bilbao_areso,Jesús Areso,Spanish,RB,26,61,60,76,10,16.5,42,78,0
-athletic_bilbao,ath_lekue,Iñigo Lekue,Spanish,RB,32,60,58,73,10,8,35,75,0
-athletic_bilbao,ath_vivian,Dani Vivian,Spanish,CB,26,45,51,79,10,22,55,83,0
-athletic_bilbao,ath_paredes_a,Aitor Paredes,Spanish,CB,25,43,49,77,10,14,28,82,0
-athletic_bilbao,athletic_bilbao_alvarez,Yeray Álvarez,Spanish,CB,30,42,49,78,10,16.5,53,80,0
-athletic_bilbao,ath_yuri,Yuri Berchiche,Spanish,LB,35,63,61,74,10,6,52,78,0
-athletic_bilbao,athletic_bilbao_boiro,Adama Boiro,Spanish,LB,23,59,58,73,10,12.5,29,78,0
-athletic_bilbao,athletic_bilbao_egiluz,Unai Egiluz,Spanish,CB,23,45,49,76,10,18.9,42,78,0
-athletic_bilbao,athletic_bilbao_luis,Jon De Luis,Spanish,CB,22,45,49,76,10,19.6,42,78,0
-athletic_bilbao,ath_vesga,Mikel Vesga,Spanish,CDM,32,56,75,66,10,12,62,80,0
-athletic_bilbao,ath_sancet,Oihan Sancet,Spanish,CAM,25,76,80,56,10,45,72,87,0
-athletic_bilbao,athletic_bilbao_vencedor,Unai Vencedor,Spanish,CM,24,63,75,61,10,15.8,37,82,0
-athletic_bilbao,athletic_bilbao_galarreta,Iñigo Ruiz de Galarreta,Spanish,CM,32,64,78,61,10,13.8,53,78,0
-athletic_bilbao,athletic_bilbao_jauregizar,Mikel Jauregizar,Spanish,CM,21,63,75,61,10,17.5,37,82,0
-athletic_bilbao,athletic_bilbao_gomez,Unai Gómez,Spanish,CM,22,63,75,61,10,17.1,37,82,0
-athletic_bilbao,athletic_bilbao_navarro,Robert Navarro,Spanish,LM,23,73,73,54,10,12.5,29,84,0
-athletic_bilbao,athletic_bilbao_prados,Beñat Prados,Spanish,CM,24,63,75,61,10,15.8,37,82,0
-athletic_bilbao,athletic_bilbao_rego,Alejandro Rego,Spanish,CM,22,59,70,56,10,8.6,20,78,0
-athletic_bilbao,ath_berenguer,Álex Berenguer,Spanish,LM,30,76,74,54,10,12,62,80,0
-athletic_bilbao,ath_williams_i,Iñaki Williams,Ghanaian,RW,31,80,67,47,10,48,118,84,0
-athletic_bilbao,ath_williams_n,Nico Williams,Spanish,LW,23,81,73,52,10,68,95,90,0
-athletic_bilbao,ath_guruzeta,Gorka Guruzeta,Spanish,ST,28,81,63,44,10,38,65,81,0
-athletic_bilbao,athletic_bilbao_sannadi,Maroan Sannadi,Moroccan,ST,24,77,60,41,10,20.8,47,82,0
-athletic_bilbao,athletic_bilbao_serrano,Nico Serrano,Spanish,LW,22,76,67,47,10,19.6,42,82,0
-athletic_bilbao,athletic_bilbao_izeta,Urko Izeta,Spanish,ST,25,71,59,41,10,8.7,23,78,0
-real_betis,real_betis_valles,Álvaro Valles,Spanish,GK,28,10,11,13,82,33.1,85,82,0
-real_betis,bet_adrian,Adrián,Spanish,GK,38,10,12,16,74,3,28,74,0
-real_betis,real_betis_gomez,Valentín Gómez,Argentine,CB,22,47,52,78,10,25.7,53,84,0
-real_betis,bet_natan,Natan,Brazilian,CB,24,47,52,78,10,22,38,82,0
-real_betis,real_betis_llorente,Diego Llorente,Spanish,CB,31,46,51,77,10,13.2,47,78,0
-real_betis,real_betis_mendy,Nobel Mendy,Senegalese,CB,20,44,50,75,10,17.9,37,82,0
-real_betis,bet_bartra,Marc Bartra,Spanish,CB,34,47,51,77,10,10,55,77,0
-real_betis,real_betis_firpo,Junior Firpo,Spanish,LB,28,64,62,74,10,11.1,33,78,0
-real_betis,real_betis_rodriguez,Ricardo Rodríguez,Swiss,LB,32,61,59,76,10,10.5,42,77,0
-real_betis,real_betis_ruibal,Aitor Ruibal,Spanish,RB,29,64,61,74,10,10.3,33,77,0
-real_betis,real_betis_ortiz,Ángel Ortiz,Spanish,RB,21,60,59,73,10,13.3,29,82,0
-real_betis,bet_bellerin,Héctor Bellerín,Spanish,RB,30,63,61,73,10,14,62,77,0
-real_betis,real_betis_roca,Marc Roca,Spanish,CDM,28,62,78,66,10,19.1,53,80,0
-real_betis,real_betis_altimira,Sergi Altimira,Spanish,CM,23,62,74,60,10,14.4,33,84,0
-real_betis,bet_fornals,Pablo Fornals,Spanish,CM,29,71,80,61,10,28,82,80,0
-real_betis,real_betis_deossa,Nelson Deossa,Colombian,CM,25,64,75,61,10,15.1,37,82,0
-real_betis,real_betis_celso,Giovani Lo Celso,Argentine,CAM,29,77,81,58,10,26.8,75,82,0
-real_betis,bet_isco,Isco,Spanish,CAM,33,76,80,55,10,14,105,81,0
-real_betis,real_betis_ezzalzouli,Abde Ezzalzouli,Moroccan,LW,23,79,71,51,10,28.5,59,84,0
-real_betis,real_betis_riquelme,Rodrigo Riquelme,Spanish,LW,25,80,72,51,10,30,67,84,0
-real_betis,real_betis_hernandez,Cucho Hernández,Colombian,ST,26,83,66,46,10,42.9,95,83,0
-real_betis,bet_chimy,Chimy Ávila,Argentine,ST,31,80,61,42,10,18,52,80,0
-real_betis,bet_bakambu,Cédric Bakambu,Congolese,ST,34,77,59,40,10,6,52,77,0
-real_betis,real_betis_losada,Iker Losada,Spanish,CF,24,73,61,43,10,12,29,80,0
-villarreal,villarreal_junior,Luiz Júnior,Brazilian,GK,24,10,11,13,80,31.4,67,84,0
-villarreal,villarreal_conde,Diego Conde,Spanish,GK,26,10,11,13,78,21.6,53,80,0
-villarreal,villarreal_tenas,Arnau Tenas,Spanish,GK,24,10,11,13,76,18.2,42,82,0
-villarreal,villarreal_veiga,Renato Veiga,Portuguese,CB,22,48,53,78,10,25.7,53,86,0
-villarreal,vil_logan_costa,Logan Costa,Cape Verdean,CB,24,45,51,76,10,28,42,84,0
-villarreal,vil_foyth,Juan Foyth,Argentine,CB,27,48,53,78,10,32,75,80,0
-villarreal,villarreal_marin,Rafa Marín,Spanish,CB,23,46,51,74,10,14.4,33,82,0
-villarreal,villarreal_kambwala,Willy Kambwala,Congolese,CB,21,44,50,75,10,17.5,37,82,0
-villarreal,villarreal_mourino,Santiago Mouriño,Uruguayan,CB,23,44,50,75,10,16.5,37,80,0
-villarreal,villarreal_navarro,Pau Navarro,Spanish,CB,20,43,48,73,10,13.6,29,80,0
-villarreal,vil_cardona,Sergi Cardona,Spanish,LB,26,64,62,74,10,14,28,80,0
-villarreal,vil_pedraza,Alfonso Pedraza,Spanish,LB,29,64,62,74,10,22,72,77,0
-villarreal,villarreal_altimira,Adrià Altimira,Spanish,RB,24,62,60,73,10,12,29,80,0
-villarreal,villarreal_gueye,Pape Gueye,Senegalese,CDM,26,56,74,65,10,12.5,33,82,0
-villarreal,villarreal_comesana,Santi Comesaña,Spanish,CM,28,64,77,62,10,16.7,47,80,0
-villarreal,vil_parejo,Dani Parejo,Spanish,CM,36,72,85,63,10,10,95,85,0
-villarreal,villarreal_suarez,Denis Suárez,Spanish,CM,31,71,79,58,10,17.3,59,79,0
-villarreal,villarreal_reque,Reque,Spanish,CM,21,64,75,58,10,17.5,37,80,0
-villarreal,villarreal_moleiro,Alberto Moleiro,Spanish,LW,21,77,72,51,10,23,47,88,0
-villarreal,vil_akhomach,Ilias Akhomach,Spanish,RW,21,75,69,49,10,18,28,84,0
-villarreal,villarreal_buchanan,Tajon Buchanan,Canadian,RW,26,76,69,49,10,16.5,42,80,0
-villarreal,villarreal_pepe,Nicolas Pépé,Ivorian,RW,30,79,70,50,10,18.9,59,79,0
-villarreal,vil_pino,Yéremy Pino,Spanish,RW,22,79,72,51,10,48,72,86,0
-villarreal,villarreal_mikautadze,Georges Mikautadze,Georgian,ST,24,82,67,46,10,41.3,85,84,0
-villarreal,villarreal_perez,Ayoze Pérez,Spanish,ST,32,80,66,47,10,18.2,67,80,0
-villarreal,villarreal_oluwaseyi,Tani Oluwaseyi,Nigerian,ST,25,80,64,44,10,30,67,80,0
-villarreal,vil_gerard,Gerard Moreno,Spanish,ST,33,83,70,50,10,12,82,83,0
-villarreal,villarreal_cabanes,Pau Cabanes,Spanish,ST,20,74,62,44,10,15.6,33,80,0
-villarreal,villarreal_romero,Carlos Romero,Spanish,LB,23,64,62,74,10,14.4,33,80,0
-villarreal,villarreal_terrats,Ramon Terrats,Spanish,CM,24,65,77,61,10,20.8,47,80,0
-celta_vigo,celta_vigo_villar,Iván Villar,Spanish,GK,28,10,11,13,77,16.7,47,77,0
-celta_vigo,celta_vigo_radu,Ionuț Radu,Romanian,GK,28,10,11,13,78,19.1,53,78,0
-celta_vigo,celta_vigo_vidal,Marc Vidal,Spanish,GK,25,10,11,13,72,10,26,78,0
-celta_vigo,celta_vigo_carreira,Sergio Carreira,Spanish,RB,24,62,60,73,10,12,29,80,0
-celta_vigo,celta_vigo_rueda,Javi Rueda,Spanish,RB,23,60,58,73,10,12.5,29,78,0
-celta_vigo,cel_mingueza,Óscar Mingueza,Spanish,CB,26,52,55,77,10,22,48,80,0
-celta_vigo,cel_starfelt,Carl Starfelt,Swedish,CB,30,46,51,77,10,14,45,78,0
-celta_vigo,cel_aidoo,Joseph Aidoo,Ghanaian,CB,29,43,50,76,10,12,38,77,0
-celta_vigo,celta_vigo_dominguez,Carlos Domínguez,Spanish,CB,24,44,50,75,10,15.8,37,78,0
-celta_vigo,celta_vigo_fernandez,Manu Fernández,Spanish,CB,24,43,48,73,10,12,29,78,0
-celta_vigo,celta_vigo_rodriguez,Javi Rodríguez,Spanish,CB,22,43,48,73,10,13,29,80,0
-celta_vigo,celta_vigo_lago,Yoel Lago,Spanish,CB,21,44,48,72,10,11.6,26,80,0
-celta_vigo,cel_marcos_alonso,Marcos Alonso,Spanish,LB,34,62,59,77,10,6,42,77,0
-celta_vigo,celta_vigo_ristic,Mihailo Ristic,Serbian,LB,29,62,59,74,10,10.3,33,75,0
-celta_vigo,cel_beltran,Fran Beltrán,Spanish,CM,26,68,79,64,10,14,35,82,0
-celta_vigo,celta_vigo_moriba,Ilaix Moriba,Guinean,CM,22,64,75,61,10,17.1,37,84,0
-celta_vigo,celta_vigo_rodriguez2,Damián Rodríguez,Spanish,CM,22,63,75,60,10,17.1,37,80,0
-celta_vigo,celta_vigo_roman,Miguel Román,Spanish,CM,22,64,75,58,10,17.1,37,78,0
-celta_vigo,celta_vigo_sotelo,Hugo Sotelo,Spanish,CM,21,65,76,62,10,20.1,42,84,0
-celta_vigo,celta_vigo_alvarez,Hugo Álvarez,Spanish,LM,22,72,69,49,10,11.3,26,84,0
-celta_vigo,celta_vigo_zaragoza,Bryan Zaragoza,Spanish,LW,23,83,76,54,10,49.3,95,86,0
-celta_vigo,celta_vigo_swedberg,Williot Swedberg,Swedish,LW,21,76,69,49,10,20.1,42,86,0
-celta_vigo,celta_vigo_elabdellaoui,Jones El-Abdellaoui,Moroccan,LM,19,68,64,45,10,7,16,82,1
-celta_vigo,cel_iglesias,Borja Iglesias,Spanish,ST,32,81,63,45,10,12,55,81,0
-celta_vigo,celta_vigo_jutgla,Ferran Jutglà,Spanish,ST,26,81,66,46,10,32.6,75,81,0
-celta_vigo,celta_vigo_duran,Pablo Durán,Spanish,ST,24,78,62,43,10,23.9,53,80,0
-celta_vigo,cel_aspas,Iago Aspas,Spanish,ST,38,85,72,52,10,8,85,85,0
-sevilla,sevilla_fernandez,Álvaro Fernández,Spanish,GK,27,10,11,13,78,20.4,53,78,0
-sevilla,sevilla_nyland,Ørjan Nyland,Norwegian,GK,34,10,11,13,76,8.6,42,76,0
-sevilla,sevilla_arbol,Matías Árbol,Spanish,GK,22,10,11,13,72,11.3,26,78,0
-sevilla,sevilla_salas,Kike Salas,Spanish,CB,23,46,51,77,10,21.7,47,84,0
-sevilla,sev_marcao,Marcão,Brazilian,CB,29,45,51,76,10,18,52,78,0
-sevilla,sev_nianzou,Tanguy Nianzou,French,CB,23,46,51,77,10,22,52,82,0
-sevilla,sevilla_martinez,Ramón Martínez,Spanish,CB,22,43,48,73,10,13,29,78,0
-sevilla,sev_pedrosa,Adrià Pedrosa,Spanish,LB,27,64,62,76,10,12,35,78,0
-sevilla,sevilla_suazo,Gabriel Suazo,Chilean,LB,27,64,61,76,10,15.5,42,76,0
-sevilla,sev_carmona,José Ángel Carmona,Spanish,RB,23,65,62,75,10,14,28,83,0
-sevilla,sevilla_azpilicueta,César Azpilicueta,Spanish,CB,36,55,56,81,10,13.6,75,81,0
-sevilla,sev_agoume,Lucien Agoumé,French,CM,23,61,75,62,10,14,32,82,0
-sevilla,sev_sow,Djibril Sow,Swiss,CM,28,62,76,61,10,22,42,76,0
-sevilla,sev_joan_jordan,Joan Jordán,Spanish,CM,31,66,79,62,10,12,52,79,0
-sevilla,sevilla_bueno,Manu Bueno,Spanish,CM,21,60,73,60,10,13.3,29,79,0
-sevilla,sevilla_idumbo,Stanis Idumbo,Belgian,CAM,20,70,70,47,10,9,20,84,1
-sevilla,sevilla_vargas,Rubén Vargas,Swiss,LM,27,74,70,50,10,11.8,33,78,0
-sevilla,sevilla_gonzalez,Alfon González,Spanish,LM,26,71,68,49,10,8.3,23,76,0
-sevilla,sev_ejuke,Chidera Ejuke,Nigerian,LW,27,77,70,49,10,10,32,78,0
-sevilla,sev_lukebakio,Dodi Lukébakio,Belgian,RW,27,79,70,50,10,22,55,81,0
-sevilla,sevilla_fernandez2,Peque Fernández,Spanish,CAM,22,74,73,50,10,14.9,33,83,0
-sevilla,sev_isaac,Isaac Romero,Spanish,ST,25,77,61,42,10,22,42,79,0
-sevilla,sevilla_adams,Akor Adams,Nigerian,ST,25,77,60,41,10,19.9,47,78,0
-sevilla,sevilla_mir,Rafa Mir,Spanish,ST,28,77,59,41,10,16.7,47,77,0
-valencia,val_dimitrievski,Stole Dimitrievski,Macedonian,GK,31,10,12,16,81,6,28,81,0
-valencia,valencia_rivero,Cristian Rivero,Spanish,GK,27,10,11,13,74,11.8,33,76,0
-valencia,valencia_agirrezabala,Julen Agirrezabala,Spanish,GK,24,10,11,13,76,18.2,42,82,0
-valencia,val_correia,Thierry Correia,Portuguese,RB,26,64,62,73,10,14,42,80,0
-valencia,val_foulquier,Dimitri Foulquier,French,RB,32,63,61,74,10,8,32,77,0
-valencia,val_gaya,José Gayà,Spanish,LB,30,67,64,76,10,22,72,83,0
-valencia,val_jesus_vazquez,Jesús Vázquez,Spanish,LB,22,64,61,76,10,10,22,82,0
-valencia,valencia_copete,José Copete,Spanish,CB,26,48,53,78,10,21.6,53,80,0
-valencia,val_diakhaby,Mouctar Diakhaby,Guinean,CB,28,45,51,79,10,10,38,79,0
-valencia,valencia_comert,Eray Cömert,Swiss,CB,27,45,51,78,10,20.4,53,78,0
-valencia,val_tarrega,César Tárrega,Spanish,CB,23,44,49,75,10,12,22,80,0
-valencia,valencia_iranzo,Rubén Iranzo,Spanish,CB,22,44,50,75,10,17.1,37,80,0
-valencia,valencia_caro,Andrés Caro,Spanish,CB,21,44,50,75,10,17.5,37,80,0
-valencia,valencia_panach,Alejandro Panach,Spanish,CB,20,43,48,73,10,13.6,29,78,0
-valencia,val_pepelu,Pepelu,Spanish,CM,27,67,80,66,10,22,42,82,0
-valencia,valencia_santamaria,Baptiste Santamaría,French,CM,30,64,78,64,10,16.5,53,78,0
-valencia,val_guillamon,Hugo Guillamón,Spanish,CDM,25,62,78,66,10,16,38,80,0
-valencia,val_javi_guerra,Javi Guerra,Spanish,CM,22,68,79,63,10,14,28,86,0
-valencia,valencia_almeida,André Almeida,Portuguese,CM,25,69,79,62,10,26.2,59,82,0
-valencia,valencia_ugrinic,Filip Ugrinic,Swiss,CM,26,67,78,65,10,21.6,53,80,0
-valencia,valencia_rioja,Luis Rioja,Spanish,LM,32,74,71,50,10,8,33,78,0
-valencia,valencia_canos,Sergi Canós,Spanish,RM,28,73,71,49,10,9.6,29,78,0
-valencia,valencia_ramazani,Largie Ramazani,Belgian,RW,24,76,70,49,10,18.2,42,82,0
-valencia,valencia_danjuma,Arnaut Danjuma,Dutch,LW,28,82,74,52,10,33.1,85,82,0
-valencia,valencia_raba,Daniel Raba,Spanish,RW,30,75,68,48,10,10.9,37,76,0
-valencia,val_hugo_duro,Hugo Duro,Spanish,ST,26,82,66,46,10,24,48,82,0
-valencia,val_diego_lopez,Diego López,Spanish,ST,23,79,67,46,10,18,35,82,0
-valencia,valencia_mari,Alberto Marí,Spanish,ST,24,77,63,43,10,20.8,47,80,0
-valencia,valencia_bellari,Hamza Bellari,Spanish,ST,22,73,61,43,10,13,29,80,0
-valencia,valencia_otorbi,David Otorbi,Spanish,ST,18,71,59,41,10,10.6,23,82,0
-valencia,valencia_sadiq,Umar Sadiq,Nigerian,ST,28,76,58,40,10,14.5,42,78,0
-rayo_vallecano,rayo_vallecano_batalla,Augusto Batalla,Argentine,GK,29,10,11,13,79,20.4,59,79,0
-rayo_vallecano,rayo_vallecano_cardenas,Dani Cárdenas,Spanish,GK,28,10,11,13,76,14.5,42,78,0
-rayo_vallecano,rayo_vallecano_morro,Miguel Ángel Morro,Spanish,GK,24,10,11,13,72,10.5,26,76,0
-rayo_vallecano,rayo_vallecano_felipe,Luiz Felipe,Italian,CB,28,48,53,80,10,25.1,67,80,0
-rayo_vallecano,ray_mumin,Abdul Mumin,Ghanaian,CB,27,48,53,78,10,8,22,78,0
-rayo_vallecano,ray_lejeune,Florian Lejeune,French,CB,34,45,51,78,10,4,22,78,0
-rayo_vallecano,rayo_vallecano_fernandez,Pelayo Fernández,Spanish,CB,22,44,49,75,10,17.1,37,78,0
-rayo_vallecano,rayo_vallecano_vertrouwd,Jozhua Vertrouwd,Dutch,CB,21,45,49,74,10,15.3,33,76,0
-rayo_vallecano,rayo_vallecano_sias,Marco de las Sías,Spanish,CB,19,43,48,71,10,10.5,23,76,0
-rayo_vallecano,rayo_vallecano_chavarria,Pep Chavarría,Spanish,LB,27,64,62,76,10,15.5,42,77,0
-rayo_vallecano,rayo_vallecano_espino,Alfonso Espino,Uruguayan,LB,33,64,61,76,10,9.5,42,76,0
-rayo_vallecano,ray_ratiu,Andrei Rațiu,Romanian,RB,27,65,63,74,10,18,38,79,0
-rayo_vallecano,rayo_vallecano_balliu,Iván Balliu,Albanian,RB,33,65,62,73,10,6.3,29,74,0
-rayo_vallecano,rayo_vallecano_diaz,Pedro Díaz,Spanish,CM,27,65,78,62,10,20.4,53,78,0
-rayo_vallecano,ray_unai_lopez,Unai López,Spanish,CM,29,66,78,62,10,10,32,78,0
-rayo_vallecano,rayo_vallecano_valentin,Óscar Valentín,Spanish,CDM,30,60,77,63,10,14.4,47,77,0
-rayo_vallecano,rayo_vallecano_ciss,Pathé Ciss,Senegalese,CDM,31,60,77,63,10,13.2,47,77,0
-rayo_vallecano,rayo_vallecano_gumbau,Gerard Gumbau,Spanish,CM,30,65,78,65,10,16.5,53,78,0
-rayo_vallecano,ray_nteka,Randy Nteka,French,CAM,27,71,71,49,10,10,25,76,0
-rayo_vallecano,ray_trejo,Óscar Trejo,Argentine,CAM,37,71,71,49,10,3,25,72,0
-rayo_vallecano,rayo_vallecano_perez,Fran Pérez,Spanish,RM,23,71,68,48,10,9.5,23,78,0
-rayo_vallecano,ray_garcia_a,Álvaro García,Spanish,LM,32,75,70,51,10,6,22,76,0
-rayo_vallecano,rayo_vallecano_frutos,Jorge de Frutos,Spanish,RW,28,76,69,49,10,14.5,42,76,0
-rayo_vallecano,ray_isi,Isi Palazón,Spanish,CF,30,75,67,47,10,6,35,77,0
-rayo_vallecano,rayo_vallecano_becerra,Samu Becerra,Spanish,CM,19,61,71,58,10,10.5,23,74,0
-rayo_vallecano,ray_camello,Sergio Camello,Spanish,ST,24,77,61,42,10,12,25,78,0
-rayo_vallecano,ray_de_tomas,Raúl de Tomás,Spanish,ST,30,77,60,41,10,14,48,77,0
-rayo_vallecano,rayo_vallecano_etoo,Etienne Eto'o,Cameroonian,ST,23,74,62,43,10,14.4,33,74,0
-osasuna,osa_sergio_herrera,Sergio Herrera,Spanish,GK,32,10,12,16,80,12,45,80,0
-osasuna,osasuna_fernandez,Aitor Fernández,Spanish,GK,34,10,11,13,77,9.9,47,77,0
-osasuna,osasuna_stamatakis,Dimitrios Stamatakis,Greek,GK,22,10,11,13,70,8.6,20,76,0
-osasuna,osa_boyomo,Enzo Boyomo,French,CB,23,49,54,79,10,6,16,84,0
-osasuna,osasuna_herrando,Jorge Herrando,Spanish,CB,24,47,52,77,10,20.8,47,80,0
-osasuna,osasuna_catena,Alejandro Catena,Spanish,CB,30,47,52,77,10,14.4,47,77,0
-osasuna,osasuna_bretones,Abel Bretones,Spanish,LB,25,64,61,76,10,17.3,42,80,0
-osasuna,osa_cruz,Juan Cruz,Spanish,LB,33,64,61,76,10,8,22,76,0
-osasuna,osasuna_rosier,Valentin Rosier,French,RB,29,65,62,74,10,10.3,33,76,0
-osasuna,osasuna_chasco,Raúl Chasco,Spanish,LB,21,62,59,71,10,10.1,23,74,0
-osasuna,osasuna_torro,Lucas Torró,Spanish,CDM,31,63,79,64,10,17.3,59,79,0
-osasuna,osasuna_munoz,Iker Muñoz,Spanish,CDM,22,62,77,63,10,22.4,47,80,0
-osasuna,osa_moncayola,Jon Moncayola,Spanish,CM,27,67,80,64,10,12,35,82,0
-osasuna,osa_oroz,Aimar Oroz,Spanish,CAM,23,73,74,49,10,10,22,84,0
-osasuna,osasuna_gomez,Moi Gómez,Spanish,CM,31,66,78,62,10,15.1,53,78,0
-osasuna,osasuna_garcia3,Rubén García,Spanish,LM,32,74,71,50,10,8,38,76,0
-osasuna,osasuna_osambela,Asier Osambela,Spanish,CM,20,62,72,58,10,11.9,26,78,0
-osasuna,osasuna_echegoyen,Mauro Echegoyen,Spanish,CM,20,60,69,54,10,7.9,18,74,0
-osasuna,osasuna_barja,Kike Barja,Spanish,RW,28,76,69,49,10,14.5,42,76,0
-osasuna,osasuna_benito,Iker Benito,Spanish,RW,23,76,69,49,10,18.9,42,78,0
-osasuna,osa_budimir,Ante Budimir,Croatian,ST,34,77,61,42,10,16,58,77,0
-osasuna,osasuna_garcia,Raúl García,Spanish,ST,24,77,61,42,10,8,38,78,0
-osasuna,osasuna_munoz2,Víctor Muñoz,Spanish,RW,22,72,66,46,10,11.3,26,76,0
-osasuna,osasuna_yoldi,Ander Yoldi,Spanish,CAM,24,70,68,46,10,8,20,74,0
-alaves,ala_sivera,Antonio Sivera,Spanish,GK,29,10,12,16,77,6,28,77,0
-alaves,alaves_fernandez,Raúl Fernández,Spanish,GK,37,10,11,13,72,3.5,26,72,0
-alaves,alaves_owono,Owono,Equatoguinean,GK,23,10,11,13,71,9.5,23,76,0
-alaves,alaves_jaume,Jaume,Spanish,GK,33,10,11,13,67,2.8,14,67,0
-alaves,alaves_tenaglia,Nahuel Tenaglia,Argentine,RB,29,54,56,74,10,10.3,33,74,0
-alaves,alaves_lekue,Lekue,Spanish,RB,31,55,56,73,10,7.6,29,73,0
-alaves,alaves_novoa,Hugo Novoa,Spanish,RB,22,63,60,73,10,13,29,79,0
-alaves,alaves_allister,K. Mac Allister,Argentine,CB,26,46,51,75,10,14.4,37,75,0
-alaves,alaves_cuesta,C. Cuesta,Spanish,CB,25,45,50,76,10,17.3,42,76,0
-alaves,alaves_mourino,S. Mouriño,Uruguayan,CB,22,45,50,76,10,19.6,42,80,0
-alaves,alaves_maras,N. Maraš,Serbian,CB,28,43,49,72,10,8.4,26,72,0
-alaves,alaves_diarra,M. Diarra,Malian,LB,24,57,57,74,10,13.8,33,75,0
-alaves,alaves_sanchez,Manu Sánchez,Spanish,LB,23,62,61,75,10,16.5,37,79,0
-alaves,alaves_parada,Víctor Parada,Spanish,CB,22,43,48,72,10,11.3,26,72,0
-alaves,alaves_blanco,Antonio Blanco,Spanish,CDM,25,59,76,63,10,17.3,42,80,0
-alaves,alaves_galarreta,Ruiz de Galarreta,Spanish,CM,30,61,78,65,10,16.5,53,78,0
-alaves,alaves_vicente,Carlos Vicente,Spanish,RM,26,73,69,51,10,10.9,29,77,0
-alaves,ala_conechny,T. Conechny,Argentine,LM,26,73,69,50,10,5,14,75,0
-alaves,alaves_jordan,Joan Jordán,Spanish,CM,31,65,77,63,10,13.2,47,77,0
-alaves,alaves_pizarro,V. Pizarro,Spanish,CM,21,63,76,62,10,20.1,42,81,0
-alaves,alaves_guridi,Guridi,Spanish,CM,30,63,76,61,10,12.5,42,76,0
-alaves,alaves_benavidez,C. Benavídez,Uruguayan,CM,26,60,74,59,10,12.5,33,74,0
-alaves,alaves_rebbach,A. Rebbach,Algerian,LM,27,70,65,46,10,6.8,20,71,0
-alaves,alaves_stoichkov,Stoichkov,Spanish,LM,30,71,67,46,10,6.3,23,72,0
-alaves,alaves_novoa2,Hugo Novoa,Spanish,RW,22,73,65,46,10,13,29,79,0
-alaves,ala_toni_m,Toni Martínez,Spanish,ST,28,77,60,41,10,8,25,77,0
-alaves,alaves_villalibre,Villalibre,Spanish,ST,26,77,59,41,10,18.9,47,77,0
-alaves,alaves_diaz,Mariano Díaz,Dominican,ST,32,77,59,41,10,12.1,47,77,0
-elche,elche_dituro,Matías Dituro,Argentine,GK,38,10,11,13,74,4.1,33,74,0
-elche,elc_werner,Axel Werner,Argentine,GK,29,10,10,12,72,3,10,72,0
-elche,elche_pena,Iñaki Peña,Spanish,GK,26,10,11,13,76,16.5,42,80,0
-elche,elche_affengruber,David Affengruber,Austrian,CB,24,46,51,75,10,15.8,37,80,0
-elche,elche_diaby,Bambo Diaby,Spanish,CB,27,44,50,73,10,10.3,29,74,0
-elche,elche_donald,John Donald,Nigerian,CB,24,43,49,73,10,12,29,76,0
-elche,elche_barzic,Matia Barzic,Croatian,CB,21,43,48,72,10,11.6,26,75,0
-elche,elc_bigas,Pedro Bigas,Spanish,CB,35,43,48,72,10,3,12,72,0
-elche,elche_izquierdo,Jairo Izquierdo,Spanish,LB,31,61,59,74,10,8.7,33,74,0
-elche,elche_nunez,Álvaro Núñez,Spanish,RB,25,63,61,74,10,13.2,33,78,0
-elche,elche_petrot,Léo Petrot,French,CB,28,45,50,76,10,14.5,42,76,0
-elche,elche_chust,Víctor Chust,Spanish,CB,25,45,50,76,10,17.3,42,76,0
-elche,elche_aguado,Marc Aguado,Spanish,CDM,25,60,75,61,10,15.1,37,78,0
-elche,elche_febas,Aleix Febas,Spanish,CM,29,66,76,59,10,13.5,42,76,0
-elche,elche_mendoza,Rodrigo Mendoza,Spanish,CM,20,64,75,58,10,17.9,37,78,0
-elche,elche_neto,Martim Neto,Portuguese,CM,22,64,75,61,10,17.1,37,80,0
-elche,elc_josan,Josan,Spanish,RM,35,71,68,48,10,4,14,72,0
-elche,elche_mercau,Nicolás Fernández Mercau,Argentine,CAM,25,72,71,48,10,10,26,77,0
-elche,elche_santiago,Yago Santiago,Spanish,LW,22,72,66,47,10,11.3,26,76,0
-elche,elche_nunez2,Rafa Núñez,Spanish,LW,23,71,65,46,10,9.5,23,74,0
-elche,elche_valera,Germán Valera,Spanish,RW,23,73,66,47,10,12.5,29,78,0
-elche,elche_plano,Óscar Plano,Spanish,RW,34,72,66,46,10,5,26,72,0
-elche,elche_silva,André Silva,Portuguese,ST,29,80,63,44,10,23.4,67,80,0
-elche,elche_mir,Rafa Mir,Spanish,ST,28,80,62,43,10,25.1,67,80,0
-elche,elche_ghezouani,Mourad El Ghezouani,Moroccan,ST,27,78,61,42,10,20.4,53,78,0
-espanyol,espanyol_dmitrovic,Marko Dmitrović,Serbian,GK,33,10,11,13,78,12.5,53,78,0
-espanyol,espanyol_fortuno,Ángel Fortuño,Spanish,GK,23,10,11,13,72,10.9,26,76,0
-espanyol,espanyol_tristan,Pol Tristán,Spanish,GK,23,10,11,13,70,8.3,20,74,0
-espanyol,esp_cabrera,Leandro Cabrera,Uruguayan,CB,34,44,50,76,10,8,28,77,0
-espanyol,espanyol_rubio,Miguel Rubio,Spanish,CB,27,44,50,78,10,20.4,53,78,0
-espanyol,espanyol_salinas,José Salinas,Spanish,LB,24,64,61,76,10,18.2,42,78,0
-espanyol,esp_omar,Omar El Hilali,Moroccan,RB,21,65,62,73,10,10,22,82,0
-espanyol,espanyol_sanchez,Rubén Sánchez,Spanish,RB,24,63,61,74,10,13.8,33,78,0
-espanyol,espanyol_riedel,Clemens Riedel,German,CB,22,44,50,75,10,17.1,37,80,0
-espanyol,espanyol_lozano,Pol Lozano,Spanish,CM,25,65,77,61,10,19.9,47,80,0
-espanyol,esp_edu_exposito,Edu Expósito,Spanish,CM,29,67,77,59,10,10,32,77,0
-espanyol,espanyol_hernandez,Javi Hernández,Spanish,CM,21,63,74,58,10,15.3,33,78,0
-espanyol,espanyol_dolan,Tyrhys Dolan,English,RW,23,75,69,49,10,16.5,37,82,0
-espanyol,espanyol_milla,Pere Milla,Spanish,LW,32,76,69,49,10,10.5,42,76,0
-espanyol,esp_puado,Javi Puado,Spanish,LW,27,80,72,51,10,14,42,80,0
-espanyol,espanyol_roca,Antoniu Roca,Spanish,RW,22,72,66,47,10,11.3,26,78,0
-espanyol,espanyol_carreras,Jofre Carreras,Spanish,RW,24,73,66,47,10,12,29,80,0
-espanyol,espanyol_fernandez,Roberto Fernández,Spanish,ST,23,77,61,42,10,21.7,47,80,0
-espanyol,espanyol_garcia,Kike García,Spanish,ST,35,77,59,41,10,8.8,47,77,0
-espanyol,espanyol_fernandez2,Marcos Fernández,Spanish,ST,22,75,62,43,10,17.1,37,76,0
-getafe,get_soria,David Soria,Spanish,GK,32,10,12,16,81,10,45,81,0
-getafe,getafe_letacek,Jiří Letáček,Czech,GK,26,10,11,13,75,14.4,37,78,0
-getafe,get_djene,Dakonam Djené,Togolese,CB,33,45,51,79,10,8,42,79,0
-getafe,get_alderete,Omar Alderete,Paraguayan,CB,28,48,53,80,10,8,25,80,0
-getafe,getafe_duarte,Domingos Duarte,Portuguese,CB,30,46,51,77,10,14.4,47,77,0
-getafe,getafe_abqar,Abdel Abqar,Moroccan,CB,26,46,51,77,10,18.9,47,82,0
-getafe,getafe_rico,Diego Rico,Spanish,LB,32,64,61,75,10,9.2,37,77,0
-getafe,getafe_iglesias,Juan Iglesias,Spanish,RB,27,63,61,74,10,11.8,33,77,0
-getafe,getafe_femenia,Kiko Femenía,Spanish,RB,34,63,61,74,10,6.5,33,75,0
-getafe,getafe_bekhoucha,Ismael Bekhoucha,Algerian,RB,20,58,57,70,10,9,20,78,0
-getafe,get_arambarri,Mauro Arambarri,Uruguayan,CM,29,64,78,63,10,12,48,78,0
-getafe,getafe_milla,Luis Milla,Spanish,CM,30,67,80,66,10,21.6,67,80,0
-getafe,getafe_munoz,Javi Muñoz,Spanish,CM,30,66,78,62,10,16.5,53,78,0
-getafe,getafe_neyou,Yvan Neyou,Cameroonian,CDM,28,60,77,63,10,16.7,47,77,0
-getafe,getafe_martin,Mario Martín,Spanish,CDM,21,61,74,62,10,15.3,33,78,0
-getafe,get_alena,Carles Aleñá,Spanish,CM,27,67,76,60,10,12,35,76,0
-getafe,getafe_lopy,D. Lopy,Senegalese,CM,22,64,75,61,10,17.1,37,80,0
-getafe,getafe_santiago,Yellu Santiago,Spanish,CM,20,62,73,60,10,13.6,29,78,0
-getafe,getafe_arribas,Arribas,Spanish,CAM,22,74,73,50,10,14.9,33,80,0
-getafe,getafe_cruz,Juan Cruz,Spanish,RM,24,73,71,49,10,12,29,77,0
-getafe,getafe_costa,Coba da Costa,Spanish,LM,23,73,67,47,10,12.5,29,76,0
-getafe,getafe_juanmi,Juanmi,Spanish,LW,32,81,73,52,10,20.8,75,81,0
-getafe,getafe_sancris,Álex Sancris,Spanish,RW,28,72,66,47,10,8.4,26,74,0
-getafe,get_mayoral,Borja Mayoral,Spanish,ST,28,82,66,46,10,18,55,82,0
-getafe,getafe_tomas,Raúl de Tomás,Spanish,ST,30,80,62,43,10,21.6,67,80,0
-getafe,get_uche,C. Uche,Nigerian,ST,21,72,58,40,10,10,22,81,0
-getafe,getafe_gonzalez,Peter González,Spanish,ST,22,71,59,41,10,9.9,23,79,0
-levante,levante_campos,Pablo Campos,Spanish,GK,23,10,11,13,72,10.9,26,76,0
-levante,levante_pastor,Alfonso Pastor,Spanish,GK,24,10,11,13,70,8,20,74,0
-levante,levante_ryan,Mat Ryan,Australian,GK,33,10,11,13,75,8.3,37,75,0
-levante,levante_matturro,Alan Matturro,Uruguayan,CB,20,45,50,76,10,20.5,42,82,0
-levante,levante_moreno,Matías Moreno,Argentine,CB,21,45,50,76,10,20.1,42,80,0
-levante,levante_fuente,Adrián de la Fuente,Spanish,CB,26,44,50,75,10,14.4,37,75,0
-levante,levante_elgezabal,Unai Elgezabal,Spanish,CB,32,43,48,73,10,7,29,73,0
-levante,levante_cabello,Jorge Cabello,Spanish,CB,21,43,48,73,10,13.3,29,76,0
-levante,levante_pampin,Diego Pampín,Spanish,LB,25,64,61,73,10,11.5,29,75,0
-levante,levante_toljan,Jeremy Toljan,German,RB,30,65,62,73,10,8.3,29,75,0
-levante,levante_garcia,Víctor García,Spanish,RB,27,63,60,71,10,7.8,23,73,0
-levante,levante_sanchez,Manu Sánchez,Spanish,LB,24,64,61,73,10,12,29,77,0
-levante,levante_rey,Oriol Rey,Spanish,CDM,27,61,76,62,10,15.5,42,76,0
-levante,levante_olasagasti,Jon Ander Olasagasti,Spanish,CM,24,65,77,61,10,20.8,47,80,0
-levante,lev_pablo_martinez,Pablo Martínez,Spanish,CM,27,65,76,60,10,4,14,76,0
-levante,levante_lozano,Sergio Lozano,Spanish,CM,26,64,75,60,10,14.4,37,75,0
-levante,levante_clemente,Óscar Clemente,Spanish,CAM,26,65,73,56,10,10.9,29,73,0
-levante,levante_brugue,Roger Brugué,Spanish,LW,28,73,66,47,10,9.6,29,75,0
-levante,levante_alvarez,Carlos Álvarez,Spanish,RW,21,76,69,49,10,20.1,42,82,0
-levante,levante_losada,Iker Losada,Spanish,LW,24,73,66,47,10,12,29,76,0
-levante,levante_espi,Carlos Espí,Spanish,ST,19,73,60,42,10,13.8,29,80,0
-levante,levante_romero,Iván Romero,Spanish,ST,24,73,60,42,10,12,29,76,0
-levante,lev_morales,José Luis Morales,Spanish,ST,37,73,60,42,10,2,14,73,0
-levante,levante_cortes,Paco Cortés,Spanish,ST,18,68,56,39,10,7,16,78,0
-racing_santander,racing_santander_eriksson,Simon Eriksson,Swedish,GK,26,10,11,13,68,5.5,16,72,0
-racing_santander,racing_santander_jimenez,Alvaro Jimenez,Spanish,GK,23,10,11,13,64,3.7,10,70,0
-racing_santander,racing_santander_mantilla,Alvaro Mantilla,Spanish,CB,27,37,45,75,10,13.5,37,75,0
-racing_santander,racing_santander_ramon,Pablo Ramon,Spanish,CB,25,35,43,73,10,11.5,29,73,0
-racing_santander,racing_santander_gonzalez,Facundo Gonzalez,Uruguayan,CB,24,37,45,75,10,15.8,37,75,0
-racing_santander,racing_santander_crespo,Aitor Crespo,Spanish,CB,26,35,43,73,10,10.9,29,73,0
-racing_santander,racing_santander_manu,Manu,Spanish,RB,26,53,53,72,10,9.5,26,72,0
-racing_santander,racing_santander_salinas,Jorge Salinas,Spanish,RB,23,52,51,68,10,6.3,16,70,0
-racing_santander,racing_santander_saenz,Inigo Saenz,Spanish,LB,25,51,51,70,10,7.6,20,70,0
-racing_santander,racing_santander_calera,Samuel Calera,Spanish,LB,22,50,50,66,10,5,13,70,0
-racing_santander,racing_santander_felipe,Pedro Felipe,Portuguese,CDM,26,46,64,62,10,3.2,10,68,0
-racing_santander,racing_santander_carrascal,Marco Carrascal,Spanish,CDM,24,44,61,60,10,2.3,7,68,0
-racing_santander,racing_santander_puerta,Gustavo Puerta,Colombian,CM,23,52,63,54,10,3.2,9,74,0
-racing_santander,racing_santander_sangalli,Marco Sangalli,Spanish,CM,29,52,64,53,10,2.6,10,66,0
-racing_santander,racing_santander_franco,Santi Franco,Spanish,CM,22,51,61,50,10,2.5,7,70,0
-racing_santander,racing_santander_canales,Sergio Canales,Spanish,CAM,34,76,80,49,10,14.9,67,80,0
-racing_santander,racing_santander_gueye,Maguette Gueye,Senegalese,LW,23,62,48,29,10,2.8,8,72,0
-racing_santander,racing_santander_martin,Andres Martin,Spanish,RW,26,69,58,38,10,6.3,18,69,0
-racing_santander,racing_santander_arana,Juan Carlos Arana,Spanish,RW,25,64,52,33,10,3.4,10,68,0
-racing_santander,racing_santander_vicente,Inigo Vicente,Spanish,LW,26,66,55,36,10,4.2,13,68,0
-racing_santander,racing_santander_villalibre,Asier Villalibre,Spanish,ST,28,72,51,34,10,8.4,26,72,0
-racing_santander,racing_santander_mata,Jaime Mata,Spanish,ST,37,72,51,35,10,3.5,26,72,0
-racing_santander,racing_santander_guliashvili,Giorgi Guliashvili,Georgian,ST,22,70,52,33,10,8.6,20,72,0
-racing_santander,racing_santander_camara,Suleiman Camara,Gambian,ST,21,67,48,31,10,5.9,14,72,0
-racing_santander,racing_santander_lozano,Manex Lozano,Spanish,ST,20,64,47,30,10,4,10,70,0
-racing_santander,racing_santander_calero,Fernando Calero,Spanish,CB,29,44,50,78,10,17.8,53,78,0
-deportivo_la_coruna,deportivo_la_coruna_parreno,German Parreno,Spanish,GK,25,10,11,13,69,6.7,18,72,0
-deportivo_la_coruna,deportivo_la_coruna_puerto,Eric Puerto,Spanish,GK,21,10,11,13,64,3.9,10,72,0
-deportivo_la_coruna,deportivo_la_coruna_roman,Leo Roman,Spanish,GK,23,10,11,13,66,4.8,13,74,0
-deportivo_la_coruna,deportivo_la_coruna_mardones,Alvaro Mardones,Spanish,CB,26,37,45,76,10,16.5,42,76,0
-deportivo_la_coruna,deportivo_la_coruna_canedo,Damian Canedo,Spanish,CB,23,36,43,71,10,9.5,23,71,0
-deportivo_la_coruna,deportivo_la_coruna_comas,Arnau Comas,Spanish,CB,25,37,44,72,10,10,26,72,0
-deportivo_la_coruna,deportivo_la_coruna_barcia,Dani Barcia,Spanish,CB,22,35,42,70,10,8.6,20,70,0
-deportivo_la_coruna,deportivo_la_coruna_quagliata,Giacomo Quagliata,Italian,LB,24,50,52,69,10,7,18,70,0
-deportivo_la_coruna,deportivo_la_coruna_navarro,Ximo Navarro,Spanish,RB,33,50,52,70,10,4.2,20,70,0
-deportivo_la_coruna,deportivo_la_coruna_loureiro,Miguel Loureiro,Spanish,RB,22,49,50,68,10,6.5,16,70,0
-deportivo_la_coruna,deportivo_la_coruna_ede,Bright Ede,Polish,LB,20,49,49,63,10,3.5,9,72,0
-deportivo_la_coruna,deportivo_la_coruna_teijo,Quique Teijo,Spanish,CB,26,36,43,71,10,8.3,23,71,0
-deportivo_la_coruna,deportivo_la_coruna_amatucci,Lorenzo Amatucci,Italian,CDM,22,48,66,61,10,5,13,74,0
-deportivo_la_coruna,deportivo_la_coruna_gijselhart,Teun Gijselhart,Dutch,CM,24,53,63,54,10,3.1,9,70,0
-deportivo_la_coruna,deportivo_la_coruna_jensen,Jonathan Asp Jensen,Danish,CAM,23,59,63,45,10,3.2,9,72,0
-deportivo_la_coruna,deportivo_la_coruna_fernandez,Samu Fernandez,Spanish,CM,22,51,61,52,10,2.5,7,68,0
-deportivo_la_coruna,deportivo_la_coruna_hernandez,Yeremay Hernandez,Spanish,LW,22,82,77,52,10,44.5,85,84,0
-deportivo_la_coruna,deportivo_la_coruna_mella,David Mella,Spanish,RW,21,74,66,42,10,15.3,33,82,0
-deportivo_la_coruna,deportivo_la_coruna_perez,Lucas Perez,Spanish,ST,37,75,60,41,10,5.3,37,75,0
-deportivo_la_coruna,deportivo_la_coruna_sanchez,Kevin Sanchez,Spanish,ST,23,67,50,32,10,5.5,14,70,0
-deportivo_la_coruna,deportivo_la_coruna_eddahchouri,Zakaria Eddahchouri,Dutch,ST,22,67,50,31,10,5.7,14,72,0
-deportivo_la_coruna,deportivo_la_coruna_nsongo,Bil Nsongo,Cameroonian,ST,21,62,43,26,10,3,8,72,0
-deportivo_la_coruna,deportivo_la_coruna_vidal,Iker Vidal,Spanish,LW,20,63,50,32,10,3.5,9,70,0
-malaga,malaga_herrero,A. Herrero,Spanish,GK,26,10,11,13,68,5.5,16,72,0
-malaga,malaga_lopez,Carlos Lopez,Spanish,GK,24,10,11,13,64,3.5,10,70,0
-malaga,malaga_gabilondo,Gabilondo,Spanish,RB,25,50,51,71,10,8.7,23,71,0
-malaga,malaga_jauregi,Jauregi,Spanish,RB,23,49,50,68,10,6.3,16,68,0
-malaga,malaga_puga,C. Puga,Spanish,CB,26,37,45,76,10,16.5,42,76,0
-malaga,malaga_einar,Einar,Spanish,CB,24,35,43,73,10,12,29,73,0
-malaga,malaga_darko,Darko,Serbian,CB,27,36,44,73,10,10.3,29,73,0
-malaga,malaga_moussa,Moussa,Senegalese,CB,23,35,43,70,10,8.3,20,70,0
-malaga,malaga_dotor,Dotor,Spanish,LB,22,49,50,69,10,7.5,18,70,0
-malaga,malaga_m,Izan M,Spanish,RB,20,47,48,65,10,4.5,11,72,0
-malaga,malaga_ramon,Ramon,Spanish,CDM,26,43,61,61,10,2.1,7,66,0
-malaga,malaga_murillo,Murillo,Spanish,CDM,24,41,59,57,10,1.8,6,68,0
-malaga,malaga_juanpe,Juanpe,Spanish,CM,25,52,64,54,10,3.4,10,68,0
-malaga,malaga_victor,Victor,Spanish,CM,23,51,61,52,10,2.4,7,68,0
-malaga,malaga_sanchez,Dani Sanchez,Spanish,CM,24,50,61,52,10,2.3,7,68,0
-malaga,malaga_lobete,Lobete,Spanish,CM,22,50,59,48,10,1.9,6,68,0
-malaga,malaga_larrubia,D Larrubia,Spanish,CAM,24,60,64,46,10,3.5,10,72,0
-malaga,malaga_lorenzo,Dani Lorenzo,Spanish,CAM,22,59,61,45,10,2.5,7,70,0
-malaga,malaga_haitam,Haitam,Moroccan,RW,24,68,56,36,10,6.1,16,70,0
-malaga,malaga_o,Dorrio O,Spanish,RW,22,66,54,35,10,5,13,70,0
-malaga,malaga_joaquin,Joaquin,Spanish,LW,25,69,58,38,10,6.7,18,69,0
-malaga,malaga_luismi,Luismi,Spanish,LW,23,63,51,32,10,3.2,9,68,0
-malaga,malaga_chupe,Chupe,Spanish,ST,26,71,51,34,10,8.3,23,71,0
-malaga,malaga_montero,Montero,Spanish,ST,22,67,50,32,10,5.7,14,72,0
-malaga,malaga_nino,Nino,Spanish,ST,21,66,49,31,10,5.1,13,70,0
+real_madrid,rma_mbappe,Kylian Mbappé,French,ST,26,91,88,54,10,250,520,93,false
+barcelona,bar_yamal,Lamine Yamal,Spanish,RW,18,90,88,59,10,280,195,94,true
+real_madrid,rma_courtois,Thibaut Courtois,Belgian,GK,33,14,16,20,90,70,220,90,false
+barcelona,bar_pedri,Pedri,Spanish,CM,22,88,90,83,10,155,285,92,false
+real_madrid,rma_bellingham,Jude Bellingham,English,CAM,22,90,90,87,10,220,310,93,true
+real_madrid,real_madrid_jr,Vini Jr.,Brazilian,LW,24,89,86,55,10,127.5,212,93,false
+barcelona,bar_raphinha,Raphinha,Brazilian,LW,28,88,86,68,10,88,195,88,false
+atletico,atm_oblak,Jan Oblak,Slovenian,GK,32,14,16,20,88,62,195,88,false
+real_madrid,rma_valverde,Federico Valverde,Uruguayan,CM,27,87,86,86,10,125,285,88,false
+atletico,atm_alvarez,Julián Alvarez,Argentine,ST,25,86,85,69,10,95,185,91,false
+barcelona,bar_cubarsi,Pau Cubarsí,Spanish,CB,18,78,78,86,10,72,55,92,true
+real_madrid,real_madrid_cucurella2,Cucurella,Spanish,LB,24,82,83,86,10,82.3,146,90,false
+barcelona,bar_joan_garcia,Joan García,Spanish,GK,24,10,12,16,86,18,45,86,false
+barcelona,bar_de_jong,Frenkie de Jong,Holland,CM,28,85,86,83,10,95,225,88,false
+atletico,atletico_grimaldo,Grimaldo,Spanish,LM,24,84,85,77,10,71.2,129,89,false
+atletico,atm_llorente,Marcos Llorente,Spanish,RB,30,85,84,84,10,38,115,85,false
+athletic_bilbao,ath_simon,Unai Simón,Spanish,GK,28,12,14,18,85,32,78,85,false
+barcelona,barcelona_kounde2,Jules Koundé,French,RB,24,80,80,85,10,71.2,129,89,false
+barcelona,bar_eric_garcia,Eric García,Spanish,CB,24,79,80,85,10,22,42,89,false
+barcelona,barcelona_fermin,Fermín,Spanish,CAM,24,85,84,73,10,71.2,129,89,false
+athletic_bilbao,athletic_bilbao_laporte,Aymeric Laporte,Spanish,CB,24,76,78,84,10,61.5,114,88,false
+real_madrid,real_madrid_silva,Bernardo Silva,Portuguese,CM,24,82,84,76,10,61.5,114,88,false
+real_sociedad,real_sociedad_oyarzabal,Oyarzabal,Spanish,ST,24,84,83,62,10,61.5,114,88,false
+real_madrid,rma_taa,Trent Alexander-Arnold,English,RB,26,81,84,79,10,85,195,89,false
+real_madrid,real_madrid_konate,Ibrahima Konaté,French,CB,26,74,73,84,10,42.9,95,86,false
+real_madrid,rma_militao,Éder Militão,Brazilian,CB,27,77,76,84,10,72,185,86,false
+barcelona,bar_ferran,Ferran Torres,Spanish,ST,25,84,82,59,10,58,125,85,false
+real_madrid,rma_tchouameni,Aurélien Tchouaméni,French,CDM,25,79,81,84,10,105,185,90,false
+real_madrid,rma_rodrygo,Rodrygo,Brazilian,LW,24,84,83,55,10,125,225,89,false
+barcelona,bar_olmo,Dani Olmo,Spanish,CAM,27,84,83,65,10,92,195,86,false
+athletic_bilbao,ath_williams_n,Nico Williams,Spanish,LW,23,84,83,57,10,68,95,90,false
+real_betis,bet_isco,Isco,Spanish,CAM,33,82,83,68,10,14,105,83,false
+real_madrid,rma_rudiger,Antonio Rüdiger,German,CB,32,76,75,83,10,42,165,85,false
+atletico,atm_sorloth,Alexander Sørloth,Norwegian,ST,29,83,82,61,10,42,105,83,false
+atletico,atletico_lookman,Ademola Lookman,Nigerian,ST,24,83,80,52,10,53.2,100,87,false
+real_madrid,real_madrid_dumfries,Denzel Dumfries,Holland,RB,24,83,81,83,10,53.2,100,87,false
+atletico,atletico_hjulmand,Morten Hjulmand,Danish,CDM,24,81,81,83,10,53.2,100,87,false
+atletico,atletico_hancko,Dávid Hancko,Slovak,CB,27,79,79,83,10,46.4,107,84,false
+atletico,atletico_baena,Álex Baena,Spanish,LM,24,83,83,74,10,27.4,59,86,false
+barcelona,bar_gavi,Gavi,Spanish,CM,21,82,83,77,10,145,255,90,true
+real_madrid,rma_guler,Arda Güler,Turkish,RM,20,83,82,65,10,72,75,88,true
+atletico,atm_barrios,Pablo Barrios,Spanish,CM,22,82,83,81,10,28,35,87,false
+villarreal,rbl_gulacsi,Péter Gulácsi,Hungarian,GK,35,10,12,16,82,10,52,84,false
+osasuna,osa_budimir,Ante Budimir,Croatian,ST,34,82,79,61,10,16,58,82,false
+atletico,atm_musso,Juan Musso,Argentine,GK,31,12,14,18,82,18,75,82,false
+atletico,atm_gimenez,José María Giménez,Uruguayan,CB,30,71,70,82,10,52,155,84,false
+barcelona,barcelona_gordon,Anthony Gordon,English,LW,24,82,81,64,10,36,75,82,false
+athletic_bilbao,athletic_bilbao_sancet,Sancet,Spanish,CAM,24,82,82,76,10,46,89,86,false
+athletic_bilbao,athletic_bilbao_vivian,Vivian,Spanish,CB,24,73,71,82,10,46,89,86,false
+barcelona,barcelona_adeyemi,Karim Adeyemi,German,RM,23,82,79,57,10,49.3,95,86,false
+atletico,atm_giuliano,Giuliano,Argentine,RM,22,82,80,71,10,16,32,82,false
+barcelona,barcelona_balde,Balde,Spanish,LB,24,79,81,82,10,46,89,86,false
+villarreal,villarreal_moleiro2,Moleiro,Spanish,LM,24,82,80,65,10,46,89,86,false
+barcelona,barcelona_szczesny,Wojciech Szczęsny,Polish,GK,35,10,11,13,81,17.5,85,82,false
+celta_vigo,cel_aspas,Iago Aspas,Spanish,RW,38,81,79,53,10,8,85,85,false
+atletico,atm_koke,Koke,Spanish,CM,33,78,81,78,10,18,115,84,false
+villarreal,vil_gerard,Gerard Moreno,Spanish,ST,33,81,80,62,10,12,82,83,false
+rayo_vallecano,ray_garcia_a,Álvaro García,Spanish,LW,32,81,78,61,10,6,22,81,false
+villarreal,villarreal_pepe,Nicolas Pépé,Ivorian,RW,30,81,79,55,10,18.9,59,81,false
+real_betis,real_betis_fornals,Fornals,Spanish,CM,24,80,81,77,10,39.8,78,86,false
+real_sociedad,rso_remiro,Álex Remiro,Spanish,GK,30,12,14,18,81,28,75,84,false
+real_madrid,rma_brahim,Brahim,Moroccan,RM,26,81,79,55,10,42,75,83,false
+atletico,atm_le_normand,Robin Le Normand,Spanish,CB,28,70,69,81,10,48,105,85,false
+rayo_vallecano,rayo_vallecano_frutos2,De Frutos,Spanish,RW,24,81,79,61,10,39.8,78,86,false
+real_madrid,rma_camavinga,Eduardo Camavinga,French,CM,22,80,81,81,10,115,165,90,false
+real_betis,mun_antony,Antony,Brazilian,RW,25,81,80,61,10,35,195,85,false
+real_betis,real_betis_abde,Abde,Moroccan,LW,24,81,79,56,10,39.8,78,86,false
+atletico,atletico_pubill2,Pubill,Spanish,CB,24,76,75,81,10,39.8,78,86,false
+real_madrid,rma_carreras,Álvaro Carreras,Spanish,LB,22,81,81,80,10,35,65,83,false
+real_madrid,rma_huijsen,Dean Huijsen,Spanish,CB,20,74,75,81,10,42,55,87,true
+villarreal,villarreal_ayoze,Ayoze,Spanish,ST,24,80,78,66,10,34.4,69,85,false
+athletic_bilbao,ath_williams_i,Iñaki Williams,Ghanaian,RW,31,80,78,62,10,48,118,84,false
+getafe,get_soria,David Soria,Spanish,GK,32,10,12,16,80,10,45,81,false
+celta_vigo,cel_iglesias,Borja Iglesias,Spanish,ST,32,80,79,60,10,12,55,81,false
+real_sociedad,real_sociedad_guedes2,Guedes,Portuguese,LW,24,80,78,55,10,34.4,69,85,false
+real_betis,real_betis_celso,Giovani Lo Celso,Argentine,CAM,29,80,80,72,10,26.8,75,82,false
+athletic_bilbao,athletic_bilbao_yeray,Yeray,Spanish,CB,24,72,73,80,10,34.4,69,85,false
+real_madrid,rma_mendy,Ferland Mendy,French,LB,30,77,77,80,10,42,155,82,false
+rayo_vallecano,rayo_vallecano_isi,Isi,Spanish,CAM,24,80,79,57,10,34.4,69,85,false
+real_sociedad,rso_kubo,Takefusa Kubo,Japanese,RM,24,80,78,59,10,62,98,88,false
+villarreal,villarreal_gueye,Pape Gueye,Senegalese,CM,26,78,78,80,10,12.5,33,82,false
+atletico,psg_kangin,Lee Kang In,Korea Republic,RW,24,80,80,64,10,15.4,29,84,false
+real_madrid,rma_lunin,Andriy Lunin,Ukrainian,GK,26,10,10,12,80,18,55,84,false
+rayo_vallecano,ray_ratiu,Andrei Rațiu,Romanian,RB,27,80,80,80,10,18,38,81,false
+barcelona,bar_araujo,Ronald Araujo,Uruguayan,CB,26,73,71,80,10,92,195,89,false
+atletico,atletico_cardoso,Johnny Cardoso,United States,CDM,23,76,77,80,10,10.9,26,83,false
+villarreal,villarreal_romero,Carlos Romero,Spanish,LB,23,79,80,79,10,14.4,33,80,false
+barcelona,bar_g_martin,Gerard Martín,Spanish,CB,23,74,75,79,10,18,28,82,false
+athletic_bilbao,ath_yuri,Yuri Berchiche,Spanish,LB,35,77,77,79,10,6,52,79,false
+deportivo_la_coruna,marseille_aubameyang,Pierre-Emerick Aubameyang,Gabonese,ST,36,79,76,53,10,10.2,41,81,false
+celta_vigo,cel_marcos_alonso,Marcos Alonso,Spanish,CB,34,77,79,78,10,6,42,79,false
+rayo_vallecano,ray_lejeune,Florian Lejeune,French,CB,34,74,74,79,10,4,22,79,false
+real_betis,real_betis_bartra,Bartra,Spanish,CB,24,74,74,79,10,29.7,61,84,false
+levante,union_berlin_ryan,Mathew Ryan,Australian,GK,33,10,11,13,79,7.7,29,79,false
+levante,lil_mandi,Aïssa Mandi,Algerian,CB,33,72,74,79,10,6,28,81,false
+athletic_bilbao,athletic_bilbao_galarreta,Ruiz de Galarreta,Spanish,CDM,32,76,79,77,10,13.8,53,79,false
+sevilla,sevilla_vlachodimos,Odysseas Vlachodimos,Greek,GK,24,10,11,13,79,29.7,61,84,false
+real_betis,real_betis_llorente,Diego Llorente,Spanish,CB,31,70,71,79,10,13.2,47,79,false
+barcelona,bar_christensen,Andreas Christensen,Danish,CB,29,70,71,79,10,42,95,84,false
+osasuna,osa_sergio_herrera,Sergio Herrera,Spanish,GK,32,10,12,16,79,12,45,80,false
+athletic_bilbao,athletic_bilbao_berenguer,Berenguer,Spanish,RW,24,79,78,71,10,29.7,61,84,false
+rayo_vallecano,rayo_vallecano_batalla,Augusto Batalla,Argentine,GK,29,10,11,13,79,20.4,59,79,false
+espanyol,espanyol_dmitrovic,Marko Dmitrović,Serbian,GK,33,10,11,13,79,12.5,53,79,false
+real_sociedad,real_sociedad_soler,Carlos Soler,Spanish,CM,24,78,79,74,10,29.7,61,84,false
+celta_vigo,elche_febas,Aleix Febas,Spanish,CM,29,78,79,74,10,13.5,42,79,false
+villarreal,villarreal_comesana,Santi Comesaña,Spanish,CM,28,76,77,79,10,16.7,47,80,false
+real_betis,real_betis_hernandez,Cucho Hernández,Colombian,ST,26,79,78,60,10,42.9,95,83,false
+villarreal,vil_foyth,Juan Foyth,Argentine,CB,27,73,74,79,10,32,75,80,false
+real_sociedad,rso_barrenetxea,Barrenetxea,Spanish,LW,23,79,78,55,10,42,62,84,false
+villarreal,villarreal_mikautadze,Georges Mikautadze,Georgian,ST,24,79,77,56,10,41.3,85,84,false
+rayo_vallecano,rayo_vallecano_chavarria,Pep Chavarría,Spanish,LB,27,79,78,78,10,15.5,42,80,false
+osasuna,osa_boyomo,Enzo Boyomo,Cameroonian,CB,23,70,67,79,10,6,16,84,false
+villarreal,vil_cardona,Sergi Cardona,Spanish,LB,26,77,78,79,10,14,28,80,false
+real_madrid,real_madrid_endrick,Endrick,Brazilian,ST,19,79,76,50,10,54.3,95,89,false
+real_betis,bet_natan,Natan,Brazilian,CB,24,69,68,79,10,22,38,82,false
+athletic_bilbao,athletic_bilbao_jauregizar2,Jauregizar,Spanish,CM,24,77,77,79,10,29.7,61,84,false
+real_sociedad,real_sociedad_gorrotxategi,Gorrotxa,Spanish,CDM,23,73,74,78,10,5.5,14,78,false
+barcelona,barcelona_bernal,Marc Bernal,Spanish,CDM,24,76,77,78,10,25.7,54,83,false
+real_madrid,real_madrid_asencio,Asencio,Spanish,CB,24,72,70,78,10,25.7,54,83,false
+racing_santander,racing_santander_canales,Sergio Canales,Spanish,RM,34,78,78,69,10,14.9,67,80,false
+celta_vigo,cel_starfelt,Carl Starfelt,Swedish,CB,30,69,68,78,10,14,45,78,false
+valencia,valencia_rodriguez,Guido Rodríguez,Argentine,CDM,24,71,73,78,10,25.7,54,83,false
+athletic_bilbao,athletic_bilbao_guruzeta,Guruzeta,Spanish,ST,24,78,78,65,10,25.7,54,83,false
+real_sociedad,real_sociedad_herrera,Yangel Herrera,Venezuelan,CM,24,76,76,78,10,25.7,54,83,false
+celta_vigo,celta_vigo_radu2,Ionuț Andrei Radu,Romanian,GK,24,10,11,13,78,25.7,54,83,false
+osasuna,osasuna_rosier,Valentin Rosier,French,RB,29,76,76,78,10,10.3,33,78,false
+alaves,ala_toni_m,Toni Martínez,Spanish,ST,28,78,75,54,10,8,25,78,false
+real_betis,real_betis_roca,Marc Roca,Spanish,CDM,28,75,77,78,10,19.1,53,80,false
+sevilla,sevilla_vargas,Rubén Vargas,Swiss,LW,27,78,77,65,10,11.8,33,78,false
+real_sociedad,real_sociedad_gomez,Sergio Gómez,Spanish,LB,24,76,78,73,10,15.8,37,84,false
+atletico,atletico_almada,Thiago Almada,Argentine,CAM,24,78,77,63,10,41.3,85,86,false
+villarreal,villarreal_junior,Luiz Júnior,Brazilian,GK,24,10,11,13,78,31.4,67,84,false
+celta_vigo,celta_vigo_moriba,Ilaix Moriba,Guinean,CM,22,76,76,78,10,17.1,37,84,false
+athletic_bilbao,ath_paredes_a,Aitor Paredes,Spanish,CB,25,67,65,78,10,14,28,82,false
+atletico,aston_villa_ruggeri,Matteo Ruggeri,Italian,LB,23,77,77,78,10,20.2,45,83,false
+alaves,alaves_blanco,Antonio Blanco,Spanish,CDM,25,73,76,78,10,17.3,42,80,false
+barcelona,bar_casado,Marc Casadó,Spanish,CDM,21,76,77,78,10,45,42,84,true
+villarreal,villarreal_veiga,Renato Veiga,Portuguese,CB,22,75,74,78,10,25.7,53,86,false
+villarreal,villarreal_mourino,Santiago Mouriño,Uruguayan,RB,23,72,71,78,10,16.5,37,80,false
+real_sociedad,real_sociedad_martin,Jon Martín,Spanish,CB,19,68,67,78,10,13.8,29,82,false
+real_madrid,levante_espi,Carlos Espí,Spanish,ST,19,77,74,58,10,13.8,29,80,false
+osasuna,osasuna_fernandez,Aitor Fernández,Spanish,GK,34,10,11,13,77,9.9,47,77,false
+osasuna,osasuna_garcia3,Rubén García,Spanish,RM,32,77,76,59,10,8,38,77,false
+valencia,val_dimitrievski,Stole Dimitrievski,Macedonian,GK,31,10,12,16,77,6,28,81,false
+valencia,valencia_gaya,Gayà,Spanish,LB,24,75,76,77,10,22.2,48,82,false
+atletico,atletico_lemar,Thomas Lemar,French,CM,29,77,77,70,10,13.5,42,80,false
+getafe,get_djene,Dakonam Djené,Togolese,CB,33,71,71,77,10,8,42,79,false
+alaves,alaves_boye,Lucas Boyé,Argentine,ST,24,77,77,66,10,22.2,48,82,false
+alaves,alaves_sivera,Sivera,Spanish,GK,24,10,11,13,77,22.2,48,82,false
+valencia,valencia_rioja,Luis Rioja,Spanish,RM,32,77,75,63,10,8,33,78,false
+espanyol,esp_edu_exposito,Edu Expósito,Spanish,CAM,29,76,77,73,10,10,32,77,false
+celta_vigo,atm_galan,Javi Galán,Spanish,LB,30,76,77,77,10,18,52,80,false
+atletico,atletico_molina,Nahuel Molina,Argentine,RB,24,76,76,77,10,22.2,48,82,false
+real_sociedad,real_sociedad_zubeldia2,Zubeldia,Spanish,CB,24,74,74,77,10,22.2,48,82,false
+alaves,alaves_tenaglia,Nahuel Tenaglia,Argentine,CB,29,71,71,77,10,10.3,33,77,false
+real_betis,real_betis_ruibal,Aitor Ruibal,Spanish,RM,29,77,76,73,10,10.3,33,77,false
+valencia,val_hugo_duro,Hugo Duro,Spanish,ST,26,77,75,63,10,24,48,82,false
+rayo_vallecano,rayo_vallecano_valentin,Óscar Valentín,Spanish,CDM,30,68,70,77,10,14.4,47,77,false
+racing_santander,racing_santander_vicente,Iñigo Vicente,Spanish,LM,26,77,76,61,10,4.2,13,80,false
+osasuna,osasuna_catena2,Catena,Spanish,CB,24,68,67,77,10,22.2,48,82,false
+espanyol,espanyol_puado,Puado,Spanish,LW,24,77,76,63,10,22.2,48,82,false
+racing_santander,racing_santander_martin,Andrés Martín,Spanish,RW,26,77,76,54,10,6.3,18,80,false
+real_betis,rma_fran_garcia,Fran García,Spanish,LB,26,76,75,77,10,22,55,82,false
+real_betis,real_betis_fidalgo,Fidalgo,Mexican,CM,24,77,77,67,10,22.2,48,82,false
+real_betis,real_betis_valles,Álvaro Valles,Spanish,GK,28,10,11,13,77,33.1,85,82,false
+osasuna,osasuna_moncayola,Moncayola,Spanish,CM,24,76,77,76,10,22.2,48,82,false
+rayo_vallecano,rayo_vallecano_ciss,Pathé Ciss,Senegalese,CDM,31,68,69,77,10,13.2,47,77,false
+deportivo_la_coruna,deportivo_la_coruna_roman,Leo Román,Spanish,GK,23,10,11,13,77,4.8,13,83,false
+real_sociedad,real_sociedad_aramburu,Jon Mikel Aramburu,Venezuelan,RB,24,73,73,77,10,22.2,48,82,false
+getafe,getafe_romero,Zaid Romero,Argentine,CB,24,67,64,77,10,22.2,48,82,false
+athletic_bilbao,athletic_bilbao_prados,Beñat Prados,Spanish,CDM,24,73,74,77,10,15.8,37,82,false
+sevilla,sevilla_carmona,Carmona,Spanish,RB,24,75,74,77,10,22.2,48,82,false
+valencia,val_diego_lopez,Diego López,Spanish,LW,23,77,76,54,10,18,35,82,false
+getafe,getafe_satriano,Martín Satriano,Uruguayan,ST,24,77,76,61,10,22.2,48,82,false
+deportivo_la_coruna,deportivo_la_coruna_yeremay,Yeremay,Spanish,LM,24,77,74,45,10,22.2,48,82,false
+valencia,val_javi_guerra,Javi Guerra,Spanish,CM,22,77,77,76,10,14,28,86,false
+levante,levante_alvarez,Carlos Álvarez,Spanish,RM,21,77,75,55,10,20.1,42,82,false
+real_madrid,rma_mastantuono,Franco Mastantuono,Argentine,RM,18,77,76,62,10,52,42,90,true
+celta_vigo,celta_vigo_rueda,Javi Rueda,Spanish,RB,23,76,76,76,10,12.5,29,78,false
+malaga,malaga_chupe,Chupe,Spanish,ST,26,76,73,48,10,8.3,23,79,false
+espanyol,esp_cabrera,Leandro Cabrera,Uruguayan,CB,34,68,66,76,10,8,28,77,false
+real_betis,bet_bellerin,Héctor Bellerín,Spanish,RB,30,73,74,76,10,14,62,77,false
+elche,elche_bigas,Bigas,Spanish,CB,24,71,70,76,10,19.2,42,81,false
+osasuna,osasuna_gomez,Moi Gómez,Spanish,CM,31,75,76,69,10,15.1,53,78,false
+elche,elche_dituro,Matías Dituro,Argentine,GK,38,10,11,13,76,4.1,33,76,false
+osasuna,osasuna_torro,Lucas Torró,Spanish,CDM,31,69,71,76,10,17.3,59,79,false
+alaves,alaves_jonny,Jonny,Spanish,RB,24,72,74,76,10,19.2,42,81,false
+celta_vigo,celta_vigo_vecino,Matías Vecino,Uruguayan,CM,24,74,75,76,10,19.2,42,81,false
+rayo_vallecano,ray_unai_lopez,Unai López,Spanish,CM,29,76,76,73,10,10,32,78,false
+getafe,get_mayoral,Borja Mayoral,Spanish,ST,28,76,74,55,10,18,55,82,false
+sevilla,sev_sow,Djibril Sow,Swiss,CM,28,75,75,76,10,22,42,76,false
+valencia,val_diakhaby,Mouctar Diakhaby,Guinean,CB,28,66,65,76,10,10,38,79,false
+valencia,val_pepelu,Pepelu,Spanish,CM,27,75,76,75,10,22,42,82,false
+valencia,valencia_sadiq,Umar Sadiq,Nigerian,ST,28,76,74,56,10,14.5,42,78,false
+sevilla,sev_ejuke,Chidera Ejuke,Nigerian,LW,27,76,75,54,10,10,32,78,false
+athletic_bilbao,athletic_bilbao_areso2,Areso,Spanish,RB,24,75,75,76,10,19.2,42,81,false
+athletic_bilbao,athletic_bilbao_gorosabel2,Gorosabel,Spanish,RB,24,72,73,76,10,19.2,42,81,false
+villarreal,vil_logan_costa,Logan Costa,Cape Verde Islands,CB,24,69,68,76,10,28,42,84,false
+sevilla,sev_agoume,Lucien Agoumé,French,CDM,23,73,74,76,10,14,32,82,false
+villarreal,villarreal_buchanan,Tajon Buchanan,Canadian,RM,26,76,75,73,10,16.5,42,80,false
+valencia,valencia_haas,Justin de Haas,Holland,CB,24,66,63,76,10,19.2,42,81,false
+real_betis,real_betis_riquelme2,Riquelme,Spanish,LM,24,76,75,61,10,19.2,42,81,false
+levante,levante_sanchez,Manu Sánchez,Spanish,LB,24,71,72,76,10,12,29,77,false
+celta_vigo,celta_vigo_carreira2,Carreira,Spanish,RB,24,74,76,75,10,19.2,42,81,false
+athletic_bilbao,athletic_bilbao_navarro,Robert Navarro,Spanish,RW,23,76,75,58,10,12.5,29,84,false
+elche,elche_valera2,Valera,Spanish,LM,24,76,76,72,10,19.2,42,81,false
+real_betis,villarreal_conde,Diego Conde,Spanish,GK,26,10,11,13,76,21.6,53,80,false
+real_sociedad,rso_sucic,Luka Sučić,Croatian,CM,22,76,76,72,10,32,55,86,true
+osasuna,osa_oroz,Aimar Oroz,Spanish,CAM,23,76,76,69,10,10,22,84,false
+sevilla,getafe_iglesias,Juan Iglesias,Spanish,RB,27,70,69,76,10,11.8,33,77,false
+espanyol,real_sociedad_zarate,Urko González,Spanish,CDM,24,66,69,76,10,7,18,80,false
+elche,elche_affengruber,David Affengruber,Austrian,CB,24,69,67,76,10,15.8,37,80,false
+real_sociedad,real_sociedad_turrientes,Turrientes,Spanish,CDM,24,74,76,75,10,19.2,42,81,false
+celta_vigo,celta_vigo_swedberg,Williot Swedberg,Swedish,LW,21,76,75,67,10,20.1,42,86,false
+athletic_bilbao,valencia_agirrezabala,Agirrezabala,Spanish,GK,24,10,11,13,76,18.2,42,82,false
+sevilla,bournemouth_sanchez,Juanlu Sánchez,Spanish,RB,21,76,76,75,10,15.1,31,83,false
+real_betis,real_betis_gomez,Valentín Gómez,Argentine,CB,22,70,70,76,10,25.7,53,84,false
+osasuna,osasuna_bretones,Abel Bretones,Spanish,LB,25,76,75,76,10,17.3,42,80,false
+sevilla,sevilla_salas,Kike Salas,Spanish,CB,23,70,69,76,10,21.7,47,84,false
+celta_vigo,elche_nunez,Álvaro Núñez,Spanish,RB,25,75,76,76,10,13.2,33,78,false
+celta_vigo,celta_vigo_rodriguez,Javi Rodríguez,Spanish,CB,22,71,71,76,10,13,29,80,false
+getafe,getafe_uche,Christantus Uche,Nigerian,ST,24,75,75,70,10,16.6,37,80,false
+espanyol,espanyol_cala,Cala,Spanish,CAM,24,75,74,67,10,16.6,37,80,false
+espanyol,espanyol_garcia,Kike García,Spanish,ST,35,75,74,61,10,8.8,47,77,false
+espanyol,espanyol_milla,Pere Milla,Spanish,LM,32,75,74,65,10,10.5,42,76,false
+malaga,malaga_herrero2,Alfonso Herrero,Spanish,GK,24,10,11,13,75,16.6,37,80,false
+valencia,valencia_danjuma,Arnaut Danjuma,Holland,LW,28,75,73,56,10,33.1,85,82,false
+rayo_vallecano,rayo_vallecano_felipe,Luiz Felipe,Italian,CB,28,67,67,75,10,25.1,67,80,false
+rayo_vallecano,rayo_vallecano_diaz,Pedro Díaz,Spanish,CM,27,75,75,72,10,20.4,53,78,false
+valencia,valencia_ugrinic,Filip Ugrinić,Swiss,CM,26,75,75,73,10,21.6,53,80,false
+malaga,malaga_calero,Calero,Spanish,CB,24,69,70,75,10,16.6,37,80,false
+celta_vigo,celta_vigo_nunez,Unai Núñez,Spanish,CB,24,63,61,75,10,16.6,37,80,false
+sevilla,sevilla_alfon,Alfon,Spanish,LW,24,75,74,54,10,16.6,37,80,false
+espanyol,espanyol_lozano,Pol Lozano,Spanish,CDM,25,71,73,75,10,19.9,47,80,false
+osasuna,osasuna_garcia,Raúl García,Spanish,ST,24,75,72,51,10,8,38,78,false
+osasuna,osasuna_moro,Raúl Moro,Spanish,LW,24,75,74,47,10,16.6,37,80,false
+malaga,malaga_larrubia2,Larrubia,Spanish,RW,24,75,74,53,10,16.6,37,80,false
+deportivo_la_coruna,deportivo_la_coruna_soriano,Mario Soriano,Spanish,CAM,24,75,73,63,10,16.6,37,80,false
+espanyol,esp_omar,Omar El Hilali,Moroccan,RB,21,71,70,75,10,10,22,82,false
+levante,levante_romero,Iván Romero,Spanish,ST,24,75,73,57,10,12,29,76,false
+villarreal,vil_akhomach,Ilias Akhomach,Moroccan,RW,21,75,74,50,10,18,28,84,false
+valencia,val_tarrega,César Tárrega,Spanish,CB,23,68,67,75,10,12,22,80,false
+celta_vigo,celta_vigo_jutgla,Ferran Jutglà,Spanish,ST,26,75,73,49,10,32.6,75,81,false
+celta_vigo,celta_vigo_alvarez,Hugo Álvarez,Spanish,LM,22,75,75,68,10,11.3,26,84,false
+real_betis,real_betis_deossa,Nelson Deossa,Colombian,CDM,25,75,74,74,10,15.1,37,82,false
+espanyol,psv_hartman,Quilindschy Hartman,Holland,LB,23,74,75,75,10,15,42,85,true
+levante,levante_eyong,Karl Edouard Etta Eyong,Cameroonian,ST,24,75,73,60,10,16.6,37,80,false
+rayo_vallecano,real_betis_mendy,Nobel Mendy,Senegalese,CB,20,69,66,75,10,17.9,37,82,false
+athletic_bilbao,athletic_bilbao_rincon,Hugo Rincón,Spanish,RB,24,75,74,74,10,16.6,37,80,false
+sevilla,sev_isaac,Isaac Romero,Spanish,ST,25,74,73,48,10,22,42,79,false
+getafe,getafe_femenia,Kiko Femenía,Spanish,RB,34,70,71,74,10,6.5,33,75,false
+racing_santander,alaves_villalibre,Villalibre,Spanish,ST,26,74,71,57,10,18.9,47,77,false
+rayo_vallecano,rayo_vallecano_balliu,Iván Balliu,Albanian,RB,33,72,73,74,10,6.3,29,74,false
+alaves,villarreal_suarez,Denis Suárez,Spanish,CM,31,73,74,66,10,17.3,59,79,false
+levante,levante_toljan,Jeremy Toljan,German,RB,30,74,73,74,10,8.3,29,75,false
+sevilla,sev_joan_jordan,Joan Jordán,Spanish,CM,31,73,74,71,10,12,52,79,false
+getafe,getafe_munoz,Javi Muñoz,Spanish,CM,30,73,74,73,10,16.5,53,78,false
+sevilla,sevilla_suazo,Gabriel Suazo,Chilean,LB,27,73,73,74,10,15.5,42,76,false
+alaves,alaves_alena,Aleñá,Spanish,LM,24,74,74,66,10,14.3,33,79,false
+rayo_vallecano,rayo_vallecano_cardenas,Dani Cárdenas,Spanish,GK,28,10,11,13,74,14.5,42,78,false
+deportivo_la_coruna,deportivo_la_coruna_ferllo,Álvaro Ferllo,Spanish,GK,24,10,11,13,74,14.3,33,79,false
+alaves,alaves_guevara,Ander Guevara,Spanish,CDM,24,71,73,74,10,14.3,33,79,false
+real_betis,real_betis_firpo,Junior Firpo,Dominican,LB,28,72,72,74,10,11.1,33,78,false
+valencia,valencia_raba2,Dani Raba,Spanish,RW,24,74,73,57,10,14.3,33,79,false
+levante,levante_brugui,Brugui,Spanish,ST,24,74,72,56,10,14.3,33,79,false
+levante,levante_fuente,Dela,Spanish,CB,26,71,70,74,10,14.4,37,75,false
+getafe,getafe_abqar2,Abdelkabir Abqar,Moroccan,CB,24,65,64,74,10,14.3,33,79,false
+sevilla,sev_pedrosa,Adrià Pedrosa,Spanish,LB,27,74,74,73,10,12,35,78,false
+elche,elche_aguado,Marc Aguado,Spanish,CDM,25,72,74,74,10,15.1,37,78,false
+valencia,valencia_almeida,André Almeida,Portuguese,CAM,25,73,74,70,10,26.2,59,82,false
+rayo_vallecano,ray_camello,Sergio Camello,Spanish,ST,24,74,72,52,10,12,25,78,false
+real_sociedad,real_sociedad_pacheco,Pacheco,Spanish,CB,24,62,62,74,10,14.3,33,79,false
+espanyol,espanyol_dolan,Tyrhys Dolan,English,RW,23,74,74,63,10,16.5,37,82,false
+elche,elche_chust,Víctor Chust,Spanish,CB,25,65,65,74,10,17.3,42,76,false
+getafe,getafe_terrats,Terrats,Spanish,RM,24,73,74,71,10,14.3,33,79,false
+sevilla,sevilla_sangante,Arouna Sangante,Senegalese,CB,24,66,66,74,10,14.3,33,79,false
+levante,levante_olasagasti2,Olasagasti,Spanish,CM,24,72,74,73,10,14.3,33,79,false
+valencia,valencia_copete2,Copete,Spanish,CB,24,64,64,74,10,14.3,33,79,false
+espanyol,espanyol_fernandez,Roberto Fernández,Spanish,ST,23,74,72,64,10,21.7,47,80,false
+osasuna,osasuna_dubasin,Dubasin,Spanish,RW,24,74,72,52,10,14.3,33,79,false
+levante,celta_vigo_sotelo,Hugo Sotelo,Spanish,CM,21,73,74,71,10,20.1,42,84,false
+real_sociedad,real_sociedad_marrero,Unai Marrero,Spanish,GK,23,10,11,13,74,14.4,33,80,false
+barcelona,bar_bardghji,Roony Bardghji,Swedish,RW,19,74,73,46,10,28,35,86,true
+levante,levante_arriaga,Kervin Arriaga,Honduras,CDM,24,66,67,74,10,14.3,33,79,false
+real_sociedad,rso_oskarsson,Orri Óskarsson,Icelandic,ST,20,74,71,51,10,32,52,84,false
+sevilla,sevilla_peque,Peque,Spanish,CAM,24,74,72,54,10,14.3,33,79,false
+athletic_bilbao,athletic_bilbao_djalo,Álvaro Djaló,Spanish,RW,24,74,72,58,10,14.3,33,79,false
+rayo_vallecano,rayo_vallecano_perez,Fran Pérez,Spanish,RW,23,74,72,55,10,9.5,23,78,false
+osasuna,osasuna_herrando2,Herrando,Spanish,CB,24,66,66,74,10,14.3,33,79,false
+celta_vigo,celta_vigo_duran,Pablo Durán,Spanish,ST,24,74,72,52,10,23.9,53,80,false
+racing_santander,racing_santander_puerta,Gustavo Puerta,Colombian,CDM,23,73,74,74,10,3.2,9,74,false
+real_betis,real_betis_bernal,Facundo Bernal,Uruguayan,CDM,24,71,72,74,10,14.3,33,79,false
+getafe,getafe_boselli,Sebastián Boselli,Uruguayan,CB,24,70,69,74,10,14.3,33,79,false
+getafe,getafe_martin,Mario Martín,Spanish,CM,21,72,73,74,10,15.3,33,78,false
+villarreal,villarreal_fernandez,Thiago Fernández,Argentine,LM,24,74,73,62,10,14.3,33,79,false
+rayo_vallecano,rayo_vallecano_alemao,Alemão,Brazilian,ST,24,74,73,52,10,14.3,33,79,false
+celta_vigo,celta_vigo_roman,Miguel Román,Spanish,CM,22,73,74,73,10,17.1,37,78,false
+deportivo_la_coruna,deportivo_la_coruna_cruz,Luismi Cruz,Spanish,RW,24,73,74,59,10,14.3,33,79,false
+villarreal,villarreal_navarro,Pau Navarro,Spanish,CB,20,66,67,74,10,13.6,29,80,false
+athletic_bilbao,athletic_bilbao_boiro,Adama Boiro,Senegalese,LB,23,71,70,73,10,12.5,29,78,false
+athletic_bilbao,athletic_bilbao_canales,Peio Canales,Spanish,CAM,24,73,73,69,10,12.4,29,79,false
+sevilla,sevilla_oso,Oso,Spanish,LB,24,72,73,71,10,12.4,29,79,false
+athletic_bilbao,athletic_bilbao_rego2,Rego,Spanish,CDM,24,66,68,73,10,12.4,29,79,false
+sevilla,sevilla_cardoso,Fábio Cardoso,Portuguese,CB,24,65,64,73,10,12.4,29,79,false
+osasuna,osasuna_barja,Kike Barja,Spanish,LW,28,73,72,52,10,14.5,42,76,false
+real_sociedad,real_sociedad_odriozola2,Odriozola,Spanish,RB,24,71,72,73,10,12.4,29,79,false
+sevilla,sev_marcao,Marcão,Brazilian,CB,29,67,66,73,10,18,52,78,false
+getafe,getafe_neyou,Yvan Neyou,Cameroonian,CM,28,70,72,73,10,16.7,47,77,false
+sevilla,alaves_guridi,Guridi,Spanish,CM,30,72,73,70,10,12.5,42,76,false
+deportivo_la_coruna,deportivo_la_coruna_loureiro2,Loureiro,Spanish,CB,24,68,66,73,10,12.4,29,79,false
+levante,levante_rey,Oriol Rey,Spanish,CM,27,70,72,73,10,15.5,42,76,false
+alaves,alaves_protesoni,Carlos Protesoni,Uruguayan,CDM,24,67,69,73,10,12.4,29,79,false
+real_sociedad,real_sociedad_munoz,Aihen Muñoz,Spanish,LB,28,71,71,73,10,12.7,37,77,false
+valencia,valencia_dieng,Aliou Dieng,Malian,CDM,24,67,68,73,10,12.4,29,79,false
+deportivo_la_coruna,deportivo_la_coruna_quagliata,Giacomo Quagliata,Italian,LB,24,72,72,73,10,7,18,79,false
+real_sociedad,real_sociedad_lopez,Javi López,Spanish,LB,23,70,71,73,10,14.4,33,82,false
+espanyol,espanyol_jofre,Jofre,Spanish,RW,24,73,71,53,10,12.4,29,79,false
+deportivo_la_coruna,deportivo_la_coruna_villares,Villares,Spanish,CM,24,71,71,73,10,12.4,29,79,false
+celta_vigo,celta_vigo_dominguez,Carlos Domínguez,Spanish,CB,24,63,62,73,10,15.8,37,78,false
+alaves,alaves_ibanez,Pablo Ibáñez,Spanish,CM,24,72,73,71,10,12.4,29,79,false
+real_sociedad,real_sociedad_zakharyan,Arsen Zakharyan,Russian,RM,22,73,72,61,10,19.6,42,88,false
+villarreal,villarreal_freeman,Alex Freeman,United States,RB,24,73,71,72,10,12.4,29,79,false
+sevilla,sevilla_castrin,Andrés Castrín,Spanish,CB,24,64,62,73,10,12.4,29,79,false
+levante,levante_bardeli,Enzo Bardeli,French,CM,24,73,72,61,10,12.4,29,79,false
+deportivo_la_coruna,deportivo_la_coruna_noubi,Lucas Noubi,Belgian,CB,24,66,64,73,10,12.4,29,79,false
+deportivo_la_coruna,deportivo_la_coruna_alti,Alti,Spanish,RB,24,73,73,72,10,12.4,29,79,false
+alaves,alaves_rebbach2,Abde Rebbach,Algerian,LW,24,73,73,63,10,12.4,29,79,false
+real_sociedad,real_sociedad_marin,Pablo Marín,Spanish,CM,22,73,73,67,10,13,29,82,false
+osasuna,osasuna_munoz,Iker Muñoz,Spanish,CDM,22,69,70,73,10,22.4,47,80,false
+getafe,getafe_garcia,Andrés García,Spanish,RB,24,72,73,73,10,12.4,29,79,false
+getafe,getafe_sancris,Álex Sancris,Spanish,RM,28,73,71,49,10,8.4,26,74,false
+espanyol,espanyol_hernandez,Javi Hernández,Spanish,RM,21,73,71,51,10,15.3,33,78,false
+deportivo_la_coruna,deportivo_la_coruna_mella2,Mella,Spanish,RM,24,73,69,46,10,12.4,29,79,false
+deportivo_la_coruna,deportivo_la_coruna_amatucci,Lorenzo Amatucci,Italian,CM,22,69,71,73,10,5,13,74,false
+malaga,malaga_murillo,Murillo,Spanish,CB,24,65,63,72,10,1.8,6,78,false
+racing_santander,racing_santander_salinas,Jorge Salinas,Spanish,LB,23,70,70,72,10,6.3,16,79,false
+alaves,alaves_perez,Ángel Pérez,Spanish,RM,24,72,71,72,10,10.7,26,78,false
+espanyol,espanyol_fernandez2,Marcos Fernández,Spanish,ST,22,72,70,51,10,17.1,37,76,false
+deportivo_la_coruna,deportivo_la_coruna_navarro,Ximo Navarro,Spanish,RB,33,70,68,72,10,4.2,20,72,false
+valencia,val_foulquier,Dimitri Foulquier,French,RB,32,70,69,72,10,8,32,77,false
+rayo_vallecano,ray_de_tomas,Raúl De Tomás,Spanish,ST,30,72,71,54,10,14,48,77,false
+celta_vigo,celta_vigo_villar,Iván Villar,Spanish,GK,28,10,11,13,72,16.7,47,77,false
+elche,elc_josan,Josan,Spanish,RM,35,72,72,68,10,4,14,72,false
+celta_vigo,celta_vigo_perez,Carles Pérez,Spanish,RM,24,72,70,52,10,10.7,26,78,false
+elche,elche_villar,Gonzalo Villar,Spanish,CM,24,70,72,71,10,10.7,26,78,false
+levante,levante_garcia,Víctor García,Spanish,RM,27,72,71,65,10,7.8,23,73,false
+athletic_bilbao,athletic_bilbao_vencedor,Unai Vencedor,Spanish,CDM,24,71,72,69,10,15.8,37,82,false
+deportivo_la_coruna,deportivo_la_coruna_riki,Riki,Spanish,CM,24,72,72,65,10,10.7,26,78,false
+elche,elche_nino,Fer Niño,Spanish,ST,24,72,70,53,10,10.7,26,78,false
+real_betis,real_betis_losada,Iker Losada,Spanish,CAM,24,72,70,53,10,12,29,80,false
+malaga,malaga_salinas,Salinas,Spanish,LB,24,70,70,72,10,10.7,26,78,false
+alaves,alaves_rodriguez,Miguel Rodríguez,Spanish,RW,24,72,72,63,10,10.7,26,78,false
+deportivo_la_coruna,deportivo_la_coruna_eddahchouri,Zakaria Eddahchouri,Holland,ST,22,72,71,58,10,5.7,14,72,false
+atletico,atletico_vargas,Obed Vargas,Mexican,CDM,24,71,72,72,10,10.7,26,78,false
+malaga,malaga_lorenzo,Dani Lorenzo,Spanish,CAM,22,72,72,66,10,2.5,7,81,false
+villarreal,villarreal_kambwala,Willy Kambwala,French,CB,21,65,64,72,10,17.5,37,82,false
+elche,elche_neto,Martim Neto,Portuguese,CM,22,72,71,65,10,17.1,37,80,false
+celta_vigo,celta_vigo_elabdellaoui,Jones El-Abdellaoui,Moroccan,RW,19,72,70,48,10,7,16,82,true
+malaga,malaga_nino2,Adrián Niño,Spanish,ST,24,72,69,46,10,10.7,26,78,false
+barcelona,barcelona_fort,Héctor Fort,Spanish,RB,19,72,72,72,10,12,26,83,false
+espanyol,espanyol_moscardo,Gabriel Moscardo,Brazilian,CDM,24,66,67,72,10,10.7,26,78,false
+elche,elche_cepeda,Lucas Cepeda,Chilean,LW,24,71,69,59,10,9.3,23,77,false
+celta_vigo,celta_vigo_lago,Yoel Lago,Spanish,CB,21,62,62,71,10,11.6,26,80,false
+malaga,malaga_puga2,Puga,Spanish,RB,24,69,68,71,10,9.3,23,77,false
+athletic_bilbao,athletic_bilbao_maroan,Maroan,Moroccan,ST,24,71,70,54,10,9.3,23,77,false
+valencia,valencia_sato,Ryunosuke Sato,Japanese,LM,24,71,70,53,10,9.3,23,77,false
+getafe,getafe_juanmi,Juanmi,Spanish,ST,32,71,69,48,10,20.8,75,81,false
+elche,elche_morente,Tete Morente,Spanish,LM,24,71,69,57,10,9.3,23,77,false
+malaga,malaga_munoz,Joaquín Muñoz,Spanish,LW,24,71,70,44,10,9.3,23,77,false
+athletic_bilbao,athletic_bilbao_serrano,Nico Serrano,Spanish,LW,22,71,70,45,10,19.6,42,82,false
+valencia,val_jesus_vazquez,Jesús Vázquez,Spanish,LB,22,69,70,71,10,10,22,82,false
+espanyol,espanyol_sanchez,Rubén Sánchez,Spanish,RB,24,71,70,71,10,13.8,33,78,false
+osasuna,osasuna_benito,Iker Benito,Spanish,LW,23,70,71,64,10,18.9,42,78,false
+racing_santander,racing_santander_mantilla2,Mantilla,Spanish,RB,24,66,64,71,10,9.3,23,77,false
+villarreal,villarreal_oluwaseyi,Tani Oluwaseyi,Canadian,ST,25,71,67,48,10,30,67,80,false
+celta_vigo,celta_vigo_faye,Abdoulaye Faye,Senegalese,CB,24,63,61,71,10,9.3,23,77,false
+deportivo_la_coruna,deportivo_la_coruna_barcia,Dani Barcia,Spanish,CB,22,66,64,71,10,8.6,20,80,false
+atletico,atletico_mendoza,Rodri Mendoza,Spanish,CM,24,70,71,68,10,9.3,23,77,false
+malaga,malaga_merino,Izan Merino,Spanish,CDM,24,65,66,70,10,8,20,76,false
+real_betis,real_betis_garcia,Pablo García,Spanish,RW,24,70,69,54,10,8,20,76,false
+real_betis,real_betis_ortiz,Ángel Ortiz,Spanish,RB,21,69,69,70,10,13.3,29,82,false
+athletic_bilbao,athletic_bilbao_gerenabarrena,Gerenabarrena,Spanish,CM,24,70,70,69,10,8,20,76,false
+celta_vigo,celta_vigo_fernandez,Manu Fernández,Spanish,CB,24,63,62,70,10,12,29,78,false
+real_madrid,real_madrid_pitarch,Thiago Pitarch,Spanish,CM,24,70,70,67,10,8,20,76,false
+elche,west_brom_diangana,Grady Diangana,Congo DR,CAM,27,70,68,51,10,2,10,73,false
+levante,levante_elgezabal2,Elgezabal,Spanish,CB,24,64,63,70,10,8,20,76,false
+sevilla,sevilla_gattoni,Federico Gattoni,Argentine,CB,24,67,65,70,10,8,20,76,false
+espanyol,espanyol_rubio,Miguel Rubio,Spanish,CB,27,59,58,70,10,20.4,53,78,false
+malaga,malaga_cruz,Juan Cruz,Spanish,RM,24,70,68,47,10,8,20,76,false
+rayo_vallecano,ray_nteka,Randy Nteka,Angolan,ST,27,69,70,63,10,10,25,76,false
+espanyol,espanyol_riedel,Clemens Riedel,German,CB,22,63,63,70,10,17.1,37,80,false
+atletico,atletico_martin,Carlos Martín,Spanish,LW,23,70,69,53,10,14.4,33,80,false
+elche,elche_santiago,Yago Santiago,Spanish,LW,22,70,69,49,10,11.3,26,76,false
+elche,elche_redondo,Federico Redondo,Argentine,CM,24,69,70,70,10,8,20,76,false
+racing_santander,racing_santander_arana2,Arana,Spanish,ST,24,70,68,51,10,8,20,76,false
+villarreal,villarreal_fores,Alex Forés,Spanish,ST,24,70,66,51,10,8,20,76,false
+barcelona,barcelona_yaakobishvili,Áron Yaakobishvili,Hungarian,GK,24,10,11,13,70,8,20,76,false
+malaga,malaga_dotor,Dotor,Spanish,CAM,22,69,70,66,10,7.5,18,70,false
+levante,levante_requena,Dani Requena,Spanish,CM,24,70,70,65,10,8,20,76,false
+alaves,alaves_yusi,Yusi,Moroccan,LB,24,67,68,70,10,8,20,76,false
+athletic_bilbao,athletic_bilbao_egiluz2,Egiluz,Spanish,CB,24,60,57,70,10,8,20,76,false
+real_betis,real_betis_petit,Gonzalo Petit,Uruguayan,ST,24,69,68,48,10,6.9,18,75,false
+deportivo_la_coruna,deportivo_la_coruna_jensen,Jonathan Asp-Jensen,Danish,LW,23,69,69,61,10,3.2,9,72,false
+getafe,getafe_letacek,Jiří Letáček,Czech,GK,26,10,11,13,69,14.4,37,78,false
+real_sociedad,real_sociedad_goti,Mikel Goti,Spanish,CAM,23,69,69,61,10,6.3,16,78,false
+racing_santander,racing_santander_eriksson,Simon Eriksson,Swedish,GK,26,10,11,13,69,5.5,16,72,false
+racing_santander,racing_santander_gueye,Maguette Gueye,Senegalese,CDM,23,62,63,69,10,2.8,8,72,false
+getafe,getafe_davinchi,Davinchi,Spanish,LB,24,67,66,69,10,6.9,18,75,false
+deportivo_la_coruna,deportivo_la_coruna_nsongo,Bil Nsongo,Cameroonian,ST,21,69,68,49,10,3,8,72,false
+levante,levante_tunde,Kareem Tunde,Spanish,RM,24,69,68,61,10,6.9,18,75,false
+racing_santander,racing_santander_guliashvili,Giorgi Guliashvili,Georgian,ST,22,69,67,47,10,8.6,20,72,false
+deportivo_la_coruna,deportivo_la_coruna_angel,José Ángel,Spanish,CDM,24,66,67,69,10,6.9,18,75,false
+malaga,malaga_galilea,Einar Galilea,Spanish,CB,24,60,56,69,10,6.9,18,75,false
+getafe,getafe_berrocal,Berrocal,Spanish,CB,24,61,59,69,10,6.9,18,75,false
+alaves,alaves_maras2,Nikola Maraš,Serbian,CB,24,62,59,69,10,6.9,18,75,false
+racing_santander,racing_santander_hernando,Manu Hernando,Spanish,CB,24,63,61,69,10,6.9,18,75,false
+espanyol,racing_santander_ramon,Pablo Ramón,Spanish,CB,25,64,64,69,10,11.5,29,73,false
+alaves,alaves_diarra2,Moussa Diarra,Malian,CB,24,63,62,69,10,6.9,18,75,false
+elche,elche_donald,John Donald,Spanish,CB,24,64,64,69,10,12,29,76,false
+atletico,atletico_ortiz,Arnau Ortiz,Spanish,LM,24,69,67,48,10,6.9,18,75,false
+athletic_bilbao,athletic_bilbao_padilla,Álex Padilla,Mexican,GK,22,10,11,13,69,11.3,26,80,false
+levante,levante_campos,Pablo Campos,Spanish,GK,23,10,11,13,69,10.9,26,76,false
+racing_santander,racing_santander_gonzalez,Facundo González,Uruguayan,CB,24,60,59,69,10,15.8,37,75,false
+elche,elche_sangare,Buba Sangaré,Spanish,RB,24,66,66,69,10,6.9,18,75,false
+espanyol,espanyol_bauza,Rafa Bauza,Spanish,CDM,24,67,67,68,10,6,16,74,false
+levante,levante_cortes,Paco Cortés,Spanish,LW,18,68,67,45,10,7,16,78,false
+rayo_vallecano,rayo_vallecano_vertrouwd,Jozhua Vertrouwd,Holland,CB,21,64,63,68,10,15.3,33,76,false
+elche,elche_barzic,Matia Barzić,Croatian,CB,21,60,57,68,10,11.6,26,75,false
+malaga,malaga_rafita,Rafita,Spanish,RB,24,64,65,68,10,6,16,74,false
+espanyol,espanyol_hinojo,Roger Hinojo,Spanish,LB,24,67,67,68,10,6,16,74,false
+malaga,malaga_rodriguez,Rafa Rodríguez,Spanish,CAM,24,68,66,59,10,6,16,74,false
+alaves,alaves_koski,Ville Koski,Finnish,CB,24,57,55,68,10,6,16,74,false
+sevilla,sevilla_diaz,Julio Díaz,Spanish,LB,24,65,66,68,10,6,16,74,false
+levante,levante_musuayi,Yanis Kasonga Musuayi,Belgian,ST,24,68,66,49,10,6,16,74,false
+deportivo_la_coruna,deportivo_la_coruna_parreno,Germán Parreño,Spanish,GK,25,10,11,13,68,6.7,18,72,false
+valencia,valencia_canos,Sergi Canós,Spanish,LM,28,68,67,62,10,9.6,29,78,false
+malaga,malaga_jauregi,Jauregi,Spanish,ST,23,68,66,48,10,6.3,16,68,false
+alaves,alaves_rodriguez2,Adrián Rodríguez,Argentine,GK,24,10,11,13,68,6,16,74,false
+deportivo_la_coruna,deportivo_la_coruna_comas,Arnau Comas,Spanish,CB,25,62,60,68,10,10,26,72,false
+elche,elche_osorio,Abiel Osorio,Argentine,ST,24,68,67,53,10,6,16,74,false
+levante,levante_cabello2,Cabello,Spanish,CB,24,60,59,67,10,5.2,14,73,false
+atletico,atletico_puric,Aleksa Purić,Serbian,CB,24,60,58,67,10,5.2,14,73,false
+levante,levante_abed,Tay Abed,Israeli,RW,24,67,67,54,10,5.2,14,73,false
+alaves,alaves_rodriguez3,Mikel Rodríguez,Spanish,CM,24,67,67,59,10,5.2,14,73,false
+levante,levante_perez,Nacho Pérez,Spanish,RB,24,64,65,67,10,5.2,14,73,false
+barcelona,barcelona_espart,Xavi Espart,Spanish,RB,24,65,67,67,10,5.2,14,73,false
+barcelona,barcelona_bisiwu,Jesse Eugen Bisiwu,Belgian,LW,24,67,65,46,10,5.2,14,73,false
+alaves,alaves_mariano,Mariano,Dominican,ST,24,67,65,53,10,5.2,14,73,false
+elche,elche_diaby,Bambo Diaby,Senegalese,CB,27,63,60,67,10,10.3,29,74,false
+racing_santander,racing_santander_maza,Íñigo Sainz-Maza,Spanish,CDM,24,60,62,67,10,5.2,14,73,false
+deportivo_la_coruna,deportivo_la_coruna_patino,Charlie Patiño,English,CM,24,65,67,67,10,5.2,14,73,false
+real_sociedad,real_sociedad_karrikaburu,Karrikaburu,Spanish,ST,22,67,64,45,10,13,29,80,false
+alaves,alaves_owono,Owono,Equatoguinean,GK,23,10,11,13,67,9.5,23,76,false
+malaga,malaga_pastor,Álex Pastor,Spanish,CB,24,60,59,67,10,5.2,14,73,false
+sevilla,sevilla_bueno,Manu Bueno,Spanish,CM,21,66,67,64,10,13.3,29,79,false
+levante,levante_grande,Xavi Grande,Spanish,RB,24,64,66,67,10,5.2,14,73,false
+osasuna,osasuna_osambela2,Osambela,Spanish,CB,24,64,63,66,10,4.5,12,73,false
+malaga,malaga_ochoa,Aarón Ochoa,Irish,LM,24,66,65,51,10,4.5,12,73,false
+racing_santander,racing_santander_zabiri,Yassir Zabiri,Moroccan,ST,24,66,62,41,10,4.5,12,73,false
+barcelona,barcelona_cortes,Álvaro Cortés,Spanish,CB,24,59,58,66,10,4.5,12,73,false
+deportivo_la_coruna,deportivo_la_coruna_ede,Bright Ede,Polish,CB,20,59,56,66,10,3.5,9,72,false
+getafe,getafe_valou,Jean Ives Valou,Ivorian,CB,24,60,59,66,10,4.5,12,73,false
+athletic_bilbao,athletic_bilbao_selton,Selton,Spanish,CAM,24,66,66,60,10,4.5,12,73,false
+malaga,malaga_juanpe,Juanpe,Spanish,CM,25,66,66,65,10,3.4,10,68,false
+malaga,malaga_lobete,Lobete,Spanish,LW,22,66,64,42,10,1.9,6,68,false
+elche,elche_iturbe,Iturbe,Spanish,GK,24,10,11,13,66,4.5,12,73,false
+villarreal,villarreal_cabanes,Pau Cabanes,Spanish,ST,20,65,60,39,10,15.6,33,80,false
+malaga,malaga_sanchez,Dani Sánchez,Spanish,LB,24,65,65,65,10,2.3,7,68,false
+elche,elche_houary,Ali Houary,Moroccan,CAM,24,65,64,52,10,3.9,11,72,false
+valencia,valencia_cordoba,Iker Córdoba,Spanish,CB,24,60,58,65,10,3.9,11,72,false
+barcelona,barcelona_fernandez,Toni Fernández,Spanish,RW,24,65,63,40,10,3.9,11,72,false
+malaga,malaga_recio,Ángel Recio,Spanish,CB,24,57,54,65,10,3.9,11,72,false
+sevilla,sevilla_sierra,Miguel Sierra,Spanish,RW,24,65,63,43,10,3.9,11,72,false
+villarreal,villarreal_macia,Carlos Macià,Spanish,CM,24,64,64,65,10,3.9,11,72,false
+atletico,atletico_bonar,Javi Boñar,Spanish,RB,24,64,63,65,10,3.9,11,72,false
+real_madrid,real_madrid_angel,Manuel Ángel,Spanish,CM,24,65,65,57,10,3.9,11,72,false
+barcelona,barcelona_abdelkarim,Hamza Abdelkarim,Egyptian,ST,24,65,63,43,10,3.9,11,72,false
+real_madrid,real_madrid_ciria,Alexis Ciria,Spanish,LW,24,65,62,36,10,3.9,11,72,false
+valencia,valencia_rivero,Cristian Rivero,Spanish,GK,27,10,11,13,65,11.8,33,76,false
+rayo_vallecano,rayo_vallecano_morro2,Miguel Morro,Spanish,GK,24,10,11,13,65,3.9,11,72,false
+malaga,malaga_enriquez,Ramón Enríquez,Spanish,CM,24,64,65,60,10,3.9,11,72,false
+espanyol,espanyol_fortuno2,Fortuño,Spanish,GK,24,10,11,13,65,3.9,11,72,false
+sevilla,sevilla_flores,Alberto Flores,Spanish,GK,24,10,11,13,65,3.9,11,72,false
+sevilla,real_madrid_gonzalez,Fran González,Spanish,GK,20,10,11,13,65,9,20,78,false
+deportivo_la_coruna,deportivo_la_coruna_gijselhart,Teun Gijselhart,Holland,CM,24,64,64,58,10,3.1,9,70,false
+alaves,alaves_manas,Aitor Mañas,Spanish,ST,24,64,61,46,10,3.3,9,71,false
+real_sociedad,real_sociedad_ruperez,Rupérez,Spanish,RB,24,64,64,64,10,3.3,9,71,false
+getafe,getafe_bekhoucha,Ismael Bekhoucha,Moroccan,RB,20,64,62,64,10,9,20,78,false
+rayo_vallecano,rayo_vallecano_fernandez,Pelayo Fernández,Spanish,CB,22,60,59,64,10,17.1,37,78,false
+real_betis,real_betis_gonzalez,Manu González,Spanish,GK,24,10,11,13,64,3.3,9,71,false
+barcelona,barcelona_fernandez2,Guille Fernández,Spanish,CM,24,64,63,61,10,3.3,9,71,false
+real_madrid,real_madrid_yanez,Daniel Yáñez,Spanish,RW,24,64,62,46,10,3.3,9,71,false
+deportivo_la_coruna,deportivo_la_coruna_noriega,Jairo Noriega,Spanish,CAM,24,64,64,59,10,3.3,9,71,false
+racing_santander,racing_santander_martinez,Sergio Martínez,Spanish,CDM,24,57,59,64,10,3.3,9,71,false
+barcelona,barcelona_torrents,Jofre Torrents,Spanish,LB,24,62,62,64,10,3.3,9,71,false
+atletico,atletico_esquivel2,Salvi Esquivel,Spanish,GK,24,10,11,13,64,3.3,9,71,false
+real_madrid,real_madrid_cestero,Cestero,Spanish,CM,24,64,64,64,10,3.3,9,71,false
+atletico,atletico_luque,Iker Luque,Spanish,RW,24,64,62,47,10,3.3,9,71,false
+alaves,alaves_novoa3,Hugo Novoa,Spanish,RM,24,64,62,55,10,3.3,9,71,false
+valencia,valencia_iranzo,Rubén Iranzo,Spanish,CB,22,60,59,64,10,17.1,37,80,false
+rayo_vallecano,rayo_vallecano_mendez,Diego Méndez,Spanish,CDM,24,58,59,64,10,3.3,9,71,false
+valencia,valencia_mari,Alberto Marí,Spanish,ST,24,64,63,46,10,20.8,47,80,false
+alaves,alaves_diallo,Selu Diallo,Guinean,CM,24,64,63,62,10,3.3,9,71,false
+elche,elche_boayar,Adam Boayar,Moroccan,ST,24,64,61,43,10,3.3,9,71,false
+atletico,atletico_belaid,Rayane Belaid,Spanish,CAM,24,64,63,59,10,3.3,9,71,false
+valencia,valencia_otorbi,David Otorbi,Spanish,RW,18,64,64,47,10,10.6,23,82,false
+osasuna,osasuna_arguibide,Arguibide,Spanish,RB,24,62,62,63,10,2.9,8,70,false
+deportivo_la_coruna,deportivo_la_coruna_sanchez,Kevin Sánchez,Spanish,ST,23,63,60,39,10,5.5,14,70,false
+real_madrid,real_madrid_fortea,Fortea,Spanish,RB,24,62,63,62,10,2.9,8,70,false
+osasuna,osasuna_fernandez2,Rafa Fernández,Spanish,GK,24,10,11,13,63,2.9,8,70,false
+athletic_bilbao,athletic_bilbao_santos,Mikel Santos,Spanish,GK,20,10,11,13,63,6.9,16,78,false
+osasuna,osasuna_echegoyen,Mauro Echegoyen,Spanish,CDM,20,59,59,63,10,7.9,18,74,false
+athletic_bilbao,athletic_bilbao_monreal,Iker Monreal,Spanish,CB,24,55,53,63,10,2.9,8,70,false
+barcelona,barcelona_marques,Tommy Marqués,Spanish,CDM,24,59,60,63,10,2.9,8,70,false
+deportivo_la_coruna,deportivo_la_coruna_carrillo,Noé Carrillo,Spanish,CM,24,63,62,59,10,2.9,8,70,false
+atletico,atletico_martinez,Dani Martinez,Spanish,CB,24,57,56,63,10,2.9,8,70,false
+alaves,alaves_olaiz,Xanet Oláiz,Spanish,CB,24,54,52,63,10,2.9,8,70,false
+atletico,atletico_morcillo,Morcillo,Spanish,CDM,24,55,57,63,10,2.9,8,70,false
+atletico,atletico_cubo,Miguel Cubo,Spanish,ST,24,63,61,43,10,2.9,8,70,false
+malaga,malaga_abaida,Haitam Abaida,Moroccan,RW,24,63,61,40,10,2.9,8,70,false
+rayo_vallecano,rayo_vallecano_etoo,Etienne Eto'o,Cameroonian,ST,23,63,61,41,10,14.4,33,74,false
+villarreal,villarreal_gomez,Rubén Gómez,Spanish,GK,24,10,11,13,63,2.9,8,70,false
+deportivo_la_coruna,deportivo_la_coruna_puerto,Eric Puerto,Spanish,GK,21,10,11,13,63,3.9,10,72,false
+espanyol,espanyol_serred,Llorenç Serred,Spanish,GK,24,10,11,13,62,2.5,7,69,false
+getafe,getafe_risco,Risco,Spanish,CAM,24,62,62,51,10,2.5,7,69,false
+deportivo_la_coruna,deportivo_la_coruna_lopez,Rubén López,Spanish,CM,24,61,62,60,10,2.5,7,69,false
+villarreal,villarreal_diatta,Alassane Diatta,Senegalese,CDM,24,53,54,62,10,2.5,7,69,false
+malaga,malaga_arriaza,Pablo Arriaza,Spanish,CDM,24,59,59,62,10,2.5,7,69,false
+levante,levante_martin,Dani Martín,Spanish,GK,24,10,11,13,62,2.5,7,69,false
+levante,levante_krug,Martín Wilhelm Krug,Panama,CB,24,56,54,62,10,2.5,7,69,false
+valencia,valencia_blazquez,Aimar Blázquez,Spanish,ST,24,62,60,41,10,2.5,7,69,false
+elche,elche_sanchez,Álex Sánchez,Spanish,RM,24,62,61,47,10,2.5,7,69,false
+alaves,alaves_mendes,Tomás Mendes,Spanish,CM,24,62,62,59,10,2.5,7,69,false
+malaga,malaga_lopez,Carlos López,Spanish,GK,24,10,11,13,62,3.5,10,70,false
+elche,elche_nunez2,Rafa Núñez,Dominican,RW,23,61,60,44,10,9.5,23,74,false
+deportivo_la_coruna,deportivo_la_coruna_fernandez,Samu Fernández,Spanish,CB,22,55,56,61,10,2.5,7,68,false
+rayo_vallecano,rayo_vallecano_becerra,Samu Becerra,Spanish,CM,19,61,61,57,10,10.5,23,74,false
+alaves,alaves_ballestero,Carlos Ballestero,Spanish,RB,24,57,54,61,10,2.2,7,68,false
+malaga,malaga_fernandez,Juani Fernández,Spanish,RW,24,61,61,52,10,2.2,7,68,false
+elche,elche_konare,Umaru Konare,Spanish,ST,24,61,57,45,10,2.2,7,68,false
+malaga,malaga_diarra,Moussa Diarra,Malian,CB,24,55,54,61,10,2.2,7,68,false
+athletic_bilbao,athletic_bilbao_johaneko,Johaneko,French,RB,24,58,58,61,10,2.2,7,68,false
+levante,levante_alcaniz,Edgar Alcañiz,Spanish,CM,24,60,61,57,10,2.2,7,68,false
+racing_santander,racing_santander_crespo,Aitor Crespo,Spanish,CB,26,56,55,60,10,10.9,29,73,false
+racing_santander,racing_santander_gomez,Laro Gómez,Spanish,GK,24,10,11,13,60,1.9,6,67,false
+getafe,getafe_perez,Joselu Pérez,Spanish,ST,24,60,57,43,10,1.9,6,67,false
+racing_santander,racing_santander_franco,Santi Franco,Spanish,ST,22,60,60,46,10,2.5,7,70,false
+villarreal,villarreal_lopez,Hugo López,Spanish,CAM,24,60,59,51,10,1.9,6,67,false
+levante,levante_primo,Álex Primo,Spanish,GK,24,10,11,13,60,1.9,6,67,false
+real_madrid,real_madrid_mestre,Sergio Mestre,Spanish,GK,20,10,11,13,60,6.9,16,76,false
+rayo_vallecano,rayo_vallecano_sias2,De las Sías,Spanish,CB,24,55,52,59,10,1.6,5,66,false
+elche,elche_bosch,Owen Bosch,Spanish,GK,24,10,11,13,59,1.6,5,66,false
+racing_santander,racing_santander_diaz,Diego Díaz,Spanish,CAM,24,59,58,47,10,1.6,5,66,false
+getafe,getafe_montes,Jorge Montes,Spanish,LB,24,54,55,59,10,1.6,5,66,false
+malaga,malaga_cespedes,Andrés Céspedes,Spanish,GK,24,10,11,13,58,1.4,5,66,false
+getafe,getafe_benito,Jorge Benito,Spanish,GK,24,10,11,13,58,1.4,5,66,false
