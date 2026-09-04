@@ -7,6 +7,11 @@
  */
 
 /* ── Deals: one self-contained negotiation row. ─────────────────── */
+/*
+ * .sell-scroll is a column flex scroller. Deal rows must never shrink to fit
+ * that viewport: when they shrink, their action buttons overflow through the
+ * row divider and into the next negotiation. Let the scroller scroll instead.
+ */
 #screen-transfers .deal-row {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
@@ -16,7 +21,11 @@
   align-items: start;
   column-gap: 10px;
   row-gap: 7px;
-  min-height: 0;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  height: auto !important;
+  min-height: max-content !important;
+  overflow: visible;
   padding: 10px 4px 11px;
 }
 
@@ -184,13 +193,10 @@
   display: block !important;
   box-sizing: border-box;
   width: 100%;
-  height: fit-content !important;
+  height: auto !important;
   min-height: 0 !important;
   max-height: none !important;
   flex: 0 0 auto !important;
-  align-self: stretch !important;
-  align-content: start !important;
-  justify-content: flex-start !important;
   overflow: visible !important;
 }
 
@@ -208,6 +214,26 @@
   flex: 0 0 auto !important;
   margin: 0 !important;
   padding: 10px 0 !important;
+}
+
+/*
+ * LoanPathwaysPanel historically calls the player-copy cell `.main`. That
+ * collides with the shell's global `.main`, whose job is to be viewport-high.
+ * Neutralise only the shell geometry here while retaining the component's
+ * own flex/typography rules. This is the source of the giant loanee gap.
+ */
+#screen-transfers .pathway-drawer .loan-row > .main {
+  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
 }
 
 #screen-transfers .pathway-drawer .loan-row > * {
