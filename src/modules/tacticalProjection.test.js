@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { simulateMatch } from './matchEngine.js';
-import { normalizePlayerModel } from './playerModel.js';
 import {
   attachTacticalShadow,
   projectLineupTacticalProfile,
@@ -11,7 +10,7 @@ import { createUserTacticalPlan } from './tactics.js';
 
 function player(id, position, attributes = {}, overrides = {}) {
   const base = position === 'GK' ? 76 : 74;
-  return normalizePlayerModel({
+  return {
     id,
     name:id,
     position,
@@ -27,6 +26,7 @@ function player(id, position, attributes = {}, overrides = {}) {
     injured:false,
     suspended:false,
     inSquad:true,
+    traits:[],
     attributeProfile:{
       version:1,
       pace:74,
@@ -38,7 +38,7 @@ function player(id, position, attributes = {}, overrides = {}) {
       ...attributes,
     },
     ...overrides,
-  });
+  };
 }
 
 function squad(prefix, overrides = {}) {
