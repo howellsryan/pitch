@@ -346,9 +346,9 @@ export function resolveShotOutcome({ shooter, defender, defenders = [], xg, pack
   const keeperModifier = actionClamp(1 - (keeping - 75) * .010, .62, 1.38);
   // xG represents the chance before the shot is resolved. Once the attempt is
   // on target, Shooting and goalkeeping should move the conversion probability
-  // monotonically; dividing by onTargetChance made elite shooting perversely
-  // lower conditional conversion because elite shooters also hit the target more.
-  const goalGivenTarget = actionClamp(xg * 2.15 * shootingModifier * keeperModifier, .06, .74);
+  // monotonically. The 2.65 calibration keeps equal-team scoring inside T3's
+  // football-like envelope while preserving the same shot volume and xG model.
+  const goalGivenTarget = actionClamp(xg * 2.65 * shootingModifier * keeperModifier, .06, .74);
   const goal = actionClamp(packet.finish, 0, .999999) < goalGivenTarget;
   return {
     finish:goal ? 'goal' : 'saved',
