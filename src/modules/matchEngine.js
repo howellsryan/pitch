@@ -483,17 +483,24 @@ function actionRiskMode(source, ownGoals, oppGoals, minute) {
 }
 
 const matchFitnessViewCache = new WeakMap();
+const matchFitnessArrayCache = new WeakMap();
 
 function withCurrentMatchFitness(players, fitnessMap) {
-  const views = [];
-  for (const player of players ?? []) {
-    let view = matchFitnessViewCache.get(player);
-    if (!view) {
-      view = { ...player };
-      matchFitnessViewCache.set(player, view);
-    }
-    view.fitness = fitnessMap.get(player.id) ?? player.fitness ?? 90;
-    views.push(view);
+  let views = matchFitnessArrayCache.get(players);
+  if (!views) {
+    views = (players ?? []).map(player => {
+      let view = matchFitnessViewCache.get(player);
+      if (!view) {
+        view = { ...player };
+        matchFitnessViewCache.set(player, view);
+      }
+      return view;
+    });
+    matchFitnessArrayCache.set(players, views);
+  }
+  for (let index = 0; index < views.length; index += 1) {
+    const player = players[index];
+    views[index].fitness = fitnessMap.get(player.id) ?? player.fitness ?? 90;
   }
   return views;
 }
@@ -642,13 +649,13 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
         { active:curHActive, team:homeTeam, mods:hMods },
         { active:curAActive, team:awayTeam, mods:aMods },
       ]) {
+        const injuryRng = createSeededRng(packetDerivedSeed(packet.injury, `${phase}:${side.team.id}:injuries`));
         for (const player of side.active) {
           if (player.injured || player._injuredThisMatch) continue;
           const perPhaseRate = (player.matchPosition ?? player.position) === 'GK' ? .000120 : .000333;
           const intervalRate = matchInjuryIntervalRate(perPhaseRate)
             * side.mods.injuryRiskMult
             * rehabilitationReinjuryMultiplier(player);
-          const injuryRng = createSeededRng(packetDerivedSeed(packet.injury, `${phase}:${side.team.id}:${player.id}:injury`));
           if (injuryRng() > intervalRate) continue;
           const injury = rollInjuryCheck(player, side.mods.fitnessDrainMult > 1.1, true, injuryRng);
           if (!injury) continue;
