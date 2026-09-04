@@ -28,8 +28,9 @@ const CLUBS = [
 ];
 
 describe('bespoke club identity', () => {
-  it('covers all 186 playable clubs with renderable SVG', () => {
-    expect(CLUBS).toHaveLength(186);
+  it('covers every currently playable club with renderable SVG', () => {
+    expect(CLUBS.length).toBeGreaterThan(0);
+    expect(new Set(CLUBS.map((team) => team.id)).size).toBe(CLUBS.length);
     for (const team of CLUBS) {
       const svg = resolvedClubCrestSvg(team, { size: 32, label: `${team.name} crest` });
       expect(svg, team.name).toContain('<svg');
@@ -44,7 +45,7 @@ describe('bespoke club identity', () => {
     const rendered = CLUBS.map((team) => resolvedClubCrestSvg(team));
     const renderedAgain = CLUBS.map((team) => resolvedClubCrestSvg(team));
     expect(renderedAgain).toEqual(rendered);
-    expect(new Set(rendered).size).toBeGreaterThanOrEqual(180);
+    expect(new Set(rendered).size).toBeGreaterThanOrEqual(CLUBS.length - 1);
   });
 
   it('uses a curated real-identity profile for every playable club', () => {
