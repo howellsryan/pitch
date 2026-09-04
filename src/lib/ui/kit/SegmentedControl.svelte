@@ -26,8 +26,7 @@
 <style>
   .seg {
     display: flex;
-    gap: 3px;
-    padding: 3px;
+    overflow: hidden;
     border: 1px solid var(--color-line);
     border-radius: var(--radius-bug);
     background: var(--color-surface);
@@ -35,19 +34,29 @@
   .seg-item {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 38px;
+    min-height: 44px;
+    padding: 5px 10px;
     border: none;
-    border-radius: 2px;
+    border-right: 1px solid var(--color-line);
+    border-radius: 0;
     background: transparent;
     color: var(--color-tx-2);
-    font-family: var(--font-body);
-    font-size: 13px;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
     cursor: pointer;
     transition: background-color var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out);
+                color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
     -webkit-tap-highlight-color: transparent;
   }
+  .seg-item:last-child { border-right: 0; }
   .seg-item:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
-  .on { background: var(--color-accent); color: var(--color-on-accent); }
+  .on {
+    background: var(--color-raised);
+    color: var(--color-tx);
+    box-shadow: inset 0 -3px 0 var(--color-accent);
+  }
 </style>
