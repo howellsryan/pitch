@@ -121,7 +121,7 @@ function projectionClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function round2(value) {
+function projectionRound2(value) {
   return Math.round(value * 100) / 100;
 }
 
@@ -172,10 +172,10 @@ function aggregateParticipants(participants) {
     .map(entry => ({
       playerId:entry.playerId,
       roleId:entry.roleId,
-      involvement:round2(entry.involvement),
-      rating:round2(entry.rating),
+      involvement:projectionRound2(entry.involvement),
+      rating:projectionRound2(entry.rating),
     }));
-  return { rating:round2(rating), contributors };
+  return { rating:projectionRound2(rating), contributors };
 }
 
 function goalkeeperRating(players) {
@@ -206,9 +206,9 @@ function actionCounterRating(players, rolesById, actionDef) {
   if (!(goalkeeperWeight > 0)) return base;
   const goalkeeper = goalkeeperRating(players);
   return {
-    rating:round2((base.rating + goalkeeper * goalkeeperWeight) / (1 + goalkeeperWeight)),
+    rating:projectionRound2((base.rating + goalkeeper * goalkeeperWeight) / (1 + goalkeeperWeight)),
     contributors:base.contributors,
-    goalkeeper:round2(goalkeeper),
+    goalkeeper:projectionRound2(goalkeeper),
   };
 }
 
@@ -298,7 +298,7 @@ export function tacticalActionUsage(instructionInput = {}) {
   if (instructions.setPieces === 'attack') adjustUsage(usage, 'attacking_set_piece', .50);
   else if (instructions.setPieces === 'secure') adjustUsage(usage, 'attacking_set_piece', -.20);
 
-  return Object.fromEntries(TACTICAL_ACTION_IDS.map(actionId => [actionId, round2(usage[actionId])]));
+  return Object.fromEntries(TACTICAL_ACTION_IDS.map(actionId => [actionId, projectionRound2(usage[actionId])]));
 }
 
 export function projectLineupTacticalProfile({ players = [], rolesById = {}, instructions = {} } = {}) {
@@ -356,14 +356,14 @@ function sideMatchupProjection(selfProfile, opponentProfile) {
     const selfAction = selfProfile.actions[actionId];
     const opponentCounter = opponentProfile.actions[actionId]?.counter ?? 50;
     const context = tacticalContextEdge(actionId, selfProfile.instructions, opponentProfile.instructions);
-    const edge = round2(selfAction.execution - opponentCounter + context);
+    const edge = projectionRound2(selfAction.execution - opponentCounter + context);
     actions[actionId] = {
       usage:selfAction.usage,
       execution:selfAction.execution,
-      opponentCounter:round2(opponentCounter),
+      opponentCounter:projectionRound2(opponentCounter),
       contextEdge:context,
       edge,
-      weightedEdge:round2(edge * selfAction.usage),
+      weightedEdge:projectionRound2(edge * selfAction.usage),
       contributors:selfAction.contributors,
     };
   }
