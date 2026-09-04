@@ -68,39 +68,39 @@ const ROUTE_XG_BASE = Object.freeze({
 
 const PASS_ROUTES = new Set(['circulation', 'direct_pass', 'pass_into_space', 'wide_delivery']);
 
-function clamp(value, min, max) {
+function actionClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function round(value, digits = 3) {
+function actionRound(value, digits = 3) {
   const factor = 10 ** digits;
   return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
 }
 
-function playerSlot(player) {
+function actionPlayerSlot(player) {
   return player?.matchPosition ?? player?.position;
 }
 
-function isOutfield(player) {
-  return playerSlot(player) !== 'GK';
+function actionIsOutfield(player) {
+  return actionPlayerSlot(player) !== 'GK';
 }
 
-function roleIdFor(player, rolesById = {}) {
+function actionRoleIdFor(player, rolesById = {}) {
   const requested = rolesById?.[player?.id] ?? player?.tacticalRole;
   return resolvePlayerRole(player, requested)?.id ?? null;
 }
 
-function roleActionWeight(player, rolesById, actionId) {
-  const roleId = roleIdFor(player, rolesById);
+function actionRoleWeight(player, rolesById, actionId) {
+  const roleId = actionRoleIdFor(player, rolesById);
   return Number(ROLE_ACTION_WEIGHTS[roleId]?.[actionId] ?? 0);
 }
 
-function weightedPick(items, roll, weightFor) {
+function actionWeightedPick(items, roll, weightFor) {
   if (!items?.length) return null;
   const weights = items.map(item => Math.max(0, Number(weightFor(item) ?? 0)));
   const total = weights.reduce((sum, value) => sum + value, 0);
-  if (!(total > 0)) return items[Math.min(items.length - 1, Math.floor(clamp(roll, 0, .999999) * items.length))];
-  let cursor = clamp(roll, 0, .999999) * total;
+  if (!(total > 0)) return items[Math.min(items.length - 1, Math.floor(actionClamp(roll, 0, .999999) * items.length))];
+  let cursor = actionClamp(roll, 0, .999999) * total;
   for (let index = 0; index < items.length; index += 1) {
     cursor -= weights[index];
     if (cursor <= 0) return items[index];
@@ -108,66 +108,66 @@ function weightedPick(items, roll, weightFor) {
   return items[items.length - 1];
 }
 
-function detailed(player, attribute) {
+function actionDetailed(player, attribute) {
   const value = Number(effectiveDetailedAttribute(player, attribute));
   return Number.isFinite(value) ? value : 50;
 }
 
-function familiarityMultiplier(player) {
-  const suitability = Number(positionSuitabilityFor(player, playerSlot(player)));
-  return clamp(.84 + clamp(Number.isFinite(suitability) ? suitability : 1, 0, 1) * .16, .84, 1);
+function actionFamiliarityMultiplier(player) {
+  const suitability = Number(positionSuitabilityFor(player, actionPlayerSlot(player)));
+  return actionClamp(.84 + actionClamp(Number.isFinite(suitability) ? suitability : 1, 0, 1) * .16, .84, 1);
 }
 
-function weightedDetailed(player, weights = {}) {
+function actionWeightedDetailed(player, weights = {}) {
   if (!player) return 50;
   let sum = 0;
   let total = 0;
   for (const [attribute, weight] of Object.entries(weights)) {
     const numericWeight = Number(weight);
     if (!(numericWeight > 0)) continue;
-    sum += detailed(player, attribute) * numericWeight;
+    sum += actionDetailed(player, attribute) * numericWeight;
     total += numericWeight;
   }
   const base = total > 0 ? sum / total : 50;
-  return clamp(base * familiarityMultiplier(player), 1, 99);
+  return actionClamp(base * actionFamiliarityMultiplier(player), 1, 99);
 }
 
-function splitPassExecution(route, actor, target) {
+function actionSplitPassExecution(route, actor, target) {
   if (route === 'pass_into_space') {
-    return clamp(
-      (detailed(actor, 'passing') * .55
-        + detailed(target, 'pace') * .35
-        + detailed(target, 'physical') * .10)
-      * Math.min(familiarityMultiplier(actor), familiarityMultiplier(target)),
+    return actionClamp(
+      (actionDetailed(actor, 'passing') * .55
+        + actionDetailed(target, 'pace') * .35
+        + actionDetailed(target, 'physical') * .10)
+      * Math.min(actionFamiliarityMultiplier(actor), actionFamiliarityMultiplier(target)),
       1,
       99,
     );
   }
   if (route === 'direct_pass') {
-    return clamp(
-      (detailed(actor, 'passing') * .60
-        + detailed(target, 'pace') * .25
-        + detailed(target, 'physical') * .15)
-      * Math.min(familiarityMultiplier(actor), familiarityMultiplier(target)),
+    return actionClamp(
+      (actionDetailed(actor, 'passing') * .60
+        + actionDetailed(target, 'pace') * .25
+        + actionDetailed(target, 'physical') * .15)
+      * Math.min(actionFamiliarityMultiplier(actor), actionFamiliarityMultiplier(target)),
       1,
       99,
     );
   }
-  return weightedDetailed(actor, TACTICAL_ACTION_DEFS[route]?.execution);
+  return actionWeightedDetailed(actor, TACTICAL_ACTION_DEFS[route]?.execution);
 }
 
-function routeParticipantWeight(player, rolesById, route) {
-  const direct = roleActionWeight(player, rolesById, route);
+function actionRouteParticipantWeight(player, rolesById, route) {
+  const direct = actionRoleWeight(player, rolesById, route);
   if (direct > 0) return direct;
-  if (route === 'circulation') return isOutfield(player) ? .08 : 0;
+  if (route === 'circulation') return actionIsOutfield(player) ? .08 : 0;
   return 0;
 }
 
-function routeAvailability(players, rolesById, route) {
-  const outfield = (players ?? []).filter(isOutfield);
+function actionRouteAvailability(players, rolesById, route) {
+  const outfield = (players ?? []).filter(actionIsOutfield);
   if (!outfield.length) return .1;
-  const total = outfield.reduce((sum, player) => sum + routeParticipantWeight(player, rolesById, route), 0);
-  return clamp(total / outfield.length, .10, 1.15);
+  const total = outfield.reduce((sum, player) => sum + actionRouteParticipantWeight(player, rolesById, route), 0);
+  return actionClamp(total / outfield.length, .10, 1.15);
 }
 
 export function fixedPhaseRngPacket(nextRandom) {
@@ -177,131 +177,131 @@ export function fixedPhaseRngPacket(nextRandom) {
 }
 
 export function packetDerivedSeed(packetValue, salt = '') {
-  const quantized = Math.floor(clamp(Number(packetValue) || 0, 0, .999999999) * 1_000_000_000);
+  const quantized = Math.floor(actionClamp(Number(packetValue) || 0, 0, .999999999) * 1_000_000_000);
   return stableStringHash(`${MATCH_RNG_PACKET_VERSION}:${quantized}:${salt}`) || 1;
 }
 
 export function actionContestProbability(edge) {
   const sigmoid = 1 / (1 + Math.exp(-Number(edge) / 10));
-  return clamp(.18 + sigmoid * .67, .18, .85);
+  return actionClamp(.18 + sigmoid * .67, .18, .85);
 }
 
-function chooseRoute(players, rolesById, instructions, packet) {
+function actionChooseRoute(players, rolesById, instructions, packet) {
   const usage = tacticalActionUsage(instructions);
   const routes = AUTHORITATIVE_ROUTES.map(route => ({
     route,
-    weight:usage[route] * (.55 + routeAvailability(players, rolesById, route)),
+    weight:usage[route] * (.55 + actionRouteAvailability(players, rolesById, route)),
   })).filter(entry => entry.weight > 0);
-  return weightedPick(routes, packet.route, entry => entry.weight)?.route ?? 'circulation';
+  return actionWeightedPick(routes, packet.route, entry => entry.weight)?.route ?? 'circulation';
 }
 
-function chooseActor(players, rolesById, route, roll) {
-  const candidates = (players ?? []).filter(player => routeParticipantWeight(player, rolesById, route) > 0);
-  const fallback = candidates.length ? candidates : (players ?? []).filter(isOutfield);
-  return weightedPick(fallback, roll, player => routeParticipantWeight(player, rolesById, route) || 1);
+function actionChooseActor(players, rolesById, route, roll) {
+  const candidates = (players ?? []).filter(player => actionRouteParticipantWeight(player, rolesById, route) > 0);
+  const fallback = candidates.length ? candidates : (players ?? []).filter(actionIsOutfield);
+  return actionWeightedPick(fallback, roll, player => actionRouteParticipantWeight(player, rolesById, route) || 1);
 }
 
-function chooseTarget(players, rolesById, route, actorId, roll) {
-  const candidates = (players ?? []).filter(player => player.id !== actorId && isOutfield(player));
+function actionChooseTarget(players, rolesById, route, actorId, roll) {
+  const candidates = (players ?? []).filter(player => player.id !== actorId && actionIsOutfield(player));
   if (!candidates.length) return null;
   const targetAction = route === 'direct_pass' ? 'aerial_duel' : route;
-  return weightedPick(candidates, roll, player => {
-    const actionWeight = roleActionWeight(player, rolesById, targetAction);
-    const shotWeight = roleActionWeight(player, rolesById, 'shot');
+  return actionWeightedPick(candidates, roll, player => {
+    const actionWeight = actionRoleWeight(player, rolesById, targetAction);
+    const shotWeight = actionRoleWeight(player, rolesById, 'shot');
     return actionWeight * .72 + shotWeight * .28 + .02;
   });
 }
 
-function counterInvolvement(player, rolesById, actionDef) {
+function actionCounterInvolvement(player, rolesById, actionDef) {
   const actions = actionDef?.counterActions ?? [];
-  return Math.max(0, ...actions.map(actionId => roleActionWeight(player, rolesById, actionId)));
+  return Math.max(0, ...actions.map(actionId => actionRoleWeight(player, rolesById, actionId)));
 }
 
-function chooseDefender(players, rolesById, actionDef, roll) {
-  const outfield = (players ?? []).filter(isOutfield);
-  return weightedPick(outfield, roll, player => counterInvolvement(player, rolesById, actionDef) + .03);
+function actionChooseDefender(players, rolesById, actionDef, roll) {
+  const outfield = (players ?? []).filter(actionIsOutfield);
+  return actionWeightedPick(outfield, roll, player => actionCounterInvolvement(player, rolesById, actionDef) + .03);
 }
 
-function routeExecution(route, actor, target) {
-  if (route === 'direct_pass' || route === 'pass_into_space') return splitPassExecution(route, actor, target);
-  return weightedDetailed(actor, TACTICAL_ACTION_DEFS[route]?.execution);
+function actionRouteExecution(route, actor, target) {
+  if (route === 'direct_pass' || route === 'pass_into_space') return actionSplitPassExecution(route, actor, target);
+  return actionWeightedDetailed(actor, TACTICAL_ACTION_DEFS[route]?.execution);
 }
 
-function routeCounter(route, defender) {
-  return weightedDetailed(defender, TACTICAL_ACTION_DEFS[route]?.counter);
+function actionRouteCounter(route, defender) {
+  return actionWeightedDetailed(defender, TACTICAL_ACTION_DEFS[route]?.counter);
 }
 
-function tacticalChanceAdjustments(instructions) {
+function actionTacticalChanceAdjustments(instructions) {
   const normalized = normalizeTeamInstructions(instructions);
   if (normalized.chanceCreation === 'work_ball') return { frequency:.82, xg:.045 };
   if (normalized.chanceCreation === 'early_delivery') return { frequency:1.08, xg:-.018 };
   return { frequency:1, xg:0 };
 }
 
-function chanceQuality(route, edge, instructions, packet) {
-  const adjustment = tacticalChanceAdjustments(instructions);
-  const jitter = (clamp(packet.chance, 0, 1) - .5) * .06;
-  const xg = clamp((ROUTE_XG_BASE[route] ?? .12) + edge * .0022 + adjustment.xg + jitter, .035, .48);
-  return round(xg, 3);
+function actionChanceQuality(route, edge, instructions, packet) {
+  const adjustment = actionTacticalChanceAdjustments(instructions);
+  const jitter = (actionClamp(packet.chance, 0, 1) - .5) * .06;
+  const xg = actionClamp((ROUTE_XG_BASE[route] ?? .12) + edge * .0022 + adjustment.xg + jitter, .035, .48);
+  return actionRound(xg, 3);
 }
 
-function chanceBucket(xg) {
+function actionChanceBucket(xg) {
   if (xg >= .28) return 'high_quality_chance';
   if (xg >= .14) return 'medium_quality_chance';
   return 'low_quality_chance';
 }
 
-function chooseShooter(players, rolesById, roll) {
-  const outfield = (players ?? []).filter(isOutfield);
-  return weightedPick(outfield, roll, player => roleActionWeight(player, rolesById, 'shot') + .03);
+function actionChooseShooter(players, rolesById, roll) {
+  const outfield = (players ?? []).filter(actionIsOutfield);
+  return actionWeightedPick(outfield, roll, player => actionRoleWeight(player, rolesById, 'shot') + .03);
 }
 
-function goalkeeper(players) {
-  return (players ?? []).find(player => playerSlot(player) === 'GK') ?? null;
+function actionGoalkeeper(players) {
+  return (players ?? []).find(player => actionPlayerSlot(player) === 'GK') ?? null;
 }
 
 export function resolveShotOutcome({ shooter, defender, defenders = [], xg, packet }) {
   const shotDef = TACTICAL_ACTION_DEFS.shot;
-  const shooting = weightedDetailed(shooter, shotDef.execution);
-  const pressure = weightedDetailed(defender, shotDef.counter);
-  const keeper = goalkeeper(defenders);
+  const shooting = actionWeightedDetailed(shooter, shotDef.execution);
+  const pressure = actionWeightedDetailed(defender, shotDef.counter);
+  const keeper = actionGoalkeeper(defenders);
   const keeping = Number(effectiveAttribute(keeper, 'goalkeeping') ?? keeper?.goalkeeping ?? 50);
 
-  const blockChance = clamp(.08 + (pressure - 70) * .0035 - xg * .08, .035, .27);
-  const onTargetChance = clamp(.28 + xg * .72 + (shooting - 70) * .006 - (pressure - 70) * .0025, .18, .80);
-  const shotRoll = clamp(packet.shot, 0, .999999);
+  const blockChance = actionClamp(.08 + (pressure - 70) * .0035 - xg * .08, .035, .27);
+  const onTargetChance = actionClamp(.28 + xg * .72 + (shooting - 70) * .006 - (pressure - 70) * .0025, .18, .80);
+  const shotRoll = actionClamp(packet.shot, 0, .999999);
 
   if (shotRoll < blockChance) {
-    return { finish:'blocked', onTarget:false, goal:false, shooting:round(shooting), pressure:round(pressure), goalkeeping:round(keeping) };
+    return { finish:'blocked', onTarget:false, goal:false, shooting:actionRound(shooting), pressure:actionRound(pressure), goalkeeping:actionRound(keeping) };
   }
   const adjustedShotRoll = (shotRoll - blockChance) / Math.max(.000001, 1 - blockChance);
   if (adjustedShotRoll >= onTargetChance) {
-    return { finish:'missed', onTarget:false, goal:false, shooting:round(shooting), pressure:round(pressure), goalkeeping:round(keeping) };
+    return { finish:'missed', onTarget:false, goal:false, shooting:actionRound(shooting), pressure:actionRound(pressure), goalkeeping:actionRound(keeping) };
   }
 
-  const shootingModifier = clamp(1 + (shooting - 75) * .012, .72, 1.32);
-  const keeperModifier = clamp(1 - (keeping - 75) * .010, .62, 1.38);
-  const goalGivenTarget = clamp((xg / Math.max(.18, onTargetChance)) * 1.08 * shootingModifier * keeperModifier, .06, .74);
-  const goal = clamp(packet.finish, 0, .999999) < goalGivenTarget;
+  const shootingModifier = actionClamp(1 + (shooting - 75) * .012, .72, 1.32);
+  const keeperModifier = actionClamp(1 - (keeping - 75) * .010, .62, 1.38);
+  const goalGivenTarget = actionClamp((xg / Math.max(.18, onTargetChance)) * 1.08 * shootingModifier * keeperModifier, .06, .74);
+  const goal = actionClamp(packet.finish, 0, .999999) < goalGivenTarget;
   return {
     finish:goal ? 'goal' : 'saved',
     onTarget:true,
     goal,
-    shooting:round(shooting),
-    pressure:round(pressure),
-    goalkeeping:round(keeping),
-    goalChance:round(goalGivenTarget),
+    shooting:actionRound(shooting),
+    pressure:actionRound(pressure),
+    goalkeeping:actionRound(keeping),
+    goalChance:actionRound(goalGivenTarget),
   };
 }
 
-function failureOutcome(route, packet) {
+function actionFailureOutcome(route, packet) {
   if (packet.outcome < .16) return 'foul_won';
   if (route === 'wide_delivery' && packet.outcome < .42) return 'corner_won';
   if (route === 'pass_into_space' || route === 'direct_pass') return 'intercepted';
   return 'turnover';
 }
 
-function successOutcome(route) {
+function actionSuccessOutcome(route) {
   return route === 'circulation' ? 'retain' : 'progress';
 }
 
@@ -323,19 +323,19 @@ export function resolveAuthoritativePhase({
 
   const normalized = normalizeTeamInstructions(instructions);
   const opponentNormalized = normalizeTeamInstructions(opponentInstructions);
-  const route = chooseRoute(attackers, rolesById, normalized, packet);
+  const route = actionChooseRoute(attackers, rolesById, normalized, packet);
   const actionDef = TACTICAL_ACTION_DEFS[route];
-  const actor = chooseActor(attackers, rolesById, route, packet.actor);
-  const target = chooseTarget(attackers, rolesById, route, actor?.id, packet.target);
-  const defender = chooseDefender(defenders, opponentRolesById, actionDef, packet.defender);
-  const execution = routeExecution(route, actor, target);
-  const counter = routeCounter(route, defender);
+  const actor = actionChooseActor(attackers, rolesById, route, packet.actor);
+  const target = actionChooseTarget(attackers, rolesById, route, actor?.id, packet.target);
+  const defender = actionChooseDefender(defenders, opponentRolesById, actionDef, packet.defender);
+  const execution = actionRouteExecution(route, actor, target);
+  const counter = actionRouteCounter(route, defender);
   const context = tacticalContextEdge(route, normalized, opponentNormalized) + (isHome ? .9 : 0);
   const edge = execution - counter + context;
   const successChance = actionContestProbability(edge);
   const success = packet.execution < successChance;
 
-  let outcome = success ? successOutcome(route) : failureOutcome(route, packet);
+  let outcome = success ? actionSuccessOutcome(route) : actionFailureOutcome(route, packet);
   let xg = null;
   let chance = null;
   let shooter = null;
@@ -343,14 +343,14 @@ export function resolveAuthoritativePhase({
   let shot = null;
 
   if (success) {
-    const chanceAdjustments = tacticalChanceAdjustments(normalized);
-    const chanceProbability = clamp((ROUTE_CHANCE_BASE[route] ?? .14) * chanceAdjustments.frequency * (1 + edge * .015), .025, .48);
+    const chanceAdjustments = actionTacticalChanceAdjustments(normalized);
+    const chanceProbability = actionClamp((ROUTE_CHANCE_BASE[route] ?? .14) * chanceAdjustments.frequency * (1 + edge * .015), .025, .48);
     if (packet.chance < chanceProbability) {
-      xg = chanceQuality(route, edge, normalized, packet);
-      chance = chanceBucket(xg);
+      xg = actionChanceQuality(route, edge, normalized, packet);
+      chance = actionChanceBucket(xg);
       outcome = 'chance_created';
-      shooter = chooseShooter(attackers, rolesById, packet.shooter) ?? actor;
-      const pressureDefender = chooseDefender(defenders, opponentRolesById, TACTICAL_ACTION_DEFS.shot, packet.defender);
+      shooter = actionChooseShooter(attackers, rolesById, packet.shooter) ?? actor;
+      const pressureDefender = actionChooseDefender(defenders, opponentRolesById, TACTICAL_ACTION_DEFS.shot, packet.defender);
       shot = resolveShotOutcome({ shooter, defender:pressureDefender, defenders, xg, packet });
       if (PASS_ROUTES.has(route) && actor?.id !== shooter?.id && packet.assist < .86) assistId = actor?.id ?? null;
     }
@@ -368,10 +368,10 @@ export function resolveAuthoritativePhase({
     actorId:actor?.id ?? null,
     targetId:target?.id ?? null,
     defenderId:defender?.id ?? null,
-    execution:round(execution),
-    counter:round(counter),
-    contextEdge:round(context),
-    successChance:round(successChance),
+    execution:actionRound(execution),
+    counter:actionRound(counter),
+    contextEdge:actionRound(context),
+    successChance:actionRound(successChance),
     outcome,
     ...(chance ? { chance } : {}),
     ...(xg != null ? { xg } : {}),
@@ -401,20 +401,20 @@ export function deriveStatsFromActionLedger({ ledger = [], homeTeamId, awayTeamI
   const homePhases = ledger.filter(record => record.teamId === homeTeamId).length;
   const homePoss = phases ? Math.round((homePhases / phases) * 100) : 50;
 
-  function side(teamId) {
+  function actionSideStats(teamId) {
     const actions = ledger.filter(record => record.teamId === teamId);
     const shots = actions.filter(record => record.shotId != null);
     return {
       shots:shots.length,
       shotsOnTarget:shots.filter(record => record.onTarget).length,
-      xG:round(shots.reduce((sum, record) => sum + Number(record.xg ?? 0), 0), 2),
+      xG:actionRound(shots.reduce((sum, record) => sum + Number(record.xg ?? 0), 0), 2),
       corners:actions.filter(record => record.cornerWon).length,
       foulsWon:actions.filter(record => record.outcome === 'foul_won').length,
     };
   }
 
-  const home = side(homeTeamId);
-  const away = side(awayTeamId);
+  const home = actionSideStats(homeTeamId);
+  const away = actionSideStats(awayTeamId);
   const yellowHome = events.filter(event => event.type === 'yellow' && event.teamId === homeTeamId).length;
   const yellowAway = events.filter(event => event.type === 'yellow' && event.teamId === awayTeamId).length;
   const subsHome = events.filter(event => event.type === 'sub' && event.teamId === homeTeamId).length;
