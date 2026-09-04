@@ -23,6 +23,17 @@ LEGACY_VALIDATOR = BASE / 'validate.js'
 HOME_SCREEN = BASE / 'lib' / 'ui' / 'HomeScreen.svelte'
 
 SUPERSEDED_LEGACY_CHECKS = {
+    # FC27 is now authoritative for the current new-career player/club universe.
+    # These five assertions hard-code the retired hand-maintained roster shape:
+    # a <=35-player cap, two player-to-club assumptions, and fixed league sizes.
+    # The FC27 refresh has its own hard gates for resolved clubs, >=16 players,
+    # >=1 goalkeeper, unique IDs, valid ratings/positions, and 100% FC27 ratings.
+    'All PL teams <=35 players',
+    'Ipswich has Hutchinson',
+    'Hull has Philogene',
+    'League Two exactly 24 teams',
+    'Eredivisie exactly 18 teams',
+
     # P0 removes away goals. The old assertion became stochastic once level
     # aggregate ties correctly went to extra time/penalties.
     'computeTwoLegOutcome: away goals break aggregate tie',
