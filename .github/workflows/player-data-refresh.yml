@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 5 * * 1'
-  # Bootstrap the first refresh on the implementation branch. Generated data
-  # does not match this path filter, so the bot's data commit cannot loop.
+  # Bootstrap the implementation branch. Current clubs are derived from the
+  # broad player table, including EFL divisions omitted from clubs.csv. Generated
+  # data does not match this path filter, so the bot's data commit cannot loop.
   push:
     branches: [data/refresh-2026-rosters-ratings]
     paths:
