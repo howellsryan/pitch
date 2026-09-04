@@ -1,18 +1,18 @@
 /*
  * Cross-screen mobile ergonomics found by the browser audit.
  *
- * Mobile navigation now lives in a compact shared top rail instead of a
- * floating bottom-right pill. The rail gets its own shell space, so screens
- * should use the full remaining viewport rather than carrying per-screen
- * clearance hacks for navigation. Keep this file narrow: these are shell-level
- * collisions, not screen redesigns.
+ * Mobile navigation now lives in the shared bottom command strip. The strip
+ * owns its safe-area inset and the shell reserves that height once, so screens
+ * can use the complete working viewport without per-screen navigation hacks.
+ * Keep this file narrow: these are shell-level collisions, not screen redesigns.
  */
 @media (max-width: 768px) {
-  /* Reserve one small navigation row above every normal game screen. The live
-     Broadcast state hides navigation entirely and gets the full viewport back. */
+  /* Keep normal game screens clear of the device status area and the persistent
+     bottom command strip. Live Broadcast hides navigation and reclaims the full
+     viewport through the existing match-navigation-locked state. */
   .main {
-    margin-top: calc(48px + env(safe-area-inset-top, 0px));
-    height: calc(100dvh - 48px - env(safe-area-inset-top, 0px));
+    margin-top: env(safe-area-inset-top, 0px);
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 64px - env(safe-area-inset-bottom, 0px));
   }
 
   .match-navigation-locked .main {
@@ -20,8 +20,8 @@
     height: 100dvh;
   }
 
-  /* Chalk is mounted inside an overflow-y screen, so give its root the full
-     shell working height. The old bottom-navigation reservation is gone. */
+  /* Chalk is a viewport workspace. The shell now ends above navigation, so its
+     own pitch, controls and bench can consume the complete working height. */
   #screen-squad .tactics-screen {
     height: 100% !important;
     max-height: 100% !important;
@@ -49,21 +49,21 @@
   }
 
   #screen-squad .chalk-header {
-    padding-top: 12px !important;
+    padding-top: 10px !important;
   }
 
   #screen-squad .tac-controls {
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
   }
 
   #screen-squad .tac-bench-strip {
-    padding-top: 6px !important;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-top: 5px !important;
+    padding-bottom: 10px !important;
   }
 
-  /* Academy owns its own internal scroller and can now use the complete shell
-     working height because navigation no longer covers its lower actions. */
+  /* Academy owns its own internal scroller and can use the complete shell
+     working height because the command strip is outside that space. */
   #screen-academy .academy-screen {
     height: 100% !important;
     max-height: 100% !important;
@@ -72,7 +72,7 @@
 
   #screen-academy .ac-scroll {
     margin-bottom: 0 !important;
-    scroll-padding-bottom: 24px;
+    scroll-padding-bottom: 20px;
   }
 
   #screen-academy .btn-half {
@@ -80,7 +80,7 @@
   }
 
   /* The potential-star chips are real filter controls, not decorative badges.
-     Keep the dense row but give each a comfortable thumb target. */
+     Preserve the existing compact row without making them untappable. */
   #screen-transfers .tr-pot-btn {
     min-width: 36px !important;
     min-height: 36px !important;
