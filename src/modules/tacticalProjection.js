@@ -6,7 +6,7 @@ import { normalizeTeamInstructions, resolvePlayerRole } from './tactics.js';
  *
  * This module deliberately does not participate in authoritative match
  * resolution. It describes the future action-oriented model beside the current
- * P2 aggregate engine so we can calibrate roles/tactics/attributes before T3
+ * P2 aggregate engine so roles/tactics/attributes can be calibrated before T3
  * changes any scoreline, statistic or RNG path.
  */
 
@@ -91,30 +91,30 @@ const BASE_ACTION_USAGE = Object.freeze({
 
 /**
  * Role weights are participation/frequency weights only. They never multiply a
- * player's execution rating, so the same detailed attributes are not counted
- * once in role suitability and then again in action success.
+ * player's execution rating, so detailed attributes are not double-counted as
+ * both role quality and action quality.
  */
 export const ROLE_ACTION_WEIGHTS = Object.freeze({
-  goalkeeper:Object.freeze({ circulation:.12, recovery_defence:.20, attacking_set_piece:.05 }),
+  goalkeeper:Object.freeze({ circulation:.12, recovery_defence:.20 }),
   sweeper_keeper:Object.freeze({ circulation:.42, direct_pass:.28, recovery_defence:.70 }),
-  ball_playing_cb:Object.freeze({ circulation:.75, direct_pass:.65, pass_into_space:.20, interception_tackle:.55, recovery_defence:.48 }),
-  stopper:Object.freeze({ high_press:.58, interception_tackle:.92, recovery_defence:.35, aerial_duel:.32 }),
-  cover:Object.freeze({ interception_tackle:.64, recovery_defence:1, circulation:.28, aerial_duel:.28 }),
-  full_back:Object.freeze({ circulation:.35, wide_delivery:.46, carry:.28, interception_tackle:.62, recovery_defence:.72 }),
-  overlap:Object.freeze({ pass_into_space:.45, carry:.62, wide_delivery:.92, direct_pass:.25, recovery_defence:.42 }),
+  ball_playing_cb:Object.freeze({ circulation:.75, direct_pass:.65, pass_into_space:.20, interception_tackle:.55, recovery_defence:.48, aerial_duel:.35, attacking_set_piece:.45 }),
+  stopper:Object.freeze({ high_press:.58, interception_tackle:.92, recovery_defence:.35, aerial_duel:.52, attacking_set_piece:.62 }),
+  cover:Object.freeze({ interception_tackle:.64, recovery_defence:1, circulation:.28, aerial_duel:.48, attacking_set_piece:.55 }),
+  full_back:Object.freeze({ circulation:.35, wide_delivery:.46, carry:.28, interception_tackle:.62, recovery_defence:.72, attacking_set_piece:.12 }),
+  overlap:Object.freeze({ pass_into_space:.45, carry:.62, wide_delivery:.92, direct_pass:.25, recovery_defence:.42, attacking_set_piece:.18 }),
   inverted_full_back:Object.freeze({ circulation:.72, direct_pass:.48, carry:.32, interception_tackle:.55, recovery_defence:.50 }),
-  anchor:Object.freeze({ circulation:.42, interception_tackle:.92, recovery_defence:.82, aerial_duel:.20 }),
-  ball_winner:Object.freeze({ circulation:.30, high_press:.92, interception_tackle:1, recovery_defence:.62 }),
-  deep_playmaker:Object.freeze({ circulation:1, direct_pass:.92, pass_into_space:.78, carry:.18, interception_tackle:.32 }),
-  box_to_box:Object.freeze({ circulation:.68, pass_into_space:.38, carry:.62, high_press:.78, interception_tackle:.62, recovery_defence:.52, shot:.24 }),
-  advanced_playmaker:Object.freeze({ circulation:.92, direct_pass:.50, pass_into_space:1, carry:.62, shot:.36 }),
-  wide_creator:Object.freeze({ circulation:.48, direct_pass:.42, pass_into_space:.58, carry:.65, wide_delivery:1, shot:.18 }),
-  inside_forward:Object.freeze({ pass_into_space:.82, carry:.88, direct_pass:.28, shot:.92, high_press:.28 }),
-  winger:Object.freeze({ pass_into_space:.76, carry:1, wide_delivery:.96, direct_pass:.30, shot:.42, high_press:.26 }),
-  poacher:Object.freeze({ pass_into_space:1, direct_pass:.18, aerial_duel:.28, shot:1 }),
-  target_forward:Object.freeze({ direct_pass:.55, aerial_duel:1, circulation:.24, shot:.82, attacking_set_piece:.78 }),
-  false_nine:Object.freeze({ circulation:.86, direct_pass:.48, pass_into_space:.68, carry:.52, shot:.62 }),
-  complete_forward:Object.freeze({ circulation:.42, direct_pass:.42, pass_into_space:.78, carry:.58, aerial_duel:.55, shot:.92, attacking_set_piece:.45 }),
+  anchor:Object.freeze({ circulation:.42, interception_tackle:.92, recovery_defence:.82, aerial_duel:.20, attacking_set_piece:.18 }),
+  ball_winner:Object.freeze({ circulation:.30, high_press:.92, interception_tackle:1, recovery_defence:.62, attacking_set_piece:.15 }),
+  deep_playmaker:Object.freeze({ circulation:1, direct_pass:.92, pass_into_space:.78, carry:.18, interception_tackle:.32, attacking_set_piece:.38 }),
+  box_to_box:Object.freeze({ circulation:.68, pass_into_space:.38, carry:.62, high_press:.78, interception_tackle:.62, recovery_defence:.52, shot:.24, attacking_set_piece:.30 }),
+  advanced_playmaker:Object.freeze({ circulation:.92, direct_pass:.50, pass_into_space:1, carry:.62, shot:.36, attacking_set_piece:.48 }),
+  wide_creator:Object.freeze({ circulation:.48, direct_pass:.42, pass_into_space:.58, carry:.65, wide_delivery:1, shot:.18, attacking_set_piece:.42 }),
+  inside_forward:Object.freeze({ pass_into_space:.82, carry:.88, direct_pass:.28, shot:.92, high_press:.28, attacking_set_piece:.34 }),
+  winger:Object.freeze({ pass_into_space:.76, carry:1, wide_delivery:.96, direct_pass:.30, shot:.42, high_press:.26, attacking_set_piece:.30 }),
+  poacher:Object.freeze({ pass_into_space:1, direct_pass:.18, aerial_duel:.28, shot:1, attacking_set_piece:.42 }),
+  target_forward:Object.freeze({ direct_pass:.55, aerial_duel:1, circulation:.24, shot:.82, attacking_set_piece:.92 }),
+  false_nine:Object.freeze({ circulation:.86, direct_pass:.48, pass_into_space:.68, carry:.52, shot:.62, attacking_set_piece:.28 }),
+  complete_forward:Object.freeze({ circulation:.42, direct_pass:.42, pass_into_space:.78, carry:.58, aerial_duel:.55, shot:.92, attacking_set_piece:.55 }),
 });
 
 function projectionClamp(value, min, max) {
@@ -153,7 +153,6 @@ function actionParticipants(players, rolesById, actionId, weights) {
       const involvement = roleActionWeight(roleId, actionId);
       if (!(involvement > 0)) return null;
       return {
-        player,
         playerId:player.id,
         roleId,
         involvement,
@@ -185,18 +184,13 @@ function goalkeeperRating(players) {
   return Math.max(...keepers.map(player => Number(effectiveAttribute(player, 'goalkeeping') ?? player?.goalkeeping ?? 50)));
 }
 
-function defensiveRoleWeight(roleId, actionIds) {
-  return Math.max(0, ...(actionIds ?? []).map(actionId => roleActionWeight(roleId, actionId)));
-}
-
 function counterParticipants(players, rolesById, actionDef) {
   return (players ?? [])
     .map(player => {
       const roleId = resolvedRoleId(player, rolesById);
-      const involvement = defensiveRoleWeight(roleId, actionDef.counterActions);
+      const involvement = Math.max(0, ...actionDef.counterActions.map(actionId => roleActionWeight(roleId, actionId)));
       if (!(involvement > 0)) return null;
       return {
-        player,
         playerId:player.id,
         roleId,
         involvement,
@@ -223,7 +217,7 @@ function adjustUsage(usage, actionId, delta) {
 }
 
 export function tacticalActionUsage(instructionInput = {}) {
-  const instructions = normalizeTeamInstructions(instructionInput);
+  const instructions = normalizeTeamInstructions(instructionInput?.instructions ?? instructionInput);
   const usage = { ...BASE_ACTION_USAGE };
 
   if (instructions.buildUp === 'patient') {
@@ -324,12 +318,7 @@ export function projectLineupTacticalProfile({ players = [], rolesById = {}, ins
       ...(counter.goalkeeper != null ? { goalkeeper:counter.goalkeeper } : {}),
     };
   }
-
-  return {
-    version:TACTICAL_PROJECTION_VERSION,
-    instructions:normalizedInstructions,
-    actions,
-  };
+  return { version:TACTICAL_PROJECTION_VERSION, instructions:normalizedInstructions, actions };
 }
 
 export function tacticalContextEdge(actionId, selfInput = {}, opponentInput = {}) {
@@ -368,14 +357,13 @@ function sideMatchupProjection(selfProfile, opponentProfile) {
     const opponentCounter = opponentProfile.actions[actionId]?.counter ?? 50;
     const context = tacticalContextEdge(actionId, selfProfile.instructions, opponentProfile.instructions);
     const edge = round2(selfAction.execution - opponentCounter + context);
-    const weightedEdge = round2(edge * selfAction.usage);
     actions[actionId] = {
       usage:selfAction.usage,
       execution:selfAction.execution,
       opponentCounter:round2(opponentCounter),
       contextEdge:context,
       edge,
-      weightedEdge,
+      weightedEdge:round2(edge * selfAction.usage),
       contributors:selfAction.contributors,
     };
   }
@@ -398,13 +386,9 @@ export function projectTacticalMatchup(homeInput = {}, awayInput = {}) {
 }
 
 /**
- * Convenience wrapper for diagnostics/tests. The authoritative result is kept
- * by reference and is never cloned or decorated, preventing shadow data from
- * being mistaken for live match state.
+ * Diagnostics/test wrapper. The authoritative result is kept by reference and
+ * never cloned or decorated, preventing shadow data from becoming live state.
  */
 export function attachTacticalShadow(authoritativeResult, homeInput = {}, awayInput = {}) {
-  return {
-    authoritativeResult,
-    shadow:projectTacticalMatchup(homeInput, awayInput),
-  };
+  return { authoritativeResult, shadow:projectTacticalMatchup(homeInput, awayInput) };
 }
