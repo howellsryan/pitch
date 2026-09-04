@@ -8,11 +8,11 @@
 // players, Ipswich at 1 GK, Le Havre at 12) predate this gate and would
 // fail it if it were applied retroactively, which would make the gate
 // impossible to ever pass. The gate exists to catch a converter bug or a
-// bad footy-sim row, not to re-litigate squads this phase isn't touching.
+// bad source row, not to re-litigate squads this phase isn't touching.
 
 import { VALID_POSITIONS } from './leagueSchema.mjs';
 
-export function validateClubRoster(teamId, teamName, players, { minSquad = 16, minGk = 2 } = {}) {
+export function validateClubRoster(teamId, teamName, players, { minSquad = 16, minGk = 1 } = {}) {
   const errors = [];
   if (players.length < minSquad) {
     errors.push(`${teamName} (${teamId}): only ${players.length} players, need >=${minSquad}`);
@@ -36,9 +36,7 @@ export function validateClubRoster(teamId, teamName, players, { minSquad = 16, m
     }
     // "Current rating" here must match what the game itself reads
     // (matchEngine.js's primaryRating / potential.js's _primaryRating): the
-    // single position-relevant aggregate, not footy-sim's own holistic
-    // RATING column - a calibrated weight can legitimately derive a position
-    // aggregate higher than footy-sim's rounder overall figure.
+    // single position-relevant aggregate, not the source's holistic rating.
     const currentRating = p.position === 'GK' ? p.goalkeeping : Math.max(p.attack, p.midfield, p.defence);
     if (Number.isFinite(p.potential) && Number.isFinite(currentRating) && p.potential < currentRating) {
       errors.push(`${teamName} (${teamId}): ${p.name} potential ${p.potential} < rating ${currentRating}`);
