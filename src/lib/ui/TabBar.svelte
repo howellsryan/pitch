@@ -9,7 +9,7 @@
   const primaryDestinations = [
     { id: 'home', label: 'Home', icon: 'home' },
     { id: 'squad', label: 'Squad', icon: 'squad' },
-    { id: 'match', label: 'Play', icon: 'play', emphasis: true },
+    { id: 'match', label: 'Play', icon: 'kickoff', emphasis: true },
     { id: 'transfers', label: 'Market', icon: 'market' },
   ];
 
@@ -91,7 +91,7 @@
         onclick={() => choose(destination.id)}
         aria-current={active === destination.id ? 'page' : undefined}
       >
-        <span class="primary-icon"><Icon name={destination.icon} size={20} /></span>
+        <span class="primary-icon"><Icon name={destination.icon} size={destination.emphasis ? 22 : 20} /></span>
         <span>{destination.label}</span>
       </button>
     {/each}
@@ -183,8 +183,8 @@
     }
 
     .primary-destination.play .primary-icon {
-      width: 34px;
-      height: 30px;
+      width: 36px;
+      height: 32px;
       color: var(--color-on-accent);
       background: var(--color-accent);
       clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
