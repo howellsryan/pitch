@@ -167,14 +167,20 @@ function eaDisplayName(player) {
   return firstLast || String(player.fullName || '').trim() || `EA Player ${player.id}`;
 }
 
+function eaClubKey(player) {
+  const team = String(player.team?.label || '').trim();
+  const league = String(player.league?.label || '').trim();
+  return `${league}\u0000${team}`;
+}
+
 function loadPitchData() {
   const teams = [];
   const players = [];
   for (const league of ALL_LEAGUES) {
     const teamRows = readCsvFile(path.join(CSV_DIR, league.pitchTeamsCsv)).rows
-      .map(({ __line, ...row }) => ({ ...row, leagueKey: league.key }));
+      .map((row) => ({ ...row, leagueKey: league.key }));
     const playerRows = readCsvFile(path.join(CSV_DIR, league.pitchPlayersCsv)).rows
-      .map(({ __line, ...row }) => ({ ...row, leagueKey: league.key }));
+      .map((row) => ({ ...row, leagueKey: league.key }));
     teams.push(...teamRows);
     players.push(...playerRows);
   }
@@ -185,8 +191,8 @@ function existingNamesByTeam(existingPlayers) {
   const result = new Map();
   for (const player of existingPlayers) {
     if (!result.has(player.team_id)) result.set(player.team_id, new Set());
-    const set = result.get(player.team_id);
-    for (const alias of [normalizePersonName(player.name)]) if (alias) set.add(alias);
+    const alias = normalizePersonName(player.name);
+    if (alias) result.get(player.team_id).add(alias);
   }
   return result;
 }
@@ -196,9 +202,15 @@ function eaClubGroups(eaPlayers) {
   for (const player of eaPlayers) {
     const label = String(player.team?.label || '').trim();
     if (isFreeAgentClub(label)) continue;
-    const key = normalizeTeamName(label);
-    if (!key) continue;
-    if (!groups.has(key)) groups.set(key, { label, players: [] });
+    const key = eaClubKey(player);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label,
+        league: String(player.league?.label || '').trim(),
+        players: [],
+      });
+    }
     groups.get(key).players.push(player);
   }
   return [...groups.values()];
@@ -226,8 +238,12 @@ function resolveEaClubs(eaPlayers, existingTeams, existingPlayers) {
     let candidate = null;
     if (direct) {
       const overlap = rosterOverlapScore(group.players, pitchNames.get(direct.teamId));
-      candidate = { pitchTeamId: direct.teamId, method: direct.method, score: 1000 + overlap, overlap };
-    } else {
+      if (direct.method !== 'contains' || overlap >= 3) {
+        const methodBonus = direct.method === 'exact' ? 40 : direct.method === 'alias' ? 35 : 15;
+        candidate = { pitchTeamId: direct.teamId, method: direct.method, score: overlap * 100 + methodBonus, overlap };
+      }
+    }
+    if (!candidate) {
       const overlaps = existingTeams
         .map((team) => ({
           pitchTeamId: team.team_id,
@@ -238,26 +254,33 @@ function resolveEaClubs(eaPlayers, existingTeams, existingPlayers) {
       const best = overlaps[0];
       const second = overlaps[1];
       if (best && best.overlap >= 3 && (!second || best.overlap >= second.overlap + 2)) {
-        candidate = { ...best, method: 'roster-overlap', score: 500 + best.overlap };
+        candidate = { ...best, method: 'roster-overlap', score: best.overlap * 100 + 20 };
       }
     }
 
     if (!candidate) {
-      unresolvedEaClubs.push({ name: group.label, players: group.players.length });
+      unresolvedEaClubs.push({ name: group.label, league: group.league, players: group.players.length });
       continue;
     }
     if (!candidatesByPitch.has(candidate.pitchTeamId)) candidatesByPitch.set(candidate.pitchTeamId, []);
-    candidatesByPitch.get(candidate.pitchTeamId).push({ ...candidate, eaClub: group.label, players: group.players.length });
+    candidatesByPitch.get(candidate.pitchTeamId).push({
+      ...candidate,
+      eaClubKey: group.key,
+      eaClub: group.label,
+      eaLeague: group.league,
+      players: group.players.length,
+    });
   }
 
   const eaClubToPitch = new Map();
   const pitchToEaClub = new Map();
   const collisions = [];
   for (const team of existingTeams) {
-    const candidates = (candidatesByPitch.get(team.team_id) || []).sort((a, b) => b.score - a.score || b.players - a.players);
+    const candidates = (candidatesByPitch.get(team.team_id) || [])
+      .sort((a, b) => b.score - a.score || b.players - a.players);
     if (!candidates.length) continue;
     const chosen = candidates[0];
-    eaClubToPitch.set(normalizeTeamName(chosen.eaClub), team.team_id);
+    eaClubToPitch.set(chosen.eaClubKey, team.team_id);
     pitchToEaClub.set(team.team_id, chosen);
     if (candidates.length > 1) collisions.push({ pitchTeamId: team.team_id, chosen, rejected: candidates.slice(1) });
   }
@@ -289,7 +312,7 @@ function buildExistingMatcher(existingPlayers) {
 }
 
 function stripInternal(row) {
-  return Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'leagueKey'));
+  return Object.fromEntries(Object.entries(row).filter(([key]) => !['leagueKey', '__line', 'stagedFreeAgent'].includes(key)));
 }
 
 function renderStartingFreeAgents(names, eaDate) {
@@ -358,7 +381,10 @@ async function main() {
     const attrs = attrsFromEa(ea);
     const aggregates = aggregatesFromEa(position, rating, attrs, undefined, existing);
     const existingPotential = finite(existing?.potential);
-    const potential = Math.max(rating, existingPotential && existingPotential >= rating ? existingPotential : generatePotential(rating, age));
+    const potential = Math.min(99, Math.max(
+      rating,
+      existingPotential && existingPotential >= rating ? existingPotential : generatePotential(rating, age),
+    ));
     const wageModel = wageModelByLeague.get(targetLeague);
     const valueModel = valueModelByLeague.get(targetLeague);
     const wageThousands = Number(existing?.wage_thousands) > 0 ? Number(existing.wage_thousands) : wageModel(rating);
@@ -398,7 +424,7 @@ async function main() {
   for (const ea of eaPlayers) {
     const clubLabel = String(ea.team?.label || '').trim();
     if (isFreeAgentClub(clubLabel)) continue;
-    const targetTeamId = eaClubToPitch.get(normalizeTeamName(clubLabel));
+    const targetTeamId = eaClubToPitch.get(eaClubKey(ea));
     if (!targetTeamId) continue;
     const existing = existingMatch(ea, targetTeamId, usedExistingIds);
     if (existing) {
@@ -460,6 +486,7 @@ async function main() {
     teamId: team.team_id,
     pitchName: team.name,
     eaClub: pitchToEaClub.get(team.team_id)?.eaClub || null,
+    eaLeague: pitchToEaClub.get(team.team_id)?.eaLeague || null,
     method: pitchToEaClub.get(team.team_id)?.method || null,
     rosterOverlap: pitchToEaClub.get(team.team_id)?.overlap || 0,
   }));
@@ -519,7 +546,7 @@ async function main() {
       const teamIds = new Set(teams.map((team) => team.team_id));
       const players = finalPlayers
         .filter((player) => player.leagueKey === league.key && teamIds.has(player.team_id))
-        .map(({ stagedFreeAgent, ...player }) => stripInternal(player));
+        .map(stripInternal);
       writeCsvFile(path.join(CSV_DIR, league.pitchTeamsCsv), TEAM_HEADER, teams);
       writeCsvFile(path.join(CSV_DIR, league.pitchPlayersCsv), PLAYER_HEADER, players);
       console.log(`  wrote ${league.label}: ${teams.length} teams / ${players.length} players`);
