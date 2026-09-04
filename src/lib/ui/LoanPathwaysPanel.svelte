@@ -63,7 +63,7 @@
   }
 
   function scheduleLoanMarketSync() {
-    requestAnimationFrame(syncLoanMarket);
+    window.requestAnimationFrame(syncLoanMarket);
   }
 
   onMount(() => {
