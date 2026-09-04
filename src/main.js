@@ -72,13 +72,7 @@ const homeMount = document.getElementById('screen-home');
 if (homeMount) mount(HomeScreen, { target: homeMount });
 
 const squadMount = document.getElementById('screen-squad');
-if (squadMount) {
-  mount(SquadScreen, { target: squadMount });
-  // P9 uses a sibling island instead of forking SquadScreen's roster/tactics
-  // implementation. The drawer reads the same canonical player rows and stays
-  // hidden with the parent screen when Squad is not active.
-  mount(LoanPathwaysPanel, { target:squadMount, props:{ surface:'squad' } });
-}
+if (squadMount) mount(SquadScreen, { target: squadMount });
 
 const academyMount = document.getElementById('screen-academy');
 if (academyMount) mount(AcademyScreen, { target: academyMount });
@@ -93,7 +87,10 @@ const transfersMount = document.getElementById('screen-transfers');
 if (transfersMount) {
   mount(TransfersScreen, { target: transfersMount });
   mount(ScoutingDrawer, { target: transfersMount });
-  mount(LoanPathwaysPanel, { target:transfersMount, props:{ surface:'transfers' } });
+  // Loan pathways belongs to the loan market. The component gates its launcher
+  // against Transfers' active Loans tab so it cannot float over Squad or other
+  // market surfaces while retaining the existing P9 pathway workflow.
+  mount(LoanPathwaysPanel, { target: transfersMount });
 }
 
 const matchMount = document.getElementById('screen-match');
