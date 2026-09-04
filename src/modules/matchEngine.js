@@ -475,6 +475,13 @@ function scoreAdjustedMods(base, source, ownGoals, oppGoals, minute) {
   return base;
 }
 
+function actionRiskMode(source, ownGoals, oppGoals, minute) {
+  if (source === 'user') return 'normal';
+  if (minute >= 60 && ownGoals < oppGoals) return 'chase';
+  if (minute >= 72 && ownGoals > oppGoals) return 'protect';
+  return 'normal';
+}
+
 function withCurrentMatchFitness(players, fitnessMap) {
   return (players ?? []).map(player => ({ ...player, fitness:fitnessMap.get(player.id) ?? player.fitness ?? 90 }));
 }
@@ -573,6 +580,10 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     const defFitMap = isHome ? aFitness : hFitness;
     const attMods = isHome ? hMods : aMods;
     const defMods = isHome ? aMods : hMods;
+    const attPlanSource = isHome ? state.homePlanSource : state.awayPlanSource;
+    const attMentality = isHome ? state.homeMentality : state.awayMentality;
+    const attGoals = isHome ? curHGoals : curAGoals;
+    const oppGoals = isHome ? curAGoals : curHGoals;
 
     for (const player of attActive) {
       const next = (attFitMap.get(player.id) ?? 90) - attackingFitnessDrain * ageDrain(player.age ?? 24) * attMods.fitnessDrainMult;
@@ -596,6 +607,8 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       opponentRolesById:isHome ? state.awayRoles : state.homeRoles,
       instructions:isHome ? state.homeTactics : state.awayTactics,
       opponentInstructions:isHome ? state.awayTactics : state.homeTactics,
+      mentality:attMentality,
+      riskMode:actionRiskMode(attPlanSource, attGoals, oppGoals, minute),
       packet,
       isHome,
     });
