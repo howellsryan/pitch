@@ -159,9 +159,15 @@ function deterministicDetailedJitter(player, attribute) {
   return (hash % 5) - 2;
 }
 
+function finiteAttributeNumber(rawValue) {
+  if (rawValue == null || rawValue === '') return null;
+  const value = Number(rawValue);
+  return Number.isFinite(value) ? value : null;
+}
+
 function finiteHeadline(player, attribute, fallback = 50) {
-  const value = Number(player?.[attribute]);
-  return Number.isFinite(value) ? playerModelClamp(value, 1, 99) : fallback;
+  const value = finiteAttributeNumber(player?.[attribute]);
+  return value == null ? fallback : playerModelClamp(value, 1, 99);
 }
 
 function legacyDetailedBase(player, attribute) {
@@ -214,10 +220,9 @@ function legacyDetailedBase(player, attribute) {
 }
 
 function profileSourceValue(profile, player, attribute) {
-  const nested = Number(profile?.[attribute]);
-  if (Number.isFinite(nested)) return nested;
-  const direct = Number(player?.[attribute]);
-  return Number.isFinite(direct) ? direct : null;
+  const nested = finiteAttributeNumber(profile?.[attribute]);
+  if (nested != null) return nested;
+  return finiteAttributeNumber(player?.[attribute]);
 }
 
 export function normalizeAttributeProfile(profile, player = null) {
@@ -233,7 +238,7 @@ export function normalizeAttributeProfile(profile, player = null) {
 export function attributeProfileFromSeed(player, seedPlayer = null) {
   if (!player) return normalizeAttributeProfile(null, null);
   const existingComplete = player?.attributeProfile?.version === ATTRIBUTE_PROFILE_VERSION
-    && DETAILED_ATTRIBUTE_KEYS.every(attribute => Number.isFinite(Number(player.attributeProfile?.[attribute])));
+    && DETAILED_ATTRIBUTE_KEYS.every(attribute => finiteAttributeNumber(player.attributeProfile?.[attribute]) != null);
   if (existingComplete) return normalizeAttributeProfile(player.attributeProfile, player);
   if (!seedPlayer) return normalizeAttributeProfile(player.attributeProfile, player);
 
@@ -252,8 +257,8 @@ export function attributeProfileFromSeed(player, seedPlayer = null) {
 
 export function detailedAttribute(player, attribute) {
   if (!player || !DETAILED_ATTRIBUTE_SET.has(attribute)) return undefined;
-  const value = Number(player.attributeProfile?.[attribute]);
-  if (Number.isFinite(value)) return value;
+  const value = finiteAttributeNumber(player.attributeProfile?.[attribute]);
+  if (value != null) return playerModelClamp(value, 1, 99);
   return normalizeAttributeProfile(player.attributeProfile, player)[attribute];
 }
 
