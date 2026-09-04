@@ -60,7 +60,7 @@ describe('Match Engine 2.0 seeded RNG', () => {
     expect(seqA).not.toEqual(seqC);
   });
 
-  it('produces the exact same authoritative match when run whole or in broadcast segments', () => {
+  it.each([1, 7, 10, 30, 120])('produces the exact same authoritative match with %i-phase broadcast segments', (segmentSize) => {
     const homeTeam = managedTeam('home');
     const awayTeam = { id:'away', name:'away', reputation:82, crest:'Y' };
     const homePlayers = makeSquad('h', 80);
@@ -76,8 +76,8 @@ describe('Match Engine 2.0 seeded RNG', () => {
       '4-3-3', '4-2-3-1', null, null, 'possession', 'balanced', { seed:'parity-fixture' },
     );
     const events = [];
-    for (let start = 1; start <= 120; start += 10) {
-      const segment = simulateMatchSegment(homeTeam, awayTeam, state, start, Math.min(120, start + 9), homeTeam.id);
+    for (let start = 1; start <= 120; start += segmentSize) {
+      const segment = simulateMatchSegment(homeTeam, awayTeam, state, start, Math.min(120, start + segmentSize - 1), homeTeam.id);
       state = segment.updatedState;
       events.push(...segment.segEvents);
     }
