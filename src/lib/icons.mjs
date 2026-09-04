@@ -3,6 +3,7 @@ const ICONS = {
   home: ['<path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5z"/><path d="M9 21v-7h6v7"/>'],
   squad: ['<circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 20c.5-4 2.5-6 5.5-6s5 2 5.5 6M13.5 16c1-2 2.4-3 4.4-3 2.2 0 3.6 1.5 4.1 4.5"/>'],
   play: ['<path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/>'],
+  kickoff: ['<path d="M4 7v10M20 7v10M4 7h4M4 17h4M16 7h4M16 17h4"/><circle cx="12" cy="12" r="3.2"/><path d="m12 9.3 1.7 1.2-.65 2h-2.1l-.65-2z"/>'],
   market: ['<path d="M4 7h16l-1 13H5z"/><path d="M7 7a5 5 0 0 1 10 0M8 11h8"/>'],
   table: ['<path d="M4 5h16M4 10h16M4 15h16M4 20h16M9 5v15M16 5v15"/>'],
   menu: ['<path d="M5 7h14M5 12h14M5 17h14"/>'],
