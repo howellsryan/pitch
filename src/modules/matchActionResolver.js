@@ -401,7 +401,7 @@ export function resolveAuthoritativePhase({
   const defender = actionChooseDefender(defenders, opponentRolesById, actionDef, packet.defender);
   const execution = actionRouteExecution(route, actor, target);
   const counter = actionRouteCounter(route, defender);
-  const context = actionCachedContextEdge(route, normalized, opponentNormalized) + (isHome ? .9 : 0);
+  const context = actionCachedContextEdge(route, normalized, opponentNormalized) + (isHome ? 2.0 : 0);
   const edge = execution - counter + context;
   const successChance = actionContestProbability(edge);
   const success = packet.execution < successChance;
