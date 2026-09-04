@@ -5,7 +5,8 @@ on:
   schedule:
     - cron: '17 5 * * 1'
   # Bootstrap/validate the FC27-authoritative implementation branch, including
-  # verified EA aliases and the FC27-supported Pitch club universe. Generated
+  # verified EA aliases, the FC27-supported Pitch club universe, and the
+  # one-goalkeeper minimum accepted when that is all FC27 exposes. Generated
   # data does not match this path filter, so the bot's generated-data commit
   # cannot trigger a loop.
   push:
