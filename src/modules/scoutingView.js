@@ -1,4 +1,9 @@
-import { baselineAttribute, currentEffectiveLevel } from './playerModel.js';
+import {
+  DETAILED_ATTRIBUTE_KEYS,
+  baselineAttribute,
+  currentEffectiveLevel,
+  normalizeAttributeProfile,
+} from './playerModel.js';
 import { observedPlayerProfile } from './scouting.js';
 
 /**
@@ -31,6 +36,11 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
   const feeMax = Math.max(feeMin, Number(report.financial?.feeMax ?? feeMin));
   const wageMin = Math.max(0, Number(report.financial?.wageMin ?? player.wage ?? 0));
   const wageMax = Math.max(wageMin, Number(report.financial?.wageMax ?? wageMin));
+  const canonicalProfile = normalizeAttributeProfile(player.attributeProfile, player);
+  const attributeProfile = {
+    version:canonicalProfile.version,
+    ...Object.fromEntries(DETAILED_ATTRIBUTE_KEYS.map(attribute => [attribute, coarse(canonicalProfile[attribute])])),
+  };
 
   const projected = {
     ...player,
@@ -38,6 +48,7 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
     midfield:coarse(player.midfield),
     defence:coarse(player.defence),
     goalkeeping:coarse(player.goalkeeping),
+    attributeProfile,
     value:Math.round((feeMin + feeMax) / 2),
     wage:Math.round((wageMin + wageMax) / 2),
     potentialRating:futureMid,
