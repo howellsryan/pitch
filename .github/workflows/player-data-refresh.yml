@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 5 * * 1'
-  # Bootstrap/validate the FC27-authoritative implementation branch. Generated
-  # data does not match this path filter, so the bot's generated-data commit
-  # cannot trigger a loop.
+  # Bootstrap/validate the FC27-authoritative implementation branch, including
+  # verified EA licensing/abbreviation aliases. Generated data does not match
+  # this path filter, so the bot's generated-data commit cannot trigger a loop.
   push:
     branches: [data/refresh-2026-rosters-ratings]
     paths:
