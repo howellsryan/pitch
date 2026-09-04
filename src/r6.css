@@ -497,3 +497,18 @@ body > .sheet {
   font-size: 15px;
   font-weight: 800;
 }
+
+@media (min-width: 900px) {
+  #screen-competitions .league-screen {
+    padding-inline: 28px;
+    padding-bottom: 28px;
+  }
+  #screen-competitions .league-body {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+  }
+  #screen-competitions .league-results-list {
+    max-height: calc(100vh - 190px);
+    overflow-y: auto;
+  }
+}
