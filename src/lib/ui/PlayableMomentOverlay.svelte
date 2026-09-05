@@ -85,7 +85,7 @@
   }
 
   function accessibleIntent() {
-    if (resolution || busy) return;
+    if (resolution || busy || rendererLoading) return;
     if (moment?.mode === 'goalkeeper') {
       void onsubmit({ goalkeeper:{ x:selectedLane * .78, y:selectedHeight, timing:.82 } });
       return;
@@ -94,13 +94,13 @@
   }
 
   function pointerDown(event) {
-    if (resolution || busy) return;
+    if (resolution || busy || rendererLoading) return;
     pointerStart = { x:event.clientX, y:event.clientY, at:window.performance.now() };
     event.currentTarget?.setPointerCapture?.(event.pointerId);
   }
 
   function pointerUp(event) {
-    if (!pointerStart || resolution || busy) return;
+    if (!pointerStart || resolution || busy || rendererLoading) return;
     const bounds = canvas?.getBoundingClientRect?.();
     if (!bounds) return;
     const goalTarget = controller?.goalIntentFromClientPoint?.(event.clientX, event.clientY) ?? null;
