@@ -1,19 +1,17 @@
 export const PLAYABLE_POC_SCENE_VERSION = 1;
 
+// Phase 1 renderer decision: Three.js r185.1. The same-scene spike showed no
+// PlayCanvas capability advantage for this bounded shooter/keeper interaction,
+// while the exact current minified ESM payload is materially smaller. Keep the
+// engine version and URL pinned; Phase 2 may move this into the normal package
+// graph when the POC becomes a persistent career feature.
 export const PLAYABLE_POC_RENDERERS = Object.freeze({
   three:Object.freeze({
     id:'three',
     label:'Three.js',
     version:'0.185.1',
     licence:'MIT',
-    moduleUrl:'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js',
-  }),
-  playcanvas:Object.freeze({
-    id:'playcanvas',
-    label:'PlayCanvas',
-    version:'2.22.0',
-    licence:'MIT',
-    moduleUrl:'https://cdn.jsdelivr.net/npm/playcanvas@2.22.0/build/playcanvas/src/index.js',
+    moduleUrl:'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.min.js',
   }),
 });
 
