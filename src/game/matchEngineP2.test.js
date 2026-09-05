@@ -9,6 +9,9 @@ import {
 import { createUserTacticalPlan } from '../modules/tactics.js';
 
 function makePlayer(id, position, rating = 78, age = 26) {
+  const attacking = ['ST','CF','RW','LW','CAM'].includes(position);
+  const midfield = ['CM','CDM','CAM','RM','LM','RW','LW'].includes(position);
+  const defending = ['CB','RB','LB','CDM'].includes(position);
   return {
     id,
     name:id,
@@ -25,6 +28,16 @@ function makePlayer(id, position, rating = 78, age = 26) {
     appearances:4,
     goals:position === 'ST' ? 2 : 0,
     assists:position === 'CAM' ? 2 : 0,
+    traits:[],
+    attributeProfile:{
+      version:1,
+      pace:rating,
+      shooting:attacking ? rating : Math.max(35, rating - 12),
+      passing:midfield || attacking ? rating : Math.max(35, rating - 8),
+      dribbling:attacking || midfield ? rating : Math.max(35, rating - 8),
+      defending:defending ? rating : Math.max(25, rating - 18),
+      physical:rating,
+    },
   };
 }
 
@@ -33,7 +46,13 @@ function makeSquad(prefix, rating = 78) {
   return positions.map((position, index) => makePlayer(`${prefix}_${index}`, position, rating + (index % 3) - 1, 22 + index % 10));
 }
 
-function cloneSquad(players) { return players.map(player => ({ ...player })); }
+function cloneSquad(players) {
+  return players.map(player => ({
+    ...player,
+    attributeProfile:{ ...player.attributeProfile },
+    traits:[...(player.traits ?? [])],
+  }));
+}
 
 function managedTeam(id, reputation = 80) {
   return {
@@ -60,7 +79,7 @@ describe('Match Engine 2.0 seeded RNG', () => {
     expect(seqA).not.toEqual(seqC);
   });
 
-  it('produces the exact same authoritative match when run whole or in broadcast segments', () => {
+  it.each([1, 7, 10, 30, 120])('produces the exact same authoritative match with %i-phase broadcast segments', (segmentSize) => {
     const homeTeam = managedTeam('home');
     const awayTeam = { id:'away', name:'away', reputation:82, crest:'Y' };
     const homePlayers = makeSquad('h', 80);
@@ -76,8 +95,8 @@ describe('Match Engine 2.0 seeded RNG', () => {
       '4-3-3', '4-2-3-1', null, null, 'possession', 'balanced', { seed:'parity-fixture' },
     );
     const events = [];
-    for (let start = 1; start <= 120; start += 10) {
-      const segment = simulateMatchSegment(homeTeam, awayTeam, state, start, Math.min(120, start + 9), homeTeam.id);
+    for (let start = 1; start <= 120; start += segmentSize) {
+      const segment = simulateMatchSegment(homeTeam, awayTeam, state, start, Math.min(120, start + segmentSize - 1), homeTeam.id);
       state = segment.updatedState;
       events.push(...segment.segEvents);
     }

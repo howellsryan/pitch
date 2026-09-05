@@ -14,6 +14,21 @@ describe('generateStubPlayers', () => {
     expect(new Set(stubs.map(p => p.name)).size).toBe(stubs.length);
   });
 
+  it('is deterministic for the same team and strength', () => {
+    const team = { id:'stable_stub', name:'Stable Stub', crest:'S' };
+    const first = generateStubPlayers(team, 76);
+    const second = generateStubPlayers(team, 76);
+    expect(second).toEqual(first);
+  });
+
+  it('keeps the deterministic seed sensitive to opponent identity and strength', () => {
+    const a = generateStubPlayers({ id:'stub_a', name:'Stub A' }, 76);
+    const b = generateStubPlayers({ id:'stub_b', name:'Stub B' }, 76);
+    const stronger = generateStubPlayers({ id:'stub_a', name:'Stub A' }, 84);
+    expect(b.map(player => player.attack)).not.toEqual(a.map(player => player.attack));
+    expect(stronger.map(player => player.attack)).not.toEqual(a.map(player => player.attack));
+  });
+
   it('scales attack roughly with the requested strength', () => {
     const weak   = generateStubPlayers({ id: 'w', name: 'Weak',   crest: 'W' }, 40);
     const strong = generateStubPlayers({ id: 's', name: 'Strong', crest: 'S' }, 95);

@@ -2,7 +2,7 @@ import {
   SQUAD_ROLE_DEFS,
   currentEffectiveLevel,
 } from './playerModel.js';
-import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
+import { evaluateCareerTacticalFit } from './careerTacticalFit.js';
 
 /**
  * Pure P4 transfer-market contracts.
@@ -589,10 +589,15 @@ export function evaluatePlayerInterest({
   if (minutesScore >= 70) pushReason(positives, minutesScore / 10, 'playing_time', 'The promised role offers credible minutes.');
   else if (minutesScore < 40) pushReason(concerns, (50 - minutesScore) / 4, 'playing_time_risk', 'Competition for minutes is a concern.');
 
-  const profile = tacticalProfile ?? getAITacticalProfile(buyer);
-  const tacticalRole = chooseAIRole(player, profile);
-  const tacticalFit = roleSuitability(player, tacticalRole);
-  score += (tacticalFit - .9) * 45;
+  const tactical = evaluateCareerTacticalFit({
+    player,
+    team:buyer,
+    squad:buyerSquad,
+    tacticalProfile,
+  });
+  const tacticalRole = tactical.roleId;
+  const tacticalFit = tactical.tacticalFit;
+  score += (tacticalFit - .9) * 32;
   if (tacticalFit >= 1) pushReason(positives, tacticalFit * 7, 'tactical_fit', 'The manager’s approach suits the player.');
   else if (tacticalFit < .86) pushReason(concerns, (1 - tacticalFit) * 28, 'tactical_concern', 'The tactical role is not an obvious fit.');
 
@@ -634,6 +639,7 @@ export function evaluatePlayerInterest({
     requiredWage:Math.round(currentWage * transferMarketClamp(1.02 + Math.max(0, 58 - finalScore) / 100, 1.02, 1.35)),
     tacticalRole,
     tacticalFit:Math.round(tacticalFit * 100) / 100,
+    tacticalProfileId:tactical.profileId,
     minutesScore:Math.round(minutesScore),
   };
 }

@@ -53,13 +53,29 @@ MODULES += [
     ('modules/tactics.js',          'TACTICS'),
     ('modules/clubPhilosophy.js',   'CLUB PHILOSOPHY'),
     ('modules/facilities.js',       'CLUB FACILITIES'),
+    # T3/T4/T5 share one action/fit stack. T5's squad-aware AI identity consumes
+    # projection and plan feedback; careerTacticalFit then reuses that identity
+    # plus the projection weights for recruitment/loans. managerTactics consumes
+    # the same AI identity for Team News. T6's compact tactical analysis is a
+    # pure ledger projection consumed by finaliseLiveMatch. T7's simulation-version
+    # validator sits immediately before matchEngine so segmented play can enforce
+    # the same activation boundary in both the module and legacy bundle paths.
+    ('modules/matchActionVocabulary.js', 'MATCH ACTION VOCABULARY'),
+    ('modules/tacticalProjection.js', 'TACTICAL PROJECTION'),
+    ('modules/tacticalPlanFeedback.js', 'TACTICAL PLAN FEEDBACK'),
+    ('modules/aiTacticalIdentity.js', 'AI TACTICAL IDENTITY'),
+    ('modules/careerTacticalFit.js', 'CAREER TACTICAL FIT'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
+    ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
+    ('modules/matchTacticalAnalysis.js', 'MATCH TACTICAL ANALYSIS'),
+    ('modules/matchSimulationVersion.js', 'MATCH SIMULATION VERSION'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/startingFreeAgents.js','STARTING FREE AGENTS'),
     ('modules/standings.js',        'STANDINGS'),
     ('modules/fixtures.js',         'FIXTURES'),
     ('modules/competitionRules.js', 'COMPETITION RULES'),
     ('modules/cups.js',             'CUPS'),
+    ('modules/scoutingTacticalAssessment.js', 'SCOUTING TACTICAL ASSESSMENT'),
     ('modules/scouting.js',         'SCOUTING'),
     ('modules/academyPathways.js',  'ACADEMY PATHWAYS'),
     ('modules/squadPlanning.js',    'SQUAD PLANNING'),

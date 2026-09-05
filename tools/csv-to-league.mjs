@@ -24,10 +24,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PITCH_ROOT = path.resolve(__dirname, '..');
 const CSV_DIR = path.join(PITCH_ROOT, 'src/data/csv');
 const DATA_DIR = path.join(PITCH_ROOT, 'src/data');
+const DETAILED_ATTRIBUTE_KEYS = ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical'];
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const leagueArg = process.argv.find((a) => a.startsWith('--league='));
 const onlyLeague = leagueArg ? leagueArg.split('=')[1] : null;
+
+function optionalNumber(value) {
+  if (value == null || String(value).trim() === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
 
 function toPlayerObject(row) {
   return {
@@ -35,6 +42,7 @@ function toPlayerObject(row) {
     nationality: row.nationality || '', position: row.position,
     age: Number(row.age), attack: Number(row.attack), midfield: Number(row.midfield),
     defence: Number(row.defence), goalkeeping: Number(row.goalkeeping),
+    ...Object.fromEntries(DETAILED_ATTRIBUTE_KEYS.map(key => [key, optionalNumber(row[key])])),
     value_millions: Number(row.value_millions), wage_thousands: Number(row.wage_thousands),
     potential: Number(row.potential), is_wonderkid: row.is_wonderkid === '1' || row.is_wonderkid === 'true',
   };

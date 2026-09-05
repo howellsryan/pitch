@@ -9,7 +9,6 @@ import { rehabilitationReinjuryMultiplier } from './playerRehabilitation.js';
 import {
   DEFAULT_TEAM_INSTRUCTIONS,
   chooseAIRole,
-  getAITacticalProfile,
   getRoleTeamModifiers,
   getTacticalModifiers,
   isUserTacticalPlan,
@@ -17,20 +16,46 @@ import {
   resolvePlayerRole,
   stableStringHash,
 } from './tactics.js';
+import { buildSquadAwareAITacticalProfile } from './aiTacticalIdentity.js';
+import {
+  MATCH_ACTION_LEDGER_VERSION,
+  MATCH_ACTION_RESOLVER_VERSION,
+  MATCH_RNG_PACKET_VERSION,
+  deriveStatsFromActionLedger,
+  fixedPhaseRngPacket,
+  packetDerivedSeed,
+  resolveAuthoritativePhase,
+} from './matchActionResolver.js';
+import { buildMatchTacticalAnalysis } from './matchTacticalAnalysis.js';
+import { validateMatchSimulationVersion } from './matchSimulationVersion.js';
 
 /**
- * modules/matchEngine.js — authoritative P2/P3 simulation core.
+ * modules/matchEngine.js — authoritative P2/P3/T3/T5 simulation core.
  *
- * Quick Sim and Watch Match both construct the same live state and call the
- * same phased runner. The RNG state is serialisable and travels inside the
- * live state, so slicing a match into broadcast ticks cannot change its result.
+ * T3 keeps this module as the orchestrator but moves football execution into a
+ * pure action resolver. T5 keeps that authority boundary and makes AI tactical
+ * identity squad-aware before the match starts. Quick Sim and Watch Match both
+ * advance the same versioned action ledger with one fixed seeded RNG packet per
+ * phase. Legacy goal/card/injury/substitution events remain the presentation /
+ * persistence contract while score and core match stats derive from the ledger.
  */
 
+export const MATCH_ENGINE_VERSION = 2;
 export const ATT = new Set(['ST','CF','RW','LW','CAM']);
 export const MID = new Set(['CM','CDM','CAM','RM','LM']);
 export const DEF = new Set(['CB','RB','LB']);
 export const MATCH_INJURY_CHECK_INTERVAL = 6;
 export const MATCH_PHASES = 120;
+export const MAX_MATCHDAY_BENCH = 9;
+
+function currentSimulationVersions() {
+  return {
+    matchEngineVersion:MATCH_ENGINE_VERSION,
+    actionResolverVersion:MATCH_ACTION_RESOLVER_VERSION,
+    actionLedgerVersion:MATCH_ACTION_LEDGER_VERSION,
+    rngPacketVersion:MATCH_RNG_PACKET_VERSION,
+  };
+}
 
 export function matchInjuryIntervalRate(perPhaseRate, interval = MATCH_INJURY_CHECK_INTERVAL) {
   return 1 - Math.pow(1 - perPhaseRate, interval);
@@ -177,36 +202,6 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
   return chosen.slice(0, 11);
 }
 
-/**
- * A real matchday squad is the XI plus a named bench, not "everyone else who is
- * fit". Nine mirrors the modern domestic maximum and bounds what Watch mode has
- * to render. Automatic selection is unchanged in effect for AI/background
- * matches: `simulateMatchSegment` shifts substitutes off the front of this
- * rating-sorted list and can never use more than three, so nothing past the
- * ninth name was ever reachable.
- */
-export const MAX_MATCHDAY_BENCH = 9;
-
-/**
- * Resolve the named bench behind an already-chosen XI.
- *
- * `benchIds` is the manager's own persisted selection (`save.bench`). When they
- * have named one it is honoured exactly — dropping only names that are injured,
- * suspended, out of the squad or already starting — so removing a substitute
- * removes them rather than having the engine quietly put them back. A short
- * bench is a real, visible consequence of a knock, exactly as it is on a real
- * team sheet. Passing no selection (`null`) keeps the automatic
- * best-available bench, which is what an untouched career gets.
- */
-/**
- * A named bench always carries a reserve goalkeeper. Taking the nine best
- * available by rating alone can produce nine outfielders, and `substitutions.js`
- * only allows GK-for-GK, so an injured keeper could not be replaced at all.
- *
- * The keeper takes the *last* seat: substitutes are taken off the front of this
- * list and a match can use only three, so the reachable top of the bench — and
- * therefore every simulated outcome — is unchanged.
- */
 function automaticBench(available) {
   const chosen = available.slice(0, MAX_MATCHDAY_BENCH);
   const isKeeper = player => (player.matchPosition ?? player.position) === 'GK';
@@ -238,17 +233,6 @@ export function selectBench(players, eleven, benchIds = null) {
   return chosen;
 }
 
-/**
- * Drop named substitutes who are no longer at the club at all.
- *
- * A named bench survives a knock — the seat simply stays empty until the
- * manager fills it — but a player who has been sold, loaned out or retired is
- * never coming back to it, and `selectBench` would skip their id forever while
- * the save carried it across every future season.
- *
- * Returns the same array reference when nothing is stale, so a caller can use
- * `!==` to decide whether a write is actually needed.
- */
 export function pruneBenchToSquad(bench, squadPlayers = []) {
   if (!Array.isArray(bench) || !bench.length) return bench;
   const atClub = new Set(squadPlayers.map(player => String(player?.id)));
@@ -256,10 +240,6 @@ export function pruneBenchToSquad(bench, squadPlayers = []) {
   return next.length === bench.length ? bench : next;
 }
 
-/**
- * Everyone fit and registered who is neither starting nor named on the bench.
- * Shared by the Squad screen so its three groups always agree with the engine.
- */
 export function selectReserves(players, eleven, bench) {
   const namedIds = new Set([...eleven, ...bench].map(p => p.id));
   const primaryFor = createPrimaryRatingLookup();
@@ -319,6 +299,7 @@ export function ratingFactor(rating, centre) {
   return 1 / (1 + Math.exp(-.07 * (rating - centre)));
 }
 
+/** Historical P2 helper retained for callers/tests; T3 no longer uses it to score. */
 export function goalChance(attStr, defStr, isHome) {
   const base = .011;
   const attFactor = ratingFactor(attStr.attack, 75);
@@ -330,6 +311,7 @@ export function goalChance(attStr, defStr, isHome) {
   return Math.min(Math.max(prob, .005), .16);
 }
 
+/** Historical P2 helper retained for compatibility; T3 scorer comes from shot actions. */
 export function pickScorer(eleven, rng = Math.random) {
   const POS_WEIGHTS = {
     'ST': 40, 'CF': 38, 'RW': 20, 'LW': 20, 'CAM': 15, 'CM': 8, 'CDM': 3,
@@ -353,6 +335,7 @@ export function pickScorer(eleven, rng = Math.random) {
   return eleven[eleven.length - 1];
 }
 
+/** Historical P2 helper retained for compatibility; T3 assists come from pass chains. */
 export function pickAssister(eleven, scorerId, rng = Math.random) {
   const cands = eleven.filter(p => p.id !== scorerId);
   if (!cands.length) return null;
@@ -431,6 +414,8 @@ function playerSeedSignature(players) {
       p.id, p.position, Math.round(Number(p.fitness ?? 90)),
       Math.round(Number(currentEffectiveLevel(p) ?? 0) * 10),
       Number(p.appearances ?? 0), Number(p.goals ?? 0), Number(p.assists ?? 0),
+      ...['pace','shooting','passing','dribbling','defending','physical']
+        .map(attribute => Math.round(Number(p.attributeProfile?.[attribute] ?? 0))),
       p.tacticalRole ?? '', (p.traits ?? []).join(','), p.rehabilitation?.status ?? '',
     ].join(':'))
     .join(',');
@@ -463,7 +448,7 @@ export function resolveTeamTacticalIdentity(team, opponent, players, requestedFo
       mentality:requestedMentality ?? 'balanced', instructions, roles,
     };
   }
-  const profile = getAITacticalProfile(team, opponent, isHome);
+  const { profile } = buildSquadAwareAITacticalProfile({ team, opponent, isHome, players });
   const roles = {};
   for (const player of players ?? []) roles[player.id] = chooseAIRole(player, profile);
   return {
@@ -541,6 +526,51 @@ function scoreAdjustedMods(base, source, ownGoals, oppGoals, minute) {
   return base;
 }
 
+function actionRiskMode(source, ownGoals, oppGoals, minute) {
+  if (source === 'user') return 'normal';
+  if (minute >= 60 && ownGoals < oppGoals) return 'chase';
+  if (minute >= 72 && ownGoals > oppGoals) return 'protect';
+  return 'normal';
+}
+
+const matchFitnessViewCache = new WeakMap();
+const matchFitnessArrayCache = new WeakMap();
+
+function withCurrentMatchFitness(players, fitnessMap) {
+  let views = matchFitnessArrayCache.get(players);
+  if (!views) {
+    views = (players ?? []).map(player => {
+      let view = matchFitnessViewCache.get(player);
+      if (!view) {
+        view = { ...player };
+        matchFitnessViewCache.set(player, view);
+      }
+      return view;
+    });
+    matchFitnessArrayCache.set(players, views);
+  }
+  for (let index = 0; index < views.length; index += 1) {
+    const player = players[index];
+    views[index].fitness = fitnessMap.get(player.id) ?? player.fitness ?? 90;
+  }
+  return views;
+}
+
+function pickDisciplineTarget(candidates, roll) {
+  if (!candidates.length) return null;
+  const weights = candidates.map(player => {
+    const slot = player.matchPosition ?? player.position;
+    return DEF.has(slot) ? 4 : slot === 'CDM' ? 3 : 1;
+  });
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  let cursor = roll * total;
+  for (let index = 0; index < candidates.length; index += 1) {
+    cursor -= weights[index];
+    if (cursor <= 0) return candidates[index];
+  }
+  return candidates[candidates.length - 1];
+}
+
 export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality, options = {}) {
   const hIdentity = resolveTeamTacticalIdentity(homeTeam, awayTeam, homePlayers, homeFormation, homeMentality, true);
   const aIdentity = resolveTeamTacticalIdentity(awayTeam, homeTeam, awayPlayers, awayFormation, awayMentality, false);
@@ -561,6 +591,8 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
   }));
 
   return refreshLiveMatchState({
+    ...currentSimulationVersions(),
+    actionLedger:[],
     hActive:[...hElev], aActive:[...aElev], hBenchLeft:[...hBench], aBenchLeft:[...aBench],
     hFitness:new Map(hElev.map(p => [p.id, Math.min(100, Number(p.fitness ?? 90))])),
     aFitness:new Map(aElev.map(p => [p.id, Math.min(100, Number(p.fitness ?? 90))])),
@@ -578,6 +610,7 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
 }
 
 export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase, controlledTeamId = null) {
+  const versionCheck = validateMatchSimulationVersion(liveState, currentSimulationVersions());
   let state = refreshLiveMatchState(liveState);
   const attackingFitnessDrain = 0.18;
   const defendingFitnessDrain = 0.12;
@@ -589,7 +622,10 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
   let curHGoals = state.hGoals, curAGoals = state.aGoals;
   let curHPhases = state.hPhases, curAPhases = state.aPhases;
   let hStr = state.hStr, aStr = state.aStr;
+  const actionLedger = [...(state.actionLedger ?? [])];
   const segEvents = [];
+  const hBaseMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
+  const aBaseMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
 
   const inferredControlled = controlledTeamId
     ?? (state.homePlanSource === 'user' && state.awayPlanSource !== 'user' ? homeTeam.id
@@ -597,12 +633,11 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
 
   for (let phase = startPhase; phase <= endPhase; phase++) {
     const minute = Math.ceil((phase / MATCH_PHASES) * 90);
-    const hBaseMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
-    const aBaseMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
+    const packet = fixedPhaseRngPacket(() => cursor.next());
     const hMods = scoreAdjustedMods(hBaseMods, state.homePlanSource, curHGoals, curAGoals, minute);
     const aMods = scoreAdjustedMods(aBaseMods, state.awayPlanSource, curAGoals, curHGoals, minute);
     const hMidShare = midfieldShare(hStr, aStr, hMods, aMods);
-    const isHome = cursor.next() < hMidShare;
+    const isHome = packet.possession < hMidShare;
     if (isHome) curHPhases++; else curAPhases++;
 
     const attActive = isHome ? curHActive : curAActive;
@@ -613,51 +648,49 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     const defFitMap = isHome ? aFitness : hFitness;
     const attMods = isHome ? hMods : aMods;
     const defMods = isHome ? aMods : hMods;
+    const attPlanSource = isHome ? state.homePlanSource : state.awayPlanSource;
+    const attMentality = isHome ? state.homeMentality : state.awayMentality;
+    const attGoals = isHome ? curHGoals : curAGoals;
+    const oppGoals = isHome ? curAGoals : curHGoals;
 
-    for (const p of attActive) {
-      const next = (attFitMap.get(p.id) ?? 90) - attackingFitnessDrain * ageDrain(p.age ?? 24) * attMods.fitnessDrainMult;
-      attFitMap.set(p.id, Math.max(0, next));
+    for (const player of attActive) {
+      const next = (attFitMap.get(player.id) ?? 90) - attackingFitnessDrain * ageDrain(player.age ?? 24) * attMods.fitnessDrainMult;
+      attFitMap.set(player.id, Math.max(0, next));
     }
-    for (const p of defActive) {
-      const next = (defFitMap.get(p.id) ?? 90) - defendingFitnessDrain * ageDrain(p.age ?? 24) * defMods.fitnessDrainMult;
-      defFitMap.set(p.id, Math.max(0, next));
+    for (const player of defActive) {
+      const next = (defFitMap.get(player.id) ?? 90) - defendingFitnessDrain * ageDrain(player.age ?? 24) * defMods.fitnessDrainMult;
+      defFitMap.set(player.id, Math.max(0, next));
     }
 
-    const attOutfield = attActive.filter(p => (p.matchPosition ?? p.position) !== 'GK');
-    const avgAttFit = attOutfield.reduce((sum,p) => sum + (attFitMap.get(p.id) ?? 90), 0) / Math.max(1, attOutfield.length);
-    const attStr = isHome ? hStr : aStr;
-    const defStr = isHome ? aStr : hStr;
-    const lateDef = minute >= 70 ? defMods.lateDefResistMult : 1;
-    const gProb = goalChance(attStr, defStr, isHome) * fitMult(avgAttFit)
-      * attMods.goalProbMult / Math.max(.5, defMods.defResistMult * lateDef);
-
-    if (attActive.length >= 7 && cursor.next() < gProb) {
-      const scorer = pickScorer(attActive, () => cursor.next());
-      const assistProb = .55 + (attStr.midfield / 99) * .25;
-      const assister = cursor.next() < assistProb ? pickAssister(attActive, scorer.id, () => cursor.next()) : null;
+    const attForAction = withCurrentMatchFitness(attActive, attFitMap);
+    const defForAction = withCurrentMatchFitness(defActive, defFitMap);
+    const resolvedAction = resolveAuthoritativePhase({
+      phase,
+      minute,
+      teamId:attTeam.id,
+      opponentTeamId:defTeam.id,
+      attackers:attForAction,
+      defenders:defForAction,
+      rolesById:isHome ? state.homeRoles : state.awayRoles,
+      opponentRolesById:isHome ? state.awayRoles : state.homeRoles,
+      instructions:isHome ? state.homeTactics : state.awayTactics,
+      opponentInstructions:isHome ? state.awayTactics : state.homeTactics,
+      mentality:attMentality,
+      riskMode:actionRiskMode(attPlanSource, attGoals, oppGoals, minute),
+      packet,
+      isHome,
+    });
+    actionLedger.push(resolvedAction.record);
+    if (resolvedAction.goalEvent) {
       if (isHome) curHGoals++; else curAGoals++;
-      segEvents.push({
-        type:'goal', minute, teamId:attTeam.id, playerId:scorer.id, playerName:scorer.name,
-        assistId:assister?.id ?? null, assistName:assister?.name ?? null,
-      });
+      segEvents.push(resolvedAction.goalEvent);
     }
 
-    if (cursor.next() < .004 * defMods.yellowRiskMult && defActive.length) {
-      const candidates = defActive.filter(p => (p.matchPosition ?? p.position) !== 'GK');
-      if (candidates.length) {
-        const weights = candidates.map(p => {
-          const slot = p.matchPosition ?? p.position;
-          return DEF.has(slot) ? 4 : slot === 'CDM' ? 3 : 1;
-        });
-        const total = weights.reduce((a,b) => a + b, 0);
-        let roll = cursor.next() * total;
-        let target = candidates[0];
-        for (let i = 0; i < candidates.length; i++) {
-          roll -= weights[i];
-          if (roll <= 0) { target = candidates[i]; break; }
-        }
-        segEvents.push({ type:'yellow', minute, teamId:defTeam.id, playerId:target.id, playerName:target.name });
-      }
+    const disciplineRng = createSeededRng(packetDerivedSeed(packet.discipline, `${phase}:${defTeam.id}:discipline`));
+    if (disciplineRng() < .004 * defMods.yellowRiskMult && defActive.length) {
+      const candidates = defActive.filter(player => (player.matchPosition ?? player.position) !== 'GK');
+      const target = pickDisciplineTarget(candidates, disciplineRng());
+      if (target) segEvents.push({ type:'yellow', minute, teamId:defTeam.id, playerId:target.id, playerName:target.name });
     }
 
     if (typeof rollInjuryCheck === 'function' && phase % MATCH_INJURY_CHECK_INTERVAL === 0) {
@@ -665,14 +698,15 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
         { active:curHActive, team:homeTeam, mods:hMods },
         { active:curAActive, team:awayTeam, mods:aMods },
       ]) {
+        const injuryRng = createSeededRng(packetDerivedSeed(packet.injury, `${phase}:${side.team.id}:injuries`));
         for (const player of side.active) {
           if (player.injured || player._injuredThisMatch) continue;
           const perPhaseRate = (player.matchPosition ?? player.position) === 'GK' ? .000120 : .000333;
           const intervalRate = matchInjuryIntervalRate(perPhaseRate)
             * side.mods.injuryRiskMult
             * rehabilitationReinjuryMultiplier(player);
-          if (cursor.next() > intervalRate) continue;
-          const injury = rollInjuryCheck(player, side.mods.fitnessDrainMult > 1.1, true, () => cursor.next());
+          if (injuryRng() > intervalRate) continue;
+          const injury = rollInjuryCheck(player, side.mods.fitnessDrainMult > 1.1, true, injuryRng);
           if (!injury) continue;
           player._injuredThisMatch = true;
           segEvents.push({
@@ -689,21 +723,21 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       let hChanged = false;
       let aChanged = false;
       if (curHSubs > 0 && homeTeam.id !== inferredControlled) {
-        const tired = curHActive.filter(p => (p.matchPosition ?? p.position) !== 'GK' && shouldSub(hFitness.get(p.id) ?? 90, minute, trailH));
+        const tired = curHActive.filter(player => (player.matchPosition ?? player.position) !== 'GK' && shouldSub(hFitness.get(player.id) ?? 90, minute, trailH));
         for (const out of tired.slice(0, curHSubs)) {
           const sub = curHBench.shift(); if (!sub) break;
           const replacement = withMatchPosition(sub, out.matchPosition ?? out.position);
-          curHActive = curHActive.map(p => p.id === out.id ? replacement : p);
+          curHActive = curHActive.map(player => player.id === out.id ? replacement : player);
           hFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curHSubs--; hChanged = true;
           segEvents.push({ type:'sub', minute, teamId:homeTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
       }
       if (curASubs > 0 && awayTeam.id !== inferredControlled) {
-        const tired = curAActive.filter(p => (p.matchPosition ?? p.position) !== 'GK' && shouldSub(aFitness.get(p.id) ?? 90, minute, trailA));
+        const tired = curAActive.filter(player => (player.matchPosition ?? player.position) !== 'GK' && shouldSub(aFitness.get(player.id) ?? 90, minute, trailA));
         for (const out of tired.slice(0, curASubs)) {
           const sub = curABench.shift(); if (!sub) break;
           const replacement = withMatchPosition(sub, out.matchPosition ?? out.position);
-          curAActive = curAActive.map(p => p.id === out.id ? replacement : p);
+          curAActive = curAActive.map(player => player.id === out.id ? replacement : player);
           aFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curASubs--; aChanged = true;
           segEvents.push({ type:'sub', minute, teamId:awayTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
@@ -713,16 +747,17 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     }
   }
 
-  const hMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
-  const aMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
+  const versionFields = versionCheck.legacy ? {} : versionCheck.versions;
   return {
     segEvents,
     updatedState:{
       ...state,
+      ...versionFields,
+      actionLedger,
       hActive:curHActive, aActive:curAActive, hBenchLeft:curHBench, aBenchLeft:curABench,
       hFitness, aFitness, hSubsLeft:curHSubs, aSubsLeft:curASubs,
       hGoals:curHGoals, aGoals:curAGoals, hPhases:curHPhases, aPhases:curAPhases,
-      hStr, aStr, hMods, aMods, hMidShare:midfieldShare(hStr, aStr, hMods, aMods), rngState:cursor.state,
+      hStr, aStr, hMods:hBaseMods, aMods:aBaseMods, hMidShare:midfieldShare(hStr, aStr, hBaseMods, aBaseMods), rngState:cursor.state,
     },
   };
 }
@@ -744,28 +779,46 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
 }
 
 export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
+  validateMatchSimulationVersion(liveState, currentSimulationVersions());
   const state = refreshLiveMatchState(liveState);
   const fitnessUpdates = [];
-  for (const p of state.hElev) fitnessUpdates.push({ id:p.id, teamId:homeTeam.id, newFitness:Math.max(30, state.hFitness.get(p.id) ?? 65) });
-  for (const p of state.aElev) fitnessUpdates.push({ id:p.id, teamId:awayTeam.id, newFitness:Math.max(30, state.aFitness.get(p.id) ?? 65) });
-  const events = [...(allEvents ?? [])].sort((a,b) => a.minute - b.minute);
-  const hScorers = events.filter(e => e.type === 'goal' && e.teamId === homeTeam.id);
-  const aScorers = events.filter(e => e.type === 'goal' && e.teamId === awayTeam.id);
-  const cursor = cursorFrom(state.rngState ?? state.seed);
-  const stats = computeMatchStats(
-    { homeGoals:state.hGoals, awayGoals:state.aGoals, homeTeamId:homeTeam.id, awayTeamId:awayTeam.id, events },
-    state.hPhases, state.aPhases, state.hStr, state.aStr,
-    state.hMods.shotsMultSelf, state.aMods.shotsMultSelf,
-    () => cursor.next(),
-  );
+  for (const player of state.hElev) fitnessUpdates.push({ id:player.id, teamId:homeTeam.id, newFitness:Math.max(30, state.hFitness.get(player.id) ?? 65) });
+  for (const player of state.aElev) fitnessUpdates.push({ id:player.id, teamId:awayTeam.id, newFitness:Math.max(30, state.aFitness.get(player.id) ?? 65) });
+  const events = [...(allEvents ?? [])].sort((left, right) => left.minute - right.minute);
+  const hasAuthoritativeLedger = Array.isArray(state.actionLedger);
+  const ledger = hasAuthoritativeLedger ? state.actionLedger : [];
+  const homeGoals = hasAuthoritativeLedger
+    ? ledger.filter(record => record.teamId === homeTeam.id && record.finish === 'goal').length
+    : state.hGoals;
+  const awayGoals = hasAuthoritativeLedger
+    ? ledger.filter(record => record.teamId === awayTeam.id && record.finish === 'goal').length
+    : state.aGoals;
+  const homeScorers = events.filter(event => event.type === 'goal' && event.teamId === homeTeam.id);
+  const awayScorers = events.filter(event => event.type === 'goal' && event.teamId === awayTeam.id);
+  const stats = hasAuthoritativeLedger
+    ? deriveStatsFromActionLedger({ ledger, homeTeamId:homeTeam.id, awayTeamId:awayTeam.id, events })
+    : computeMatchStats(
+      { homeGoals, awayGoals, homeTeamId:homeTeam.id, awayTeamId:awayTeam.id, events },
+      state.hPhases, state.aPhases, state.hStr, state.aStr,
+      state.hMods.shotsMultSelf, state.aMods.shotsMultSelf,
+      createSeededRng(state.rngState ?? state.seed),
+    );
+  const tacticalAnalysis = hasAuthoritativeLedger && (state.homePlanSource === 'user' || state.awayPlanSource === 'user')
+    ? buildMatchTacticalAnalysis({ ledger, homeTeamId:homeTeam.id, awayTeamId:awayTeam.id })
+    : null;
+
   return {
+    matchEngineVersion:state.matchEngineVersion ?? MATCH_ENGINE_VERSION,
+    actionResolverVersion:state.actionResolverVersion ?? MATCH_ACTION_RESOLVER_VERSION,
+    actionLedgerVersion:state.actionLedgerVersion ?? MATCH_ACTION_LEDGER_VERSION,
+    rngPacketVersion:state.rngPacketVersion ?? MATCH_RNG_PACKET_VERSION,
     homeTeamId:homeTeam.id, awayTeamId:awayTeam.id,
     homeTeamName:homeTeam.name, awayTeamName:awayTeam.name,
     homeTeamCrest:homeTeam.crest ?? '⚽', awayTeamCrest:awayTeam.crest ?? '⚽',
-    homeGoals:state.hGoals, awayGoals:state.aGoals,
-    homeScorers:hScorers, awayScorers:aScorers, events,
-    outcome:state.hGoals > state.aGoals ? 'home_win' : state.hGoals < state.aGoals ? 'away_win' : 'draw',
-    fitnessUpdates, stats,
+    homeGoals, awayGoals,
+    homeScorers, awayScorers, events,
+    outcome:homeGoals > awayGoals ? 'home_win' : homeGoals < awayGoals ? 'away_win' : 'draw',
+    fitnessUpdates, stats, tacticalAnalysis,
     homeFormation:state.homeFormation, awayFormation:state.awayFormation,
     homeMentality:state.homeMentality, awayMentality:state.awayMentality,
     homeTactics:state.homeTactics, awayTactics:state.awayTactics,
@@ -774,6 +827,7 @@ export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
   };
 }
 
+/** Historical P2 stat synthesiser retained for direct/manual legacy-state callers. */
 export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMult, aShotsMult, rng = Math.random) {
   const total = (hPhases || 60) + (aPhases || 60);
   const homePoss = Math.round(((hPhases || 60) / Math.max(1,total)) * 100);
@@ -795,12 +849,12 @@ export function computeMatchStats(result, hPhases, aPhases, hStr, aStr, hShotsMu
     shotsOnTarget:{ home:hOnTarget, away:aOnTarget },
     xG:{ home:Math.max(0,hXG), away:Math.max(0,aXG) },
     yellowCards:{
-      home:result.events.filter(e => e.type === 'yellow' && e.teamId === result.homeTeamId).length,
-      away:result.events.filter(e => e.type === 'yellow' && e.teamId === result.awayTeamId).length,
+      home:result.events.filter(event => event.type === 'yellow' && event.teamId === result.homeTeamId).length,
+      away:result.events.filter(event => event.type === 'yellow' && event.teamId === result.awayTeamId).length,
     },
     substitutions:{
-      home:result.events.filter(e => e.type === 'sub' && e.teamId === result.homeTeamId).length,
-      away:result.events.filter(e => e.type === 'sub' && e.teamId === result.awayTeamId).length,
+      home:result.events.filter(event => event.type === 'sub' && event.teamId === result.homeTeamId).length,
+      away:result.events.filter(event => event.type === 'sub' && event.teamId === result.awayTeamId).length,
     },
     corners:{
       home:Math.round(2 + _matchRandomValue(rng) * 6 + (homePoss > 55 ? 1 : 0)),

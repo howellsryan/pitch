@@ -37,7 +37,7 @@ function assign(players, formation, home, teamId) {
     const player = remaining.splice(index >= 0 ? index : 0, 1)[0];
     if (!player) return null;
     return {
-      id: player.id, shirt: shirt + 1, position: player.position, teamId,
+      id: player.id, name: player.name ?? player.id, pace: player.attributeProfile?.pace ?? 65, shirt: shirt + 1, position: player.position, teamId,
       team: home ? 'home' : 'away', baseX: slot.x, baseY: home ? slot.y : 100 - slot.y,
       x: slot.x, y: home ? slot.y : 100 - slot.y, targetX: slot.x,
       targetY: home ? slot.y : 100 - slot.y, vx: 0, vy: 0,
@@ -79,8 +79,9 @@ function prepareKickoff(sim, takingTeamId) {
   sim.sequenceSinceRestart = 0;
 }
 
-export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers }) {
+export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers, ledgerDriven = false }) {
   const sim = {
+    ledgerDriven, activePhase: null, completedPhase: 0, phaseLabel: 'Kick off',
     homeTeamId, awayTeamId, possessionTeamId, desiredPossessionTeamId: possessionTeamId,
     enginePossessionTeamId: possessionTeamId, possessionLockTeamId: null, possessionLockUntil: 0,
     firstKickoffTeamId: possessionTeamId, endsSwapped: false, halftimeCompleted: false,
@@ -103,7 +104,14 @@ function beginHalfTime(sim) {
   }
 }
 
-export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event = null }) {
+export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event = null, record = null }) {
+  if (sim.ledgerDriven && record) {
+    if (sim.activePhase || record.phase <= sim.completedPhase) return sim;
+    sim.activePhase = { record: { ...record }, stage: 'acquire' };
+    if (record.finish === 'goal' && !event) event = { type:'goal', minute:record.minute, teamId:record.teamId, playerId:record.shotId, playerName:ledgerPlayer(sim, record.shotId)?.name ?? '' };
+    sim.phaseLabel = ROUTE_LABELS[record.route] ?? 'Build up';
+    sim.nextActionAt = Math.min(sim.nextActionAt, sim.clock + 120);
+  }
   sim.enginePossessionTeamId = possessionTeamId;
   if (!sim.possessionLockTeamId || sim.clock >= sim.possessionLockUntil) {
     sim.possessionLockTeamId = null;
@@ -119,7 +127,7 @@ export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event 
     sim.nextActionAt = Math.min(sim.nextActionAt, sim.clock + 120);
     if (crossedHalfTime) sim.halftimePending = true;
   } else if (crossedHalfTime) {
-    if (sim.mode === 'goal' || sim.pendingGoal) sim.halftimePending = true;
+    if (sim.mode === 'goal' || sim.pendingGoal || sim.activePhase) sim.halftimePending = true;
     else beginHalfTime(sim);
   }
   sim.phase = phase;
@@ -127,6 +135,10 @@ export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event 
 }
 
 export function replaceBroadcastLineups(sim, { homeFormation, awayFormation, homePlayers, awayPlayers }) {
+  if (sim.ledgerDriven && sim.activePhase) {
+    sim.pendingLineups = { homeFormation, awayFormation, homePlayers, awayPlayers };
+    return sim;
+  }
   const fresh = [
     ...assign(homePlayers, homeFormation, true, sim.homeTeamId),
     ...assign(awayPlayers, awayFormation, false, sim.awayTeamId),
@@ -228,7 +240,7 @@ function updateLiveTargets(sim) {
     player.targetY = dir < 0 ? Math.max(player.targetY, line) : Math.min(player.targetY, line);
   }
   const scorer = sim.pendingGoal && sim.players.find(player => player.id === sim.pendingGoal.playerId);
-  if (scorer && sim.pendingGoal.stage === 'build') {
+  if (scorer && !sim.ledgerDriven && sim.pendingGoal.stage === 'build') {
     scorer.targetX = clamp(scorer.baseX + (50 - scorer.baseX) * .22, 24, 76);
     const desiredY = dir < 0 ? 27 : 73;
     scorer.targetY = dir < 0 ? Math.max(desiredY, line) : Math.min(desiredY, line);
@@ -474,7 +486,7 @@ function decide(sim) {
     }
     Object.assign(sim.ball, { ownerId:taker.id, x:sim.restart.spot.x, y:sim.restart.spot.y });
     const restart = sim.restart;
-    if (restart.type === 'free-kick' && freeKickPlan(sim, restart) === 'shot') {
+    if (!sim.ledgerDriven && restart.type === 'free-kick' && freeKickPlan(sim, restart) === 'shot') {
       startFreeKickShot(sim, taker);
       sim.restart = null; sim.mode = 'live'; return;
     }
@@ -486,10 +498,13 @@ function decide(sim) {
       : 'THROW-IN · BACK IN PLAY';
     const restartKind = sim.restart.type === 'corner' || (sim.restart.type === 'free-kick' && freeKickPlan(sim, sim.restart) === 'cross') ? 'cross' : 'pass';
     startPass(sim, taker, receiver, action, restartKind);
-    sim.restart = null; sim.mode = 'live'; return;
+    sim.restart = null; sim.mode = 'live';
+    if (sim.activePhase) sim.activePhase.stage = 'settle';
+    return;
   }
   const carrier = sim.players.find(player => player.id === sim.ball.ownerId);
   if (!carrier) return;
+  if (sim.ledgerDriven) { decideLedgerPhase(sim, carrier); return; }
   if (sim.pendingGoal) {
     const scorer = sim.players.find(player => player.id === sim.pendingGoal.playerId) ?? carrier;
     const ready = inFinalThird(sim, scorer) && isOnside(sim, scorer);
@@ -575,7 +590,7 @@ function maxSpeed(player) {
 
 function steer(player, dt) {
   const dx = player.targetX - player.x; const dy = player.targetY - player.y; const dist = Math.hypot(dx, dy);
-  const speed = maxSpeed(player) * Math.min(1, dist / 5);
+  const speed = maxSpeed(player) * (.82 + clamp(player.pace ?? 65, 1, 99) / 300) * Math.min(1, dist / 5);
   const desiredX = dist > .001 ? dx / dist * speed : 0; const desiredY = dist > .001 ? dy / dist * speed : 0;
   const blend = Math.min(1, dt * (player.pressing || player.receiving ? 4.2 : 3.2));
   player.vx += (desiredX - player.vx) * blend; player.vy += (desiredY - player.vy) * blend;
@@ -610,7 +625,10 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
   }
   if (sim.mode === 'kickoff') updateKickoffTargets(sim);
   else if (sim.mode === 'restart') updateRestartTargets(sim);
-  else if (sim.mode === 'live') updateLiveTargets(sim);
+  else if (sim.mode === 'live') {
+    updateLiveTargets(sim);
+    if (sim.ledgerDriven) updateLedgerTargets(sim);
+  }
   if (!sim.ball.flight && sim.clock >= sim.nextActionAt) decide(sim);
   for (const player of sim.players) steer(player, dt);
   separate(sim, dt);
@@ -621,8 +639,177 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
 
 export function snapshotBroadcastSimulation(sim) {
   return {
+    phaseLabel: sim.phaseLabel, completedPhase: sim.completedPhase,
+    carrierName: sim.players.find(player => player.id === sim.ball.ownerId)?.name ?? '',
     action: sim.action, mode:sim.mode, half:sim.halftimeCompleted ? 2 : 1,
-    markers: sim.players.map(player => ({ id: player.id, shirt: player.shirt, position: player.position, team: player.team, x: player.x, y: player.y, pressing: player.pressing, receiving: player.receiving, rushing: player.rushing })),
+    markers: sim.players.map(player => ({ id: player.id, name: player.name ?? player.id, pace: player.attributeProfile?.pace ?? 65, shirt: player.shirt, position: player.position, team: player.team, owner: sim.ball.ownerId === player.id, moving: Math.hypot(player.vx, player.vy) > 1, facing: Math.atan2(player.vx, -player.vy) * 180 / Math.PI, x: player.x, y: player.y, pressing: player.pressing, receiving: player.receiving, rushing: player.rushing })),
     ball: { x: sim.ball.x, y: sim.ball.y, shooting: sim.ball.shooting },
   };
+}
+
+
+const ROUTE_LABELS = {
+  circulation: 'Build up · retain possession', direct_pass: 'Progression · direct ball',
+  pass_into_space: 'Penetration · run in behind', carry: 'Progression · carry forward',
+  wide_delivery: 'Wide attack · delivery', aerial_duel: 'Direct play · aerial contest',
+};
+
+export function isBroadcastReady(sim) {
+  return !!sim && !sim.activePhase && !sim.ball.flight && !sim.pendingGoal
+    && !sim.restart && sim.mode === 'live';
+}
+
+function ledgerPlayer(sim, id) { return sim.players.find(player => player.id === id); }
+function finishLedgerPhase(sim) {
+  sim.completedPhase = sim.activePhase.record.phase;
+  sim.activePhase = null;
+  if (sim.pendingLineups) {
+    const lineups = sim.pendingLineups;
+    sim.pendingLineups = null;
+    replaceBroadcastLineups(sim, lineups);
+  }
+  sim.nextActionAt = sim.clock + 250;
+  if (sim.halftimePending && !sim.pendingGoal && sim.mode === 'live') beginHalfTime(sim);
+}
+
+function updateLedgerTargets(sim) {
+  const scene = sim.activePhase;
+  if (!scene) return;
+  const r = scene.record;
+  const actor = ledgerPlayer(sim, r.actorId);
+  const runner = ledgerPlayer(sim, r.targetId);
+  const defender = ledgerPlayer(sim, r.defenderId);
+  const dir = direction(sim, r.teamId);
+  const carrier = ledgerPlayer(sim, sim.ball.ownerId);
+  if (scene.stage === 'acquire' && actor) {
+    actor.targetX = clamp(sim.ball.x + (actor.baseX < 50 ? -8 : 8), 9, 91);
+    actor.targetY = clamp(sim.ball.y - dir * 4, 12, 88);
+    actor.receiving = true;
+    if (carrier && carrier.teamId !== r.teamId) {
+      actor.targetX = carrier.x; actor.targetY = carrier.y; actor.pressing = true;
+      carrier.targetX = carrier.x; carrier.targetY = carrier.y;
+    }
+  }
+  if (scene.stage === 'route' && carrier) {
+    if (r.route === 'wide_delivery') {
+      carrier.targetX = carrier.baseX < 50 ? 10 : 90;
+      carrier.targetY = dir < 0 ? 26 : 74;
+    } else if (r.route !== 'circulation') {
+      carrier.targetY = clamp(carrier.y + dir * 12, 15, 85);
+    }
+    if (runner && runner.id !== carrier.id) {
+      runner.targetX = r.route === 'wide_delivery' ? 50 : clamp(carrier.x + (runner.baseX < 50 ? -12 : 12), 18, 82);
+      const y = carrier.y + dir * (r.route === 'circulation' ? -5 : 14);
+      const line = offsideLine(sim, r.teamId);
+      runner.targetY = clamp(dir < 0 ? Math.max(y, line) : Math.min(y, line), 12, 88);
+      runner.receiving = true;
+    }
+  }
+  if (scene.stage === 'chance') {
+    const shooter = ledgerPlayer(sim, r.shotId);
+    if (shooter) {
+      const line = offsideLine(sim, r.teamId);
+      const y = dir < 0 ? 20 : 80;
+      shooter.targetX = 50 + (shooter.baseX - 50) * .25;
+      shooter.targetY = shooter.id === carrier?.id ? y : dir < 0 ? Math.max(y, line) : Math.min(y, line);
+      shooter.receiving = true;
+      if (carrier && carrier.id !== shooter.id) carrier.targetY = clamp(carrier.y + dir * 10, 18, 82);
+    }
+  }
+  if (defender && carrier && ['route', 'contest'].includes(scene.stage)) {
+    defender.targetX = carrier.x + 1.5;
+    defender.targetY = carrier.y + dir * 2;
+    defender.pressing = true;
+    if (scene.stage === 'contest') { carrier.targetX = carrier.x; carrier.targetY = carrier.y; }
+  }
+}
+
+function decideLedgerPhase(sim, carrier) {
+  const scene = sim.activePhase;
+  if (!scene) { sim.action = 'TEAMS RESETTING'; sim.nextActionAt = sim.clock + 250; return; }
+  const r = scene.record;
+  const actor = ledgerPlayer(sim, r.actorId) ?? closest(teamPlayers(sim, r.teamId), carrier, p => p.position !== 'GK');
+  const runner = ledgerPlayer(sim, r.targetId) ?? actor;
+  const defender = ledgerPlayer(sim, r.defenderId) ?? closest(opponentPlayers(sim, r.teamId), carrier, p => p.position !== 'GK');
+  if (scene.stage === 'acquire') {
+    if (carrier.teamId !== r.teamId) {
+      actor.targetX = carrier.x; actor.targetY = carrier.y; actor.pressing = true;
+      if (distance(actor, carrier) > 5) {
+        carrier.targetX = carrier.x; carrier.targetY = carrier.y;
+        sim.action = 'TRANSITION · CLOSING DOWN'; sim.nextActionAt = sim.clock + 120; return;
+      }
+      startFlight(sim, 'turnover', carrier, { to:actor, duration:320, action:'TRANSITION · POSSESSION WON' }); return;
+    }
+    if (carrier.id !== actor.id) {
+      if (!isOnside(sim, actor)) { sim.nextActionAt = sim.clock + 120; return; }
+      startPass(sim, carrier, actor, 'BUILD UP · FINDING THE PASSER'); return;
+    }
+    scene.stage = 'route'; scene.routeAt = sim.clock;
+    sim.action = ROUTE_LABELS[r.route] ?? 'BUILDING THE ATTACK'; sim.nextActionAt = sim.clock + 850; return;
+  }
+  if (scene.stage === 'route') {
+    if (r.route === 'wide_delivery' && (Math.abs(carrier.x - 50) < 32 || !inFinalThird(sim, carrier))) {
+      sim.action = 'WIDE ATTACK · OVERLAPPING RUN'; sim.nextActionAt = sim.clock + 160; return;
+    }
+    if (r.route === 'carry' && sim.clock - scene.routeAt < 1500) {
+      sim.action = 'CARRY · DRIVING AT THE DEFENCE'; sim.nextActionAt = sim.clock + 160; return;
+    }
+    scene.stage = 'contest';
+    if (r.route !== 'carry' && runner.id !== carrier.id) {
+      if (!isOnside(sim, runner)) { scene.stage = 'route'; sim.nextActionAt = sim.clock + 120; return; }
+      startPass(sim, carrier, runner, ROUTE_LABELS[r.route], ['wide_delivery', 'aerial_duel'].includes(r.route) ? 'cross' : 'pass'); return;
+    }
+  }
+  if (scene.stage === 'contest') {
+    if (['turnover', 'intercepted'].includes(r.outcome)) {
+      if (distance(defender, carrier) > 5) { sim.action = 'CONTEST · DEFENDER ENGAGING'; sim.nextActionAt = sim.clock + 120; return; }
+      scene.stage = 'settle';
+      startFlight(sim, 'turnover', carrier, { to:defender, duration:320, action:r.outcome === 'intercepted' ? 'INTERCEPTION · PASS CUT OUT' : 'TACKLE · POSSESSION LOST' }); return;
+    }
+    if (r.outcome === 'foul_won') {
+      if (distance(defender, carrier) > 5) { sim.action = 'CONTEST · DEFENDER ENGAGING'; sim.nextActionAt = sim.clock + 120; return; }
+      scene.stage = 'restart'; beginRestart(sim, 'free-kick', r.teamId, sim.ball, 'FOUL WON'); return;
+    }
+    if (r.outcome === 'corner_won') {
+      if (distance(defender, carrier) > 6) { sim.action = 'DELIVERY · DEFENDER CLOSING'; sim.nextActionAt = sim.clock + 120; return; }
+      scene.stage = 'restart';
+      startFlight(sim, 'blocked-corner', carrier, { end:{ x:carrier.x < 50 ? 3 : 97, y:attackingGoalY(sim, r.teamId) }, duration:550, action:'CROSS BLOCKED · CORNER', meta:{ restartTeamId:r.teamId } }); return;
+    }
+    if (r.shotId) scene.stage = 'chance';
+    else { sim.action = r.outcome === 'retain' ? 'POSSESSION RETAINED' : 'PROGRESSION · LINE BROKEN'; finishLedgerPhase(sim); return; }
+  }
+  if (scene.stage === 'chance') {
+    const shooter = ledgerPlayer(sim, r.shotId) ?? actor;
+    if (carrier.id !== shooter.id) {
+      if (!isOnside(sim, shooter) || !inFinalThird(sim, shooter)) {
+        sim.action = 'CHANCE · RUNNER FINDING SPACE'; sim.nextActionAt = sim.clock + 120; return;
+      }
+      startPass(sim, carrier, shooter, 'CHANCE · FINAL BALL'); return;
+    }
+    if (!inFinalThird(sim, shooter) || Math.abs(shooter.x - 50) > 25) {
+      sim.action = 'CHANCE · ATTACKING THE BOX'; sim.nextActionAt = sim.clock + 120; return;
+    }
+    scene.stage = 'settle';
+    if (r.finish === 'goal') { startGoalShot(sim, shooter); return; }
+    if (r.finish === 'saved') {
+      const keeper = opponentPlayers(sim, r.teamId).find(p => p.position === 'GK');
+      startFlight(sim, 'save', shooter, { to:keeper, duration:500, action:'SHOT · SAVED', meta:{ restartTeamId:r.opponentTeamId } });
+    } else if (r.finish === 'missed') {
+      scene.stage = 'restart';
+      startFlight(sim, 'shot-wide', shooter, { end:{ x:shooter.x < 50 ? 35 : 65, y:attackingGoalY(sim, r.teamId) }, duration:500, action:'SHOT · WIDE', meta:{ restartTeamId:r.opponentTeamId } });
+    } else if (r.cornerWon) {
+      scene.stage = 'restart';
+      startFlight(sim, 'blocked-corner', shooter, { end:{ x:shooter.x < 50 ? 3 : 97, y:attackingGoalY(sim, r.teamId) }, duration:500, action:'SHOT BLOCKED · CORNER', meta:{ restartTeamId:r.teamId } });
+    } else {
+      startFlight(sim, 'turnover', shooter, { to:defender, duration:350, action:'SHOT · BLOCKED' });
+    }
+    sim.ball.shooting = true; return;
+  }
+  if (scene.stage === 'settle') {
+    if (carrier.position === 'GK') {
+      const receiver = closest(teamPlayers(sim, carrier.teamId), carrier, p => DEFENDERS.has(p.position));
+      startPass(sim, carrier, receiver, 'GOALKEEPER · BUILDING FROM THE BACK', 'keeper-distribution'); return;
+    }
+    finishLedgerPhase(sim);
+  }
 }

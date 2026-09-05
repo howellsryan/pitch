@@ -16,9 +16,18 @@
 ### Authoritative football outcome
 
 - `src/modules/matchEngine.js` owns football outcomes.
+- Current Broadcast consumes each authoritative action-ledger phase and waits for its scene to complete before advancing; speed/pause affect both clocks. Lineup visuals change after the active scene. See `docs/plan/live-broadcast.md`.
 - `src/game/broadcastSimulation.js` is a deterministic spatial/presentation layer. It may visualise an authoritative result/event plan but must never invent a conflicting score, scorer or result.
 - Quick Sim and Broadcast must consume the same authoritative football outcome.
 - P1 background fixtures also use the authoritative fast match engine. Never run Broadcast simulation for the background world.
+
+
+### Match simulation versioning and T7 balance gate
+
+- A new fixture owns one coherent simulation tuple: `matchEngineVersion`, `actionResolverVersion`, `actionLedgerVersion`, `rngPacketVersion`. `buildLiveMatchState()` stamps it once. `simulateMatchSegment()` validates it before advancing; partial or unsupported tuples fail explicitly. Do **not** silently relabel an already-started match to the currently loaded simulator. Intentionally unversioned legacy/manual states retain only their documented compatibility path.
+- Public/historical match results never retain the authoritative `actionLedger`. Managed results may retain the compact `tacticalAnalysis` projection only; its deterministic regression budget is **<12 KiB**, and AI-v-AI background results keep `tacticalAnalysis:null`.
+- CI keeps the unchanged standard 3,000-simulation balance gate and also runs `npm run balance:match:deep:check`: **25 scenarios × 100 paired seeds = 5,000 authoritative simulations**. The T7 guardrails protect relationships rather than pinning one calibration snapshot: player quality must remain stronger than any single reviewed tactic swing, tactics must keep contextual costs/counters, specialists must move their causal domains, fatigue must matter, and every paired scenario must preserve its seed stream. Never widen these guardrails merely to get green.
+- World/career browser budgets remain **<20s fresh-career load / <25s full-world week / <50 MiB storage at 4× CPU throttle**, but the old browser benchmark was removed with E2E. Treat the P3 measurements **13.108s / 7.301s / 3.41 MiB** as historical evidence only; re-measure by hand when changing world simulation, persistence or a per-gameweek hot loop.
 
 ### Tactics and Manager DNA — P2 foundation
 

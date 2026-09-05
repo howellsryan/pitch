@@ -6,11 +6,20 @@
 import { POSITION_ORDER } from './leagueSchema.mjs';
 import { flagForDemonym } from './nationality.mjs';
 
+const DETAILED_ATTRIBUTE_KEYS = ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical'];
+
 function escapeJs(s) {
   return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-// helperName(id, name, [nationality,] position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)
+function detailedArg(player, key) {
+  const raw = player?.[key];
+  if (raw == null || raw === '') return 'null';
+  const value = Number(raw);
+  return Number.isFinite(value) ? String(Math.round(value)) : 'null';
+}
+
+// helperName(id, name, [nationality,] position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid, pace, shooting, passing, dribbling, defending, physical)
 export function buildLeagueJs({ teams, playersByTeam, arrayName, helperName, sourceLabel, hasNationality }) {
   const lines = [];
   const totalPlayers = teams.reduce((sum, t) => sum + (playersByTeam.get(t.team_id) || []).length, 0);
@@ -20,17 +29,18 @@ export function buildLeagueJs({ teams, playersByTeam, arrayName, helperName, sou
   lines.push(` * League: ${teams[0]?.league || sourceLabel}`);
   lines.push(' *');
   const sig = hasNationality
-    ? ` * ${helperName}(id, name, nationality, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)`
-    : ` * ${helperName}(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid)`;
+    ? ` * ${helperName}(id, name, nationality, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid, pace, shooting, passing, dribbling, defending, physical)`
+    : ` * ${helperName}(id, name, position, age, attack, midfield, defence, gk, value_£m, wage_£k/w, potential, is_wonderkid, pace, shooting, passing, dribbling, defending, physical)`;
   lines.push(sig);
   lines.push(' */');
 
   const params = hasNationality
-    ? 'id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk'
-    : 'id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk';
+    ? 'id,nm,nat,pos,age,atk,mid,def,gk,val,wage,pot,wk,pace,shooting,passing,dribbling,defending,physical'
+    : 'id,nm,pos,age,atk,mid,def,gk,val,wage,pot,wk,pace,shooting,passing,dribbling,defending,physical';
   lines.push(`export const ${helperName} = (${params}) => ({`);
   const natField = hasNationality ? 'nationality:nat,' : '';
   lines.push(`  id,name:nm,${natField}position:pos,age,attack:atk,midfield:mid,defence:def,goalkeeping:gk,`);
+  lines.push('  ...([pace,shooting,passing,dribbling,defending,physical].every(Number.isFinite) ? {attributeProfile:{version:1,pace,shooting,passing,dribbling,defending,physical}} : {}),');
   lines.push('  value:val*1_000_000,wage:wage*1_000,goals:0,assists:0,cleanSheets:0,form:50,');
   lines.push('  injured:false,suspended:false,inSquad:true,fitness:100,');
   lines.push('  ...(pot ? {potentialRating:pot} : {}),');
@@ -51,10 +61,11 @@ export function buildLeagueJs({ teams, playersByTeam, arrayName, helperName, sou
     );
     for (const p of players) {
       const natArg = hasNationality ? `'${flagForDemonym(p.nationality)}',` : '';
+      const detailed = DETAILED_ATTRIBUTE_KEYS.map(key => detailedArg(p, key)).join(',');
       lines.push(
         `    ${helperName}('${p.player_id}','${escapeJs(p.name)}',${natArg}'${p.position}',${p.age},` +
         `${p.attack},${p.midfield},${p.defence},${p.goalkeeping},${p.value_millions},${p.wage_thousands},` +
-        `${p.potential || 0},${p.is_wonderkid ? 1 : 0}),`
+        `${p.potential || 0},${p.is_wonderkid ? 1 : 0},${detailed}),`
       );
     }
     lines.push('  ]},');

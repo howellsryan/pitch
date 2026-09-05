@@ -14,12 +14,14 @@
     positionGroup, primaryRating, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
   import { buildManagedMatchInputs, buildOpponentTacticalInsight } from '../../modules/managerTactics.js';
+  import { createUserTacticalPlan } from '../../modules/tactics.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
-  import { applyFormationChange, applyMentalityChange } from '../../game/formationChange.js';
+  import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
-  import { advanceBroadcastSimulation, createBroadcastSimulation, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, setMatchNavigationLocked, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
@@ -28,6 +30,8 @@
   import { screenTicks } from '../state/screens.svelte.js';
   import Crest from './kit/Crest.svelte';
   import Icon from './kit/Icon.svelte';
+  import MatchTacticalAnalysisPanel from './MatchTacticalAnalysisPanel.svelte';
+  import TeamInstructionsPanel from './TeamInstructionsPanel.svelte';
 
   /**
    * MatchScreen.svelte — the live-match route (Phase 5,
@@ -38,9 +42,10 @@
    * registerScreen()/navigateTo() mechanism every other screen uses — not a
    * TabBar destination of its own.
    *
-   * P2 keeps this route presentation-only: Quick Sim and Watch both construct
-   * the same authoritative manager/AI tactical inputs before matchEngine.js
-   * advances the result stream. Broadcast only visualises that stream.
+   * T4 keeps this route presentation-only around one shared authoritative
+   * tactics schema: pre-match changes persist the user plan, and live changes
+   * update the same engine state through formationChange.js before persisting
+   * that canonical v2 plan for future matches.
    */
 
   const WATCH_PHASES_PER_TICK = 1;
@@ -162,12 +167,20 @@
     }
 
     const userPlayers  = await getPlayersByTeam(save.userTeamId);
+    let opponentPlayers = oppTeam?.id
+      ? await getPlayersByTeam(oppTeam.id).catch(() => [])
+      : [];
+    if (!opponentPlayers.length && !isLeague) {
+      const strength = event.opponentRep ?? event.oppStrength ?? 72;
+      opponentPlayers = generateStubPlayers(oppTeam, strength);
+    }
     const userFormation = save.formation ?? '4-3-3';
     const userLineup    = save.lineup ?? null;
     const { profile:oppTacticalProfile, insight:oppInsight } = buildOpponentTacticalInsight({
       opponentTeam:oppTeam,
       userTeam,
       userIsHome,
+      opponentPlayers,
       form:oppForm,
       keyPlayer:oppInForm,
     });
@@ -175,7 +188,7 @@
     const { injuredInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers);
 
     return {
-      event, save, userTeam, oppTeam, oppForm, oppInForm, oppTacticalProfile, oppInsight,
+      event, save, userTeam, oppTeam, oppForm, oppInForm, opponentPlayers, oppTacticalProfile, oppInsight,
       matchTitle, compLabel, compColor, isLeague, userIsHome,
       userPlayers, userFormation, userLineup,
       injuredInLineup, lineupIncomplete,
@@ -282,6 +295,20 @@
     };
   }
 
+  async function applyTeamNewsInstruction(instructionId, value) {
+    if (!matchCtx || beat !== 'teamNews') return;
+    const currentSave = await getSave();
+    if (!currentSave || currentSave._deleted) return;
+    const instructions = {
+      ...(currentSave.tactics?.instructions ?? currentSave.tactics ?? {}),
+      [instructionId]:value,
+    };
+    const tactics = createUserTacticalPlan(instructions);
+    const updatedSave = { ...currentSave, tactics };
+    await putSave(updatedSave);
+    matchCtx = { ...matchCtx, save:updatedSave };
+  }
+
   $effect(() => {
     void screenTicks.match;
     if (!active) loadMatch();
@@ -300,10 +327,14 @@
       const userIsHome2 = fix2.homeTeamId === ctx.save.userTeamId;
       const oppId2  = userIsHome2 ? fix2.awayTeamId : fix2.homeTeamId;
       const realOpp = teamsById2.get(oppId2) ?? ctx.oppTeam;
+      const userPlayers = await getPlayersByTeam(ctx.userTeam.id);
+      const oppPlayers = ctx.opponentPlayers?.length
+        ? ctx.opponentPlayers
+        : await getPlayersByTeam(realOpp.id);
       homeTeam = userIsHome2 ? ctx.userTeam : realOpp;
       awayTeam = userIsHome2 ? realOpp : ctx.userTeam;
-      homePlayers = await getPlayersByTeam(homeTeam.id);
-      awayPlayers = await getPlayersByTeam(awayTeam.id);
+      homePlayers = userIsHome2 ? userPlayers : oppPlayers;
+      awayPlayers = userIsHome2 ? oppPlayers : userPlayers;
       patchedEvent = { ...ctx.event, userIsHome: userIsHome2 };
       return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHome2, patchedEvent };
     }
@@ -311,9 +342,11 @@
     const userIsHomeC = ctx.event.userIsHome ?? true;
     const realOpp = teamsById2.get(ctx.event.opponentId) ?? teamByName2(ctx.oppTeam.name) ?? ctx.oppTeam;
     const userPlayers = await getPlayersByTeam(ctx.userTeam.id);
-    let oppPlayers = realOpp?.id
-      ? await getPlayersByTeam(realOpp.id).catch(() => [])
-      : [];
+    let oppPlayers = ctx.opponentPlayers?.length
+      ? ctx.opponentPlayers
+      : realOpp?.id
+        ? await getPlayersByTeam(realOpp.id).catch(() => [])
+        : [];
     if (!oppPlayers.length) {
       const strength = ctx.event.opponentRep ?? ctx.event.oppStrength ?? 72;
       oppPlayers = generateStubPlayers(realOpp, strength);
@@ -333,9 +366,7 @@
     loading = false;
     if (!resolved) { await simInstant(); return; }
 
-    // The watched route now uses the exact same save-backed manager context as
-    // Quick Sim: persisted instructions/roles on the user side and undefined
-    // AI overrides so matchEngine resolves the stable P2 opponent identity.
+    // Watched and instant paths consume the same persisted v2 manager context.
     const inputs = buildManagedMatchInputs({
       save:matchCtx.save,
       homeTeam:resolved.homeTeam,
@@ -368,7 +399,7 @@
     displayAwayGoals = 0;
     presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
     broadcastSimulation = createBroadcastSimulation({
-      homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id,
+      homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id, ledgerDriven: true,
       possessionTeamId: presentationPossession,
       homeFormation: live.liveState.homeFormation, awayFormation: live.liveState.awayFormation,
       homePlayers: live.liveState.hActive, awayPlayers: live.liveState.aActive,
@@ -424,6 +455,8 @@
 
   function runTick() {
     if (!live || live.paused) return;
+    if (!isBroadcastReady(broadcastSimulation)) { scheduleTick(); return; }
+    if (live.currentPhase >= TOTAL_PHASES) { finishMatch(); return; }
     const startPhase = live.currentPhase + 1;
     const endPhase   = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
     const beforeState = live.liveState;
@@ -434,10 +467,13 @@
     const possessionTeamId = updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id;
     presentationPossession = possessionTeamId;
     presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
-    updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent });
+    updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent, record: updatedState.actionLedger.at(-1) });
+    replaceBroadcastLineups(broadcastSimulation, {
+      homeFormation: updatedState.homeFormation, awayFormation: updatedState.awayFormation,
+      homePlayers: updatedState.hActive, awayPlayers: updatedState.aActive,
+    });
     handleNewEvents(segEvents);
-    if (live.currentPhase >= TOTAL_PHASES) finishMatch();
-    else scheduleTick(presentationEvent ? 4200 : endPhase === 60 ? 2100 : 0);
+    scheduleTick();
   }
 
   function handleNewEvents(segEvents) {
@@ -474,7 +510,13 @@
       if (elapsed < 30) return;
       presentationAt = now;
       if (!live.paused) {
-        broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, elapsed);
+        // Substep accelerated presentation instead of losing time to the 50ms safety clamp.
+        let remaining = Math.min(elapsed, 100) * live.speedMultiplier;
+        while (remaining > 0) {
+          const step = Math.min(remaining, 50);
+          broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, step);
+          remaining -= step;
+        }
         if (broadcastFrame.action === 'GOAL') revealGoalNotice();
       }
     };
@@ -484,14 +526,14 @@
   function togglePause() {
     if (!live) return;
     live = { ...live, paused: !live.paused };
-    if (!live.paused && live.currentPhase < TOTAL_PHASES) scheduleTick();
+    if (!live.paused) scheduleTick();
     else window.clearTimeout(tickTimer);
   }
 
   function setSpeed(mult) {
     if (!live) return;
     live = { ...live, speedMultiplier: mult };
-    if (!live.paused && live.currentPhase < TOTAL_PHASES) {
+    if (!live.paused) {
       window.clearTimeout(tickTimer);
       scheduleTick();
     }
@@ -532,6 +574,7 @@
   });
 
   const matchKits = $derived(live ? resolveMatchKits(live.homeTeam, live.awayTeam) : null);
+  const broadcastPresentation = $derived(describeBroadcastFrame(broadcastFrame, broadcastSimulation));
   const tacticsSlots = $derived(SLOT_LAYOUT[tacticsPickerFormation] ?? SLOT_LAYOUT['4-3-3']);
   const tacticsActivePlayers = $derived.by(() => {
     if (!live?.liveState) return [];
@@ -602,6 +645,16 @@
     const currentSave = await getSave();
     if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, mentality });
     toast(`Mentality changed to ${mentality}`, 'info', 3000);
+  }
+  async function applyTacticsInstruction(instructionId, value) {
+    if (!live?.liveState || !matchCtx) return;
+    const newLs = applyTeamInstructionChange(live.liveState, live.userIsHome, instructionId, value);
+    live = { ...live, liveState:newLs };
+    const nextInstructions = live.userIsHome ? newLs.homeTactics : newLs.awayTactics;
+    const tactics = createUserTacticalPlan(nextInstructions);
+    matchCtx = { ...matchCtx, save:{ ...matchCtx.save, tactics } };
+    const currentSave = await getSave();
+    if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, tactics });
   }
   function closeTacticsSheet() {
     tacticsSheetOpen = false;
@@ -786,6 +839,17 @@
         </div>
       </div>
 
+      <div class="tn-section">
+        <div class="tn-section-title"><Icon name="tactics" size={14} /><span>Your Team Plan</span></div>
+        <TeamInstructionsPanel
+          compact
+          instructions={m.save.tactics?.instructions ?? m.save.tactics ?? {}}
+          players={teamNewsXI}
+          rolesById={m.save.playerRoles ?? {}}
+          onchange={applyTeamNewsInstruction}
+        />
+      </div>
+
       {#if m.injuredInLineup.length}
         <div class="tn-warning tn-warning-bad">
           <div class="tn-warning-title"><Icon name="injury" size={14} /><span>Injured Players in Lineup</span></div>
@@ -819,7 +883,7 @@
 
   {:else if beat === 'live' && live}
     {@const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90)}
-    {@const homeShare = Math.round((live.liveState.hPhases / Math.max(1, live.liveState.hPhases + live.liveState.aPhases)) * 100)}
+    {@const homeShare = live.currentPhase ? Math.round((live.liveState.hPhases / Math.max(1, live.liveState.hPhases + live.liveState.aPhases)) * 100) : 50}
     <div class="live-wrap">
       <div class="broadcast-label">LIVE · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
       <div class="score-bug">
@@ -840,19 +904,23 @@
         </div>
       </div>
       <div class="progress-wrap"><div class="progress-bar" style="width:{(live.currentPhase / TOTAL_PHASES) * 100}%"></div></div>
-      <div class="broadcast-pitch">
-        <div class="pitch-stripes"></div><div class="pitch-half"></div><div class="pitch-circle"></div><div class="pitch-box pitch-box-top"></div><div class="pitch-box pitch-box-bottom"></div>
+      <div class="phase-strip"><span class="phase-live">{live.paused ? 'PAUSED' : 'LIVE'}</span><strong>{broadcastPresentation?.phaseLabel ?? 'Kick off'}</strong></div>
+      <div class="broadcast-pitch" role="img" aria-label="Live match pitch. Player movement illustrates the simulated action.">
+        <div class="pitch-stripes"></div><div class="pitch-goal goal-top"></div><div class="pitch-goal goal-bottom"></div><div class="six-yard six-top"></div><div class="six-yard six-bottom"></div><div class="pitch-half"></div><div class="pitch-circle"></div><div class="pitch-box pitch-box-top"></div><div class="pitch-box pitch-box-bottom"></div>
         {#each broadcastFrame?.markers ?? [] as marker (marker.id)}
           <div
             class="broadcast-player {marker.team}"
+            class:carrying={marker.owner}
+            class:moving={marker.moving}
+            class:keeper={marker.position === 'GK'}
             class:pressing={marker.pressing}
             class:receiving={marker.receiving}
             class:rushing={marker.rushing}
-            style="left:{marker.x}%;top:{marker.y}%;background:{marker.team === 'home' ? matchKits?.home.color : matchKits?.away.color};color:{marker.team === 'home' ? matchKits?.home.numberColor : matchKits?.away.numberColor}"
-          >{marker.shirt}</div>
+            style="left:{marker.x}%;top:{marker.y}%;--kit:{marker.team === 'home' ? matchKits?.home.color : matchKits?.away.color};color:{marker.team === 'home' ? matchKits?.home.numberColor : matchKits?.away.numberColor}"
+          ><span class="player-head"></span><span class="player-shirt">{marker.shirt}</span><span class="player-legs"></span></div>
         {/each}
         {#if broadcastFrame?.ball}<div class="broadcast-ball" class:shooting={broadcastFrame.ball.shooting} style="left:{broadcastFrame.ball.x}%;top:{broadcastFrame.ball.y}%"></div>{/if}
-        <div class="broadcast-state">{broadcastFrame?.action ?? (live.paused ? 'PAUSED' : 'IN PLAY')}</div>
+
         {#if goalNotice}
           <div class="goal-takeover" role="status">
             <span>GOAL!</span>
@@ -861,14 +929,15 @@
           </div>
         {/if}
       </div>
-      <div class="momentum" aria-label={`Possession momentum: ${homeShare}% ${live.homeTeam.name}`}><span>{live.homeTeam.name.split(' ')[0]}</span><div><i style={`width:${homeShare}%`}></i></div><span>{live.awayTeam.name.split(' ')[0]}</span></div>
+      <div class="match-commentary"><strong>{broadcastPresentation?.action ?? 'TEAMS SET'}</strong><span>{broadcastPresentation?.detail || broadcastFrame?.carrierName || 'Ball in flight'}</span></div>
+      <div class="momentum" aria-label={`Match possession: ${homeShare}% ${live.homeTeam.name}`}><span>{homeShare}%</span><div><i style={`width:${homeShare}%`}></i></div><span>{100 - homeShare}%</span></div>
     </div>
 
     <div class="live-controls">
       <button class="ctrl-btn" onclick={togglePause}><Icon name={live.paused ? 'play' : 'pause'} size={14} />{live.paused ? 'Resume' : 'Pause'}</button>
       <div class="speed-wrap">
         {#each [1, 2, 4] as s (s)}
-          <button class="speed-btn" class:active={live.speedMultiplier === s} onclick={() => setSpeed(s)}>{s}×</button>
+          <button class="speed-btn" class:active={live.speedMultiplier === s} aria-label={`Match speed ${s} times`} aria-pressed={live.speedMultiplier === s} onclick={() => setSpeed(s)}>{s}×</button>
         {/each}
       </div>
       <button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>
@@ -933,6 +1002,13 @@
         {/each}
       </div>
 
+      <MatchTacticalAnalysisPanel
+        analysis={result.tacticalAnalysis}
+        userTeamId={matchCtx?.save.userTeamId}
+        homeTeamName={result.homeTeamName}
+        awayTeamName={result.awayTeamName}
+      />
+
       {#if userSubs.length}
         <div class="after-section">
           <div class="after-section-title"><Icon name="refresh" size={14} /><span>Your Substitutions</span></div>
@@ -991,6 +1067,14 @@
       </div>
 
       <div class="match-tactics-scroll">
+        <TeamInstructionsPanel
+          compact
+          instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
+          players={tacticsActivePlayers}
+          rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
+          onchange={applyTacticsInstruction}
+        />
+
         <div class="match-tactics-pitch-wrap">
           <div class="match-tactics-pitch">
             <div class="mtp-half"></div><div class="mtp-circle"></div>
@@ -1120,19 +1204,33 @@
   .sb-status { font-size: 10px; font-family: var(--font-mono); color: var(--color-tx-3); letter-spacing: 1px; }
   .progress-wrap { height: 3px; background: var(--color-raised); border-radius: 2px; margin: 10px 0; overflow: hidden; }
   .progress-bar { height: 100%; background: var(--color-club); transition: width 0.3s linear; }
-  .broadcast-pitch { position: relative; flex: 1; min-height: 360px; overflow: hidden; border: 1px solid color-mix(in oklch, var(--color-live) 40%, var(--color-line)); border-radius: 4px; background: #123d32; box-shadow: inset 0 0 48px rgba(0,0,0,.42); }
-  .pitch-stripes { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 10%, transparent 10% 20%); }
+  .broadcast-pitch { position: relative; flex: 1; min-height: 240px; overflow: hidden; border: 1px solid color-mix(in oklch, var(--color-live) 40%, var(--color-line)); border-radius: 4px; background: #123d32; box-shadow: inset 0 0 48px rgba(0,0,0,.42); }
+  .pitch-stripes { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 10%, transparent 10% 20%); }
   .pitch-half { position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,.35); }
   .pitch-circle { position: absolute; width: 22%; aspect-ratio: 1; top: 50%; left: 50%; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; transform: translate(-50%,-50%); }
   .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
   .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
-  .broadcast-player { position: absolute; z-index: 2; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; transform: translate(-50%,-50%); border: 1.5px solid rgba(255,255,255,.78); color: white; font: 700 8px var(--font-mono); will-change: left, top; }
-  .broadcast-player { text-shadow: 0 1px 0 rgba(255,255,255,.35); }
-  .broadcast-player.pressing { box-shadow: 0 0 0 3px rgba(255,255,255,.13); }
-  .broadcast-player.receiving { box-shadow: 0 0 0 2px rgba(255,255,255,.1); } .broadcast-player.rushing { box-shadow: 0 0 0 3px rgba(255,219,102,.2); }
+  .broadcast-player { position: absolute; z-index: 2; width: 22px; height: 28px; transform: translate(-50%,-50%); filter: drop-shadow(1px 3px 1px rgba(0,0,0,.5)); will-change: left, top; }
+  .player-head { position: absolute; top: 0; left: 8px; width: 6px; height: 6px; border-radius: 50%; background: #d6aa84; border-top: 2px solid #342c24; z-index: 2; }
+  .player-shirt { position: absolute; top: 5px; left: 1px; width: 20px; height: 15px; background: var(--kit); clip-path: polygon(25% 0, 75% 0, 100% 25%, 88% 52%, 75% 40%, 75% 100%, 25% 100%, 25% 40%, 12% 52%, 0 25%); display: grid; place-items: center; font: 800 8px var(--font-mono); padding-top: 1px; }
+  .player-legs { position: absolute; left: 6px; top: 19px; width: 4px; height: 8px; background: #eceded; border-bottom: 3px solid #111d1c; box-shadow: 6px 0 0 -0.2px #eceded; }
+  .broadcast-player.keeper .player-shirt { background: #f0c84c; color: #182620; }
+  .broadcast-player.carrying::after, .broadcast-player.receiving::after { content: ''; position: absolute; inset: 15px -3px -3px; border: 1px solid #f2e4b5; border-radius: 50%; opacity: .8; z-index: -1; }
+  .broadcast-player.receiving::after { border-style: dashed; opacity: .35; }
+  .broadcast-player.moving .player-legs { animation: player-stride .32s steps(2) infinite; }
+  @keyframes player-stride { 50% { transform: translateY(-2px) rotate(12deg); } }
+  .phase-strip { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 11px; min-height: 34px; }
+  .phase-strip strong { font-weight: 500; color: var(--color-tx-2); }
+  .phase-live { border-radius: 3px; padding: 3px 5px; background: #173e31; color: #b5efd1; font: 700 9px var(--font-mono); }
+  .match-commentary { min-height: 49px; padding: 9px 10px; background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 0 0 7px 7px; display: flex; flex-direction: column; gap: 4px; }
+  .match-commentary strong { font: 600 10px var(--font-mono); color: var(--color-tx); }
+  .match-commentary span { font-size: 11px; color: var(--color-tx-2); }
+  .pitch-goal { position: absolute; left: 43%; width: 14%; height: 2.5%; border: 2px solid #dfe9dd; background: repeating-linear-gradient(90deg, #ffffff33 0 1px, transparent 1px 5px); }
+  .goal-top { top: 0; } .goal-bottom { bottom: 0; }
+  .six-yard { position: absolute; left: 40%; width: 20%; height: 5%; border: 1px solid #ffffff65; }
+  .six-top { top: 0; border-top: 0; } .six-bottom { bottom: 0; border-bottom: 0; }
   .broadcast-ball { position: absolute; z-index: 4; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 4px rgba(0,0,0,.8); will-change: left, top; }
   .broadcast-ball.shooting { width: 9px; height: 9px; box-shadow: 0 0 10px 3px rgba(255,255,255,.52); }
-  .broadcast-state { position: absolute; z-index: 3; top: 9px; left: 10px; color: rgba(255,255,255,.82); font: 10px var(--font-mono); letter-spacing: 1.5px; }
   .goal-takeover { position: absolute; z-index: 6; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; background: rgba(4, 18, 12, .62); color: white; animation: goal-flash 3.2s ease both; pointer-events: none; }
   .goal-takeover span { font: 700 32px var(--font-display); letter-spacing: 4px; color: #ffe357; text-shadow: 0 0 24px rgba(255, 227, 87, .8); }
   .goal-takeover strong { font-size: 17px; } .goal-takeover small { font: 11px var(--font-mono); letter-spacing: 1px; color: rgba(255,255,255,.78); }
@@ -1167,18 +1265,21 @@
 
   .live-controls { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .live-controls::-webkit-scrollbar { display: none; }
-  .ctrl-btn { flex: 0 0 auto; white-space: nowrap; font-size: 10px; padding: 8px 9px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
+  .ctrl-btn { min-height: 44px; flex: 0 0 auto; white-space: nowrap; font-size: 10px; padding: 8px 9px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
   .tactics-control span { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 2px; border-radius: 50%; background: var(--color-club); color: var(--color-on-club, #fff); font: 700 9px var(--font-mono); }
   .speed-wrap { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; }
   .speed-lbl { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); margin-right: 2px; }
-  .speed-btn { font-size: 10px; min-width: 30px; padding: 7px 6px; border-radius: 6px; border: 1px solid var(--color-line); background: transparent; color: var(--color-tx-2); cursor: pointer; }
+  .speed-btn { min-height: 44px; font-size: 10px; min-width: 38px; padding: 7px 6px; border-radius: 6px; border: 1px solid var(--color-line); background: transparent; color: var(--color-tx-2); cursor: pointer; }
   .speed-btn.active { background: var(--color-club); color: var(--color-on-club, #fff); border-color: var(--color-club); }
 
   @media (max-width: 768px) {
-    .broadcast-pitch { flex: 0 1 52dvh; min-height: 320px; max-height: 52dvh; }
+    .broadcast-pitch { flex: 1 1 auto; min-height: 220px; max-height: 57dvh; }
     .live-controls { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
   }
 
+  .ctrl-btn:focus-visible, .speed-btn:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .broadcast-player.moving .player-legs, .goal-takeover { animation: none; } .progress-bar, .momentum i { transition: none; } }
+  @media (min-width: 769px) { .live-wrap { width: min(100%, 900px); align-self: center; } .broadcast-pitch { width: min(100%, 640px); align-self: center; } }
   .ft-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
   .ft-verdict { font-family: var(--font-display); font-size: 16px; letter-spacing: 2px; }
   .ft-win { color: var(--color-live); }
@@ -1249,7 +1350,7 @@
   .match-tactics-mentalities::-webkit-scrollbar { display: none; }
   .match-tactics-mentalities button { flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
   .match-tactics-mentalities button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; }
+  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; display:grid; gap:14px; }
   .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
   .match-tactics-pitch {
     position: relative; width: 100%; aspect-ratio: 68 / 91; overflow: hidden;

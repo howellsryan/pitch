@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_TEAM_INSTRUCTIONS,
+  TACTICS_PLAN_VERSION,
   buildOppositionInsight,
   createManagerDNA,
   createUserTacticalPlan,
@@ -13,53 +14,92 @@ import {
   updateManagerDNA,
 } from './tactics.js';
 
-describe('P2 tactical schema', () => {
-  it('normalizes invalid or missing instruction values to safe defaults', () => {
-    expect(normalizeTeamInstructions({ pressing:'wild', buildUp:'direct', width:'wide' })).toEqual({
-      ...DEFAULT_TEAM_INSTRUCTIONS,
+describe('T4 tactical schema v2', () => {
+  it('normalizes invalid values and migrates legacy v1 choices into independent v2 dimensions', () => {
+    const normalized = normalizeTeamInstructions({
+      pressing:'wild',
       buildUp:'direct',
       width:'wide',
+      transition:'counter',
+      chanceCreation:'work_ball',
     });
+
+    expect(normalized).toMatchObject({
+      ...DEFAULT_TEAM_INSTRUCTIONS,
+      buildUp:'direct',
+      pressing:'standard',
+      attackingWidth:'wide',
+      defensiveWidth:'wide',
+      onWin:'counter',
+      shotSelection:'work_into_box',
+      deliveryTiming:'balanced',
+      width:'wide',
+      transition:'counter',
+      chanceCreation:'work_ball',
+    });
+
     expect(createUserTacticalPlan({ pressing:'aggressive' })).toMatchObject({
-      version:1,
+      version:TACTICS_PLAN_VERSION,
       source:'user',
       instructions:{ pressing:'aggressive' },
     });
   });
 
+  it('preserves explicit v2 choices instead of allowing legacy aliases to overwrite them', () => {
+    const normalized = normalizeTeamInstructions({
+      width:'wide',
+      attackingWidth:'narrow',
+      defensiveWidth:'wide',
+      transition:'counter',
+      onWin:'hold_shape',
+      chanceCreation:'work_ball',
+      shotSelection:'shoot_on_sight',
+      deliveryTiming:'early',
+    });
+
+    expect(normalized.attackingWidth).toBe('narrow');
+    expect(normalized.defensiveWidth).toBe('wide');
+    expect(normalized.onWin).toBe('hold_shape');
+    expect(normalized.shotSelection).toBe('shoot_on_sight');
+    expect(normalized.deliveryTiming).toBe('early');
+    expect(normalized.width).toBe('narrow');
+    expect(normalized.transition).toBe('hold_shape');
+    expect(normalized.chanceCreation).toBe('early_delivery');
+  });
+
   it('makes tactical advantages carry explicit counters and costs', () => {
     const balanced = getTacticalModifiers({}, {});
     const directCounter = getTacticalModifiers(
-      { buildUp:'direct', transition:'counter', tempo:'fast' },
+      { buildUp:'direct', onWin:'counter', tempo:'fast', useOfSpace:'pass_into_space' },
       { defensiveLine:'high', pressing:'aggressive' },
     );
     expect(directCounter.goalProbMult).toBeGreaterThan(balanced.goalProbMult);
     expect(directCounter.midShareBoost).toBeLessThan(balanced.midShareBoost);
     expect(directCounter.fitnessDrainMult).toBeGreaterThan(balanced.fitnessDrainMult);
 
-    const aggressive = getTacticalModifiers({ pressing:'aggressive' }, { buildUp:'patient' });
-    const passive = getTacticalModifiers({ pressing:'passive' }, { buildUp:'patient' });
+    const aggressive = getTacticalModifiers({ pressing:'aggressive', defensiveTransition:'counter_press' }, { buildUp:'patient' });
+    const passive = getTacticalModifiers({ pressing:'passive', defensiveTransition:'regroup' }, { buildUp:'patient' });
     expect(aggressive.midShareBoost).toBeGreaterThan(passive.midShareBoost);
     expect(aggressive.fitnessDrainMult).toBeGreaterThan(passive.fitnessDrainMult);
     expect(aggressive.yellowRiskMult).toBeGreaterThan(passive.yellowRiskMult);
 
     const highLineVsCounter = getTacticalModifiers(
       { defensiveLine:'high' },
-      { transition:'counter', buildUp:'direct' },
+      { onWin:'counter', buildUp:'direct' },
     );
     const highLineVsPatient = getTacticalModifiers(
       { defensiveLine:'high' },
-      { transition:'hold_shape', buildUp:'patient' },
+      { onWin:'hold_shape', buildUp:'patient' },
     );
     expect(highLineVsCounter.defResistMult).toBeLessThan(highLineVsPatient.defResistMult);
 
     const narrowVsWide = getTacticalModifiers(
-      { width:'narrow' },
-      { width:'wide', chanceCreation:'early_delivery' },
+      { defensiveWidth:'narrow' },
+      { attackingWidth:'wide', deliveryTiming:'early' },
     );
     const narrowVsNarrow = getTacticalModifiers(
-      { width:'narrow' },
-      { width:'narrow', chanceCreation:'work_ball' },
+      { defensiveWidth:'narrow' },
+      { attackingWidth:'narrow', shotSelection:'work_into_box' },
     );
     expect(narrowVsWide.defResistMult).toBeLessThan(narrowVsNarrow.defResistMult);
   });
@@ -78,11 +118,12 @@ describe('P2 player roles', () => {
   });
 });
 
-describe('P2 AI manager profiles and opposition insight', () => {
+describe('T4 AI manager profiles and opposition insight', () => {
   it('is deterministic per club but varied across the football world', () => {
     const opponent = { id:'opp', reputation:80 };
     const profile = getAITacticalProfile({ id:'club_a', league:'Premier League', reputation:78 }, opponent, false);
     expect(getAITacticalProfile({ id:'club_a', league:'Premier League', reputation:78 }, opponent, false)).toEqual(profile);
+    expect(profile.version).toBe(TACTICS_PLAN_VERSION);
 
     const ids = new Set(Array.from({ length:16 }, (_, index) =>
       getAITacticalProfile({ id:`club_${index}`, league:'Premier League', reputation:75 + index % 4 }, opponent, true).id
@@ -108,20 +149,28 @@ describe('P2 AI manager profiles and opposition insight', () => {
   });
 });
 
-describe('P2 Manager DNA', () => {
-  it('aggregates real choices/results and deduplicates the same committed match', () => {
+describe('T4 Manager DNA', () => {
+  it('extends old histories with v2 dimensions and deduplicates the same committed match', () => {
     const sample = {
       fingerprint:'s1-gw1-fixture-a',
       formation:'4-3-3', mentality:'attacking',
-      instructions:{ buildUp:'direct', pressing:'aggressive', defensiveLine:'high', defensiveApproach:'front_foot' },
+      instructions:{
+        buildUp:'direct', pressing:'aggressive', defensiveLine:'high', defensiveApproach:'front_foot',
+        useOfSpace:'pass_into_space', ballCarrying:'run_at_defence', shotSelection:'shoot_on_sight',
+        defensiveTransition:'counter_press', lineOfEngagement:'high', attackingWidth:'wide', defensiveWidth:'narrow',
+      },
       outcome:'win', possession:47, youthStarts:2,
     };
     const once = updateManagerDNA(createManagerDNA(), sample);
     const twice = updateManagerDNA(once, sample);
+    expect(once.version).toBe(2);
     expect(once.matches).toBe(1);
     expect(twice).toEqual(once);
     expect(once.wins).toBe(1);
     expect(once.youthStarts).toBe(2);
+    expect(once.spaceTotal).toBeGreaterThan(0);
+    expect(once.carryingTotal).toBeGreaterThan(0);
+    expect(once.engagementTotal).toBeGreaterThan(0);
 
     const next = updateManagerDNA(once, {
       fingerprint:'s1-gw2-fixture-b', formation:'4-2-3-1', mentality:'possession',
