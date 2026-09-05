@@ -587,6 +587,8 @@ Treat every slice as independently playable and mergeable. Do not leave Quick Si
 
 **Exit:** neutral tactics stay close to the accepted baseline; specialists matter in the intended contexts; no tactic dominates across squads/opponents.
 
+**Delivered 5 Sep 2026:** complete. The unchanged 3,000-simulation gate is supplemented by an enforced 5,000-simulation paired T7 matrix with structural quality/tactic/specialist/fatigue/role guardrails; fixture simulation versions are validated at segment boundaries; historical results remain ledger-free and managed tactical analysis is compact. See `attribute-to-tactics-causality-2-status.md` and `../benchmarks/match-engine-t7-calibration.md`.
+
 ## 16. Required verification
 
 ### Deterministic contract tests

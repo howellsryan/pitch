@@ -2,7 +2,7 @@
 
 **Workstream:** Attribute-to-Tactics Causality 2.0  
 **Phase:** T7 — Balance, rollout and documentation  
-**Status:** In progress — starts from PR #28 T6 closure head `0d996da7d5195526e41d0a84659a4352059b2a29`
+**Status:** COMPLETE — 5 Sep 2026; enforced implementation gate workflow #607 green at `ef19644a23666b8f9b578d09a1d14c3c2a801415`
 
 ## Goal
 
@@ -192,6 +192,33 @@ Suggested promotion checkpoints:
 4. **T7.4 closure docs/help** — final PR metadata and merge gate.
 
 The PR branch must not be advanced from a known-green checkpoint merely to expose incomplete calibration work.
+
+
+## Closure evidence — 5 Sep 2026
+
+T7 closed without adding another tactics model or retuning production constants to chase the sample.
+
+- **T7.1:** the deterministic matrix covers **25 scenarios × 100 paired seeds = 5,000 authoritative simulations**, including +5/+10/+20 quality gaps, venue reversal, representative formations, instruction counters, all six detailed-attribute specialist domains, fitness pressure and role participation. Every reviewed pair records zero seed mismatches.
+- **T7.2:** `matchBalanceT7Guardrails.mjs` encodes reviewed structural relationships instead of exact snapshot values. CI runs `balance:match:deep:check`, so the real matrix itself must pass those guardrails. Workflow **#607** is the first fully enforced integrated pass.
+- **T7.3 version boundary:** new fixtures stamp one four-field simulation tuple; segment advancement validates rather than upgrades it; partial/unsupported tuples fail explicitly; same-version Quick Sim/Watch parity remains tested; deliberately unversioned legacy/manual states remain unversioned.
+- **T7.3 payload/runtime:** the 600-match statistical fixture completed in **3.088s** under its unchanged **5s** ceiling in workflow #607. The 15-season player payload remains below the existing **2,500 bytes/player** bound. Historical results do not retain `actionLedger`; managed `tacticalAnalysis` is bounded below **12 KiB**; AI-v-AI results carry no manager-only tactical analysis.
+- **Browser world budgets:** no browser/E2E benchmark was reintroduced. The established **<20s / <25s / <50 MiB** constraints remain load-bearing, while P3's **13.108s / 7.301s / 3.41 MiB** measurements are retained only as historical evidence. T7 does not materially change the world-week persistence loop.
+- **Current-main reconciliation:** PR #30 was merged semantically into T7 via explicit two-parent merge `8fb90a161c6db80b1c5f1c41f710ddc3949bfd80`; the resulting scratch branch is a true descendant of current `main` and preserves both workstreams.
+- **UI/help:** T7 itself adds no new user-facing controls or Help copy. T4/T6's already-recorded 320/390/768/1280 rendered verification remains the applicable visual evidence; no new browser/E2E suite was introduced.
+
+### Enforced implementation gate — workflow #607
+
+- legacy build / deterministic replacement contracts ✅
+- Vite production build ✅
+- ESLint ✅
+- **108 Vitest files / 845 tests** ✅
+- UI emoji audit: **42 source files / 0 violations** ✅
+- unchanged standard **3,000-simulation** balance gate ✅
+- enforced T7 **5,000-simulation** deep guardrail gate ✅
+- club accent audit: **181 clubs / 0 failures** ✅
+- Actions artifact upload ✅
+
+The frozen reviewed distribution is recorded in `docs/benchmarks/match-engine-t7-calibration.md`.
 
 ## Exit criteria
 

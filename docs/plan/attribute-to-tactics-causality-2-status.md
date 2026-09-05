@@ -366,18 +366,64 @@ A deployed-browser walkthrough is not claimed where the execution environment ca
 
 ---
 
-## T7 next-phase boundary
 
-T7 is **Balance, rollout and documentation**. It should not casually add another tactical feature set.
+## T7 — COMPLETE (5 Sep 2026)
 
-The T7 gate must:
+T7 closes Attribute-to-Tactics Causality 2.0 as a calibrated, versioned and regression-protected system rather than adding another feature tranche.
 
-1. broaden paired-seed calibration across ability gaps, formations, roles, specialists, home/away and fitness states;
-2. demonstrate that no instruction/archetype dominates across squads and opponents;
-3. protect the principle that player quality matters more than tactical rock-paper-scissors;
-4. run long-career performance/storage checks against existing ceilings;
-5. confirm simulation-version changes activate only at safe fixture boundaries and do not mutate an already-started match;
-6. update roadmap, AGENTS/CLAUDE architectural notes and user help only after those contracts are final;
-7. finish with the normal build/lint/Vitest/balance/audit gates and responsive inspection for any UI/help changes.
+### T7.1 — expanded deterministic calibration
 
-**T6 is closed. T7 has not yet begun implementation.**
+The standard 3,000-simulation gate remains unchanged. T7 adds a separate 25-scenario matrix over 100 paired seeds per scenario (**5,000 authoritative simulations**) covering quality gaps, venue, formations, tactical counters, specialists, fitness and roles. The matrix is deterministic/serialisable and every paired scenario records zero seed mismatches.
+
+### T7.2 — structural guardrails
+
+`tools/lib/matchBalanceT7Guardrails.mjs` protects reviewed relationships rather than exact September 2026 numbers. The production CI step is `npm run balance:match:deep:check`, so the real 5,000-simulation report must prove:
+
+- +5/+10/+20 player-quality edges remain meaningful and monotonic;
+- a single reviewed tactic swing remains materially smaller than the +5 quality edge;
+- tactics retain contextual upside and downside rather than universal positivity;
+- key instructions retain their intended route/trade-off signatures;
+- Pace, Passing, Dribbling, Shooting, Defending and Physical specialists move their causal domains;
+- aggressive pressing loses value under low starting fitness;
+- role changes move participation without becoming generic result multipliers.
+
+Workflow **#607** is the first fully enforced integrated pass and prints `T7 deep calibration guardrails: PASS.`
+
+### T7.3 — fixture-version activation boundary
+
+`src/modules/matchSimulationVersion.js` owns the supported simulation tuple fields. New live states stamp the current tuple once. Segment advancement validates it before football advances; partial or unsupported tuples fail explicitly instead of being silently upgraded. Supported tuples survive segmenting/finalisation unchanged, while deliberately unversioned legacy/manual states keep their legacy path. Same-seed Quick Sim/Watch parity remains covered.
+
+### T7.3 — runtime and storage evidence
+
+Newly reproducible automated evidence at workflow #607:
+
+- 600-match statistical fixture: **3.088s**, below the unchanged **5s** ceiling;
+- **108 Vitest files / 845 tests** green;
+- 15-season P3 player payload remains below **2,500 bytes/player**;
+- public/historical results do not retain `actionLedger`;
+- managed `tacticalAnalysis` has an explicit **<12 KiB** serialized regression bound;
+- AI-v-AI background results keep `tacticalAnalysis:null`.
+
+The browser world limits remain **<20s fresh-career / <25s full-world week / <50 MiB storage at 4× CPU throttle**, but there is intentionally no browser/E2E harness after that suite was removed. P3's **13.108s / 7.301s / 3.41 MiB** figures are **historical evidence only**, not newly measured T7 values. T7 does not materially change the world-week persistence loop.
+
+### T7.4 — documentation / rollout closure
+
+- `AGENTS.md` and `CLAUDE.md` record the fixture-version and dual balance-gate authority.
+- `docs/benchmarks/match-engine-t7-calibration.md` freezes the reviewed distribution used by the structural gate.
+- T7 adds no new Help/UI surface, so no new rendered responsive inspection is required beyond the recorded T4/T6 UI verification.
+- Current `main`/PR #30 was reconciled with explicit merge commit `8fb90a161c6db80b1c5f1c41f710ddc3949bfd80`; the integrated branch does not carry a stale-base conflict.
+
+### T7 implementation verification — workflow #607
+
+- legacy build / deterministic replacement contracts ✅
+- Vite production build ✅
+- ESLint ✅
+- **108 Vitest files / 845 tests** ✅
+- seeded Quick Sim/Watch and T6 ledger/Broadcast contracts ✅
+- UI emoji audit: **42 source files / 0 violations** ✅
+- standard **3,000-simulation** balance gate ✅
+- enforced **5,000-simulation** T7 deep guardrail gate ✅
+- club accent audit: **181 clubs / 0 failures** ✅
+- Actions artifact upload ✅
+
+**T0–T7 implementation is complete.** PR metadata/final PR-head verification remain delivery steps, not an additional simulation phase.
