@@ -36,7 +36,7 @@
   let syntheticAttempt = $state(0);
   let currentMoment = $state(createSyntheticPlayableMoment('attack'));
   let resolution = $state(null);
-  let status = $state('Beat the keeper with a strong, well-timed finish into either highlighted top corner.');
+  let status = $state('Hit either gold top-corner target to score. Any other on-target shot is saved.');
   let selectedLane = $state(0);
   let selectedHeight = $state(.55);
   let pointerStart = null;
@@ -164,7 +164,7 @@
     if (previous != null) updateMetrics(now - previous);
     animationLoop.previousTime = now;
     if (animationStarted != null && !reducedMotion) {
-      currentProgress = Math.min(1, (now - animationStarted) / 1500);
+      currentProgress = Math.min(1, (now - animationStarted) / 1650);
       if (currentProgress >= 1) animationStarted = null;
     }
     controller?.render?.({ moment:currentMoment, resolution, progress:currentProgress });
@@ -186,9 +186,9 @@
     }
 
     if (shot.finish === 'goal' && shot.syntheticSpecial) {
-      status = 'GOAL — special top-corner finish. Strong placement plus good timing beats the keeper.';
+      status = 'GOAL — gold-zone special finish. Hitting either highlighted top corner beats the keeper.';
     } else if (shot.finish === 'saved') {
-      status = 'SAVED — ordinary on-target shots are stopped in this drill. Aim for a gold top-corner marker with a strong, well-timed swipe.';
+      status = 'SAVED — ordinary on-target shots are stopped in this drill. Put the endpoint inside either gold top-corner target.';
     } else {
       status = 'MISS — the shot left the goal frame. Keep the finish inside a highlighted top corner.';
     }
@@ -205,7 +205,7 @@
     selectedLane = 0;
     selectedHeight = .55;
     status = mode === 'attack'
-      ? 'Beat the keeper with a strong, well-timed finish into either highlighted top corner.'
+      ? 'Hit either gold top-corner target to score. Any other on-target shot is saved.'
       : `Read the cyan ${currentMoment.syntheticTarget.label} cue, then dive/tap towards it. Correct reads are deliberately forgiving in this drill.`;
     controller?.render?.({ moment:currentMoment, resolution:null, progress:0 });
   }
@@ -408,7 +408,7 @@
         {#if rendererLoading}<div class="stage-message">Loading {renderer.label}…</div>{/if}
         {#if rendererError}<div class="stage-message error">{rendererError}</div>{/if}
         {#if source === 'synthetic' && syntheticMode === 'attack' && !resolution}
-          <div class="stage-hint special-hint">SPECIAL FINISH · strong + well-timed · hit either gold top corner</div>
+          <div class="stage-hint special-hint">SPECIAL FINISH · GOLD ZONE = GOAL · hit either top corner</div>
         {/if}
         {#if source === 'synthetic' && syntheticMode === 'goalkeeper' && !resolution}
           <div class="stage-hint keeper-hint">READ THE CYAN TARGET · {currentMoment?.syntheticTarget?.label}</div>
@@ -445,7 +445,7 @@
     <aside class="panel">
       <h2>How this drill works</h2>
       {#if source === 'synthetic' && syntheticMode === 'attack'}
-        <p>Ordinary on-target shots are intentionally saved. Beat the keeper by combining strong power and timing with a finish into either gold top-corner target.</p>
+        <p>Ordinary on-target shots are intentionally saved. Put the shot endpoint inside either gold top-corner target and the special finish scores — there is no hidden power or timing requirement after you hit the gold zone.</p>
       {:else if source === 'synthetic' && syntheticMode === 'goalkeeper'}
         <p>The incoming shot changes between six goal zones. The cyan target shows where it is heading before the strike; move close to that cue to make the save.</p>
       {:else}
