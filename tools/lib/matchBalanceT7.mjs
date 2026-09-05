@@ -466,6 +466,6 @@ export function renderT7CalibrationMarkdown(report) {
       .slice(0, 3);
     lines.push(`- **${scenario.label}:** ${routeChanges.length ? routeChanges.map(item => `${item.route} attempts ${signed(item.attemptsPerMatch)}, success ${signed(item.successRate)}pp, chances ${signed(item.chancesPerMatch)}`).join('; ') : 'no material route-frequency change in this sample'}.`);
   }
-  lines.push('', 'This report is diagnostic until T7.2 reviews the observed distributions and encodes justified dominance/quality/specialist guardrails.');
+  lines.push('', 'T7.2 structural guardrails are reviewed and encoded; run this matrix with --check (the CI default) to assert them against the reported distribution.');
   return lines.join('\n');
 }
