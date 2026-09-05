@@ -207,14 +207,16 @@ function contextualProfile(archetype, team, opponent, isHome) {
   let formation = archetype.formation;
   let mentality = archetype.mentality;
 
-  // Preserve the existing P2/T4 match-context adaptation boundary for T5.1.
-  // T5.2 can make these rules more explicitly squad-aware once identity
-  // selection itself is proven and calibrated.
+  // T5.2 keeps opponent/home-away adaptation intentionally small and layers it
+  // on the chosen club identity. When an underdog drops into a low block, the
+  // whole defensive posture must move together rather than combining Regroup
+  // with an inherited aggressive/counter-press instruction.
   if (!isHome && oppRep - teamRep >= 8) {
     adapted.defensiveLine = 'low';
     adapted.lineOfEngagement = 'low';
     adapted.defensiveApproach = 'compact';
     adapted.defensiveTransition = 'regroup';
+    adapted.pressing = 'passive';
     adapted.onWin = 'counter';
     mentality = 'defensive';
     formation = seed % 2 ? '5-4-1' : '4-1-4-1';
