@@ -24,6 +24,17 @@ const pressProfile = {
   },
 };
 
+const finishingProfile = {
+  id:'shot_focus', formation:'4-3-3', mentality:'attacking', version:2,
+  instructions:{
+    buildUp:'balanced', tempo:'balanced', useOfSpace:'to_feet', ballCarrying:'balanced',
+    shotSelection:'shoot_on_sight', deliveryTiming:'balanced', attackingWidth:'balanced',
+    onWin:'balanced', defensiveTransition:'balanced', defensiveLine:'mid',
+    lineOfEngagement:'mid', pressing:'standard', defensiveWidth:'balanced',
+    defensiveApproach:'balanced', setPieces:'balanced',
+  },
+};
+
 function player(position = 'CM', overrides = {}) {
   return {
     id:'p1', name:'Player', teamId:'user', position, age:23,
@@ -62,9 +73,9 @@ describe('T5.4 action-aware training recommendations', () => {
     expect(creator.reason).not.toBe(ballWinner.reason);
   });
 
-  it('uses a finishing-heavy striker role to recommend finishing work', () => {
+  it('uses a shot-heavy striker role to recommend finishing work', () => {
     const subject = player('ST', { attack:86, midfield:68, defence:40 });
-    const recommendation = automaticPlanRecommendationDetail(subject, { tacticalProfile:pressProfile, roleId:'poacher' });
+    const recommendation = automaticPlanRecommendationDetail(subject, { tacticalProfile:finishingProfile, roleId:'poacher' });
 
     expect(recommendation.id).toBe('finishing');
     expect(recommendation.source).toBe('tactical');
