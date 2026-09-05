@@ -1,6 +1,6 @@
 import { currentEffectiveLevel, playerPositionGroup } from './playerModel.js';
 import { aiRecruitmentObservation } from './scouting.js';
-import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
+import { buildCareerTacticalContext, evaluateCareerTacticalFit } from './careerTacticalFit.js';
 import { clubPhilosophyTraitValue } from './clubPhilosophy.js';
 import { availableFunds } from './clubFinance.js';
 
@@ -106,7 +106,8 @@ export function buildSquadNeeds(team, players, options = {}) {
   const loanReturns = loanReturnsFor(team, players);
   const academyPlayers = academyPlayersFor(team, options, players);
   const currentYear = Number.isFinite(options.currentYear) ? options.currentYear : squadPlanningSeasonStartYear(options.season);
-  const tacticalProfile = options.tacticalProfile ?? getAITacticalProfile(team);
+  const tacticalContext = buildCareerTacticalContext({ team, squad, tacticalProfile:options.tacticalProfile ?? null });
+  const tacticalProfile = tacticalContext.profile;
   const squadAverage = squadPlanningAverage(squad.map(player => Number(currentEffectiveLevel(player)) || 50), Number(team?.reputation) || 60);
   const availableBudget = transferAvailableBudget(team, options.transferMarket);
   const needs = [];
@@ -118,11 +119,10 @@ export function buildSquadNeeds(team, players, options = {}) {
     const expiring = groupPlayers.filter(player => Number(player.contractExpiry ?? currentYear + 2) <= currentYear + 1).length;
     const unavailable = Math.max(0, groupPlayers.length - healthy.length);
     const loanDepartures = groupPlayers.filter(player => Boolean(player.loanedFrom)).length;
-    const roleScores = groupPlayers.map(player => {
-      const roleId = chooseAIRole(player, tacticalProfile);
-      return roleId ? roleSuitability(player, roleId) : .8;
-    });
-    const tacticalGap = groupPlayers.length > 0 && squadPlanningAverage(roleScores, .8) < .91;
+    const tacticalScores = groupPlayers.map(player => evaluateCareerTacticalFit({
+      player, team, squad, tacticalProfile,
+    }).tacticalFit);
+    const tacticalGap = groupPlayers.length > 0 && squadPlanningAverage(tacticalScores, .8) < .91;
     const future = futureProjection(group, groupPlayers, loanReturns, academyPlayers, currentYear, target);
     const futureShortfall = Math.max(...future.map(row => row.shortfall), 0);
     const academyReady = Math.max(...future.map(row => row.academyReady), 0);
@@ -137,7 +137,10 @@ export function buildSquadNeeds(team, players, options = {}) {
     const urgency = squadPlanningClamp(shortfall * 34 + aging * 9 + expiring * 12 + unavailable * 8 + loanDepartures * 9 + futureShortfall * 8 + (tacticalGap ? 10 : 0) - academyReady * 4, 1, 100);
     const position = choosePriorityPosition(group, groupPlayers);
     const representative = [...groupPlayers].sort((a, b) => (Number(currentEffectiveLevel(a)) || 0) - (Number(currentEffectiveLevel(b)) || 0))[0];
-    const roleId = representative ? chooseAIRole({ ...representative, position }, tacticalProfile) : null;
+    const representativeFit = representative ? evaluateCareerTacticalFit({
+      player:{ ...representative, position }, team, squad, tacticalProfile,
+    }) : null;
+    const roleId = representativeFit?.roleId ?? null;
     // Bounded P7 club-philosophy nudge: a star-recruitment, financially bold
     // club commits a little more of its budget share to a given need; a
     // financially cautious one commits a little less. Absent philosophy
@@ -154,7 +157,7 @@ export function buildSquadNeeds(team, players, options = {}) {
       id:`${team?.id ?? 'club'}:${group}:${position}`, version:SQUAD_PLANNING_VERSION, clubId:team?.id ?? null, group, position, roleId, urgency, reasons,
       coverage:{ current:groupPlayers.length, healthy:healthy.length, target, xi:xi.length, rotation:rotation.length, depth:depth.length }, future,
       targetAbilityBand:{ min:Math.round(squadPlanningClamp(groupAverage - 4, 40, 94)), max:Math.round(squadPlanningClamp(Math.max(groupAverage + 8, squadAverage + 4), 48, 96)) },
-      preferredAgeMax, maxBudget:Math.round(availableBudget * allocation), tacticalProfileId:tacticalProfile?.id ?? null,
+      preferredAgeMax, maxBudget:Math.round(availableBudget * allocation), tacticalProfileId:tacticalProfile?.id ?? null, tacticalProfile,
     });
   }
   return needs.sort((a, b) => b.urgency - a.urgency || a.group.localeCompare(b.group) || a.position.localeCompare(b.position));
@@ -201,7 +204,7 @@ function recruitmentObservation(player, buyer, teamsById, observationFor) {
 
 export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById = new Map(), marketValueFor = player => Number(player?.value) || 0, canSign = () => true, likelihoodFor = () => 50, observationFor = null, limit = 12 } = {}) {
   if (!need || !buyer) return [];
-  const profile = getAITacticalProfile(buyer);
+  const tacticalProfile = need.tacticalProfile ?? buildCareerTacticalContext({ team:buyer, squad:players }).profile;
   const maxBudget = Math.min(need.maxBudget, Number(buyer.budget) || need.maxBudget);
   const ranked = [];
   const requiresObservation = Boolean(observationFor || teamsById?.size);
@@ -215,16 +218,20 @@ export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById
     const rating = observedCurrentLevel(player, observation);
     if (rating < need.targetAbilityBand.min - 3 || rating > need.targetAbilityBand.max + 3) continue;
     const positionFit = player.position === need.position ? 1.08 : .94;
-    const roleId = need.roleId ?? chooseAIRole(player, profile);
-    const tacticalFit = roleSuitability(player, roleId);
+    const tactical = evaluateCareerTacticalFit({ player, team:buyer, tacticalProfile, roleId:need.roleId });
+    const roleId = tactical.roleId;
+    const tacticalFit = tactical.tacticalFit;
     const ageFit = Number(player.age ?? 25) <= need.preferredAgeMax ? 1.05 : .86;
     const affordability = squadPlanningClamp(1.15 - value / Math.max(1, maxBudget) * .42, .65, 1.12);
     const likelihood = squadPlanningClamp(Number(likelihoodFor(player, buyer, teamsById.get(player.teamId))) || 0, 0, 100);
     if (likelihood < 35) continue;
     const abilityFit = 1 - Math.min(1, Math.abs(rating - ((need.targetAbilityBand.min + need.targetAbilityBand.max) / 2)) / 24);
     const confidence = observation ? squadPlanningClamp(Number(observation.confidence ?? .5), .2, 1) : 1;
-    const score = Math.round((positionFit * 24 + tacticalFit * 26 + ageFit * 12 + affordability * 20 + abilityFit * 14 + likelihood / 100 * 18 - (1 - confidence) * 12) * 10) / 10;
-    ranked.push({ player, score, value, likelihood, roleId, observation, reasons:candidateExplanation({ positionFit, tacticalFit, ageFit, value, maxBudget, rating, band:need.targetAbilityBand, observation }) });
+    const score = Math.round((positionFit * 32 + tacticalFit * 14 + ageFit * 12 + affordability * 20 + abilityFit * 18 + likelihood / 100 * 18 - (1 - confidence) * 12) * 10) / 10;
+    ranked.push({
+      player, score, value, likelihood, roleId, tacticalFit, tacticalProfileId:tactical.profileId, observation,
+      reasons:candidateExplanation({ positionFit, tacticalFit, ageFit, value, maxBudget, rating, band:need.targetAbilityBand, observation }),
+    });
   }
   return ranked.sort((a, b) => b.score - a.score || b.likelihood - a.likelihood || a.value - b.value || String(a.player.id).localeCompare(String(b.player.id))).slice(0, Math.max(0, limit));
 }
@@ -232,6 +239,7 @@ export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById
 export function rankStandoutRecruitmentCandidates({ buyer, buyerSquad = [], players = [], teamsById = new Map(), marketValueFor = player => Number(player?.value) || 0, canSign = () => true, likelihoodFor = () => 50, observationFor = null, limit = 12 } = {}) {
   if (!buyer) return [];
   const squadAverage = squadPlanningAverage(buyerSquad.filter(player => isSeniorPlanningRow(player) && (!player?.onLoan || player?.loanedFrom)).map(player => Number(currentEffectiveLevel(player)) || 50), Number(buyer.reputation) || 60);
+  const tacticalProfile = buildCareerTacticalContext({ team:buyer, squad:buyerSquad }).profile;
   const availableBudget = Math.max(0, Number(buyer.budget) || 0);
   const ranked = [];
   const requiresObservation = Boolean(observationFor || teamsById?.size);
@@ -254,13 +262,16 @@ export function rankStandoutRecruitmentCandidates({ buyer, buyerSquad = [], play
     const potentialEdge = Math.max(0, potential - Math.max(rating, squadAverage));
     const youthBonus = age <= 21 ? 8 : age <= 24 ? 4 : 0;
     const confidence = observation ? squadPlanningClamp(Number(observation.confidence ?? .5), .2, 1) : 1;
-    const score = Math.round((currentEdge * 4 + potentialEdge * 3 + (currentStandout ? 18 : 0) + (futureStandout ? 20 : 0) + youthBonus + affordability * 16 + likelihood / 100 * 12 - (1 - confidence) * 14) * 10) / 10;
+    const tactical = evaluateCareerTacticalFit({ player, team:buyer, squad:buyerSquad, tacticalProfile });
+    const tacticalNudge = (tactical.tacticalFit - .9) * 12;
+    const score = Math.round((currentEdge * 4 + potentialEdge * 3 + (currentStandout ? 18 : 0) + (futureStandout ? 20 : 0) + youthBonus + affordability * 16 + likelihood / 100 * 12 + tacticalNudge - (1 - confidence) * 14) * 10) / 10;
     const reasons = [];
     if (currentStandout) reasons.push('standout_current_ability');
     if (futureStandout) reasons.push('elite_potential');
     if (affordability >= .35) reasons.push('affordable_opportunity');
+    if (tactical.tacticalFit >= 1.02) reasons.push('strong_tactical_fit');
     if (observation && confidence < .55) reasons.push('scouting_uncertainty');
-    ranked.push({ player, score, value, likelihood, observation, reasons });
+    ranked.push({ player, score, value, likelihood, tacticalFit:tactical.tacticalFit, tacticalProfileId:tactical.profileId, observation, reasons });
   }
   return ranked.sort((a, b) => b.score - a.score || b.likelihood - a.likelihood || a.value - b.value || String(a.player.id).localeCompare(String(b.player.id))).slice(0, Math.max(0, limit));
 }
