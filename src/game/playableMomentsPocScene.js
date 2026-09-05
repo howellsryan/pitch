@@ -15,6 +15,15 @@ export const PLAYABLE_POC_RENDERERS = Object.freeze({
   }),
 });
 
+export const SYNTHETIC_KEEPER_TARGETS = Object.freeze([
+  Object.freeze({ x:-.76, y:.78, label:'TOP LEFT' }),
+  Object.freeze({ x:.76, y:.78, label:'TOP RIGHT' }),
+  Object.freeze({ x:-.74, y:.30, label:'LOW LEFT' }),
+  Object.freeze({ x:.74, y:.30, label:'LOW RIGHT' }),
+  Object.freeze({ x:-.56, y:.55, label:'MID LEFT' }),
+  Object.freeze({ x:.56, y:.55, label:'MID RIGHT' }),
+]);
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -32,7 +41,17 @@ function phaseProgress(progress, start, end) {
   return clamp((progress - start) / Math.max(.0001, end - start), 0, 1);
 }
 
-export function createSyntheticPlayableMoment(mode = 'attack') {
+function numeric(value, fallback) {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
+}
+
+function syntheticTargetAt(attempt = 0) {
+  const index = Math.abs(Math.trunc(numeric(attempt, 0))) % SYNTHETIC_KEEPER_TARGETS.length;
+  return { ...SYNTHETIC_KEEPER_TARGETS[index], index };
+}
+
+export function createSyntheticPlayableMoment(mode = 'attack', attempt = 0) {
   return {
     version:1,
     phase:0,
@@ -47,6 +66,7 @@ export function createSyntheticPlayableMoment(mode = 'attack') {
     defenderId:'poc-defender',
     route:'synthetic_penalty_harness',
     xg:.76,
+    syntheticTarget:mode === 'goalkeeper' ? syntheticTargetAt(attempt) : null,
     geometry:{
       coordinateSystem:'goal-facing-v1',
       goal:{ width:7.32, height:2.44 },
@@ -60,10 +80,12 @@ export function createSyntheticPlayableMoment(mode = 'attack') {
   };
 }
 
-export function gestureToPlayableIntent({ mode, start, end, bounds, durationMs = 520 } = {}) {
+export function gestureToPlayableIntent({ mode, start, end, bounds, durationMs = 520, goalTarget = null } = {}) {
   if (!start || !end || !bounds?.width || !bounds?.height) return null;
-  const normalizedX = clamp(((end.x - bounds.left) / bounds.width - .5) * 2, -1.25, 1.25);
-  const normalizedY = clamp(1 - ((end.y - bounds.top) / bounds.height), -.2, 1.2);
+  const fallbackX = clamp(((end.x - bounds.left) / bounds.width - .5) * 2, -1.25, 1.25);
+  const fallbackY = clamp(1 - ((end.y - bounds.top) / bounds.height), -.2, 1.2);
+  const normalizedX = clamp(numeric(goalTarget?.x, fallbackX), -1.25, 1.25);
+  const normalizedY = clamp(numeric(goalTarget?.y, fallbackY), -.2, 1.2);
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
@@ -80,6 +102,128 @@ export function gestureToPlayableIntent({ mode, start, end, bounds, durationMs =
     };
   }
   return { attack:{ aimX:normalizedX, aimY:normalizedY, power, timing } };
+}
+
+function syntheticAttack(intent = {}) {
+  const attack = intent?.attack ?? {};
+  return {
+    aimX:clamp(numeric(attack.aimX, 0), -1.25, 1.25),
+    aimY:clamp(numeric(attack.aimY, .50), -.2, 1.2),
+    power:clamp(numeric(attack.power, .72), 0, 1),
+    timing:clamp(numeric(attack.timing, .82), 0, 1),
+  };
+}
+
+function syntheticKeeper(intent = {}) {
+  const goalkeeper = intent?.goalkeeper ?? {};
+  return {
+    x:clamp(numeric(goalkeeper.x, 0), -1, 1),
+    y:clamp(numeric(goalkeeper.y, .48), 0, 1),
+    timing:clamp(numeric(goalkeeper.timing, .72), 0, 1),
+  };
+}
+
+export function isSyntheticSpecialFinish(intent = {}) {
+  const attack = syntheticAttack(intent);
+  return Math.abs(attack.aimX) >= .68
+    && Math.abs(attack.aimX) <= .98
+    && attack.aimY >= .70
+    && attack.aimY <= .96
+    && attack.power >= .68
+    && attack.timing >= .72;
+}
+
+export function resolveSyntheticAttackShot(intent = {}) {
+  const attack = syntheticAttack(intent);
+  const target = {
+    x:Number(attack.aimX.toFixed(4)),
+    y:Number(attack.aimY.toFixed(4)),
+    power:Number(attack.power.toFixed(4)),
+    executionQuality:Number(((attack.timing * .72) + (attack.power * .28)).toFixed(4)),
+  };
+  const insideGoal = Math.abs(target.x) <= 1 && target.y >= 0 && target.y <= 1;
+  const special = insideGoal && isSyntheticSpecialFinish({ attack });
+
+  if (!insideGoal) {
+    return {
+      finish:'missed', onTarget:false, goal:false,
+      shooting:86, pressure:80, goalkeeping:84,
+      syntheticSpecial:false,
+      presentation:{ target, blockerId:null, keeper:null, contact:'miss', syntheticSpecial:false },
+    };
+  }
+
+  const keeper = special
+    ? {
+        x:Number((target.x * .56).toFixed(4)),
+        y:Number((target.y * .58).toFixed(4)),
+        timing:.78,
+        reach:.46,
+      }
+    : {
+        x:target.x,
+        y:target.y,
+        timing:.94,
+        reach:.64,
+      };
+
+  return {
+    finish:special ? 'goal' : 'saved',
+    onTarget:true,
+    goal:special,
+    shooting:86,
+    pressure:80,
+    goalkeeping:84,
+    syntheticSpecial:special,
+    presentation:{
+      target,
+      blockerId:null,
+      keeper,
+      contact:special ? 'goal' : 'save',
+      syntheticSpecial:special,
+    },
+  };
+}
+
+export function resolveSyntheticGoalkeeperShot(moment, intent = {}) {
+  const targetSource = moment?.syntheticTarget ?? syntheticTargetAt(0);
+  const target = {
+    x:clamp(numeric(targetSource.x, -.76), -1, 1),
+    y:clamp(numeric(targetSource.y, .78), 0, 1),
+    power:.78,
+    executionQuality:.86,
+  };
+  const goalkeeper = syntheticKeeper(intent);
+  const dx = target.x - goalkeeper.x;
+  const dy = (target.y - goalkeeper.y) * 1.12;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  // The synthetic keeper drill intentionally favours a correct read. The cue
+  // teaches the interaction rather than asking the POC user to guess a hidden
+  // RNG target; timing and approximate placement still matter.
+  const reach = .46 + goalkeeper.timing * .20;
+  const saved = distance <= reach;
+
+  return {
+    finish:saved ? 'saved' : 'goal',
+    onTarget:true,
+    goal:!saved,
+    shooting:84,
+    pressure:0,
+    goalkeeping:84,
+    syntheticCue:targetSource.label ?? null,
+    presentation:{
+      target,
+      blockerId:null,
+      keeper:{
+        x:Number(goalkeeper.x.toFixed(4)),
+        y:Number(goalkeeper.y.toFixed(4)),
+        timing:Number(goalkeeper.timing.toFixed(4)),
+        reach:Number(reach.toFixed(4)),
+      },
+      contact:saved ? 'save' : 'goal',
+      syntheticCue:targetSource.label ?? null,
+    },
+  };
 }
 
 export function sceneWorldFromMoment(moment) {
@@ -149,19 +293,19 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
       x:world.shooter.x,
       y:0,
       z:lerp(world.shooter.z + .8, world.shooter.z, run),
-      lean:-.18 * strikePulse * (1 - recovery),
-      kick:strikePulse * 1.12 * (1 - recovery),
-      plant:-strikePulse * .18 * (1 - recovery),
-      arms:strikePulse * .28 * (1 - recovery),
+      lean:-.14 * strikePulse * (1 - recovery),
+      kick:strikePulse * 1.18 * (1 - recovery),
+      plant:-strikePulse * .16 * (1 - recovery),
+      arms:strikePulse * .24 * (1 - recovery),
       recovery,
     },
     keeper:{
       x:lerp(world.keeper.x, keeperTargetX, keeperPose),
-      y:lerp(0, Math.max(0, keeperTargetY - .72), keeperPose),
+      y:lerp(0, Math.max(0, keeperTargetY - .58), keeperPose),
       z:world.keeper.z,
       dive:keeperPose,
-      roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.18 * keeperPose,
-      arms:.3 + keeperPose * .9,
+      roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.05 * keeperPose,
+      arms:.18 + keeperPose * .82,
       recovery,
     },
     defender:{
