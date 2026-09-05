@@ -216,7 +216,9 @@ export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById
     const value = Math.max(0, Number(marketValueFor(player)) || 0);
     if (value > maxBudget || value <= 0) continue;
     const rating = observedCurrentLevel(player, observation);
-    if (rating < need.targetAbilityBand.min - 3 || rating > need.targetAbilityBand.max + 3) continue;
+    const abilityFloor = need.targetAbilityBand.min - 3;
+    const abilityCeiling = need.targetAbilityBand.max + 3;
+    if (rating < abilityFloor || rating > abilityCeiling) continue;
     const positionFit = player.position === need.position ? 1.08 : .94;
     const tactical = evaluateCareerTacticalFit({ player, team:buyer, tacticalProfile, roleId:need.roleId });
     const roleId = tactical.roleId;
@@ -225,9 +227,19 @@ export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById
     const affordability = squadPlanningClamp(1.15 - value / Math.max(1, maxBudget) * .42, .65, 1.12);
     const likelihood = squadPlanningClamp(Number(likelihoodFor(player, buyer, teamsById.get(player.teamId))) || 0, 0, 100);
     if (likelihood < 35) continue;
-    const abilityFit = 1 - Math.min(1, Math.abs(rating - ((need.targetAbilityBand.min + need.targetAbilityBand.max) / 2)) / 24);
+    const abilityMidpoint = (need.targetAbilityBand.min + need.targetAbilityBand.max) / 2;
+    const bandFit = 1 - Math.min(1, Math.abs(rating - abilityMidpoint) / 24);
+    // Band closeness answers "is this the level we targeted?" while quality
+    // answers "how much first-team ability are we actually buying?". Keeping
+    // both prevents a tactically perfect player at the accepted floor from
+    // displacing a materially stronger, better-value solution to the same need.
+    const abilityQuality = squadPlanningClamp(
+      (rating - abilityFloor) / Math.max(1, need.targetAbilityBand.max - abilityFloor),
+      0,
+      1,
+    );
     const confidence = observation ? squadPlanningClamp(Number(observation.confidence ?? .5), .2, 1) : 1;
-    const score = Math.round((positionFit * 32 + tacticalFit * 14 + ageFit * 12 + affordability * 20 + abilityFit * 18 + likelihood / 100 * 18 - (1 - confidence) * 12) * 10) / 10;
+    const score = Math.round((positionFit * 32 + tacticalFit * 14 + ageFit * 12 + affordability * 20 + bandFit * 10 + abilityQuality * 12 + likelihood / 100 * 18 - (1 - confidence) * 12) * 10) / 10;
     ranked.push({
       player, score, value, likelihood, roleId, tacticalFit, tacticalProfileId:tactical.profileId, observation,
       reasons:candidateExplanation({ positionFit, tacticalFit, ageFit, value, maxBudget, rating, band:need.targetAbilityBand, observation }),
