@@ -6,6 +6,7 @@ import {
   buildManagerDNASample,
   buildOpponentTacticalInsight,
 } from '../modules/managerTactics.js';
+import { generateStubPlayers } from './opponents.js';
 
 function player(id, position, overrides = {}) {
   const attacking = ['ST','CF','RW','LW','CAM','RM','LM'].includes(position);
@@ -124,14 +125,15 @@ describe('P2 manager match context', () => {
     expect(JSON.stringify(insight)).not.toContain('actionFit');
   });
 
-  it('uses cautious wording and stable fallback when opponent evidence is limited', () => {
+  it('uses cautious wording for synthetic or otherwise limited opponent evidence', () => {
     const opponentTeam = { id:'legacy_opponent', name:'Legacy Opponent', league:'Premier League', reputation:76 };
     const userTeam = { id:'user', name:'User', league:'Premier League', reputation:82 };
+    const opponentPlayers = generateStubPlayers(opponentTeam, 76);
     const { profile, insight } = buildOpponentTacticalInsight({
       opponentTeam,
       userTeam,
       userIsHome:true,
-      opponentPlayers:[],
+      opponentPlayers,
       form:[],
     });
 
@@ -139,7 +141,7 @@ describe('P2 manager match context', () => {
       team:opponentTeam,
       opponent:userTeam,
       isHome:false,
-      players:[],
+      players:opponentPlayers,
     }).profile;
     expect(profile).toEqual(expected);
     expect(insight.confidence).toBe('Limited');
