@@ -82,8 +82,8 @@ export function createAcademyPathwaysState() {
   };
 }
 
-export function normalizeAcademyPathwaysState(stateInput) {
-  const source = stateInput && typeof stateInput === 'object' && !Array.isArray(stateInput) ? stateInput : {};
+export function normalizeAcademyPathwaysState(state) {
+  const source = state && typeof state === 'object' && !Array.isArray(state) ? state : {};
   const assignments = Array.isArray(source.youthScoutingAssignments)
     ? source.youthScoutingAssignments.filter(Boolean).slice(-MAX_YOUTH_SCOUTING_HISTORY)
     : [];
