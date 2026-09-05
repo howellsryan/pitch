@@ -177,11 +177,94 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
   return chosen.slice(0, 11);
 }
 
-export function selectBench(players, eleven) {
+/**
+ * A real matchday squad is the XI plus a named bench, not "everyone else who is
+ * fit". Nine mirrors the modern domestic maximum and bounds what Watch mode has
+ * to render. Automatic selection is unchanged in effect for AI/background
+ * matches: `simulateMatchSegment` shifts substitutes off the front of this
+ * rating-sorted list and can never use more than three, so nothing past the
+ * ninth name was ever reachable.
+ */
+export const MAX_MATCHDAY_BENCH = 9;
+
+/**
+ * Resolve the named bench behind an already-chosen XI.
+ *
+ * `benchIds` is the manager's own persisted selection (`save.bench`). When they
+ * have named one it is honoured exactly — dropping only names that are injured,
+ * suspended, out of the squad or already starting — so removing a substitute
+ * removes them rather than having the engine quietly put them back. A short
+ * bench is a real, visible consequence of a knock, exactly as it is on a real
+ * team sheet. Passing no selection (`null`) keeps the automatic
+ * best-available bench, which is what an untouched career gets.
+ */
+/**
+ * A named bench always carries a reserve goalkeeper. Taking the nine best
+ * available by rating alone can produce nine outfielders, and `substitutions.js`
+ * only allows GK-for-GK, so an injured keeper could not be replaced at all.
+ *
+ * The keeper takes the *last* seat: substitutes are taken off the front of this
+ * list and a match can use only three, so the reachable top of the bench — and
+ * therefore every simulated outcome — is unchanged.
+ */
+function automaticBench(available) {
+  const chosen = available.slice(0, MAX_MATCHDAY_BENCH);
+  const isKeeper = player => (player.matchPosition ?? player.position) === 'GK';
+  if (chosen.length < MAX_MATCHDAY_BENCH || chosen.some(isKeeper)) return chosen;
+  const keeper = available.find(isKeeper);
+  if (!keeper) return chosen;
+  return [...chosen.slice(0, MAX_MATCHDAY_BENCH - 1), keeper];
+}
+
+export function selectBench(players, eleven, benchIds = null) {
   const usedIds = new Set(eleven.map(p => p.id));
   const primaryFor = createPrimaryRatingLookup();
-  return players
+  const available = players
     .filter(p => !p.injured && !p.suspended && p.inSquad !== false && !usedIds.has(p.id))
+    .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
+
+  if (!Array.isArray(benchIds)) return automaticBench(available);
+
+  const availableById = new Map(available.map(p => [p.id, p]));
+  const chosen = [];
+  const taken = new Set();
+  for (const id of benchIds) {
+    if (chosen.length >= MAX_MATCHDAY_BENCH) break;
+    const player = availableById.get(id);
+    if (!player || taken.has(player.id)) continue;
+    chosen.push(player);
+    taken.add(player.id);
+  }
+  return chosen;
+}
+
+/**
+ * Drop named substitutes who are no longer at the club at all.
+ *
+ * A named bench survives a knock — the seat simply stays empty until the
+ * manager fills it — but a player who has been sold, loaned out or retired is
+ * never coming back to it, and `selectBench` would skip their id forever while
+ * the save carried it across every future season.
+ *
+ * Returns the same array reference when nothing is stale, so a caller can use
+ * `!==` to decide whether a write is actually needed.
+ */
+export function pruneBenchToSquad(bench, squadPlayers = []) {
+  if (!Array.isArray(bench) || !bench.length) return bench;
+  const atClub = new Set(squadPlayers.map(player => String(player?.id)));
+  const next = bench.filter(id => atClub.has(String(id)));
+  return next.length === bench.length ? bench : next;
+}
+
+/**
+ * Everyone fit and registered who is neither starting nor named on the bench.
+ * Shared by the Squad screen so its three groups always agree with the engine.
+ */
+export function selectReserves(players, eleven, bench) {
+  const namedIds = new Set([...eleven, ...bench].map(p => p.id));
+  const primaryFor = createPrimaryRatingLookup();
+  return players
+    .filter(p => p.inSquad !== false && !namedIds.has(p.id))
     .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
 }
 
@@ -463,8 +546,8 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
   const aIdentity = resolveTeamTacticalIdentity(awayTeam, homeTeam, awayPlayers, awayFormation, awayMentality, false);
   const rawHElev = selectEleven(homePlayers, hIdentity.formation, homeLineup ?? null);
   const rawAElev = selectEleven(awayPlayers, aIdentity.formation, awayLineup ?? null);
-  const rawHBench = selectBench(homePlayers, rawHElev);
-  const rawABench = selectBench(awayPlayers, rawAElev);
+  const rawHBench = selectBench(homePlayers, rawHElev, options.homeBench ?? null);
+  const rawABench = selectBench(awayPlayers, rawAElev, options.awayBench ?? null);
   const hElev = rawHElev.map(cloneMatchPlayer);
   const aElev = rawAElev.map(cloneMatchPlayer);
   const hBench = rawHBench.map(cloneMatchPlayer);

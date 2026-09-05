@@ -420,13 +420,17 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
   const aPl = userIsHome ? oppPlayers : userPlayers;
   const userFormation = event?.userFormation ?? '4-3-3';
   const userLineup = event?.userLineup ?? null;
+  const userBench = event?.userBench ?? null;
   const hFormation = userIsHome ? userFormation : undefined;
   const aFormation = userIsHome ? undefined : userFormation;
   const hLineup = userIsHome ? userLineup : null;
   const aLineup = userIsHome ? null : userLineup;
   const hMentality = userIsHome ? (event?.userMentality ?? 'balanced') : undefined;
   const aMentality = userIsHome ? undefined : (event?.userMentality ?? 'balanced');
-  const result = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality);
+  const result = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality, {
+    homeBench:userIsHome ? userBench : null,
+    awayBench:userIsHome ? null : userBench,
+  });
   const userGoals = userIsHome ? result.homeGoals : result.awayGoals;
   const oppGoals = userIsHome ? result.awayGoals : result.homeGoals;
 
@@ -473,6 +477,7 @@ export function simulateEuropeanLeaguePhaseMatchday(
   playersByTeam,
   userFormation = '4-3-3',
   userLineup = null,
+  userBench = null,
 ) {
   const rules = getCompetitionRules(cupId)?.leaguePhase;
   const lp = cupState?.leaguePhase;
@@ -493,7 +498,10 @@ export function simulateEuropeanLeaguePhaseMatchday(
   const aLineup = userIsHome ? null : userLineup;
   const hMentality = userIsHome ? (userMentality ?? 'balanced') : undefined;
   const aMentality = userIsHome ? undefined : (userMentality ?? 'balanced');
-  const r = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality);
+  const r = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality, {
+    homeBench:userIsHome ? userBench : null,
+    awayBench:userIsHome ? null : userBench,
+  });
   const userG = userIsHome ? r.homeGoals : r.awayGoals;
   const oppG = userIsHome ? r.awayGoals : r.homeGoals;
   const points = userG > oppG ? 3 : userG === oppG ? 1 : 0;
@@ -526,8 +534,8 @@ export function simulateEuropeanLeaguePhaseMatchday(
   };
 }
 
-export function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam, userFormation = '4-3-3', userLineup = null) {
-  return simulateEuropeanLeaguePhaseMatchday('ucl', userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam, userFormation, userLineup);
+export function simulateUCLMatchday(userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam, userFormation = '4-3-3', userLineup = null, userBench = null) {
+  return simulateEuropeanLeaguePhaseMatchday('ucl', userTeam, userPlayers, cupState, userMentality, eventUserIsHome, playersByTeam, userFormation, userLineup, userBench);
 }
 
 export const _SYNTH_FIRST = ['A.','B.','C.','D.','E.','F.','G.','H.','J.','K.','L.','M.','N.','O.','P.','R.','S.','T.','V.','W.'];

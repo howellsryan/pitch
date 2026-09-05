@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORMATIONS, primaryRating, selectBench, selectEleven } from './matchEngine.js';
+import { FORMATIONS, MAX_MATCHDAY_BENCH, primaryRating, selectBench, selectEleven } from './matchEngine.js';
 import { currentEffectiveLevel } from './playerModel.js';
 
 function makePlayer(id, position, rating, extra = {}) {
@@ -125,9 +125,16 @@ describe('P3 optimized lineup selection', () => {
       expect(actualXI.map(player => [player.id, player.matchPosition])).toEqual(
         expectedXI.map(player => [player.id, player.matchPosition]),
       );
-      expect(selectBench(squad, actualXI).map(player => player.id)).toEqual(
-        oldSelectBench(squad, expectedXI).map(player => player.id),
+      // The bench is now capped at a realistic matchday size and reserves its
+      // last seat for a keeper. Its *ordering* contract is otherwise unchanged,
+      // so parity is asserted over everything ahead of that seat — which is the
+      // whole of the range a three-substitute match can reach.
+      const bench = selectBench(squad, actualXI);
+      const previous = oldSelectBench(squad, expectedXI);
+      expect(bench.slice(0, MAX_MATCHDAY_BENCH - 1).map(player => player.id)).toEqual(
+        previous.slice(0, MAX_MATCHDAY_BENCH - 1).map(player => player.id),
       );
+      expect(bench.some(player => player.position === 'GK')).toBe(true);
     }
   });
 

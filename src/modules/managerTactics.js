@@ -45,6 +45,7 @@ export function buildManagedMatchInputs({
   const userFormation = overrideFormation ?? save?.formation ?? '4-3-3';
   const userMentality = save?.mentality ?? 'balanced';
   const userLineup = save?.lineup ?? null;
+  const userBench = save?.bench ?? null;
 
   return {
     homeTeam:userIsHome ? decorateManagedTeam(homeTeam, save) : homeTeam,
@@ -57,6 +58,11 @@ export function buildManagedMatchInputs({
     awayLineup:userIsHome ? null : userLineup,
     homeMentality:userIsHome ? userMentality : undefined,
     awayMentality:userIsHome ? undefined : userMentality,
+    // The named bench is the manager's own selection, so it travels with the
+    // controlled side exactly as the lineup does. The AI side stays null and
+    // keeps the engine's automatic best-available bench.
+    homeBench:userIsHome ? userBench : null,
+    awayBench:userIsHome ? null : userBench,
   };
 }
 

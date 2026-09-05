@@ -86,6 +86,7 @@ export function transferClubControl(save, {
     // Squad-specific state resets for the new squad; tactics/managerDNA/
     // formation/mentality are the manager's own identity and travel with them.
     lineup:null,
+    bench:null,
     playerRoles:{},
     scouting:createScoutingState(),
     inboundOffers:[],

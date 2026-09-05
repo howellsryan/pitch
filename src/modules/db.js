@@ -317,11 +317,10 @@ export function settleTransferMarketDealAtomic(dealId) {
           if (exchangePlayerId && (!exchangePlayer || exchangePlayer.teamId !== buyer.id || buyer.id === seller?.id)) { rejectSettlement('invalid_exchange_player'); return; }
           // P9 academy rows deliberately retain their owning club's `teamId` so
           // the existing by_team index remains canonical. They are not senior
-          // registrations, however, and must never consume the 30-player senior
-          // cap or satisfy the seller's senior squad/GK safety floor.
-          const buyerSquad = allPlayers.filter(item => item.teamId === buyer.id && !item.onLoan && item.inSquad !== false);
+          // registrations, however, and must never satisfy the seller's senior
+          // squad/GK safety floor. There is no buyer-side size ceiling: a club
+          // may register as many players as it likes.
           const sellerSquad = allPlayers.filter(item => item.teamId === seller?.id && !item.onLoan && item.inSquad !== false);
-          if (deal.type !== 'renewal' && buyerSquad.length + (exchangePlayer ? 0 : 1) > 30) { rejectSettlement('buyer_squad_full'); return; }
           if (seller && !['renewal','free_agent'].includes(deal.type) && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
           if (seller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
 
@@ -357,7 +356,23 @@ export function settleTransferMarketDealAtomic(dealId) {
           const completedDeal = { ...deal, state:'completed', awaiting:null, stateOwner:'system', updatedWeekKey:market.lastTickKey ?? deal.updatedWeekKey, decisionLog:[...(deal.decisionLog ?? []), { eventKey:`${deal.idempotencyKey}:completed`, weekKey:market.lastTickKey ?? deal.updatedWeekKey, from:'agreed', to:'completed', actor:'system', reasonCode:'settled' }].slice(-24) };
           const activeDeals = market.activeDeals.map(item => item.id === deal.id ? completedDeal : item);
           const reservedCommitments = (market.reservedCommitments ?? []).filter(item => item.dealId !== deal.id);
-          const nextSave = { ...save, transferMarket:{ ...market, activeDeals, reservedCommitments }, inboundOffers:(save.inboundOffers ?? []).filter(item => item.dealId !== deal.id), lastPlayedAt:new Date().toISOString() };
+          // A player leaving the managed club must not keep a named bench seat:
+          // `selectBench` skips an id it cannot resolve, so the match would be
+          // played a substitute short. `save.lineup` self-heals through
+          // `selectEleven`; the bench is honoured exactly, so it needs clearing.
+          //
+          // Decided on where each player actually ends up rather than on which
+          // side of the deal the managed club is: that covers a loan out, an
+          // exchange player leaving while the club is buying, and correctly
+          // leaves a loan-back player — who stays — on the bench.
+          const managedTeamId = String(save.userTeamId);
+          const departedIds = [nextPlayer, exchangePlayer && seller ? { ...exchangePlayer, teamId:seller.id } : null]
+            .filter(row => row && String(row.teamId) !== managedTeamId)
+            .map(row => String(row.id));
+          const benchAfter = Array.isArray(save.bench) && departedIds.length
+            ? save.bench.filter(id => !departedIds.includes(String(id)))
+            : save.bench;
+          const nextSave = { ...save, bench:benchAfter, transferMarket:{ ...market, activeDeals, reservedCommitments }, inboundOffers:(save.inboundOffers ?? []).filter(item => item.dealId !== deal.id), lastPlayedAt:new Date().toISOString() };
           saves.put(nextSave);
           const historyRow = { idempotencyKey:deal.idempotencyKey, dealId:deal.id, playerId:player.id, playerName:player.name, fromTeamId:deal.sellerTeamId, toTeamId:deal.buyerTeamId, fee, type:deal.type, terms, obligations:{ installments, loanWages, sellOnPercentage:terms.fee?.sellOnPercentage ?? 0, optionToBuy:terms.loan?.optionToBuy ?? 0, obligationToBuy:terms.loan?.obligationToBuy ?? 0 }, date:save.currentDate, season:save.season };
           historyStore.add(historyRow);

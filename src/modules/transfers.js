@@ -203,7 +203,7 @@ export function minimumOffer(player) {
 //  65+  decent             → need rep ≥ 48
 //  60+  league-standard    → need rep ≥ 40
 //  <60  anyone can sign
-function playerMinRepToSignForRating(rating) {
+export function playerMinRepToSignForRating(rating) {
   if (rating >= 90) return 88;
   if (rating >= 85) return 80;
   if (rating >= 80) return 72;
@@ -228,7 +228,7 @@ export function playerMinRepToSign(player) {
 //
 // Hard block: a player who has already moved clubs this season cannot be
 // signed again until the next season (signedThisSeason flag).
-function canClubSignPlayerAtRating(team, player, rating) {
+export function canClubSignPlayerAtRating(team, player, rating) {
   if (player.signedThisSeason) return false; // already transferred this season
   const minRep = playerMinRepToSignForRating(rating);
   if (minRep === 0) return true; // sub-60 rated — anyone can sign
@@ -433,8 +433,19 @@ export async function acceptOffer(playerId) {
   await addTransfer({ playerId, playerName: player.name, fromTeamId: save.userTeamId, toTeamId: offer.clubId, fee: offer.fee, type: 'accepted_offer', date: save.currentDate });
 
   const updated = save.inboundOffers.map(o => o.playerId === playerId ? { ...o, status: 'accepted' } : o);
-  await putSave({ ...save, inboundOffers: updated });
+  await putSave({ ...save, inboundOffers: updated, bench:_benchWithout(save.bench, playerId) });
   return { success: true, fee: offer.fee, buyerName: offer.clubName };
+}
+
+/**
+ * A named bench is honoured exactly by `selectBench`, so an id it cannot
+ * resolve costs the manager a substitute rather than being ignored. Anywhere a
+ * player leaves the managed squad has to clear their seat. `save.lineup` needs
+ * no equivalent: `selectEleven` falls back when a name cannot be resolved.
+ */
+function _benchWithout(bench, playerId) {
+  if (!Array.isArray(bench)) return bench;
+  return bench.filter(id => String(id) !== String(playerId));
 }
 
 // ─── Reject an offer ──────────────────────────────────────────
@@ -826,6 +837,9 @@ export async function loanOutPlayer(playerId) {
     fromTeamId: save.userTeamId, toTeamId: loanClub.id,
     fee, type: 'loan_out', date: save.currentDate,
   });
+
+  // A player out on loan cannot sit on the matchday bench.
+  if (Array.isArray(save.bench)) await putSave({ ...save, bench:_benchWithout(save.bench, playerId) });
 
   return { success: true, fee, wageCost, totalCost, loanClubName: loanClub.name };
 }

@@ -17,7 +17,6 @@ import {
   isAcademyPlayer,
   isLoanPlayer,
   isOwnedByTeam,
-  isSeniorEligiblePlayer,
   normalizePlayerStatus,
   playerStatusNeedsNormalization,
   transitionPlayerStatus,
@@ -275,11 +274,9 @@ export async function compareLoanDestinations(playerId, { limit = 8 } = {}) {
 
 export async function promoteManagedAcademyPlayer(playerId) {
   const save = await ensureP9CareerPathways();
-  const [player, allPlayers] = await Promise.all([getPlayer(playerId), getAllPlayers()]);
+  const player = await getPlayer(playerId);
   const normalized = normalizePlayerStatus(player);
   if (!save || !normalized || !isAcademyPlayer(normalized, save.userTeamId)) throw new Error('ACADEMY_PLAYER_NOT_FOUND');
-  const seniorCount = allPlayers.filter(candidate => isSeniorEligiblePlayer(candidate, save.userTeamId)).length;
-  if (seniorCount >= 30) throw new Error('SQUAD_FULL');
   const year = p9StartYear(save.season);
   const wage = Math.max(1_000, Math.round(Number(normalized.value ?? 100_000) * .05 / 52));
   const promoted = transitionPlayerStatus(normalized, {

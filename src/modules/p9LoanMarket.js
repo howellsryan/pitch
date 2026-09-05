@@ -60,9 +60,6 @@ export async function requestManagedLoanOutOffer(playerId, destinationTeamId) {
   if (!destination || String(destination.id) === String(save.userTeamId)) throw new Error('INVALID_LOAN_DESTINATION');
   if (!parent) throw new Error('TEAM_NOT_FOUND');
 
-  const destinationSeniorCount = allPlayers.filter(candidate => isSeniorEligiblePlayer(candidate, destination.id)).length;
-  if (destinationSeniorCount >= 30) throw new Error('DESTINATION_SQUAD_FULL');
-
   const weekKey = marketWeekKey(save);
   const projection = loanDestinationProjection(player, destination, allPlayers, { weekKey });
   if (!projection) throw new Error('INVALID_LOAN_DESTINATION');

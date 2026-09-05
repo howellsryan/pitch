@@ -15,6 +15,22 @@ describe('P4 transfer-market runtime integration', () => {
     expect(settlement).toContain('historyStore.add');
   });
 
+  it('clears a departing player from the manager\u2019s named bench, and only from their own', () => {
+    // `selectBench` honours a named bench exactly, so an id it cannot resolve
+    // is not inert — the match is played a substitute short. The lineup
+    // self-heals through `selectEleven`; the bench has to be cleared here.
+    const source = readFileSync(new URL('./db.js', import.meta.url), 'utf8');
+    const start = source.indexOf('export function settleTransferMarketDealAtomic');
+    const end = source.indexOf('export const getAllHonors', start);
+    const settlement = source.slice(start, end);
+    // Decided on where each player ends up, so a loan out and an exchange
+    // player leaving are both covered and a loan-back player is not evicted.
+    expect(settlement).toContain('const departedIds = [nextPlayer,');
+    expect(settlement).toContain("String(row.teamId) !== managedTeamId");
+    expect(settlement).toContain('save.bench.filter(id => !departedIds.includes(String(id)))');
+    expect(settlement).toContain('bench:benchAfter');
+  });
+
   it('P7 WP2: settles budget through the finance ledger, never raw budget arithmetic that could drift from finance.cash', () => {
     const source = readFileSync(new URL('./db.js', import.meta.url), 'utf8');
     const start = source.indexOf('export function settleTransferMarketDealAtomic');

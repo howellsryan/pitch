@@ -258,17 +258,24 @@ function buildExactScoutingReport(player, context = {}) {
   };
 }
 
-export function buildScoutingReport(player, context = {}) {
+/**
+ * The numeric core of an inexact report: how confident the scout is, and the
+ * ability, potential and financial bands that follow from it.
+ *
+ * Split out from `buildScoutingReport` so the recruitment list can sort and
+ * filter on exactly the same fogged figures it displays without paying for the
+ * tactical-fit and status prose it never reads. There is deliberately one
+ * implementation of this arithmetic: the full report is this plus that prose.
+ */
+export function observedPlayerBands(player, context = {}) {
   if (!player) return null;
-  if (context.exact) return buildExactScoutingReport(player, context);
   const confidence = scoutingClamp(Number(context.confidence ?? .35), .2, .96);
   const gameweek = Number(context.gameweek ?? 0);
   const season = context.season ?? 'unknown';
   const userTeam = context.userTeam ?? null;
-  const seller = context.teamsById?.get?.(player.teamId) ?? null;
-  const coachAssessment = coachingEffects(userTeam, player).assessment;
   // P7 WP6: scouting facility level nudges report confidence alongside
   // coach quality — same bounded shape, absorbed by the same clamp below.
+  const coachAssessment = coachingEffects(userTeam, player).assessment;
   const adjustedConfidence = scoutingClamp(confidence * coachAssessment * scoutingConfidenceMultiplier(userTeam), .2, .96);
   const seed = `${player.id}:${season}:${gameweek}:${Math.round(adjustedConfidence * 100)}`;
   // Durable ability, on the same basis as the exact report and as potential.
@@ -278,32 +285,53 @@ export function buildScoutingReport(player, context = {}) {
   const current = Number(durableLevel(player) ?? currentEffectiveLevel(player) ?? 50);
   const currentRange = observedRange(current, adjustedConfidence, `${seed}:current`, { baseWidth:9 });
   const future = potentialEstimate(player, adjustedConfidence);
-  const tacticalProfile = getAITacticalProfile(userTeam ?? {});
-  const roleId = chooseAIRole(player, tacticalProfile);
-  const fit = roleId ? roleSuitability(player, roleId) : .8;
   const value = Math.max(0, Number(context.valueFor?.(player) ?? player.value ?? 0));
   const wage = Math.max(0, Number(player.wage ?? 0));
   const feeRange = observedFinancialRange(value, adjustedConfidence, `${seed}:fee`);
   const wageRange = observedFinancialRange(wage, adjustedConfidence, `${seed}:wage`);
   return {
-    version:SCOUTING_VERSION,
-    playerId:String(player.id),
-    source:context.source ?? 'assignment',
-    observedWeekKey:scoutingWeekKey(season, gameweek),
-    observedGameweek:gameweek,
-    observedSeason:season,
-    confidence:scoutingRound2(adjustedConfidence),
-    confidenceLabel:confidenceLabel(adjustedConfidence),
-    stage:context.stage ?? reportStage(context.weeks ?? 1, context.mode),
-    current:{ ...currentRange, evidence:confidenceLabel(adjustedConfidence) },
-    tactical:{ roleId, fit:fit >= 1.02 ? 'Strong' : fit >= .91 ? 'Good' : 'Stretch', confidence:confidenceLabel(adjustedConfidence) },
-    future:{ min:future.min, max:future.max, growthProfileConfidence:confidenceLabel(adjustedConfidence) },
+    season,
+    gameweek,
+    // Both: the bands are computed from the raw value and the confidence label
+    // reads it, but a persisted report stores the rounded one — and every
+    // consumer that fogs attributes reads that rounded field.
+    confidence:adjustedConfidence,
+    storedConfidence:scoutingRound2(adjustedConfidence),
+    current:currentRange,
+    future:{ min:future.min, max:future.max },
     financial:{
       feeMin:feeRange.min,
       feeMax:feeRange.max,
       wageMin:wageRange.min,
       wageMax:wageRange.max,
     },
+  };
+}
+
+export function buildScoutingReport(player, context = {}) {
+  if (!player) return null;
+  if (context.exact) return buildExactScoutingReport(player, context);
+  const bands = observedPlayerBands(player, context);
+  const userTeam = context.userTeam ?? null;
+  const seller = context.teamsById?.get?.(player.teamId) ?? null;
+  const adjustedConfidence = bands.confidence;
+  const tacticalProfile = getAITacticalProfile(userTeam ?? {});
+  const roleId = chooseAIRole(player, tacticalProfile);
+  const fit = roleId ? roleSuitability(player, roleId) : .8;
+  return {
+    version:SCOUTING_VERSION,
+    playerId:String(player.id),
+    source:context.source ?? 'assignment',
+    observedWeekKey:scoutingWeekKey(bands.season, bands.gameweek),
+    observedGameweek:bands.gameweek,
+    observedSeason:bands.season,
+    confidence:bands.storedConfidence,
+    confidenceLabel:confidenceLabel(adjustedConfidence),
+    stage:context.stage ?? reportStage(context.weeks ?? 1, context.mode),
+    current:{ ...bands.current, evidence:confidenceLabel(adjustedConfidence) },
+    tactical:{ roleId, fit:fit >= 1.02 ? 'Strong' : fit >= .91 ? 'Good' : 'Stretch', confidence:confidenceLabel(adjustedConfidence) },
+    future:{ ...bands.future, growthProfileConfidence:confidenceLabel(adjustedConfidence) },
+    financial:{ ...bands.financial },
     status:{
       availability:player.signedThisSeason ? 'Moved recently' : player.transferListed ? 'Listed' : 'Under contract',
       happiness:Number(player.individualMorale ?? 50) >= 65 ? 'Positive' : Number(player.individualMorale ?? 50) <= 35 ? 'Unsettled' : 'Stable',

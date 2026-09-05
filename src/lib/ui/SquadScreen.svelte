@@ -1,6 +1,6 @@
 <script>
   import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
-  import { FORMATIONS, primaryRating, selectEleven } from '../../modules/matchEngine.js';
+  import { FORMATIONS, MAX_MATCHDAY_BENCH, primaryRating, pruneBenchToSquad, selectBench, selectEleven, selectReserves } from '../../modules/matchEngine.js';
   import {
     SQUAD_ROLE_DEFS,
     baselineLevel,
@@ -23,6 +23,7 @@
     summarizeManagerDNA,
   } from '../../modules/tactics.js';
   import { SLOT_LAYOUT } from '../../game/formationLayout.js';
+  import { reconcileBenchWithLineup } from '../../game/matchdaySquad.js';
   import { contractYearsRemaining, renewContract, setManagedPlayerTransferListing } from '../../modules/transfers.js';
   import { fmt, posGroup, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -46,6 +47,7 @@
   let mentality = $state('balanced');
   let instructions = $state({ ...DEFAULT_TEAM_INSTRUCTIONS });
   let savedLineup = $state([]);
+  let savedBench = $state(null);
   let formationOpen = $state(false);
   let mentalityOpen = $state(false);
   let instructionsOpen = $state(false);
@@ -54,6 +56,7 @@
   let rosterOpen = $state(false);
   let playerSheet = $state(null);
   let draggedPlayerId = $state(null);
+  let benchSlotIdx = $state(null);
 
   async function load() {
     await openDB();
@@ -65,6 +68,16 @@
     if (playerSheet) playerSheet = players.find(p => p.id === playerSheet.id) ?? null;
     formation = save.formation ?? '4-3-3';
     savedLineup = save.lineup ?? [];
+    // A sold, loaned-out or retired substitute is never coming back to their
+    // seat; drop them here rather than carrying a dead id season after season.
+    // The write is built from `currentSave` rather than the `save` rune: a
+    // spread of a Svelte state proxy leaves nested objects as proxies, which
+    // IndexedDB cannot structured-clone.
+    const prunedBench = pruneBenchToSquad(currentSave.bench ?? null, players);
+    savedBench = prunedBench;
+    if (Array.isArray(currentSave.bench) && prunedBench !== currentSave.bench) {
+      await putSave({ ...currentSave, bench:prunedBench });
+    }
     mentality = save.mentality ?? 'balanced';
     instructions = normalizeTeamInstructions(save.tactics?.instructions ?? save.tactics ?? {});
     loaded = true;
@@ -114,6 +127,98 @@
     return out;
   });
 
+  // Starting XI / Bench / Reserves, resolved through the same engine selectors
+  // the match itself uses, so what this screen shows is what gets picked. An
+  // unset bench is the automatic best-available one, exactly as before.
+  //
+  // Deliberately `selectEleven` rather than the pitch's own `assignment`: the
+  // engine discards a saved lineup entirely if any name in it is injured,
+  // suspended or out of the squad, so reading `assignment` here would split the
+  // bench and reserves against an XI that will not actually be fielded. The
+  // pitch keeps showing the manager's own selection, injury badge and all.
+  const startingEleven = $derived(selectEleven(players, formation, savedLineup.length === 11 ? savedLineup : null));
+  // What the engine will actually field.
+  const benchPlayers = $derived(selectBench(players, startingEleven, savedBench));
+  // What the manager *named*, which is what the strip shows and what every edit
+  // rewrites. The two differ when a named substitute is injured or suspended:
+  // the engine drops them for the match, but they keep their seat here, so
+  // editing another slot cannot quietly delete them from the save.
+  const playersById = $derived(new Map(players.map(player => [String(player.id), player])));
+  const namedBenchIds = $derived(Array.isArray(savedBench) ? savedBench : benchPlayers.map(player => player.id));
+  const benchSlots = $derived(namedBenchIds.map(id => playersById.get(String(id)) ?? null));
+  const namedBenchPlayers = $derived(benchSlots.filter(Boolean));
+  const reservePlayers = $derived(selectReserves(players, startingEleven, namedBenchPlayers));
+  // Everyone the three matchday groups do not account for — players excluded
+  // from the squad, and any row the engine does not treat as selectable. The
+  // roster sheet is the only route to a player's own sheet (and so to "Add to
+  // squad"), so it has to stay exhaustive by construction rather than by
+  // repeating the engine's availability rules and hoping they agree.
+  const unavailablePlayers = $derived.by(() => {
+    const grouped = new Set([...startingEleven, ...namedBenchPlayers, ...reservePlayers].map(player => String(player.id)));
+    return players.filter(player => !grouped.has(String(player.id)));
+  });
+  // Only a null bench is automatic. An explicitly emptied one is a real choice,
+  // and must keep offering the way back to automatic.
+  const benchIsAutomatic = $derived(!Array.isArray(savedBench));
+
+  /** Takes the *named* ids, not resolved players, so an unavailable substitute
+   *  keeps their seat instead of being edited out of the save. */
+  async function persistBench(nextBenchIds) {
+    const sv = await getSave();
+    const bench = [];
+    for (const id of nextBenchIds) {
+      if (id == null || bench.some(taken => String(taken) === String(id))) continue;
+      bench.push(id);
+      if (bench.length >= MAX_MATCHDAY_BENCH) break;
+    }
+    await putSave({ ...sv, bench });
+    savedBench = bench;
+    screenTicks.squad++;
+  }
+
+  function openBenchSlot(idx) { benchSlotIdx = idx; }
+  function closeBenchSlot() { benchSlotIdx = null; }
+
+  const benchSwapCandidates = $derived.by(() => {
+    if (benchSlotIdx === null) return null;
+    const current = benchSlots[benchSlotIdx] ?? null;
+    // Reserves only: a starter is moved by swapping them on the pitch, not by
+    // quietly demoting them to the bench from here.
+    const candidates = reservePlayers
+      .filter(player => !player.injured && !player.suspended)
+      .map(player => ({ player, effective:slotLevel(player, player.position) }));
+    return { current, candidates };
+  });
+
+  async function assignBenchSlot(player) {
+    const idx = benchSlotIdx;
+    closeBenchSlot();
+    if (idx === null) return;
+    // The named list can be shorter than the strip, so writing straight to
+    // `idx` would leave a hole — seating the player somewhere other than the
+    // slot the sheet named.
+    const next = [...namedBenchIds];
+    next[Math.min(idx, next.length)] = player.id;
+    await persistBench(next);
+    toast(`${player.name} named on the bench`, 'success', 2200);
+  }
+
+  async function removeFromBench(idx) {
+    closeBenchSlot();
+    const dropped = benchSlots[idx];
+    if (!dropped) return;
+    await persistBench(namedBenchIds.filter((_, i) => i !== idx));
+    toast(`${dropped.name} moved to the reserves`, 'info', 2200);
+  }
+
+  async function resetBench() {
+    const sv = await getSave();
+    await putSave({ ...sv, bench:null });
+    savedBench = null;
+    screenTicks.squad++;
+    toast('Bench set automatically', 'info', 2000);
+  }
+
   const formationGroups = $derived([
     { label: '3 at the back', formations: Object.keys(FORMATIONS).filter(f => f.startsWith('3-')) },
     { label: '4 at the back', formations: Object.keys(FORMATIONS).filter(f => f.startsWith('4-')) },
@@ -146,7 +251,11 @@
   async function pickFormation(f) {
     formationOpen = false;
     const sv = await getSave();
-    await putSave({ ...sv, formation: f, lineup: null });
+    // The new shape is filled automatically, and that XI can absorb someone the
+    // manager had named as a substitute — leaving their id on the bench, where
+    // the engine skips it and plays a substitute short.
+    const nextEleven = selectEleven(players, f, null).map(player => player.id);
+    await putSave({ ...sv, formation: f, lineup: null, bench:reconcileBenchWithLineup(sv.bench, nextEleven) });
     screenTicks.squad++;
   }
   async function pickMentality(m) {
@@ -204,10 +313,17 @@
     const updatedPlayer = { ...p, inSquad:adding };
     await putPlayer(updatedPlayer);
     const sv = await getSave();
-    if (!adding && sv?.lineup?.includes(p.id)) {
+    if (!adding) {
       const eligiblePlayers = players.map(player => player.id === p.id ? updatedPlayer : player);
-      const replacementLineup = selectEleven(eligiblePlayers, formation, null).map(player => player.id);
-      await putSave({ ...sv, lineup:replacementLineup.length === 11 ? replacementLineup : null });
+      const nextSave = { ...sv };
+      if (sv?.lineup?.includes(p.id)) {
+        const replacementLineup = selectEleven(eligiblePlayers, formation, null).map(player => player.id);
+        nextSave.lineup = replacementLineup.length === 11 ? replacementLineup : null;
+      }
+      // A stale id in `save.bench` is not inert: the engine skips it, so the
+      // bench silently plays a substitute short — and it survives rollover.
+      if (Array.isArray(sv?.bench)) nextSave.bench = sv.bench.filter(id => String(id) !== String(p.id));
+      await putSave(nextSave);
     }
     toast(`${p.name} ${p.inSquad === false ? 'added to' : 'excluded from'} squad`, 'info', 2000);
     screenTicks.squad++;
@@ -277,7 +393,7 @@
 
     const sv = await getSave();
     const lineup = newAssignment.filter(Boolean).map(p => p.id);
-    await putSave({ ...sv, lineup, formation });
+    await putSave({ ...sv, lineup, formation, bench:reconcileBenchWithLineup(sv.bench, lineup, newPlayer, currentPlayer) });
     const fit = positionFitLabel(slotFit(newPlayer, slots[idx].p));
     toast(`${newPlayer.name} → ${slots[idx].p} · ${fit}`, slotFit(newPlayer, slots[idx].p) < .55 ? 'warning' : 'success', 2300);
     screenTicks.squad++;
@@ -396,6 +512,42 @@
       </div>
     </div>
 
+    <section class="bench-strip" aria-label="Matchday bench">
+      <div class="bench-head">
+        <div>
+          <span>Bench</span>
+          <strong>{namedBenchPlayers.length}/{MAX_MATCHDAY_BENCH} named</strong>
+        </div>
+        <div class="bench-head-right">
+          {#if namedBenchPlayers.length !== benchPlayers.length}
+            <span class="bench-short">{benchPlayers.length} available</span>
+          {/if}
+          <span class="bench-reserves">{reservePlayers.length} reserve{reservePlayers.length === 1 ? '' : 's'}</span>
+          {#if !benchIsAutomatic}<button class="bench-auto" onclick={resetBench}>Auto</button>{/if}
+        </div>
+      </div>
+      <div class="bench-row">
+        {#each { length: MAX_MATCHDAY_BENCH }, i (i)}
+          {@const sub = benchSlots[i] ?? null}
+          {@const out = sub ? Boolean(sub.injured || sub.suspended) : false}
+          <button
+            class="bench-slot {out ? 'bench-slot-out' : ''}"
+            onclick={() => openBenchSlot(i)}
+            aria-label={sub ? `Bench ${i + 1}: ${sub.name}${out ? ' · unavailable' : ''}` : `Bench ${i + 1}: empty`}
+          >
+            {#if sub}
+              <span class="bench-rating">{Math.round(slotLevel(sub, sub.position))}</span>
+              <span class="bench-pos pos-{posGroup(sub.position)}">{out ? (sub.injured ? 'INJ' : 'SUS') : sub.position}</span>
+              <span class="bench-name">{sub.name.split(' ').slice(-1)[0]}</span>
+            {:else}
+              <span class="bench-empty">+</span>
+              <span class="bench-name bench-name-empty">Empty</span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </section>
+
   {/if}
 </div>
 
@@ -477,20 +629,67 @@
   </div>
 {/if}
 
+{#if benchSwapCandidates}
+  <button class="sheet-backdrop" onclick={closeBenchSlot} aria-label="Close"></button>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="swap-hdr">
+      <div><span class="swap-title">Bench {benchSlotIdx + 1}</span><div class="sheet-subtitle">Name up to {MAX_MATCHDAY_BENCH} substitutes. Everyone else is a reserve and is not in the matchday squad.</div></div>
+      <button class="sheet-close" onclick={closeBenchSlot} aria-label="Close">✕</button>
+    </div>
+    {#if benchSwapCandidates.current}
+      {@const cur = benchSwapCandidates.current}
+      <div class="swap-current">
+        <span class="pos-badge pos-{posGroup(cur.position)}">{cur.position}</span>
+        <div>
+          <div class="swap-current-name">{cur.name}</div>
+          <div class="swap-current-meta">On the bench · Level {Math.round(slotLevel(cur, cur.position))} · Fitness {Math.round(cur.fitness ?? 90)}%</div>
+        </div>
+        <button class="bench-remove" onclick={() => removeFromBench(benchSlotIdx)}>Remove</button>
+      </div>
+    {/if}
+    <div class="swap-list">
+      {#if !benchSwapCandidates.candidates.length}
+        <div class="swap-section-hdr">No available reserves</div>
+      {:else}
+        <div class="swap-section-hdr">Reserves</div>
+        {#each benchSwapCandidates.candidates as entry (entry.player.id)}
+          {@const p = entry.player}
+          {@const fit = Math.round(p.fitness ?? 90)}
+          <button class="swap-row" onclick={() => assignBenchSlot(p)}>
+            <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
+            <span class="swap-row-info">
+              <span class="swap-row-name">{p.name}</span>
+              <span class="swap-row-meta">Age {p.age}{p.squadRole ? ` · ${SQUAD_ROLE_DEFS[p.squadRole]?.label ?? p.squadRole}` : ''}</span>
+            </span>
+            <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span>
+            <span class="swap-row-rat">{Math.round(entry.effective)}</span>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  </div>
+{/if}
+
 {#if rosterOpen}
   <button class="sheet-backdrop" onclick={() => rosterOpen = false} aria-label="Close roster"></button>
   <div class="sheet roster-sheet">
     <div class="sheet-handle"></div>
     <div class="swap-hdr"><span class="swap-title">Your squad</span><button class="sheet-close" onclick={() => rosterOpen = false} aria-label="Close">✕</button></div>
     <div class="swap-list">
-      {#each [...players].sort((a, b) => primaryRating(b) - primaryRating(a)) as p (p.id)}
-        {@const fit = Math.round(p.fitness ?? 90)}
-        {@const role = activeRoleFor(p)}
-        <button class="swap-row" onclick={() => openPlayer(p)}>
-          <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
-          <span class="swap-row-info"><span class="swap-row-name">{p.name}</span><span class="swap-row-meta">Age {p.age}{role ? ` · ${role.label}` : ''}{p.squadRole ? ` · ${SQUAD_ROLE_DEFS[p.squadRole]?.label ?? p.squadRole}` : ''}{p.injured ? ' · Injured' : ''}{p.transferListed ? ' · Listed' : ''}</span></span>
-          <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span><span class="swap-row-rat">{primaryRating(p)}</span>
-        </button>
+      {#each [['Starting XI', startingEleven], ['Bench', namedBenchPlayers], ['Reserves', reservePlayers], ['Not in squad', unavailablePlayers]] as [heading, group] (heading)}
+        {#if group.length}
+          <div class="swap-section-hdr">{heading} · {group.length}</div>
+          {#each group as p (p.id)}
+            {@const fit = Math.round(p.fitness ?? 90)}
+            {@const role = activeRoleFor(p)}
+            <button class="swap-row" onclick={() => openPlayer(p)}>
+              <span class="pos-badge pos-{posGroup(p.position)}">{p.position}</span>
+              <span class="swap-row-info"><span class="swap-row-name">{p.name}</span><span class="swap-row-meta">Age {p.age}{role ? ` · ${role.label}` : ''}{p.squadRole ? ` · ${SQUAD_ROLE_DEFS[p.squadRole]?.label ?? p.squadRole}` : ''}{p.injured ? ' · Injured' : ''}{p.transferListed ? ' · Listed' : ''}</span></span>
+              <span class="swap-row-fit" style="color:{fitnessColor(fit)}">{fit}%</span><span class="swap-row-rat">{primaryRating(p)}</span>
+            </button>
+          {/each}
+        {/if}
       {/each}
     </div>
   </div>
@@ -611,9 +810,41 @@
   .dna-card { background:color-mix(in oklch,var(--color-club) 7%,var(--color-surface)); }
   .dna-card strong { color:var(--color-club); }
 
-  /* The bench strip is gone, so the pitch takes the full remaining height. */
-  .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 10px calc(14px + env(safe-area-inset-bottom)); }
-  .pitch-wrap { width: 100%; max-width: min(560px, calc((100dvh - 210px) * .68)); aspect-ratio: 68/100; margin: 0 auto; }
+  /* The pitch takes the remaining height above the bench strip. */
+  .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 10px 4px; }
+  .pitch-wrap { width: 100%; max-width: min(560px, calc((100dvh - 310px) * .68)); aspect-ratio: 68/100; margin: 0 auto; }
+
+  /* Bench: the named matchday substitutes. Horizontally scrollable so nine
+     slots fit a 390px viewport without shrinking the pitch any further. */
+  .bench-strip { flex-shrink: 0; padding: 0 16px calc(10px + env(safe-area-inset-bottom)); }
+  .bench-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .bench-head span { display: block; color: var(--color-tx-3); font: 700 8px/1 var(--font-mono); letter-spacing: 1.1px; text-transform: uppercase; }
+  .bench-head strong { display: block; margin-top: 3px; font: 700 12px/1.15 var(--font-body); }
+  .bench-head-right { display: flex; align-items: center; gap: 8px; }
+  .bench-reserves { color: var(--color-tx-3); font: 9px var(--font-mono); }
+  .bench-auto { min-height: 44px; padding: 0 12px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-surface); color: var(--color-tx-2); font: 600 10px var(--font-mono); cursor: pointer; }
+  .bench-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .bench-row::-webkit-scrollbar { display: none; }
+  .bench-slot {
+    flex: 0 0 auto; width: 58px; min-height: 62px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 4px; border: 1px solid var(--color-line); border-radius: 9px; background: var(--color-surface);
+    color: var(--color-tx); cursor: pointer;
+  }
+  .bench-slot:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .bench-rating { font: 700 14px/1 var(--font-display); }
+  .bench-pos { padding: 1px 5px; border-radius: 4px; background: var(--color-raised); color: var(--color-tx-2); font: 700 8px/1.4 var(--font-mono); }
+  .bench-pos.pos-GK { color: #7c83e8; } .bench-pos.pos-DEF { color: var(--color-live); } .bench-pos.pos-MID { color: var(--color-warn); } .bench-pos.pos-ATT { color: var(--color-bad); }
+  .bench-empty { font: 700 14px/1 var(--font-display); color: var(--color-tx-3); }
+  .bench-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 9px var(--font-body); color: var(--color-tx-2); }
+  .bench-name-empty { color: var(--color-tx-3); }
+  /* A named substitute who cannot play keeps their seat, so the manager can see
+     they need replacing rather than finding a short bench on matchday. */
+  .bench-slot-out { border-color: var(--color-bad); opacity: .7; }
+  .bench-slot-out .bench-pos { color: var(--color-bad); }
+  /* Out-specifies `.bench-head span`, which would otherwise win and render this
+     warning in the same muted grey as the reserves count beside it. */
+  .bench-head-right .bench-short { color: var(--color-bad); font: 700 9px var(--font-mono); }
+  .bench-remove { margin-left: auto; min-height: 44px; padding: 0 14px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
   .pitch-bg { position: relative; width: 100%; height: 100%; background: linear-gradient(180deg, var(--color-turf), var(--color-turf-2)); border: 2px solid rgba(255,255,255,0.18); border-radius: 8px; overflow: hidden; }
   .pitch-line.half { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.18); }
   .pitch-circle { position: absolute; top: 50%; left: 50%; width: 22%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.18); border-radius: 50%; transform: translate(-50%, -50%); }
