@@ -1,0 +1,26 @@
+name: Close T7 docs v2
+
+on:
+  push:
+    branches:
+      - scratch/t7-balance-rollout
+    paths:
+      - .github/workflows/close-t7-docs-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: scratch/t7-balance-rollout
+      - run: python tools/close_t7_docs.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add AGENTS.md CLAUDE.md docs/plan/attribute-to-tactics-causality-2.md docs/plan/attribute-to-tactics-causality-2-status.md docs/plan/attribute-to-tactics-causality-2-t7-plan.md docs/benchmarks/match-engine-t7-calibration.md
+          git commit -m "docs(T7): close balance rollout workstream"
+          git push origin HEAD:scratch/t7-balance-rollout
