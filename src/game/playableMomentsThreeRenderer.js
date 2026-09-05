@@ -11,9 +11,9 @@ function disposeMaterial(material) {
 }
 
 export async function mountThreePlayablePoc(canvas, initialMoment) {
-  const loadStarted = performance.now();
+  const loadStarted = window.performance.now();
   const THREE = await import(/* @vite-ignore */ CANDIDATE.moduleUrl);
-  const moduleReady = performance.now();
+  const moduleReady = window.performance.now();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false, powerPreference:'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -211,7 +211,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
 
   rebuildWorld(initialMoment);
   render({ moment:initialMoment, progress:0 });
-  const readyAt = performance.now();
+  const readyAt = window.performance.now();
 
   return {
     candidate:CANDIDATE,
