@@ -3,9 +3,14 @@ import {
   MATCH_ACTION_LEDGER_VERSION,
   MATCH_RNG_PACKET_FIELDS,
   actionContestProbability,
+  buildPlayableMoment,
+  commitAuthoritativePhase,
   deriveStatsFromActionLedger,
   fixedPhaseRngPacket,
+  normalizePlayableIntent,
+  prepareAuthoritativePhase,
   resolveAuthoritativePhase,
+  resolveInteractiveShotOutcome,
   resolveShotOutcome,
 } from './matchActionResolver.js';
 
@@ -69,9 +74,9 @@ function attackingUnit(runnerPace = 76, wingerDribbling = 76) {
   ];
 }
 
-function defendingUnit(coverPace = 76) {
+function defendingUnit(coverPace = 76, keeperRating = 80) {
   return [
-    player('keeper', 'GK', {}, { tacticalRole:'goalkeeper', goalkeeping:80 }),
+    player('keeper', 'GK', {}, { tacticalRole:'goalkeeper', goalkeeping:keeperRating }),
     player('cover', 'CB', { defending:84, pace:coverPace, physical:82 }, { tacticalRole:'cover' }),
     player('fullback', 'RB', { defending:80, pace:80 }, { tacticalRole:'full_back' }),
   ];
@@ -81,8 +86,8 @@ function roles(players) {
   return Object.fromEntries(players.map(subject => [subject.id, subject.tacticalRole]));
 }
 
-function phase(players, defenders, rngPacket = packet(), instructions = {}, opponentInstructions = {}) {
-  return resolveAuthoritativePhase({
+function phaseInput(players, defenders, rngPacket = packet(), instructions = {}, opponentInstructions = {}) {
+  return {
     phase:12,
     minute:9,
     teamId:'home',
@@ -95,7 +100,11 @@ function phase(players, defenders, rngPacket = packet(), instructions = {}, oppo
     opponentInstructions,
     packet:rngPacket,
     isHome:true,
-  });
+  };
+}
+
+function phase(players, defenders, rngPacket = packet(), instructions = {}, opponentInstructions = {}) {
+  return resolveAuthoritativePhase(phaseInput(players, defenders, rngPacket, instructions, opponentInstructions));
 }
 
 describe('T3 fixed RNG packet', () => {
@@ -163,6 +172,119 @@ describe('T3 detailed attribute causality', () => {
     expect(strong.record.route).toBe('carry');
     expect(strong.record.actorId).toBe('winger');
     expect(strong.record.execution).toBeGreaterThan(weak.record.execution);
+  });
+});
+
+describe('playable moment prepare/commit seam', () => {
+  it('prepares a chance without resolving its terminal shot and keeps automatic commit identical to the public resolver', () => {
+    const attackers = attackingUnit(92);
+    const defenders = defendingUnit(70);
+    const input = phaseInput(attackers, defenders, packet({ route:.55, chance:.001, shot:.21, finish:.17 }));
+
+    const prepared = prepareAuthoritativePhase(input);
+    const committed = commitAuthoritativePhase(prepared);
+    const publicResult = resolveAuthoritativePhase(input);
+
+    expect(prepared.chance).toBeTruthy();
+    expect(prepared.shooter).toBeTruthy();
+    expect(prepared).not.toHaveProperty('shot');
+    expect(committed).toEqual(publicResult);
+  });
+
+  it('builds pre-outcome scene geometry without leaking shot or finish rolls', () => {
+    const attackers = attackingUnit(92);
+    const defenders = defendingUnit(70);
+    const first = prepareAuthoritativePhase(phaseInput(attackers, defenders, packet({ chance:.001, shot:.01, finish:.01 })));
+    const second = prepareAuthoritativePhase(phaseInput(attackers, defenders, packet({ chance:.001, shot:.99, finish:.99 })));
+
+    const firstMoment = buildPlayableMoment(first, 'home');
+    const secondMoment = buildPlayableMoment(second, 'home');
+
+    expect(firstMoment).toBeTruthy();
+    expect(secondMoment).toBeTruthy();
+    expect(firstMoment.geometry).toEqual(secondMoment.geometry);
+    expect(firstMoment.xg).toBe(secondMoment.xg);
+    expect(firstMoment.route).toBe(secondMoment.route);
+  });
+
+  it('maps a user-owned chance to attack and an opponent chance to goalkeeper control', () => {
+    const prepared = prepareAuthoritativePhase(phaseInput(attackingUnit(), defendingUnit(), packet({ chance:.001 })));
+    expect(buildPlayableMoment(prepared, 'home')?.mode).toBe('attack');
+    expect(buildPlayableMoment(prepared, 'away')?.mode).toBe('goalkeeper');
+    expect(buildPlayableMoment(prepared, 'third')).toBeNull();
+  });
+});
+
+describe('playable moment intent and spatial coherence', () => {
+  const defender = player('cover', 'CB', { defending:82, physical:82 }, { tacticalRole:'cover' });
+  const shooter = player('shooter', 'ST', { shooting:84, physical:78 }, { tacticalRole:'poacher' });
+
+  it('clamps raw pointer-derived values into a versioned normalized contract', () => {
+    expect(normalizePlayableIntent({
+      attack:{ aimX:9, aimY:-9, power:2, timing:-2 },
+      goalkeeper:{ x:-4, y:8, timing:3 },
+    })).toEqual({
+      version:1,
+      attack:{ aimX:1.25, aimY:-.2, power:1, timing:0 },
+      goalkeeper:{ x:-1, y:1, timing:1 },
+    });
+  });
+
+  it('never turns a visibly wide aim into a goal', () => {
+    const result = resolveInteractiveShotOutcome({
+      shooter,
+      defender,
+      defenders:[defender, player('keeper', 'GK', {}, { goalkeeping:80 })],
+      xg:.32,
+      packet:packet({ outcome:.99, shot:.5, finish:.5 }),
+      intent:{ attack:{ aimX:1.25, aimY:.5, power:.72, timing:1 } },
+    });
+
+    expect(result.finish).toBe('missed');
+    expect(result.goal).toBe(false);
+    expect(Math.abs(result.presentation.target.x)).toBeGreaterThan(1);
+  });
+
+  it('allows a stronger goalkeeper to cover a shot that a weak goalkeeper cannot reach', () => {
+    const common = {
+      shooter,
+      defender,
+      xg:.32,
+      packet:packet({ outcome:.99, shot:.5, finish:.5 }),
+      intent:{
+        attack:{ aimX:.5, aimY:.5, power:.72, timing:1 },
+        goalkeeper:{ x:0, y:.5, timing:.7 },
+      },
+    };
+    const weak = resolveInteractiveShotOutcome({
+      ...common,
+      defenders:[defender, player('weak-keeper', 'GK', {}, { goalkeeping:40 })],
+    });
+    const strong = resolveInteractiveShotOutcome({
+      ...common,
+      defenders:[defender, player('strong-keeper', 'GK', {}, { goalkeeping:99 })],
+    });
+
+    expect(weak.finish).toBe('goal');
+    expect(strong.finish).toBe('saved');
+    expect(strong.presentation.keeper.reach).toBeGreaterThan(weak.presentation.keeper.reach);
+  });
+
+  it('uses shooting quality to reduce seeded execution error for the same gesture', () => {
+    const average = player('average', 'ST', { shooting:58, physical:76 }, { tacticalRole:'poacher' });
+    const elite = player('elite', 'ST', { shooting:96, physical:76 }, { tacticalRole:'poacher' });
+    const common = {
+      defender,
+      defenders:[defender, player('keeper', 'GK', {}, { goalkeeping:75 })],
+      xg:.24,
+      packet:packet({ outcome:.99, shot:.9, finish:.9 }),
+      intent:{ attack:{ aimX:0, aimY:.45, power:.72, timing:.8 } },
+    };
+    const averageShot = resolveInteractiveShotOutcome({ ...common, shooter:average });
+    const eliteShot = resolveInteractiveShotOutcome({ ...common, shooter:elite });
+
+    expect(eliteShot.presentation.target.executionQuality).toBeGreaterThan(averageShot.presentation.target.executionQuality);
+    expect(Math.abs(eliteShot.presentation.target.x)).toBeLessThan(Math.abs(averageShot.presentation.target.x));
   });
 });
 
