@@ -17,6 +17,7 @@
     "balance:match:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/match-balance-report.mjs --check",
     "balance:match:update": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/match-balance-report.mjs --write",
     "balance:match:deep": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/match-balance-t7.mjs",
+    "balance:match:deep:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/match-balance-t7.mjs --matches=100 --check",
     "audit:rosters": "node tools/audit-rosters.mjs",
     "reconcile": "node tools/reconcile.mjs",
     "refresh:players": "node tools/refresh-player-data.mjs && node tools/csv-to-league.mjs",
