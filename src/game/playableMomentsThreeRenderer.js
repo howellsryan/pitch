@@ -178,7 +178,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     const rightLeg = leg(.115);
     const leftArm = arm(-.30);
     const rightArm = arm(.30);
-    return { root, torso, leftLeg, rightLeg, leftArm, rightArm, keeper };
+    return { root, torso, head, leftLeg, rightLeg, leftArm, rightArm, keeper };
   }
 
   const shooter = makeHumanoid(materials.home, materials.skinHome);
@@ -205,7 +205,8 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
   worldRoot.add(goalkeeperCue);
 
   function specialMarker() {
-    const marker = mesh(new THREE.TorusGeometry(.23, .030, 7, 22), materials.special, false);
+    const marker = mesh(new THREE.TorusGeometry(.34, .040, 8, 28), materials.special, false);
+    marker.scale.x = 1.45;
     marker.renderOrder = 9;
     marker.visible = false;
     worldRoot.add(marker);
@@ -291,6 +292,8 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
 
     // Reset a natural base stance before applying the frame pose so repeated
     // moments cannot accumulate rotations from the previous animation.
+    model.torso.rotation.set(0, 0, 0);
+    model.head.rotation.set(0, 0, 0);
     model.leftLeg.hip.rotation.set(0, 0, -.035);
     model.rightLeg.hip.rotation.set(0, 0, .035);
     model.leftLeg.knee.rotation.set(.05, 0, 0);
@@ -301,24 +304,37 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     model.rightArm.elbow.rotation.set(0, 0, .06);
 
     if (kind === 'shooter') {
+      const plantBend = Number(pose.plantBend ?? 0);
       model.rightLeg.hip.rotation.x = -pose.kick;
-      model.rightLeg.knee.rotation.x = .08 + pose.kick * .62;
+      model.rightLeg.knee.rotation.x = .08 + Math.max(0, pose.kick) * .64 + Number(pose.backswing ?? 0) * .16;
       model.leftLeg.hip.rotation.x = pose.plant;
+      model.leftLeg.knee.rotation.x = .05 + plantBend;
       model.leftArm.shoulder.rotation.z = -.14 - pose.arms;
       model.rightArm.shoulder.rotation.z = .14 + pose.arms;
+      model.leftArm.shoulder.rotation.x = -.08 - Number(pose.followThrough ?? 0) * .10;
+      model.rightArm.shoulder.rotation.x = .06 + Number(pose.followThrough ?? 0) * .08;
       model.torso.rotation.z = pose.arms * .08;
+      model.torso.rotation.y = Number(pose.torsoTwist ?? 0);
+      model.head.rotation.x = Number(pose.headDip ?? 0);
     } else if (kind === 'keeper') {
-      model.leftArm.shoulder.rotation.z = -.58 - pose.arms * .52;
-      model.rightArm.shoulder.rotation.z = .58 + pose.arms * .52;
-      model.leftArm.shoulder.rotation.x = -.08;
-      model.rightArm.shoulder.rotation.x = -.08;
-      model.leftArm.elbow.rotation.z = -.16;
-      model.rightArm.elbow.rotation.z = .16;
-      model.leftLeg.hip.rotation.z = -.12 + pose.roll * .22;
-      model.rightLeg.hip.rotation.z = .12 + pose.roll * .22;
-      model.leftLeg.knee.rotation.x = .18;
-      model.rightLeg.knee.rotation.x = .18;
-      model.torso.rotation.x = -.08 * (1 - pose.dive);
+      const crouch = Number(pose.crouch ?? 0);
+      const landing = Number(pose.landing ?? 0);
+      const push = Number(pose.push ?? 0);
+      const side = Math.sign(Number(pose.roll ?? 0)) || 1;
+      model.leftArm.shoulder.rotation.z = -.48 - pose.arms * .62;
+      model.rightArm.shoulder.rotation.z = .48 + pose.arms * .62;
+      model.leftArm.shoulder.rotation.x = -.10 - pose.dive * .24;
+      model.rightArm.shoulder.rotation.x = -.10 - pose.dive * .24;
+      model.leftArm.elbow.rotation.z = -.14 - pose.dive * .08;
+      model.rightArm.elbow.rotation.z = .14 + pose.dive * .08;
+      model.leftLeg.hip.rotation.z = -.12 + pose.roll * .20;
+      model.rightLeg.hip.rotation.z = .12 + pose.roll * .20;
+      model.leftLeg.hip.rotation.x = crouch * .16 + (side > 0 ? push * .10 : 0);
+      model.rightLeg.hip.rotation.x = crouch * .16 + (side < 0 ? push * .10 : 0);
+      model.leftLeg.knee.rotation.x = .15 + crouch * .48 + landing * .14;
+      model.rightLeg.knee.rotation.x = .15 + crouch * .48 + landing * .14;
+      model.torso.rotation.x = -.08 - crouch * .12 + landing * .08;
+      model.head.rotation.x = crouch * .04;
     } else {
       model.root.rotation.z = pose.lunge * .20;
       model.leftLeg.hip.rotation.x = -pose.lunge * .34;
@@ -366,6 +382,8 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     applyHuman(keeper, frame.keeper, 'keeper');
     applyHuman(defender, frame.defender, 'defender');
     ball.position.set(frame.ball.x, frame.ball.y, frame.ball.z);
+    ball.rotation.x = Number(frame.ball.spinX ?? 0);
+    ball.rotation.z = Number(frame.ball.spinZ ?? 0);
     resize();
     renderer.render(scene, camera);
   }
