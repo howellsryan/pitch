@@ -163,10 +163,11 @@ export function buildSquadNeeds(team, players, options = {}) {
   return needs.sort((a, b) => b.urgency - a.urgency || a.group.localeCompare(b.group) || a.position.localeCompare(b.position));
 }
 
-export function assessSquadSafety({ buyerSquad = [], sellerSquad = [], player, exchangePlayer = null } = {}) {
-  const buyerActive = buyerSquad.filter(row => isSeniorPlanningRow(row) && (!row?.onLoan || row?.loanedFrom));
+export function assessSquadSafety({ sellerSquad = [], player, exchangePlayer = null } = {}) {
   const sellerActive = sellerSquad.filter(row => isSeniorPlanningRow(row) && (!row?.onLoan || row?.loanedFrom));
-  if (buyerActive.length + (exchangePlayer ? 0 : 1) > 30) return { ok:false, reason:'buyer_squad_full' };
+  // There is deliberately no buyer squad-size ceiling: a club may register as
+  // many players as it likes. Only the *selling* side is guarded, so a transfer
+  // can never leave a club unable to field a team or without a goalkeeper.
   if (sellerActive.length - 1 + (exchangePlayer ? 1 : 0) < 16) return { ok:false, reason:'seller_squad_floor' };
   if (squadPlanningGroup(player) === 'GK') {
     const remainingKeepers = sellerActive.filter(row => row.id !== player?.id && squadPlanningGroup(row) === 'GK').length;

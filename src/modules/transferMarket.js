@@ -673,12 +673,69 @@ function withSellerCounter(deal, marketValue, weekKey) {
   });
 }
 
+/**
+ * Personal terms are the buying club's business. The manager only negotiates
+ * them when it is their own club doing the buying and they have not delegated
+ * the deal — selling a player, or watching two AI clubs trade, never puts the
+ * player's wage demands in front of them.
+ */
+function managedBuyerOwnsPersonalTerms(deal) {
+  return deal?.userSide === 'buyer' && !deal?.delegated;
+}
+
+/**
+ * How far the buying club will move on personal terms.
+ *
+ * Deliberately a wage-against-wage judgement rather than anything drawn from
+ * `budget`: that is a transfer-fee pot, and measuring an annual salary against
+ * it made a club that had spent its window walk away from almost any counter,
+ * killing sales it had already agreed a fee for. A club that has bid for a
+ * player will stretch on wages, but not without limit.
+ */
+const BUYER_WAGE_STRETCH = 1.75;
+
+function buyerCanFundPersonalTerms(offeredWage, requiredWage) {
+  const offered = Math.max(1, Number(offeredWage) || 0);
+  const required = Math.max(0, Number(requiredWage) || 0);
+  return required <= offered * BUYER_WAGE_STRETCH;
+}
+
+/**
+ * Resolve a player's improved contract demands on the buying club's behalf.
+ * Used whenever the manager is not the buyer: the club either meets the terms
+ * and the player signs, or it cannot and the move collapses.
+ */
+function resolveBuyerLedContractResponse(deal, context, weekKey, terms) {
+  if (!buyerCanFundPersonalTerms(deal.terms?.contract?.wage, terms?.contract?.wage)) {
+    return transitionMarketDeal(deal, 'rejected', {
+      weekKey, actor:'buyer', reasonCode:'buyer_declines_personal_terms', awaiting:null, stateOwner:'system', terms,
+    });
+  }
+  const settled = evaluatePlayerInterest({
+    player:context.player,
+    buyer:context.buyer,
+    seller:context.seller,
+    buyerSquad:context.buyerSquad,
+    terms,
+    save:context.save,
+    buyerHasEurope:context.buyerHasEurope,
+  });
+  if (settled.interested) {
+    return transitionMarketDeal(deal, 'agreed', {
+      weekKey, actor:'player', reasonCode:'player_accepts', interest:settled, awaiting:'completion', stateOwner:'system', terms,
+    });
+  }
+  return transitionMarketDeal(deal, 'rejected', {
+    weekKey, actor:'player', reasonCode:'player_rejects', interest:settled, awaiting:null, stateOwner:'system', terms,
+  });
+}
+
 function advanceSeller(deal, context, weekKey) {
   const marketValue = Math.max(1, Number(context.marketValue) || guaranteedFeeTotal(deal.terms));
   const offered = guaranteedFeeTotal(deal.terms);
   const releaseClause = Number(context.player?.contract?.releaseClause ?? context.player?.releaseClause) || 0;
   const ratio = offered / marketValue;
-  const managedBuyerNeedsContract = deal.userSide === 'buyer' && !deal.delegated;
+  const managedBuyerNeedsContract = managedBuyerOwnsPersonalTerms(deal);
   const playerStep = managedBuyerNeedsContract
     ? { awaiting:'user', stateOwner:'user' }
     : { awaiting:'player', stateOwner:'player' };
@@ -724,6 +781,7 @@ function advancePlayer(deal, context, weekKey) {
     if (interest.negotiableTerms.includes('signingBonus')) {
       terms.contract.signingBonus = Math.max(terms.contract.signingBonus, terms.contract.wage * 3);
     }
+    if (!managedBuyerOwnsPersonalTerms(deal)) return resolveBuyerLedContractResponse(deal, context, weekKey, terms);
     return transitionMarketDeal(deal, 'player_negotiation', { weekKey, actor:'player', reasonCode:'player_counter', interest, awaiting:'user', stateOwner:'user', terms });
   }
   return transitionMarketDeal(deal, 'rejected', { weekKey, actor:'player', reasonCode:'player_rejects', interest, awaiting:null, stateOwner:'system' });
@@ -747,16 +805,32 @@ export function isPlayerCounterAwaitingUser(deal) {
 export function projectPlayerDecisionNotifications(deals = [], userTeamId, tickKey) {
   const userId = String(userTeamId ?? '');
   if (!userId || !tickKey) return [];
-  const messages = {
+  // As the buyer, the manager made the contract offer themselves. As the
+  // seller they did not — the buying club negotiates personal terms — so the
+  // same outcomes need their own wording, and the club walking away over wages
+  // is an outcome only the selling manager ever sees.
+  const asBuyer = {
     player_accepts:{ outcome:'accepted', tone:'success', text:'accepted your contract offer.' },
     player_rejects:{ outcome:'rejected', tone:'error', text:'rejected your contract offer.' },
     player_counter:{ outcome:'countered', tone:'info', text:'has countered your contract offer.' },
   };
+  const asSeller = {
+    player_accepts:{ outcome:'accepted', tone:'success', text:'agreed personal terms. The sale is going through.' },
+    player_rejects:{ outcome:'rejected', tone:'info', text:'turned down the move on personal terms.' },
+    buyer_declines_personal_terms:{ outcome:'rejected', tone:'info', text:'stays: the buying club would not meet their wage demands.' },
+  };
   return deals.flatMap(deal => {
-    if (String(deal?.buyerTeamId) !== userId && String(deal?.sellerTeamId) !== userId) return [];
+    const isBuyer = String(deal?.buyerTeamId) === userId;
+    const isSeller = String(deal?.sellerTeamId) === userId;
+    if (!isBuyer && !isSeller) return [];
     const decision = deal?.decisionLog?.at(-1);
-    const response = messages[decision?.reasonCode];
-    if (!response || decision?.actor !== 'player' || decision?.weekKey !== tickKey) return [];
+    if (decision?.weekKey !== tickKey) return [];
+    // A renewal has the managed club on both sides; it is the manager's own
+    // offer, so it keeps the buyer-side wording.
+    const response = isBuyer
+      ? (decision?.actor === 'player' ? asBuyer[decision.reasonCode] : null)
+      : asSeller[decision?.reasonCode];
+    if (!response) return [];
     return [{
       dealId:deal.id,
       playerId:deal.playerId,

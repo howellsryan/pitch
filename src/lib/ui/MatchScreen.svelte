@@ -380,7 +380,8 @@
     const liveState = buildLiveMatchState(
       inputs.homeTeam, inputs.awayTeam, inputs.homePlayers, inputs.awayPlayers,
       inputs.homeFormation, inputs.awayFormation, inputs.homeLineup, inputs.awayLineup,
-      inputs.homeMentality, inputs.awayMentality
+      inputs.homeMentality, inputs.awayMentality,
+      { homeBench:inputs.homeBench, awayBench:inputs.awayBench }
     );
 
     live = {
