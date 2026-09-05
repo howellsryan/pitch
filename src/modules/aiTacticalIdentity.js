@@ -4,6 +4,7 @@ import {
 } from './playerModel.js';
 import {
   AI_TACTICAL_ARCHETYPES,
+  DEFAULT_TEAM_INSTRUCTIONS,
   TACTICS_PLAN_VERSION,
   chooseAIRole,
   getAITacticalProfile,
@@ -11,6 +12,7 @@ import {
   stableStringHash,
 } from './tactics.js';
 import { buildTacticalPlanFeedback } from './tacticalPlanFeedback.js';
+import { tacticalActionUsage } from './tacticalProjection.js';
 
 /**
  * T5 pure AI tactical identity selector.
@@ -22,9 +24,10 @@ import { buildTacticalPlanFeedback } from './tacticalPlanFeedback.js';
  */
 
 export const AI_TACTICAL_IDENTITY_VERSION = 1;
-export const AI_IDENTITY_SWITCH_MARGIN = 4;
+export const AI_IDENTITY_SWITCH_MARGIN = 6;
 
 const ARCHETYPE_BY_ID = new Map(AI_TACTICAL_ARCHETYPES.map(archetype => [archetype.id, archetype]));
+const BASELINE_ACTION_USAGE = tacticalActionUsage(DEFAULT_TEAM_INSTRUCTIONS);
 
 const FORMATION_SLOTS = Object.freeze({
   '4-3-3':Object.freeze(['GK','CB','CB','RB','LB','CDM','CM','CM','RW','LW','ST']),
@@ -93,6 +96,24 @@ export function selectArchetypeEleven(players = [], formation = '4-3-3') {
   };
 }
 
+function distinctiveRouteFit(feedback, instructions) {
+  const usage = tacticalActionUsage(instructions);
+  let weighted = 0;
+  let total = 0;
+
+  for (const [actionId, value] of Object.entries(feedback.profile?.actions ?? {})) {
+    // Only actions an identity intentionally asks for more often than neutral
+    // define its specialist feasibility. Shared baseline actions stay in the
+    // broader plan-fit score and cannot compress every archetype together.
+    const emphasis = Math.max(0, Number(usage[actionId] ?? 1) - Number(BASELINE_ACTION_USAGE[actionId] ?? 1));
+    if (!(emphasis > 0)) continue;
+    weighted += Number(value.execution ?? 50) * emphasis;
+    total += emphasis;
+  }
+
+  return total > 0 ? weighted / total : feedback.fitScore;
+}
+
 export function evaluateAIArchetypeFeasibility(players = [], archetypeInput) {
   const archetype = typeof archetypeInput === 'string'
     ? ARCHETYPE_BY_ID.get(archetypeInput)
@@ -114,10 +135,11 @@ export function evaluateAIArchetypeFeasibility(players = [], archetypeInput) {
     rolesById,
     instructions:profile.instructions,
   });
+  const priorityFit = distinctiveRouteFit(feedback, profile.instructions);
   const conflictPenalty = feedback.conflicts.length * 2.5;
   const missingPenalty = selected.missingSlots * 7;
   const score = aiFitClamp(
-    feedback.fitScore * .70 + selected.coverageScore * .30 - conflictPenalty - missingPenalty,
+    feedback.fitScore * .45 + priorityFit * .35 + selected.coverageScore * .20 - conflictPenalty - missingPenalty,
     0,
     100,
   );
@@ -128,6 +150,7 @@ export function evaluateAIArchetypeFeasibility(players = [], archetypeInput) {
     formation:archetype.formation,
     score:aiFitRound(score),
     actionFit:feedback.fitScore,
+    priorityFit:aiFitRound(priorityFit),
     coverageScore:selected.coverageScore,
     missingSlots:selected.missingSlots,
     conflicts:feedback.conflicts.length,
