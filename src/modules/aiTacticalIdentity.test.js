@@ -124,20 +124,24 @@ describe('T5 squad-aware AI tactical identity', () => {
 
   it('retains stable club identity unless another archetype wins by the material margin', () => {
     const squad = wideSquad();
-    let switched = null;
+    const selections = Array.from({ length:80 }, (_, index) => selectSquadAwareAIIdentity({
+      team:{ id:`identity_${index}`, league:'Premier League', reputation:78 },
+      players:squad,
+    }));
 
-    for (let index = 0; index < 80; index += 1) {
-      const selection = selectSquadAwareAIIdentity({
-        team:{ id:`identity_${index}`, league:'Premier League', reputation:78 },
-        players:squad,
-      });
-      if (selection.switched) { switched = selection; break; }
+    for (const selection of selections.filter(item => item.margin < AI_IDENTITY_SWITCH_MARGIN)) {
+      expect(selection.switched).toBe(false);
       expect(selection.archetypeId).toBe(selection.baseArchetypeId);
     }
 
-    expect(switched).not.toBeNull();
-    expect(switched.margin).toBeGreaterThanOrEqual(AI_IDENTITY_SWITCH_MARGIN);
-    expect(switched.archetypeId).not.toBe(switched.baseArchetypeId);
+    const bestMismatch = selections
+      .filter(selection => selection.evaluations[0]?.archetypeId !== selection.baseArchetypeId)
+      .sort((left, right) => right.margin - left.margin)[0];
+
+    expect(bestMismatch).toBeDefined();
+    expect(bestMismatch.margin).toBeGreaterThanOrEqual(AI_IDENTITY_SWITCH_MARGIN);
+    expect(bestMismatch.switched).toBe(true);
+    expect(bestMismatch.archetypeId).not.toBe(bestMismatch.baseArchetypeId);
   });
 
   it('is deterministic, non-mutating and falls back to legacy stable identity without squad data', () => {
