@@ -165,15 +165,15 @@ function normalizeP2LegacyInstructions(input = {}) {
 }
 
 function createP2LegacyManagerDNA(current = {}) {
-  return {
+  const legacy = {
     version:1, matches:0, wins:0, draws:0, losses:0,
     formations:{}, mentalities:{},
     pressTotal:0, directnessTotal:0, possessionTotal:0, riskTotal:0,
     youthStarts:0, possessionObservedTotal:0,
     lastFingerprint:null,
     ...(current ?? {}),
-    version:1,
   };
+  return { ...legacy, version:1 };
 }
 
 export function buildP2SaveBackfill(save) {
