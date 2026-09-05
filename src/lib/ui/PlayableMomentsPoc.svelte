@@ -18,33 +18,33 @@
   const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
-  let canvas;
-  let rendererChoice = 'three';
+  let canvas = $state();
+  let rendererChoice = $state('three');
   let controller = null;
-  let rendererError = '';
-  let rendererLoading = false;
-  let metrics = {};
+  let rendererError = $state('');
+  let rendererLoading = $state(false);
+  let metrics = $state({});
   let frameTimes = [];
-  let lifecycleResult = '';
+  let lifecycleResult = $state('');
   let animationFrame = 0;
   let animationStarted = null;
   let currentProgress = 0;
 
-  let source = 'synthetic';
-  let syntheticMode = 'attack';
-  let currentMoment = createSyntheticPlayableMoment('attack');
+  let source = $state('synthetic');
+  let syntheticMode = $state('attack');
+  let currentMoment = $state(createSyntheticPlayableMoment('attack'));
   let resolution = null;
-  let status = 'Drag or tap a target, or use the accessible controls below.';
-  let selectedLane = 0;
-  let selectedHeight = .5;
+  let status = $state('Drag or tap a target, or use the accessible controls below.');
+  let selectedLane = $state(0);
+  let selectedHeight = $state(.5);
   let pointerStart = null;
 
   let fixture = null;
-  let liveState = null;
-  let pendingContinuation = null;
-  let currentPhase = 1;
-  let fixtureEvents = [];
-  let fixtureComplete = false;
+  let liveState = $state(null);
+  let pendingContinuation = $state(null);
+  let currentPhase = $state(1);
+  let fixtureEvents = $state([]);
+  let fixtureComplete = $state(false);
 
   function makePlayer(id, position, rating = 78) {
     const attacking = ['ST','CF','RW','LW','CAM'].includes(position);
@@ -180,7 +180,7 @@
 
   function startAnimation(nextResolution) {
     resolution = nextResolution;
-    animationStarted = performance.now();
+    animationStarted = window.performance.now();
     currentProgress = reducedMotion ? 1 : 0;
     if (reducedMotion) controller?.render?.({ moment:currentMoment, resolution, progress:1 });
   }
@@ -209,7 +209,7 @@
       if (currentProgress >= 1) animationStarted = null;
     }
     controller?.render?.({ moment:currentMoment, resolution, progress:currentProgress });
-    animationFrame = requestAnimationFrame(animationLoop);
+    animationFrame = window.requestAnimationFrame(animationLoop);
   }
 
   function syntheticResolve(intent) {
@@ -325,7 +325,7 @@
 
   function pointerDown(event) {
     const point = event.touches?.[0] ?? event;
-    pointerStart = { x:point.clientX, y:point.clientY, at:performance.now() };
+    pointerStart = { x:point.clientX, y:point.clientY, at:window.performance.now() };
     event.currentTarget?.setPointerCapture?.(event.pointerId);
   }
 
@@ -338,7 +338,7 @@
       start:pointerStart,
       end:{ x:point.clientX, y:point.clientY },
       bounds,
-      durationMs:performance.now() - pointerStart.at,
+      durationMs:window.performance.now() - pointerStart.at,
     });
     pointerStart = null;
     if (intent) resolveIntent(intent);
@@ -372,16 +372,16 @@
   }
 
   function closePoc() {
-    const url = new URL(window.location.href);
+    const url = new window.URL(window.location.href);
     url.searchParams.delete('playable-poc');
     window.location.href = url.toString();
   }
 
   onMount(() => {
     mountRenderer(rendererChoice);
-    animationFrame = requestAnimationFrame(animationLoop);
+    animationFrame = window.requestAnimationFrame(animationLoop);
     return () => {
-      cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(animationFrame);
       controller?.dispose?.();
       controller = null;
     };
@@ -395,26 +395,26 @@
       <h1>Playable Key Moments</h1>
       <p>Free procedural 3D · authoritative football · no career writeback</p>
     </div>
-    <button class="ghost" type="button" on:click={closePoc}>Close POC</button>
+    <button class="ghost" type="button" onclick={closePoc}>Close POC</button>
   </header>
 
   <section class="toolbar" aria-label="POC mode controls">
     <div class="control-group">
       <span>Renderer</span>
-      {#each Object.values(PLAYABLE_POC_RENDERERS) as candidate}
+      {#each Object.values(PLAYABLE_POC_RENDERERS) as candidate (candidate.id)}
         <button
           type="button"
           class:active={rendererChoice === candidate.id}
-          on:click={() => chooseRenderer(candidate.id)}
+          onclick={() => chooseRenderer(candidate.id)}
           disabled={rendererLoading}
         >{candidate.label}</button>
       {/each}
     </div>
     <div class="control-group">
       <span>Scenario</span>
-      <button type="button" class:active={source === 'synthetic' && syntheticMode === 'attack'} on:click={() => resetSynthetic('attack')}>Synthetic shot</button>
-      <button type="button" class:active={source === 'synthetic' && syntheticMode === 'goalkeeper'} on:click={() => resetSynthetic('goalkeeper')}>Synthetic keeper</button>
-      <button type="button" class:active={source === 'authoritative'} on:click={startAuthoritativeFixture}>Real open-play fixture</button>
+      <button type="button" class:active={source === 'synthetic' && syntheticMode === 'attack'} onclick={() => resetSynthetic('attack')}>Synthetic shot</button>
+      <button type="button" class:active={source === 'synthetic' && syntheticMode === 'goalkeeper'} onclick={() => resetSynthetic('goalkeeper')}>Synthetic keeper</button>
+      <button type="button" class:active={source === 'authoritative'} onclick={startAuthoritativeFixture}>Real open-play fixture</button>
     </div>
   </section>
 
@@ -428,9 +428,11 @@
       <div
         class="stage"
         class:loading={rendererLoading}
-        on:pointerdown={pointerDown}
-        on:pointerup={pointerUp}
-        on:pointercancel={() => pointerStart = null}
+        role="group"
+        aria-label="Playable football interaction surface"
+        onpointerdown={pointerDown}
+        onpointerup={pointerUp}
+        onpointercancel={() => pointerStart = null}
       >
         <canvas bind:this={canvas} aria-label="Playable football 3D scene"></canvas>
         {#if rendererLoading}<div class="stage-message">Loading {PLAYABLE_POC_RENDERERS[rendererChoice].label}…</div>{/if}
@@ -441,13 +443,13 @@
       </div>
       <p class="status" aria-live="polite">{status}</p>
       <div class="stage-actions">
-        <button type="button" class="primary" on:click={accessibleAction} disabled={source === 'authoritative' && !pendingContinuation}>Take action</button>
-        <button type="button" on:click={simulateCurrent} disabled={source === 'authoritative' && !pendingContinuation}>Simulate</button>
+        <button type="button" class="primary" onclick={accessibleAction} disabled={source === 'authoritative' && !pendingContinuation}>Take action</button>
+        <button type="button" onclick={simulateCurrent} disabled={source === 'authoritative' && !pendingContinuation}>Simulate</button>
         {#if source === 'authoritative' && !pendingContinuation && !fixtureComplete}
-          <button type="button" on:click={findNextAuthoritativeMoment}>Next key moment</button>
+          <button type="button" onclick={findNextAuthoritativeMoment}>Next key moment</button>
         {/if}
         {#if source === 'authoritative' && fixtureComplete}
-          <button type="button" on:click={startAuthoritativeFixture}>Restart fixture</button>
+          <button type="button" onclick={startAuthoritativeFixture}>Restart fixture</button>
         {/if}
       </div>
     </section>
@@ -456,18 +458,18 @@
       <h2>Accessible controls</h2>
       <p>These controls exercise the same normalized intent contract without a drag gesture.</p>
       <div class="choice-row" aria-label="Horizontal aim">
-        <button type="button" class:active={selectedLane === -1} on:click={() => selectedLane = -1}>Left</button>
-        <button type="button" class:active={selectedLane === 0} on:click={() => selectedLane = 0}>Centre</button>
-        <button type="button" class:active={selectedLane === 1} on:click={() => selectedLane = 1}>Right</button>
+        <button type="button" class:active={selectedLane === -1} onclick={() => selectedLane = -1}>Left</button>
+        <button type="button" class:active={selectedLane === 0} onclick={() => selectedLane = 0}>Centre</button>
+        <button type="button" class:active={selectedLane === 1} onclick={() => selectedLane = 1}>Right</button>
       </div>
       <div class="choice-row" aria-label="Vertical aim">
-        <button type="button" class:active={selectedHeight === .3} on:click={() => selectedHeight = .3}>Low</button>
-        <button type="button" class:active={selectedHeight === .5} on:click={() => selectedHeight = .5}>Mid</button>
-        <button type="button" class:active={selectedHeight === .78} on:click={() => selectedHeight = .78}>High</button>
+        <button type="button" class:active={selectedHeight === .3} onclick={() => selectedHeight = .3}>Low</button>
+        <button type="button" class:active={selectedHeight === .5} onclick={() => selectedHeight = .5}>Mid</button>
+        <button type="button" class:active={selectedHeight === .78} onclick={() => selectedHeight = .78}>High</button>
       </div>
 
       <h2>Renderer evidence</h2>
-      {#each Object.values(PLAYABLE_POC_RENDERERS) as candidate}
+      {#each Object.values(PLAYABLE_POC_RENDERERS) as candidate (candidate.id)}
         {@const candidateMetrics = metrics[candidate.id]}
         <div class="metric-card" class:current={rendererChoice === candidate.id}>
           <div><strong>{candidate.label}</strong><span>{candidate.version} · {candidate.licence}</span></div>
@@ -484,7 +486,7 @@
           {/if}
         </div>
       {/each}
-      <button type="button" on:click={runLifecycleCheck} disabled={rendererLoading}>Run 20× lifecycle check</button>
+      <button type="button" onclick={runLifecycleCheck} disabled={rendererLoading}>Run 20× lifecycle check</button>
       {#if lifecycleResult}<p class="evidence-note">{lifecycleResult}</p>{/if}
       <p class="evidence-note">Reduced motion: <strong>{reducedMotion ? 'active' : 'not requested'}</strong>. Network/device/browser must be recorded with any benchmark.</p>
 
