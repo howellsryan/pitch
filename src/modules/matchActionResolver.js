@@ -614,6 +614,7 @@ export function derivePlayableMomentStaging(prepared) {
     pressureLevel,
     pressureScore:actionRound(pressureScore, 2),
     keeperStartingDepth,
+    keeperDepth,
     defenderRelationship,
   };
 }
@@ -630,7 +631,6 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
   if (!staging) return null;
 
   const channelX = staging.channel * 2.4;
-  const keeperZ = staging.keeperStartingDepth === 'advancing' ? 1.8 : staging.keeperStartingDepth === 'deep' ? .28 : .55;
   const defenderOffset = staging.channelBand === 'left' ? .75 : staging.channelBand === 'right' ? -.75 : .85;
   const defenderZ = staging.defenderRelationship === 'trailing'
     ? staging.distance + .9
@@ -661,7 +661,7 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
       legalActions:{ attack:['aim', 'power', 'timing'], goalkeeper:['position', 'timing'] },
       continuousLocomotion:false,
       shooter:{ x:channelX, y:0, z:staging.distance },
-      goalkeeper:{ x:0, y:0, z:keeperZ },
+      goalkeeper:{ x:0, y:0, z:staging.keeperDepth },
       defender:{ x:channelX + defenderOffset, y:0, z:defenderZ },
       ball:{ x:channelX, y:.11, z:staging.distance - .55 },
     },
