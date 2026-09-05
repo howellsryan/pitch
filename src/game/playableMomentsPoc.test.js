@@ -275,8 +275,8 @@ describe('Playable Key Moments synthetic drills', () => {
     expect(shot.presentation.contact).toBe('save');
   });
 
-  it.each([-1, 1])('scores a strong well-timed synthetic finish into either top corner (%s)', side => {
-    const intent = { attack:{ aimX:side * .80, aimY:.80, power:.80, timing:.86 } };
+  it.each([-1, 1])('scores every synthetic finish that lands in either visible gold top-corner zone (%s)', side => {
+    const intent = { attack:{ aimX:side * .79, aimY:.82, power:.24, timing:.25 } };
     expect(isSyntheticSpecialFinish(intent)).toBe(true);
     const shot = resolveSyntheticAttackShot(intent);
     expect(shot.finish).toBe('goal');
@@ -285,9 +285,9 @@ describe('Playable Key Moments synthetic drills', () => {
     expect(shot.presentation.contact).toBe('goal');
   });
 
-  it('still saves a top-corner attempt when power or timing is not special enough', () => {
-    expect(resolveSyntheticAttackShot({ attack:{ aimX:.80, aimY:.80, power:.52, timing:.90 } }).finish).toBe('saved');
-    expect(resolveSyntheticAttackShot({ attack:{ aimX:-.80, aimY:.80, power:.80, timing:.48 } }).finish).toBe('saved');
+  it('keeps powerful well-timed attempts outside the visible gold zone saveable', () => {
+    expect(resolveSyntheticAttackShot({ attack:{ aimX:.58, aimY:.82, power:1, timing:1 } }).finish).toBe('saved');
+    expect(resolveSyntheticAttackShot({ attack:{ aimX:-.79, aimY:.60, power:1, timing:1 } }).finish).toBe('saved');
   });
 
   it('cycles goalkeeper training shots through visible non-centre targets', () => {
@@ -326,10 +326,52 @@ describe('Playable Key Moments synthetic drills', () => {
     expect(intent.attack.aimY).toBe(.84);
     expect(intent.attack.power).toBeGreaterThan(.68);
     expect(intent.attack.timing).toBe(1);
+    expect(isSyntheticSpecialFinish(intent)).toBe(true);
   });
 });
 
 describe('Playable Key Moments POC motion contract', () => {
+  it('keeps the ball planted until foot contact and sequences backswing before follow-through', () => {
+    const moment = createSyntheticPlayableMoment('attack');
+    const resolution = {
+      shot:{
+        finish:'goal',
+        presentation:{
+          target:{ x:.79, y:.82, power:.8 },
+          keeper:{ x:.38, y:.42, timing:.74, reach:.42 },
+          contact:'goal',
+        },
+      },
+    };
+    const backswing = samplePlayablePocMotion(moment, resolution, .28);
+    const preContact = samplePlayablePocMotion(moment, resolution, .38);
+    const afterContact = samplePlayablePocMotion(moment, resolution, .52);
+
+    expect(backswing.shooter.kick).toBeLessThan(0);
+    expect(preContact.ball.x).toBeCloseTo(moment.geometry.ball.x, 6);
+    expect(preContact.ball.y).toBeCloseTo(moment.geometry.ball.y, 6);
+    expect(preContact.ball.z).toBeCloseTo(moment.geometry.ball.z, 6);
+    expect(afterContact.shooter.kick).toBeGreaterThan(0);
+    expect(afterContact.ball.z).toBeLessThan(moment.geometry.ball.z);
+    expect(afterContact.ball.spinX).toBeGreaterThan(0);
+  });
+
+  it('makes the keeper set, push, extend and land after the strike instead of sliding early', () => {
+    const moment = createSyntheticPlayableMoment('goalkeeper', 1);
+    const shot = resolveSyntheticGoalkeeperShot(moment, {
+      goalkeeper:{ x:moment.syntheticTarget.x, y:moment.syntheticTarget.y, timing:.85 },
+    });
+    const preContact = samplePlayablePocMotion(moment, { shot }, .40);
+    const extension = samplePlayablePocMotion(moment, { shot }, .65);
+    const landing = samplePlayablePocMotion(moment, { shot }, .78);
+
+    expect(preContact.keeper.crouch).toBeGreaterThan(0);
+    expect(preContact.keeper.dive).toBeCloseTo(0, 6);
+    expect(extension.keeper.dive).toBeGreaterThan(.5);
+    expect(Math.abs(extension.keeper.roll)).toBeGreaterThan(.1);
+    expect(landing.keeper.landing).toBeGreaterThan(.5);
+  });
+
   it('returns the shooter and goalkeeper to a neutral pose after strike/dive recovery', () => {
     const moment = createSyntheticPlayableMoment('attack');
     const resolution = {
