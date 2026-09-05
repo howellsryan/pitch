@@ -44,10 +44,10 @@ jobs:
       - run: npm run lint
       - run: npm run test
 
-      # T7 exploratory calibration. This is intentionally separate from the
-      # unchanged fast balance gate inside npm test while the deeper reviewed
-      # thresholds are being established.
-      - run: npm run balance:match:deep -- --matches=40
+      # T7 deep calibration remains separate from the unchanged fast balance
+      # gate inside npm test. The final reviewed matrix uses 100 paired seeds
+      # across all 25 scenarios (5,000 authoritative simulations).
+      - run: npm run balance:match:deep -- --matches=100
 
       - run: npm run check:accents
 
