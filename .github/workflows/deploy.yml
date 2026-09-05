@@ -43,6 +43,12 @@ jobs:
       - run: npm run build:app
       - run: npm run lint
       - run: npm run test
+
+      # T7 exploratory calibration. This is intentionally separate from the
+      # unchanged fast balance gate inside npm test while the deeper reviewed
+      # thresholds are being established.
+      - run: npm run balance:match:deep -- --matches=40
+
       - run: npm run check:accents
 
       # Kept for debugging — the legacy single-file build, downloadable from
