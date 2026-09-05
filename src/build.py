@@ -56,8 +56,9 @@ MODULES += [
     # T3/T4/T5 share one action/fit stack. T5's squad-aware AI identity consumes
     # projection and plan feedback; careerTacticalFit then reuses that identity
     # plus the projection weights for recruitment/loans. managerTactics consumes
-    # the same AI identity for Team News. Keep all of them before downstream
-    # career and authoritative resolver/engine consumers in the legacy bundle.
+    # the same AI identity for Team News. T6's compact tactical analysis is a
+    # pure ledger projection consumed by finaliseLiveMatch. Keep all of them
+    # before downstream career and authoritative engine consumers in the legacy bundle.
     ('modules/matchActionVocabulary.js', 'MATCH ACTION VOCABULARY'),
     ('modules/tacticalProjection.js', 'TACTICAL PROJECTION'),
     ('modules/tacticalPlanFeedback.js', 'TACTICAL PLAN FEEDBACK'),
@@ -65,6 +66,7 @@ MODULES += [
     ('modules/careerTacticalFit.js', 'CAREER TACTICAL FIT'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
     ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
+    ('modules/matchTacticalAnalysis.js', 'MATCH TACTICAL ANALYSIS'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/startingFreeAgents.js','STARTING FREE AGENTS'),
     ('modules/standings.js',        'STANDINGS'),
