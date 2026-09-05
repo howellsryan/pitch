@@ -196,7 +196,10 @@ export function evaluatePlayableMomentSelection({ moment, session, liveState = n
   const opponentGoals = session.userIsHome ? numeric(state.aGoals) : numeric(state.hGoals);
   const scoreGap = Math.abs(userGoals - opponentGoals);
   const recent = session.history.slice(-2);
-  const repeatedMode = recent.length >= 1 && recent.at(-1)?.mode === moment.mode;
+  const previous = recent.at(-1) ?? null;
+  const repeatedMode = previous?.mode === moment.mode;
+  const stagingVariant = moment.geometry?.staging?.variant ?? null;
+  const repeatedVariant = Boolean(stagingVariant && previous?.variant === stagingVariant);
 
   // Selection is strictly pre-finish. It uses chance context, score/minute,
   // event importance and match pacing, never packet.shot / packet.finish or
@@ -208,6 +211,7 @@ export function evaluatePlayableMomentSelection({ moment, session, liveState = n
   if (moment.mode === 'goalkeeper') probability += .025;
   probability += playableMatchImportance(session.event);
   if (repeatedMode) probability -= .08;
+  if (repeatedVariant) probability -= .06;
   probability = clamp(probability, .14, .78);
 
   const roll = playableStableRoll(`${session.sessionId}|${phase}|${moment.mode}|${moment.shooterId}|${xg.toFixed(3)}`);
@@ -269,6 +273,7 @@ export function commitPlayableMomentToSession(session, { momentId, intent = null
     phase:receipt.phase,
     minute:session.pending.moment.minute,
     mode:receipt.mode,
+    variant:session.pending.moment.geometry?.staging?.variant ?? null,
     finish:authoritativeResolution.shot?.finish ?? authoritativeResolution.finish ?? null,
   };
   return {
