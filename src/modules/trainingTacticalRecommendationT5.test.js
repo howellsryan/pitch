@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { automaticPlanRecommendation, automaticPlanRecommendationDetail } from './training.js';
+import { automaticPlanRecommendation } from './training.js';
+import { automaticPlanRecommendationDetail } from './trainingTacticalRecommendation.js';
 
 const possessionProfile = {
   id:'controller', formation:'4-3-3', mentality:'possession', version:2,
@@ -36,9 +37,9 @@ function player(position = 'CM', overrides = {}) {
 
 describe('T5.4 action-aware training recommendations', () => {
   it('preserves recovery, sharpness and position-conversion priorities ahead of tactics', () => {
-    expect(automaticPlanRecommendation(player('CM', { injured:true }), { tacticalProfile:possessionProfile, roleId:'advanced_playmaker' })).toBe('recovery');
-    expect(automaticPlanRecommendation(player('CM', { sharpness:20 }), { tacticalProfile:pressProfile, roleId:'ball_winner' })).toBe('sharpness');
-    expect(automaticPlanRecommendation(player('CM', { positionConversion:{ targetPosition:'CDM' } }), { tacticalProfile:pressProfile, roleId:'ball_winner' })).toBe('position_conversion');
+    expect(automaticPlanRecommendationDetail(player('CM', { injured:true }), { tacticalProfile:possessionProfile, roleId:'advanced_playmaker' }).id).toBe('recovery');
+    expect(automaticPlanRecommendationDetail(player('CM', { sharpness:20 }), { tacticalProfile:pressProfile, roleId:'ball_winner' }).id).toBe('sharpness');
+    expect(automaticPlanRecommendationDetail(player('CM', { positionConversion:{ targetPosition:'CDM' } }), { tacticalProfile:pressProfile, roleId:'ball_winner' }).id).toBe('position_conversion');
   });
 
   it('keeps the pre-T5.4 positional recommendation when no tactical context is supplied', () => {
@@ -46,6 +47,7 @@ describe('T5.4 action-aware training recommendations', () => {
     expect(automaticPlanRecommendation(player('CB'))).toBe('defending');
     expect(automaticPlanRecommendation(player('CM'))).toBe('creation');
     expect(automaticPlanRecommendation(player('GK', { goalkeeping:82 }))).toBe('role');
+    expect(automaticPlanRecommendationDetail(player('CM')).id).toBe('creation');
   });
 
   it('can recommend different development families for the same midfielder under different assigned roles', () => {
