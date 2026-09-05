@@ -26,6 +26,7 @@ export const MATCH_ACTION_LEDGER_VERSION = 1;
 export const MATCH_RNG_PACKET_VERSION = 1;
 export const PLAYABLE_MOMENT_VERSION = 1;
 export const PLAYABLE_INTENT_VERSION = 1;
+export const PLAYABLE_STAGING_VERSION = 1;
 
 export const MATCH_RNG_PACKET_FIELDS = Object.freeze([
   'possession',
@@ -570,6 +571,53 @@ export function prepareAuthoritativePhase({
   };
 }
 
+export function derivePlayableMomentStaging(prepared) {
+  if (!prepared?.packet || !prepared?.chance || !prepared?.shooter) return null;
+
+  // Phase 3 staging is a projection of pre-finish football context only. It may
+  // use route/chance quality, the already-selected pressure defender and packet
+  // fields consumed before terminal finish, but never packet.shot/packet.finish
+  // or a would-have-been automatic result.
+  const xg = actionClamp(Number(prepared.xg ?? .1), .035, .48);
+  const channel = actionRound((Number(prepared.packet.target ?? .5) - .5) * 1.4, 3);
+  const channelBand = channel < -.28 ? 'left' : channel > .28 ? 'right' : 'central';
+  const distanceBand = xg <= .12 ? 'edge' : xg >= .30 ? 'close' : 'box';
+  const oneOnOne = prepared.route === 'pass_into_space' && xg >= .20;
+  const keeperStartingDepth = oneOnOne ? (xg >= .30 ? 'advancing' : 'deep') : 'set';
+
+  const pressureScore = actionWeightedDetailed(prepared.pressureDefender, TACTICAL_ACTION_DEFS.shot?.counter);
+  const pressureLevel = pressureScore < 66 ? 'low' : pressureScore >= 84 ? 'high' : 'medium';
+  const defenderRelationship = pressureLevel === 'low' ? 'trailing' : pressureLevel === 'high' ? 'goal_side' : 'closing';
+
+  let variant;
+  if (oneOnOne) variant = keeperStartingDepth === 'advancing' ? 'one_on_one_advancing_keeper' : 'one_on_one_deep_keeper';
+  else if (distanceBand === 'edge') variant = 'edge_of_box_attempt';
+  else if (distanceBand === 'close') variant = 'close_range_attempt';
+  else if (channelBand === 'left') variant = 'left_channel_snapshot';
+  else if (channelBand === 'right') variant = 'right_channel_snapshot';
+  else variant = 'central_snapshot';
+
+  const distance = distanceBand === 'edge'
+    ? actionRound(18.5 - xg * 8, 2)
+    : distanceBand === 'close'
+      ? actionRound(9.6 - (xg - .30) * 12, 2)
+      : actionRound(15.2 - (xg - .12) * 18, 2);
+  const keeperDepth = keeperStartingDepth === 'advancing' ? 1.8 : keeperStartingDepth === 'deep' ? .28 : .55;
+
+  return {
+    version:PLAYABLE_STAGING_VERSION,
+    variant,
+    channel,
+    channelBand,
+    distance,
+    distanceBand,
+    pressureLevel,
+    pressureScore:actionRound(pressureScore, 2),
+    keeperStartingDepth,
+    defenderRelationship,
+  };
+}
+
 export function buildPlayableMoment(prepared, controlledTeamId) {
   if (!prepared?.chance || !prepared?.shooter || !controlledTeamId) return null;
   const mode = prepared.teamId === controlledTeamId
@@ -578,8 +626,18 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
   if (!mode) return null;
   const keeper = actionGoalkeeper(prepared.defenders);
   if (!keeper) return null;
-  const channel = actionRound((prepared.packet.target - .5) * 1.4, 3);
-  const distance = actionRound(7 + (1 - Number(prepared.xg ?? .1)) * 11, 2);
+  const staging = derivePlayableMomentStaging(prepared);
+  if (!staging) return null;
+
+  const channelX = staging.channel * 2.4;
+  const keeperZ = staging.keeperStartingDepth === 'advancing' ? 1.8 : staging.keeperStartingDepth === 'deep' ? .28 : .55;
+  const defenderOffset = staging.channelBand === 'left' ? .75 : staging.channelBand === 'right' ? -.75 : .85;
+  const defenderZ = staging.defenderRelationship === 'trailing'
+    ? staging.distance + .9
+    : staging.defenderRelationship === 'goal_side'
+      ? Math.max(2.3, staging.distance * .52)
+      : Math.max(2.8, staging.distance * .70);
+
   return {
     version:PLAYABLE_MOMENT_VERSION,
     phase:prepared.phase,
@@ -597,11 +655,15 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
     geometry:{
       coordinateSystem:'goal-facing-v1',
       goal:{ width:7.32, height:2.44 },
-      channel,
-      distance,
-      shooter:{ x:channel * 2.4, y:0, z:distance },
-      goalkeeper:{ x:0, y:0, z:.35 },
-      ball:{ x:channel * 2.4, y:.11, z:distance - .55 },
+      channel:staging.channel,
+      distance:staging.distance,
+      staging,
+      legalActions:{ attack:['aim', 'power', 'timing'], goalkeeper:['position', 'timing'] },
+      continuousLocomotion:false,
+      shooter:{ x:channelX, y:0, z:staging.distance },
+      goalkeeper:{ x:0, y:0, z:keeperZ },
+      defender:{ x:channelX + defenderOffset, y:0, z:defenderZ },
+      ball:{ x:channelX, y:.11, z:staging.distance - .55 },
     },
   };
 }
