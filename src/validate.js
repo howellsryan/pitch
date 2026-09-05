@@ -341,7 +341,8 @@ chk('enterGame is the single reveal path (boot no longer inlines it)', (() => {
 chk('Key player card in Team News', matchScreenSrc.includes('tn-inform-card'));
 chk('Competition badge in Team News', matchScreenSrc.includes('tn-comp-badge'));
 chk('Sim Instantly action', matchScreenSrc.includes('Sim Instantly') && matchScreenSrc.includes('function simInstant'));
-chk('Kick Off action', matchScreenSrc.includes('Kick Off') && matchScreenSrc.includes('function startWatch'));
+chk('Watch Match action', matchScreenSrc.includes('Watch Match') && matchScreenSrc.includes('function startWatch'));
+chk('Play Key Moments action', matchScreenSrc.includes('Play Key Moments') && matchScreenSrc.includes('function startPlayableKeyMoments'));
 
 // ══ 5. MATCH ENGINE ══════════════════════════════════════════
 section('5. Match Engine');
@@ -1380,19 +1381,24 @@ chk('REG: awayGoals count matches away goal events', regFin.awayGoals===regGoalE
 
 section('Regression: User Home/Away Player Mapping');
 
-// --- REG-2: When user is AWAY, startWatch() must pass userPlayers correctly ---
-// This tests the code path, not the async function. ui/prematch.js's
-// _launchWatchMatch became MatchScreen.svelte's resolveMatchTeams()/
-// startWatch() (Phase 5, docs/plan/04-migration-phases.md) — check that
-// source instead. We verify the source code resolves userPlayers/oppPlayers
-// based on resolved.userIsHome, not hardcoded to the home side.
-const launchSrc = (()=>{
-  const start=matchScreenSrc.indexOf('async function startWatch');
+// --- REG-2: Watch and Play Key Moments share the same venue-side mapping ---
+// MatchScreen now centralises managed-match construction in buildInputs()/
+// startManagedMatch(), so both Watch Match and Play Key Moments consume the
+// same P2 adapter rather than duplicating home/away player mapping.
+const managedInputSrc = (()=>{
+  const start=matchScreenSrc.indexOf('function buildInputs');
   if(start===-1) return '';
-  return matchScreenSrc.slice(start, start+3000);
+  return matchScreenSrc.slice(start, start+1800);
 })();
-chk('REG: startWatch resolves userPlayers from resolved.userIsHome', launchSrc.includes('userPlayers: resolved.userIsHome ? resolved.homePlayers : resolved.awayPlayers'));
-chk('REG: startWatch resolves oppPlayers from resolved.userIsHome', launchSrc.includes('oppPlayers:  resolved.userIsHome ? resolved.awayPlayers : resolved.homePlayers') || launchSrc.includes('oppPlayers: resolved.userIsHome ? resolved.awayPlayers : resolved.homePlayers'));
+const managedStartSrc = (()=>{
+  const start=matchScreenSrc.indexOf('async function startManagedMatch');
+  if(start===-1) return '';
+  return matchScreenSrc.slice(start, start+4200);
+})();
+chk('REG: managed matches map venue side through resolved.userIsHome', managedInputSrc.includes('userIsHome:resolved.userIsHome'));
+chk('REG: Watch and Play share buildInputs', managedStartSrc.includes('const inputs = buildInputs(matchCtx, resolved)'));
+chk('REG: Watch delegates to shared managed lifecycle', matchScreenSrc.includes('startManagedMatch(false)'));
+chk('REG: Play Key Moments delegates to shared managed lifecycle', matchScreenSrc.includes('startManagedMatch(true)'));
 
 // --- REG-3: Behavioural test — user away, bench/active must be user's players ---
 const regH2={id:'reg_h2',name:'RegHome2',crest:'H',reputation:85};
@@ -2071,8 +2077,8 @@ chk('INBOX: inbox initialised in startNewGame',    code.includes('inbox:        
 chk('INBOX: newsMatchResult wired after match',    matchScreenSrc.includes('newsMatchResult(result, matchCtx.save)'));
 chk('INBOX: newsPlayerSigned wired after buy',     code.includes('newsPlayerSigned(player'));
 chk('INBOX: newsPlayerSold wired after sell',      code.includes('newsPlayerSold(pl'));
-chk('INBOX: newsInjury wired in MatchScreen.svelte', matchScreenSrc.includes('newsInjury({ name: inj.playerName'));
-chk('INBOX: newsAIBid wired in MatchScreen.svelte',  matchScreenSrc.includes('newsAIBid({ name: o.playerName'));
+chk('INBOX: newsInjury wired in MatchScreen.svelte', matchScreenSrc.includes('newsInjury({ name:inj.playerName'));
+chk('INBOX: newsAIBid wired in MatchScreen.svelte',  matchScreenSrc.includes('newsAIBid({ name:o.playerName'));
 chk('INBOX: newsSeasonEnd wired in handleEOS',     code.includes('newsSeasonEnd('));
 chk('INBOX: newsYouthPromotion wired in academy',  code.includes('newsYouthPromotion('));
 chk('INBOX: inbox tab CSS defined',               code.includes('inbox-tab'));
