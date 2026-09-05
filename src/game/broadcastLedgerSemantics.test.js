@@ -24,7 +24,7 @@ describe('T6 authoritative broadcast semantics', () => {
     ['wide_delivery','Wide attack · delivery','WIDE DELIVERY · INTO THE BOX','shapes a delivery'],
   ])('distinguishes the %s route without changing the record', (route, label, action, detail) => {
     const input = record({ route });
-    const before = structuredClone(input);
+    const before = JSON.parse(JSON.stringify(input));
     const presentation = describeBroadcastLedgerRecord(input, { playersById, stage:'route' });
 
     expect(presentation).toMatchObject({ label, action });
