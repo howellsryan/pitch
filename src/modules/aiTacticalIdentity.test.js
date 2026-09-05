@@ -77,6 +77,29 @@ function wideSquad() {
   ];
 }
 
+function compactCounterSquad() {
+  const stopper = { pace:44, passing:62, dribbling:38, defending:96, physical:97 };
+  const fullBack = { pace:62, passing:68, dribbling:46, defending:91, physical:94 };
+  const worker = { pace:76, passing:78, dribbling:45, defending:84, physical:94 };
+  const wideRunner = { pace:94, passing:80, dribbling:58, shooting:78, defending:70, physical:92 };
+  const runner = { pace:98, passing:74, dribbling:55, shooting:91, defending:42, physical:96 };
+  return [
+    player('cgk','GK',{ pace:42, passing:58, defending:78, physical:88 }, 80),
+    player('ccb1','CB',stopper, 84),
+    player('ccb2','CB',stopper, 84),
+    player('crb','RB',fullBack, 82),
+    player('clb','LB',fullBack, 82),
+    player('ccm1','CM',worker, 82),
+    player('ccm2','CM',worker, 82),
+    player('crm','RM',wideRunner, 84),
+    player('clm','LM',wideRunner, 84),
+    player('cst1','ST',runner, 86),
+    player('cst2','ST',{ ...runner, pace:96, shooting:89 }, 85),
+    player('cdm','CDM',{ ...worker, defending:90 }, 81),
+    player('ccb3','CB',{ ...stopper, pace:46 }, 80),
+  ];
+}
+
 function verticalPressSquad(defenderPace) {
   const fastFront = { pace:94, passing:80, dribbling:87, shooting:84, physical:88 };
   return [
@@ -122,26 +145,20 @@ describe('T5 squad-aware AI tactical identity', () => {
     expect(quick.actionFit).toBeGreaterThan(slow.actionFit);
   });
 
-  it('retains stable club identity unless another archetype wins by the material margin', () => {
-    const squad = wideSquad();
-    const selections = Array.from({ length:80 }, (_, index) => selectSquadAwareAIIdentity({
-      team:{ id:`identity_${index}`, league:'Premier League', reputation:78 },
-      players:squad,
-    }));
+  it('retains a versatile squad identity but switches a materially mismatched specialist squad', () => {
+    const controllerTeam = { id:'identity_5', league:'Premier League', reputation:78 };
+    expect(getAITacticalProfile(controllerTeam).id).toBe('controller');
 
-    for (const selection of selections.filter(item => item.margin < AI_IDENTITY_SWITCH_MARGIN)) {
-      expect(selection.switched).toBe(false);
-      expect(selection.archetypeId).toBe(selection.baseArchetypeId);
-    }
+    const versatile = selectSquadAwareAIIdentity({ team:controllerTeam, players:wideSquad() });
+    expect(versatile.margin).toBeLessThan(AI_IDENTITY_SWITCH_MARGIN);
+    expect(versatile.switched).toBe(false);
+    expect(versatile.archetypeId).toBe('controller');
 
-    const bestMismatch = selections
-      .filter(selection => selection.evaluations[0]?.archetypeId !== selection.baseArchetypeId)
-      .sort((left, right) => right.margin - left.margin)[0];
-
-    expect(bestMismatch).toBeDefined();
-    expect(bestMismatch.margin).toBeGreaterThanOrEqual(AI_IDENTITY_SWITCH_MARGIN);
-    expect(bestMismatch.switched).toBe(true);
-    expect(bestMismatch.archetypeId).not.toBe(bestMismatch.baseArchetypeId);
+    const specialist = selectSquadAwareAIIdentity({ team:controllerTeam, players:compactCounterSquad() });
+    expect(specialist.evaluations[0]?.archetypeId).toBe('compact_counter');
+    expect(specialist.margin).toBeGreaterThanOrEqual(AI_IDENTITY_SWITCH_MARGIN);
+    expect(specialist.switched).toBe(true);
+    expect(specialist.archetypeId).toBe('compact_counter');
   });
 
   it('is deterministic, non-mutating and falls back to legacy stable identity without squad data', () => {
