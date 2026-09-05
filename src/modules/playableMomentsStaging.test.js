@@ -115,6 +115,7 @@ describe('Phase 3 playable staging projection', () => {
     expect(oneOnOneDeep.keeperStartingDepth).toBe('deep');
     expect(oneOnOneAdvancing.variant).toBe('one_on_one_advancing_keeper');
     expect(oneOnOneAdvancing.keeperStartingDepth).toBe('advancing');
+    expect(oneOnOneAdvancing.keeperDepth).toBeGreaterThan(oneOnOneDeep.keeperDepth);
   });
 
   it('derives pressure from the already-authorized pressure defender rather than terminal outcome', () => {
@@ -134,6 +135,8 @@ describe('Phase 3 playable staging projection', () => {
 
     expect(attackMoment.geometry.staging.variant).toBe('one_on_one_deep_keeper');
     expect(keeperMoment.geometry.staging.variant).toBe('one_on_one_advancing_keeper');
+    expect(attackMoment.geometry.goalkeeper.z).toBe(attackMoment.geometry.staging.keeperDepth);
+    expect(keeperMoment.geometry.goalkeeper.z).toBe(keeperMoment.geometry.staging.keeperDepth);
     expect(keeperMoment.geometry.goalkeeper.z).toBeGreaterThan(attackMoment.geometry.goalkeeper.z);
     expect(attackMoment.geometry.legalActions).toEqual({ attack:['aim', 'power', 'timing'], goalkeeper:['position', 'timing'] });
     expect(attackMoment.geometry.continuousLocomotion).toBe(false);
