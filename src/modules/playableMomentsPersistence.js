@@ -17,6 +17,13 @@ import {
  * or adding another gameweek queue/store.
  */
 
+function assertActiveSessionSlot(session, current = null) {
+  const activeSlotId = getActiveSlotId();
+  if (session?.slotId !== activeSlotId) throw new Error('PLAYABLE_SESSION_SLOT_STALE');
+  if (current?.slotId && current.slotId !== activeSlotId) throw new Error('PLAYABLE_SAVE_SLOT_STALE');
+  return activeSlotId;
+}
+
 function nextSaveRow(current, playableMatchSession) {
   return {
     ...current,
@@ -64,9 +71,11 @@ async function atomicSaveMutation(mutator) {
 export async function startPlayableMatchSessionAtomic(session) {
   assertSupportedPlayableSession(session);
   return atomicSaveMutation(current => {
+    assertActiveSessionSlot(session, current);
     const existing = current.playableMatchSession ?? null;
     if (existing) {
       assertSupportedPlayableSession(existing);
+      assertActiveSessionSlot(existing, current);
       if (existing.sessionId === session.sessionId) {
         return { write:false, result:{ session:existing, idempotent:true } };
       }
@@ -79,9 +88,11 @@ export async function startPlayableMatchSessionAtomic(session) {
 export async function persistPlayableSessionAtomic(session, { expectedSessionId, expectedRevision } = {}) {
   assertSupportedPlayableSession(session);
   return atomicSaveMutation(current => {
+    assertActiveSessionSlot(session, current);
     const existing = current.playableMatchSession ?? null;
     if (!existing) throw new Error('PLAYABLE_SESSION_MISSING');
     assertSupportedPlayableSession(existing);
+    assertActiveSessionSlot(existing, current);
     if (expectedSessionId && existing.sessionId !== expectedSessionId) throw new Error('PLAYABLE_SESSION_STALE');
     if (expectedRevision != null && existing.revision !== expectedRevision) throw new Error('PLAYABLE_SESSION_REVISION_STALE');
     if (session.sessionId !== existing.sessionId) throw new Error('PLAYABLE_SESSION_ID_CHANGED');
@@ -94,9 +105,11 @@ export async function commitPlayableMomentAtomic({ sessionId, momentId, expected
   assertSupportedPlayableSession(nextSession);
   if (!sessionId || !momentId || !receipt) throw new Error('PLAYABLE_COMMIT_ARGUMENTS_INVALID');
   return atomicSaveMutation(current => {
+    assertActiveSessionSlot(nextSession, current);
     const existing = current.playableMatchSession ?? null;
     if (!existing) throw new Error('PLAYABLE_SESSION_MISSING');
     assertSupportedPlayableSession(existing);
+    assertActiveSessionSlot(existing, current);
     if (existing.sessionId !== sessionId) throw new Error('PLAYABLE_SESSION_STALE');
 
     if (existing.lastReceipt?.momentId === momentId) {
@@ -119,6 +132,7 @@ export async function clearPlayableMatchSessionAtomic({ sessionId, expectedRevis
     const existing = current.playableMatchSession ?? null;
     if (!existing) return { write:false, result:{ cleared:true, idempotent:true } };
     assertSupportedPlayableSession(existing);
+    assertActiveSessionSlot(existing, current);
     if (existing.sessionId !== sessionId) throw new Error('PLAYABLE_SESSION_STALE');
     if (expectedRevision != null && existing.revision !== expectedRevision) throw new Error('PLAYABLE_SESSION_REVISION_STALE');
     return { session:null, result:{ cleared:true, idempotent:false } };
