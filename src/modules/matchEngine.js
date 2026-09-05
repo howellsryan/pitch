@@ -783,7 +783,7 @@ export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
   const state = refreshLiveMatchState(liveState);
   const fitnessUpdates = [];
   for (const player of state.hElev) fitnessUpdates.push({ id:player.id, teamId:homeTeam.id, newFitness:Math.max(30, state.hFitness.get(player.id) ?? 65) });
-  for (const player of state.aElev) fitnessUpdates.push({ id:player.id, teamId:awayTeam.id, newFitness:Math.max(30, state.hFitness.get(player.id) ?? 65) });
+  for (const player of state.aElev) fitnessUpdates.push({ id:player.id, teamId:awayTeam.id, newFitness:Math.max(30, state.aFitness.get(player.id) ?? 65) });
   const events = [...(allEvents ?? [])].sort((left, right) => left.minute - right.minute);
   const hasAuthoritativeLedger = Array.isArray(state.actionLedger);
   const ledger = hasAuthoritativeLedger ? state.actionLedger : [];
