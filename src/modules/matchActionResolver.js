@@ -24,6 +24,8 @@ import { normalizeTeamInstructions, resolvePlayerRole, stableStringHash } from '
 export const MATCH_ACTION_RESOLVER_VERSION = 2;
 export const MATCH_ACTION_LEDGER_VERSION = 1;
 export const MATCH_RNG_PACKET_VERSION = 1;
+export const PLAYABLE_MOMENT_VERSION = 1;
+export const PLAYABLE_INTENT_VERSION = 1;
 
 export const MATCH_RNG_PACKET_FIELDS = Object.freeze([
   'possession',
@@ -362,6 +364,119 @@ export function resolveShotOutcome({ shooter, defender, defenders = [], xg, pack
   };
 }
 
+function playableIntentAxis(value, fallback, min, max) {
+  const numeric = Number(value);
+  return actionClamp(Number.isFinite(numeric) ? numeric : fallback, min, max);
+}
+
+export function normalizePlayableIntent(input = {}) {
+  const attackInput = input?.attack && typeof input.attack === 'object' ? input.attack : null;
+  const keeperInput = input?.goalkeeper && typeof input.goalkeeper === 'object' ? input.goalkeeper : null;
+  return {
+    version:PLAYABLE_INTENT_VERSION,
+    attack:attackInput ? {
+      aimX:playableIntentAxis(attackInput.aimX, 0, -1.25, 1.25),
+      aimY:playableIntentAxis(attackInput.aimY, .45, -.2, 1.2),
+      power:playableIntentAxis(attackInput.power, .65, 0, 1),
+      timing:playableIntentAxis(attackInput.timing, .65, 0, 1),
+    } : null,
+    goalkeeper:keeperInput ? {
+      x:playableIntentAxis(keeperInput.x, 0, -1, 1),
+      y:playableIntentAxis(keeperInput.y, .45, 0, 1),
+      timing:playableIntentAxis(keeperInput.timing, .65, 0, 1),
+    } : null,
+  };
+}
+
+function automaticAttackIntent(packet, xg, shooting) {
+  const execution = actionClamp((shooting - 45) / 54, 0, 1);
+  return {
+    aimX:actionClamp((packet.shot - .5) * (1.45 - execution * .45), -.96, .96),
+    aimY:actionClamp(.18 + packet.finish * .66, .08, .92),
+    power:actionClamp(.52 + xg * .72 + execution * .10, .45, .94),
+    timing:actionClamp(.46 + execution * .42, .35, .92),
+  };
+}
+
+function playableTrajectory({ attack, packet, shooting, pressure }) {
+  const timingQuality = actionClamp(attack.timing, 0, 1);
+  const powerControl = 1 - Math.abs(actionClamp(attack.power, 0, 1) - .72) * .85;
+  const executionQuality = actionClamp((shooting / 100) * .62 + timingQuality * .27 + powerControl * .11, .08, .98);
+  const pressurePenalty = actionClamp((pressure - 55) / 100, 0, .35);
+  const spread = actionClamp(.38 - executionQuality * .28 + pressurePenalty, .035, .42);
+  const jitterX = (packet.finish - .5) * 2 * spread;
+  const jitterY = (packet.shot - .5) * 2 * spread * .58;
+  return {
+    x:actionRound(attack.aimX + jitterX, 4),
+    y:actionRound(attack.aimY + jitterY, 4),
+    power:actionRound(attack.power, 4),
+    executionQuality:actionRound(executionQuality, 4),
+  };
+}
+
+function automaticKeeperIntent({ target, packet, keeping }) {
+  const ability = actionClamp((keeping - 35) / 64, 0, 1);
+  const error = .62 - ability * .46;
+  return {
+    x:actionClamp(target.x + (packet.finish - .5) * 2 * error, -1, 1),
+    y:actionClamp(target.y + (packet.shot - .5) * error * .72, 0, 1),
+    timing:actionClamp(.48 + ability * .42, .4, .92),
+  };
+}
+
+export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [], xg, packet, intent = {} }) {
+  const shotDef = TACTICAL_ACTION_DEFS.shot;
+  const shooting = actionWeightedDetailed(shooter, shotDef.execution);
+  const pressure = actionWeightedDetailed(defender, shotDef.counter);
+  const keeper = actionGoalkeeper(defenders);
+  const keeping = Number(effectiveAttribute(keeper, 'goalkeeping') ?? keeper?.goalkeeping ?? 50);
+  const normalizedIntent = normalizePlayableIntent(intent);
+  const attack = normalizedIntent.attack ?? automaticAttackIntent(packet, xg, shooting);
+  const target = playableTrajectory({ attack, packet, shooting, pressure });
+  const blockChance = actionClamp(.055 + (pressure - 68) * .0032 - xg * .06 - attack.power * .02, .02, .22);
+
+  if (packet.outcome < blockChance) {
+    return {
+      finish:'blocked', onTarget:false, goal:false,
+      shooting:actionRound(shooting), pressure:actionRound(pressure), goalkeeping:actionRound(keeping),
+      presentation:{ target, blockerId:defender?.id ?? null, keeper:null, contact:'block' },
+    };
+  }
+
+  const insideGoal = Math.abs(target.x) <= 1 && target.y >= 0 && target.y <= 1;
+  if (!insideGoal) {
+    return {
+      finish:'missed', onTarget:false, goal:false,
+      shooting:actionRound(shooting), pressure:actionRound(pressure), goalkeeping:actionRound(keeping),
+      presentation:{ target, blockerId:null, keeper:null, contact:'miss' },
+    };
+  }
+
+  const keeperIntent = normalizedIntent.goalkeeper ?? automaticKeeperIntent({ target, packet, keeping });
+  const keeperAbility = actionClamp((keeping - 35) / 64, 0, 1);
+  const reach = actionClamp(.22 + keeperAbility * .24 + keeperIntent.timing * .12, .22, .58);
+  const dx = target.x - keeperIntent.x;
+  const dy = (target.y - keeperIntent.y) * 1.18;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const powerPenalty = actionClamp((attack.power - .72) * .16, -.04, .05);
+  const save = distance <= actionClamp(reach - powerPenalty, .18, .62);
+
+  return {
+    finish:save ? 'saved' : 'goal',
+    onTarget:true,
+    goal:!save,
+    shooting:actionRound(shooting),
+    pressure:actionRound(pressure),
+    goalkeeping:actionRound(keeping),
+    presentation:{
+      target,
+      blockerId:null,
+      keeper:{ x:actionRound(keeperIntent.x, 4), y:actionRound(keeperIntent.y, 4), timing:actionRound(keeperIntent.timing, 4), reach:actionRound(reach, 4) },
+      contact:save ? 'save' : 'goal',
+    },
+  };
+}
+
 function actionFailureOutcome(route, packet) {
   if (packet.outcome < .16) return 'foul_won';
   if (route === 'wide_delivery' && packet.outcome < .42) return 'corner_won';
@@ -373,7 +488,7 @@ function actionSuccessOutcome(route) {
   return route === 'circulation' ? 'retain' : 'progress';
 }
 
-export function resolveAuthoritativePhase({
+export function prepareAuthoritativePhase({
   phase,
   minute,
   teamId,
@@ -412,7 +527,7 @@ export function resolveAuthoritativePhase({
   let chance = null;
   let shooter = null;
   let assistId = null;
-  let shot = null;
+  let pressureDefender = null;
 
   if (success) {
     const chanceAdjustments = tacticalChanceAdjustments(normalized, mentality, riskMode);
@@ -422,11 +537,87 @@ export function resolveAuthoritativePhase({
       chance = actionChanceBucket(xg);
       outcome = 'chance_created';
       shooter = actionChooseShooter(attackers, rolesById, packet.shooter) ?? actor;
-      const pressureDefender = actionChooseDefender(defenders, opponentRolesById, TACTICAL_ACTION_DEFS.shot, packet.defender);
-      shot = resolveShotOutcome({ shooter, defender:pressureDefender, defenders, xg, packet });
+      pressureDefender = actionChooseDefender(defenders, opponentRolesById, TACTICAL_ACTION_DEFS.shot, packet.defender);
       if (PASS_ROUTES.has(route) && actor?.id !== shooter?.id && packet.assist < .86) assistId = actor?.id ?? null;
     }
   }
+
+  return {
+    version:1,
+    phase,
+    minute,
+    teamId,
+    opponentTeamId,
+    attackers,
+    defenders,
+    packet,
+    route,
+    actor,
+    target,
+    defender,
+    execution,
+    counter,
+    context,
+    successChance,
+    mentality,
+    riskMode,
+    outcome,
+    xg,
+    chance,
+    shooter,
+    assistId,
+    pressureDefender,
+  };
+}
+
+export function buildPlayableMoment(prepared, controlledTeamId) {
+  if (!prepared?.chance || !prepared?.shooter || !controlledTeamId) return null;
+  const mode = prepared.teamId === controlledTeamId
+    ? 'attack'
+    : prepared.opponentTeamId === controlledTeamId ? 'goalkeeper' : null;
+  if (!mode) return null;
+  const keeper = actionGoalkeeper(prepared.defenders);
+  if (!keeper) return null;
+  const channel = actionRound((prepared.packet.target - .5) * 1.4, 3);
+  const distance = actionRound(7 + (1 - Number(prepared.xg ?? .1)) * 11, 2);
+  return {
+    version:PLAYABLE_MOMENT_VERSION,
+    phase:prepared.phase,
+    minute:prepared.minute,
+    mode,
+    attackingTeamId:prepared.teamId,
+    defendingTeamId:prepared.opponentTeamId,
+    shooterId:prepared.shooter.id,
+    shooterName:prepared.shooter.name,
+    goalkeeperId:keeper.id,
+    goalkeeperName:keeper.name,
+    defenderId:prepared.pressureDefender?.id ?? null,
+    route:prepared.route,
+    xg:prepared.xg,
+    geometry:{
+      coordinateSystem:'goal-facing-v1',
+      goal:{ width:7.32, height:2.44 },
+      channel,
+      distance,
+      shooter:{ x:channel * 2.4, y:0, z:distance },
+      goalkeeper:{ x:0, y:0, z:.35 },
+      ball:{ x:channel * 2.4, y:.11, z:distance - .55 },
+    },
+  };
+}
+
+export function commitAuthoritativePhase(prepared, { intent = null } = {}) {
+  if (!prepared || prepared.version !== 1) throw new Error('Action commit requires a prepared authoritative phase');
+  const {
+    phase, minute, teamId, opponentTeamId, attackers, defenders, packet,
+    route, actor, target, defender, execution, counter, context, successChance,
+    mentality, riskMode, outcome, xg, chance, shooter, assistId, pressureDefender,
+  } = prepared;
+  const shot = chance && shooter
+    ? intent
+      ? resolveInteractiveShotOutcome({ shooter, defender:pressureDefender, defenders, xg, packet, intent })
+      : resolveShotOutcome({ shooter, defender:pressureDefender, defenders, xg, packet })
+    : null;
 
   const cornerWon = outcome === 'corner_won' || (shot?.finish === 'blocked' && packet.outcome < .45);
   const record = {
@@ -468,6 +659,10 @@ export function resolveAuthoritativePhase({
   } : null;
 
   return { record, goalEvent, shot };
+}
+
+export function resolveAuthoritativePhase(input = {}) {
+  return commitAuthoritativePhase(prepareAuthoritativePhase(input));
 }
 
 export function deriveStatsFromActionLedger({ ledger = [], homeTeamId, awayTeamId, events = [] } = {}) {
