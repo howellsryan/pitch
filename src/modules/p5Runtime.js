@@ -166,6 +166,9 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
   if (playerPatches.length) await putPlayersBulk(playerPatches);
   const playerById = new Map(playerPatches.map(player => [player.id, player]));
   const effectivePlayers = players.map(player => playerById.get(player.id) ?? player);
+  const userSquad = userTeam
+    ? effectivePlayers.filter(player => player?.teamId === save.userTeamId && player?.inSquad !== false && player?.playerStatus !== 'academy' && player?.isYouth !== true)
+    : [];
 
   const progressed = advanceScoutingState(scouting, {
     season:save.season,
@@ -173,6 +176,8 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
     players:effectivePlayers,
     teamsById,
     userTeam,
+    userSquad,
+    tacticalProfile:save.tactics ?? null,
     // The engine prices every offer against formAdjustedValue (minimumOffer is
     // 0.88x of it), so a report's fee range has to be on that same basis.
     // Reporting the raw value put stored reports below the engine's own floor,
