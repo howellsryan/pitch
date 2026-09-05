@@ -42,7 +42,7 @@ import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractB
 import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
-import { createManagerDNA, createUserTacticalPlan } from './tactics.js';
+import { TACTICS_PLAN_VERSION, createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
 import { withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
@@ -139,15 +139,53 @@ export async function ensureLivingWorld(save) {
   return save;
 }
 
+const P2_LEGACY_TEAM_INSTRUCTIONS = Object.freeze({
+  buildUp:'balanced', tempo:'balanced', defensiveLine:'mid', pressing:'standard', width:'balanced',
+  transition:'balanced', chanceCreation:'balanced', defensiveApproach:'balanced', setPieces:'balanced',
+});
+
+const P2_LEGACY_INSTRUCTION_VALUES = Object.freeze({
+  buildUp:new Set(['patient','balanced','direct']),
+  tempo:new Set(['slow','balanced','fast']),
+  defensiveLine:new Set(['low','mid','high']),
+  pressing:new Set(['passive','standard','aggressive']),
+  width:new Set(['narrow','balanced','wide']),
+  transition:new Set(['hold_shape','balanced','counter']),
+  chanceCreation:new Set(['work_ball','balanced','early_delivery']),
+  defensiveApproach:new Set(['compact','balanced','front_foot']),
+  setPieces:new Set(['secure','balanced','attack']),
+});
+
+function normalizeP2LegacyInstructions(input = {}) {
+  const out = { ...P2_LEGACY_TEAM_INSTRUCTIONS };
+  for (const [key, allowed] of Object.entries(P2_LEGACY_INSTRUCTION_VALUES)) {
+    if (allowed.has(input?.[key])) out[key] = input[key];
+  }
+  return out;
+}
+
+function createP2LegacyManagerDNA(current = {}) {
+  return {
+    version:1, matches:0, wins:0, draws:0, losses:0,
+    formations:{}, mentalities:{},
+    pressTotal:0, directnessTotal:0, possessionTotal:0, riskTotal:0,
+    youthStarts:0, possessionObservedTotal:0,
+    lastFingerprint:null,
+    ...(current ?? {}),
+    version:1,
+  };
+}
+
 export function buildP2SaveBackfill(save) {
   if (!save) return save;
+  const rawInstructions = save.tactics?.instructions ?? save.tactics ?? {};
   return {
     ...save,
-    tactics:createUserTacticalPlan(save.tactics?.instructions ?? save.tactics ?? {}),
+    tactics:{ version:1, source:'user', instructions:normalizeP2LegacyInstructions(rawInstructions) },
     playerRoles:save.playerRoles && typeof save.playerRoles === 'object' && !Array.isArray(save.playerRoles)
       ? { ...save.playerRoles }
       : {},
-    managerDNA:{ ...createManagerDNA(), ...(save.managerDNA ?? {}) },
+    managerDNA:createP2LegacyManagerDNA(save.managerDNA),
   };
 }
 
@@ -163,6 +201,32 @@ export async function ensureP2Tactics(save) {
     return migrated;
   }
   return save;
+}
+
+export function buildTacticsV2SaveBackfill(save) {
+  if (!save) return save;
+  const tactics = createUserTacticalPlan(save.tactics?.instructions ?? save.tactics ?? {});
+  return {
+    ...save,
+    tactics,
+    managerDNA:{ ...createManagerDNA(), ...(save.managerDNA ?? {}), version:2 },
+  };
+}
+
+export function tacticsV2NeedsBackfill(save) {
+  if (!save) return false;
+  const migrated = buildTacticsV2SaveBackfill(save);
+  return Number(save.tactics?.version ?? 0) < TACTICS_PLAN_VERSION
+    || save.tactics?.source !== 'user'
+    || Number(save.managerDNA?.version ?? 0) < 2
+    || JSON.stringify(save.tactics?.instructions ?? null) !== JSON.stringify(migrated.tactics.instructions);
+}
+
+export async function ensureTacticsV2(save) {
+  if (!save || !tacticsV2NeedsBackfill(save)) return save;
+  const migrated = buildTacticsV2SaveBackfill(save);
+  await putSave(migrated);
+  return migrated;
 }
 
 function roleContractChanged(before, after) {
@@ -303,6 +367,7 @@ export async function initApp() {
   if (save) {
     save = await ensureLivingWorld(save);
     save = await ensureP2Tactics(save);
+    save = await ensureTacticsV2(save);
     save = await ensureP3PlayerModel(save);
     save = await ensureP4TransferMarket(save);
     save = await ensureP5CareerDepth(save);
