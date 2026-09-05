@@ -6,13 +6,14 @@
     resumePlayableMatchPhase,
     simulateMatchSegment,
   } from '../../modules/matchEngine.js';
-  import { resolveInteractiveShotOutcome } from '../../modules/matchActionResolver.js';
   import { createUserTacticalPlan } from '../../modules/tactics.js';
   import {
     PLAYABLE_POC_RENDERERS,
     createSyntheticPlayableMoment,
     gestureToPlayableIntent,
     percentile95,
+    resolveSyntheticAttackShot,
+    resolveSyntheticGoalkeeperShot,
   } from '../../game/playableMomentsPocScene.js';
 
   const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
@@ -32,11 +33,12 @@
 
   let source = $state('synthetic');
   let syntheticMode = $state('attack');
+  let syntheticAttempt = $state(0);
   let currentMoment = $state(createSyntheticPlayableMoment('attack'));
-  let resolution = null;
-  let status = $state('Drag or tap a target, or use the accessible controls below.');
+  let resolution = $state(null);
+  let status = $state('Beat the keeper with a strong, well-timed finish into either highlighted top corner.');
   let selectedLane = $state(0);
-  let selectedHeight = $state(.5);
+  let selectedHeight = $state(.55);
   let pointerStart = null;
 
   let fixture = null;
@@ -114,30 +116,6 @@
     return { home, away, homePlayers, awayPlayers, state };
   }
 
-  function syntheticPlayer(id, position, rating) {
-    return makePlayer(id, position, rating);
-  }
-
-  function syntheticPacket() {
-    return {
-      version:1,
-      possession:.4,
-      route:.5,
-      actor:.4,
-      target:.5,
-      defender:.4,
-      execution:.2,
-      outcome:.88,
-      chance:.01,
-      shooter:.2,
-      shot:.5,
-      finish:.5,
-      assist:.3,
-      discipline:.8,
-      injury:.8,
-    };
-  }
-
   async function mountRenderer() {
     if (!canvas) return;
     rendererLoading = true;
@@ -186,7 +164,7 @@
     if (previous != null) updateMetrics(now - previous);
     animationLoop.previousTime = now;
     if (animationStarted != null && !reducedMotion) {
-      currentProgress = Math.min(1, (now - animationStarted) / 1450);
+      currentProgress = Math.min(1, (now - animationStarted) / 1500);
       if (currentProgress >= 1) animationStarted = null;
     }
     controller?.render?.({ moment:currentMoment, resolution, progress:currentProgress });
@@ -194,33 +172,53 @@
   }
 
   function syntheticResolve(intent) {
-    const shooter = syntheticPlayer('poc-shooter', 'ST', 86);
-    const defender = syntheticPlayer('poc-defender', 'CB', 80);
-    const keeper = syntheticPlayer('poc-keeper', 'GK', 84);
-    const shot = resolveInteractiveShotOutcome({
-      shooter,
-      defender,
-      defenders:[defender, keeper],
-      xg:.76,
-      packet:syntheticPacket(),
-      intent:intent ?? {},
-    });
+    const shot = syntheticMode === 'goalkeeper'
+      ? resolveSyntheticGoalkeeperShot(currentMoment, intent ?? {})
+      : resolveSyntheticAttackShot(intent ?? {});
     startAnimation({ shot });
-    status = `Synthetic harness: ${shot.finish.toUpperCase()}. This result is isolated and cannot write a career fixture.`;
+
+    if (syntheticMode === 'goalkeeper') {
+      const targetLabel = currentMoment?.syntheticTarget?.label ?? 'the marked target';
+      status = shot.finish === 'saved'
+        ? `SAVE — you covered ${targetLabel}. Choose Next keeper shot for a new target.`
+        : `GOAL — the cyan cue showed ${targetLabel}. Get your dive closer to the marker, then try the next shot.`;
+      return;
+    }
+
+    if (shot.finish === 'goal' && shot.syntheticSpecial) {
+      status = 'GOAL — special top-corner finish. Strong placement plus good timing beats the keeper.';
+    } else if (shot.finish === 'saved') {
+      status = 'SAVED — ordinary on-target shots are stopped in this drill. Aim for a gold top-corner marker with a strong, well-timed swipe.';
+    } else {
+      status = 'MISS — the shot left the goal frame. Keep the finish inside a highlighted top corner.';
+    }
   }
 
   function resetSynthetic(mode = syntheticMode) {
     source = 'synthetic';
     syntheticMode = mode;
-    currentMoment = createSyntheticPlayableMoment(mode);
+    syntheticAttempt = 0;
+    currentMoment = createSyntheticPlayableMoment(mode, syntheticAttempt);
     resolution = null;
     currentProgress = 0;
     animationStarted = null;
     selectedLane = 0;
-    selectedHeight = .5;
+    selectedHeight = .55;
     status = mode === 'attack'
-      ? 'Synthetic attack harness. Swipe towards the goal or choose an aim control.'
-      : 'Synthetic goalkeeper harness. Swipe/tap where the keeper should dive.';
+      ? 'Beat the keeper with a strong, well-timed finish into either highlighted top corner.'
+      : `Read the cyan ${currentMoment.syntheticTarget.label} cue, then dive/tap towards it. Correct reads are deliberately forgiving in this drill.`;
+    controller?.render?.({ moment:currentMoment, resolution:null, progress:0 });
+  }
+
+  function nextSyntheticKeeperShot() {
+    syntheticAttempt += 1;
+    currentMoment = createSyntheticPlayableMoment('goalkeeper', syntheticAttempt);
+    resolution = null;
+    currentProgress = 0;
+    animationStarted = null;
+    selectedLane = 0;
+    selectedHeight = .55;
+    status = `New shot: read the cyan ${currentMoment.syntheticTarget.label} cue and move the keeper towards it.`;
     controller?.render?.({ moment:currentMoment, resolution:null, progress:0 });
   }
 
@@ -298,9 +296,9 @@
 
   function accessibleAction() {
     if (currentMoment?.mode === 'goalkeeper') {
-      resolveIntent({ goalkeeper:{ x:selectedLane, y:selectedHeight, timing:.82 } });
+      resolveIntent({ goalkeeper:{ x:selectedLane * .76, y:selectedHeight, timing:.86 } });
     } else {
-      resolveIntent({ attack:{ aimX:selectedLane * .78, aimY:selectedHeight, power:.72, timing:.82 } });
+      resolveIntent({ attack:{ aimX:selectedLane * .80, aimY:selectedHeight, power:.78, timing:.86 } });
     }
   }
 
@@ -312,14 +310,17 @@
 
   function pointerUp(event) {
     if (!pointerStart || (source === 'authoritative' && !pendingContinuation)) return;
+    if (source === 'synthetic' && syntheticMode === 'goalkeeper' && resolution) return;
     const point = event.changedTouches?.[0] ?? event;
     const bounds = canvas.getBoundingClientRect();
+    const goalTarget = controller?.goalIntentFromClientPoint?.(point.clientX, point.clientY) ?? null;
     const intent = gestureToPlayableIntent({
       mode:currentMoment?.mode ?? 'attack',
       start:pointerStart,
       end:{ x:point.clientX, y:point.clientY },
       bounds,
       durationMs:window.performance.now() - pointerStart.at,
+      goalTarget,
     });
     pointerStart = null;
     if (intent) resolveIntent(intent);
@@ -369,7 +370,7 @@
     <div>
       <div class="eyebrow">DEV-ONLY · PHASE 1 POC</div>
       <h1>Playable Key Moments</h1>
-      <p>Three.js · free procedural 3D · authoritative football · no career writeback</p>
+      <p>Three.js · procedural footballers · authoritative football · no career writeback</p>
     </div>
     <button class="ghost" type="button" onclick={closePoc}>Close POC</button>
   </header>
@@ -406,14 +407,32 @@
         <canvas bind:this={canvas} aria-label="Playable football 3D scene"></canvas>
         {#if rendererLoading}<div class="stage-message">Loading {renderer.label}…</div>{/if}
         {#if rendererError}<div class="stage-message error">{rendererError}</div>{/if}
+        {#if source === 'synthetic' && syntheticMode === 'attack' && !resolution}
+          <div class="stage-hint special-hint">SPECIAL FINISH · strong + well-timed · hit either gold top corner</div>
+        {/if}
+        {#if source === 'synthetic' && syntheticMode === 'goalkeeper' && !resolution}
+          <div class="stage-hint keeper-hint">READ THE CYAN TARGET · {currentMoment?.syntheticTarget?.label}</div>
+        {/if}
         {#if source === 'authoritative' && !pendingContinuation && !fixtureComplete && currentPhase > 1}
           <div class="stage-message">Moment committed. Continue when ready.</div>
         {/if}
       </div>
       <p class="status" aria-live="polite">{status}</p>
       <div class="stage-actions">
-        <button type="button" class="primary" onclick={accessibleAction} disabled={source === 'authoritative' && !pendingContinuation}>Take action</button>
-        <button type="button" onclick={simulateCurrent} disabled={source === 'authoritative' && !pendingContinuation}>Simulate</button>
+        <button
+          type="button"
+          class="primary"
+          onclick={accessibleAction}
+          disabled={(source === 'authoritative' && !pendingContinuation) || (source === 'synthetic' && syntheticMode === 'goalkeeper' && Boolean(resolution))}
+        >Take action</button>
+        <button
+          type="button"
+          onclick={simulateCurrent}
+          disabled={(source === 'authoritative' && !pendingContinuation) || (source === 'synthetic' && syntheticMode === 'goalkeeper' && Boolean(resolution))}
+        >Simulate</button>
+        {#if source === 'synthetic' && syntheticMode === 'goalkeeper' && resolution}
+          <button type="button" class="primary" onclick={nextSyntheticKeeperShot}>Next keeper shot</button>
+        {/if}
         {#if source === 'authoritative' && !pendingContinuation && !fixtureComplete}
           <button type="button" onclick={findNextAuthoritativeMoment}>Next key moment</button>
         {/if}
@@ -424,6 +443,15 @@
     </section>
 
     <aside class="panel">
+      <h2>How this drill works</h2>
+      {#if source === 'synthetic' && syntheticMode === 'attack'}
+        <p>Ordinary on-target shots are intentionally saved. Beat the keeper by combining strong power and timing with a finish into either gold top-corner target.</p>
+      {:else if source === 'synthetic' && syntheticMode === 'goalkeeper'}
+        <p>The incoming shot changes between six goal zones. The cyan target shows where it is heading before the strike; move close to that cue to make the save.</p>
+      {:else}
+        <p>The real fixture uses Pitch's authoritative match resolver. There are no synthetic success rules in this mode.</p>
+      {/if}
+
       <h2>Accessible controls</h2>
       <p>These controls exercise the same normalized intent contract without a drag gesture.</p>
       <div class="choice-row" aria-label="Horizontal aim">
@@ -432,8 +460,8 @@
         <button type="button" class:active={selectedLane === 1} onclick={() => selectedLane = 1}>Right</button>
       </div>
       <div class="choice-row" aria-label="Vertical aim">
-        <button type="button" class:active={selectedHeight === .3} onclick={() => selectedHeight = .3}>Low</button>
-        <button type="button" class:active={selectedHeight === .5} onclick={() => selectedHeight = .5}>Mid</button>
+        <button type="button" class:active={selectedHeight === .30} onclick={() => selectedHeight = .30}>Low</button>
+        <button type="button" class:active={selectedHeight === .55} onclick={() => selectedHeight = .55}>Mid</button>
         <button type="button" class:active={selectedHeight === .78} onclick={() => selectedHeight = .78}>High</button>
       </div>
 
@@ -494,6 +522,9 @@
   canvas { display:block; width:100%; height:min(62vh, 620px); min-height:360px; }
   .stage-message { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); max-width:80%; padding:11px 14px; border-radius:9px; background:rgba(3,12,7,.88); text-align:center; font-weight:700; }
   .stage-message.error { border:1px solid #b85c55; color:#ffc3bd; }
+  .stage-hint { position:absolute; left:50%; top:13px; transform:translateX(-50%); width:max-content; max-width:calc(100% - 28px); padding:7px 11px; border-radius:999px; background:rgba(3,12,7,.84); font-size:10px; font-weight:900; letter-spacing:.08em; text-align:center; pointer-events:none; }
+  .special-hint { border:1px solid rgba(255,216,107,.7); color:#ffe7a0; }
+  .keeper-hint { border:1px solid rgba(119,231,255,.72); color:#c9f7ff; }
   .status { min-height:20px; margin:0; padding:10px 14px 0; color:#c7d4cc; font-size:13px; }
   .stage-actions { display:flex; flex-wrap:wrap; gap:8px; padding:10px 14px 14px; }
   .panel { padding:14px; overflow:auto; max-height:calc(100vh - 150px); }
@@ -525,6 +556,7 @@
     .poc-main { padding:10px; }
     .stage { min-height:48vh; }
     canvas { height:48vh; min-height:300px; }
+    .stage-hint { top:9px; max-width:calc(100% - 18px); font-size:9px; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
