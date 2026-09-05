@@ -164,6 +164,19 @@ export function isPlayableScenarioEnabled(mode) {
   return Boolean(PLAYABLE_KEY_MOMENTS_FLAGS.enabled && PLAYABLE_KEY_MOMENTS_FLAGS[mode]);
 }
 
+export function playableMatchImportance(event = {}) {
+  const round = String(event.roundName ?? '').toLowerCase();
+  let importance = 0;
+  if (event.type === 'ucl_md') importance += .025;
+  if (event.type === 'cup') importance += .035;
+  if (round.includes('final')) importance += .075;
+  else if (round.includes('semi')) importance += .055;
+  else if (round.includes('quarter')) importance += .035;
+  else if (round.includes('round of 16') || round.includes('r16')) importance += .020;
+  if (event.type === 'league' && Number(event.gw) >= 34) importance += .020;
+  return clamp(importance, 0, .11);
+}
+
 export function evaluatePlayableMomentSelection({ moment, session, liveState = null } = {}) {
   assertSupportedPlayableSession(session);
   if (!moment || !isPlayableScenarioEnabled(moment.mode)) return { selected:false, reason:'scenario_disabled', probability:0, roll:1 };
@@ -185,13 +198,15 @@ export function evaluatePlayableMomentSelection({ moment, session, liveState = n
   const recent = session.history.slice(-2);
   const repeatedMode = recent.length >= 1 && recent.at(-1)?.mode === moment.mode;
 
-  // Selection is strictly pre-finish. It uses chance context and match pacing,
-  // never packet.shot / packet.finish or the would-have-been automatic result.
+  // Selection is strictly pre-finish. It uses chance context, score/minute,
+  // event importance and match pacing, never packet.shot / packet.finish or
+  // the would-have-been automatic result.
   let probability = .14 + xg * 1.25;
   if (xg >= .28) probability += .10;
   if (minute >= 70 && scoreGap <= 1) probability += .12;
   if (minute >= 82 && scoreGap === 0) probability += .06;
   if (moment.mode === 'goalkeeper') probability += .025;
+  probability += playableMatchImportance(session.event);
   if (repeatedMode) probability -= .08;
   probability = clamp(probability, .14, .78);
 
