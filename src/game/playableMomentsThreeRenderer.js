@@ -123,22 +123,26 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
 
   let currentWorld = null;
   let pitch = null;
+  let goalLine = null;
   let goalGroup = null;
+
+  function disposeWorldObject(object) {
+    if (!object) return;
+    object.traverse?.(child => child.geometry?.dispose?.());
+    object.geometry?.dispose?.();
+    worldRoot.remove(object);
+  }
 
   function rebuildWorld(moment) {
     const world = sceneWorldFromMoment(moment);
     if (currentWorld && JSON.stringify(currentWorld) === JSON.stringify(world)) return world;
     currentWorld = world;
-    if (pitch) {
-      worldRoot.remove(pitch);
-      pitch.geometry.dispose();
-      pitch = null;
-    }
-    if (goalGroup) {
-      goalGroup.traverse(object => object.geometry?.dispose?.());
-      worldRoot.remove(goalGroup);
-      goalGroup = null;
-    }
+    disposeWorldObject(pitch);
+    disposeWorldObject(goalLine);
+    disposeWorldObject(goalGroup);
+    pitch = null;
+    goalLine = null;
+    goalGroup = null;
 
     const pitchLength = Math.max(24, world.distance + 14);
     pitch = mesh(new THREE.PlaneGeometry(18, pitchLength), materials.grass, false);
@@ -147,9 +151,9 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     pitch.receiveShadow = true;
     worldRoot.add(pitch);
 
-    const line = mesh(new THREE.BoxGeometry(world.goalWidth + 4, .018, .045), materials.line, false);
-    line.position.set(0, .012, 0);
-    worldRoot.add(line);
+    goalLine = mesh(new THREE.BoxGeometry(world.goalWidth + 4, .018, .045), materials.line, false);
+    goalLine.position.set(0, .012, 0);
+    worldRoot.add(goalLine);
 
     goalGroup = new THREE.Group();
     const post = new THREE.BoxGeometry(.105, world.goalHeight, .105);
