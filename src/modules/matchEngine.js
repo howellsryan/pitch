@@ -9,7 +9,6 @@ import { rehabilitationReinjuryMultiplier } from './playerRehabilitation.js';
 import {
   DEFAULT_TEAM_INSTRUCTIONS,
   chooseAIRole,
-  getAITacticalProfile,
   getRoleTeamModifiers,
   getTacticalModifiers,
   isUserTacticalPlan,
@@ -17,6 +16,7 @@ import {
   resolvePlayerRole,
   stableStringHash,
 } from './tactics.js';
+import { buildSquadAwareAITacticalProfile } from './aiTacticalIdentity.js';
 import {
   MATCH_ACTION_LEDGER_VERSION,
   MATCH_ACTION_RESOLVER_VERSION,
@@ -28,13 +28,14 @@ import {
 } from './matchActionResolver.js';
 
 /**
- * modules/matchEngine.js — authoritative P2/P3/T3 simulation core.
+ * modules/matchEngine.js — authoritative P2/P3/T3/T5 simulation core.
  *
  * T3 keeps this module as the orchestrator but moves football execution into a
- * pure action resolver. Quick Sim and Watch Match both advance the same
- * versioned action ledger with one fixed seeded RNG packet per phase. Legacy
- * goal/card/injury/substitution events remain the presentation/persistence
- * contract while score and core match stats now derive from the action ledger.
+ * pure action resolver. T5 keeps that authority boundary and makes AI tactical
+ * identity squad-aware before the match starts. Quick Sim and Watch Match both
+ * advance the same versioned action ledger with one fixed seeded RNG packet per
+ * phase. Legacy goal/card/injury/substitution events remain the presentation /
+ * persistence contract while score and core match stats derive from the ledger.
  */
 
 export const MATCH_ENGINE_VERSION = 2;
@@ -397,7 +398,7 @@ export function resolveTeamTacticalIdentity(team, opponent, players, requestedFo
       mentality:requestedMentality ?? 'balanced', instructions, roles,
     };
   }
-  const profile = getAITacticalProfile(team, opponent, isHome);
+  const { profile } = buildSquadAwareAITacticalProfile({ team, opponent, isHome, players });
   const roles = {};
   for (const player of players ?? []) roles[player.id] = chooseAIRole(player, profile);
   return {
