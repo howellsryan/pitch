@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateCareerTacticalFit } from './careerTacticalFit.js';
-import { buildScoutingReport } from './scouting.js';
+import { buildScoutingReport, observedPlayerProfile } from './scouting.js';
 import { buildScoutingTacticalAssessment } from './scoutingTacticalAssessment.js';
 
 const controllerProfile = {
@@ -56,10 +56,18 @@ describe('T5.4 scouting tactical assessment', () => {
     const assessment = buildScoutingTacticalAssessment({
       player, userTeam:team, tacticalProfile:controllerProfile, currentRange:{ min:84, max:84 }, exact:true,
     });
+    const report = buildScoutingReport(player, {
+      exact:true, season:'2026/27', gameweek:8, userTeam:team, tacticalProfile:controllerProfile,
+      teamsById:new Map([['seller',{ id:'seller', reputation:75 }]]), valueFor:row => row.value,
+    });
 
     expect(assessment.roleId).toBe(shared.roleId);
     expect(assessment.fit).toBe(coarseFit(shared.tacticalFit));
     expect(assessment.focus).toEqual(expect.any(String));
+    expect(report.tactical.roleId).toBe(shared.roleId);
+    expect(report.tactical.fit).toBe(coarseFit(shared.tacticalFit));
+    expect(report.tactical.focus).toBe(assessment.focus);
+    expect(report.tactical.confidence).toBe('Complete');
     expect(assessment).not.toHaveProperty('tacticalFit');
     expect(assessment).not.toHaveProperty('actionQuality');
     expect(assessment).not.toHaveProperty('actions');
@@ -96,6 +104,23 @@ describe('T5.4 scouting tactical assessment', () => {
 
     expect(technicalReport.current).toEqual(bluntReport.current);
     expect(technicalReport.tactical).toEqual(bluntReport.tactical);
+  });
+
+  it('does not silently refresh a stale partial tactical observation from changed hidden attributes', () => {
+    const original = midfielder({ pace:55, passing:58, dribbling:57, defending:52, physical:56 });
+    const context = {
+      season:'2026/27', gameweek:4, confidence:.52,
+      userTeam:{ id:'user', reputation:80 }, tacticalProfile:controllerProfile,
+      teamsById:new Map([['seller',{ id:'seller', reputation:75 }]]), valueFor:player => player.value,
+    };
+    const stored = buildScoutingReport(original, context);
+    const state = { version:1, defaultKnowledge:.42, assignments:[], reports:[stored], processedWeekKeys:[], notifications:[], assignmentSeq:0 };
+    const improvedHiddenPlayer = { ...original, attributeProfile:{ version:1, pace:99, shooting:99, passing:99, dribbling:99, defending:99, physical:99 } };
+
+    const stale = observedPlayerProfile(improvedHiddenPlayer, state, { ...context, gameweek:14 });
+
+    expect(stale.stale).toBe(true);
+    expect(stale.tactical).toEqual(stored.tactical);
   });
 
   it('uses the supplied user plan rather than one fixed hash-only tactical identity', () => {
