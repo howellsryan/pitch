@@ -1,12 +1,12 @@
+import { buildSquadAwareAITacticalProfile } from './aiTacticalIdentity.js';
 import {
   buildOppositionInsight,
   createUserTacticalPlan,
-  getAITacticalProfile,
   updateManagerDNA,
 } from './tactics.js';
 
 /**
- * Manager-facing P2 adapters. Keep persistent career state in save while
+ * Manager-facing P2/T5 adapters. Keep persistent career state in save while
  * presenting the match engine with transient team/player tactical context.
  */
 export function decorateManagedTeam(team, save) {
@@ -29,9 +29,8 @@ export function decorateManagedPlayers(players, save) {
  * Build the exact user-controlled side inputs expected by matchEngine.js.
  *
  * The AI side deliberately leaves formation/mentality undefined so the
- * authoritative engine resolves its stable P2 tactical identity. Both Quick
- * Sim and Watch should use this contract rather than inventing a second set of
- * defaults in presentation code.
+ * authoritative engine resolves its squad-aware tactical identity. Both Quick
+ * Sim and Watch use this contract rather than inventing presentation defaults.
  */
 export function buildManagedMatchInputs({
   save,
@@ -60,20 +59,48 @@ export function buildManagedMatchInputs({
   };
 }
 
+function opponentEvidenceLevel(opponentPlayers = [], form = []) {
+  const knownSquad = (opponentPlayers ?? []).filter(player => player && player.inSquad !== false).length;
+  const recentResults = (form ?? []).filter(Boolean).length;
+  if (knownSquad >= 11 && recentResults >= 3) return 'established';
+  if (knownSquad >= 11 || recentResults >= 2) return 'partial';
+  return 'limited';
+}
+
+function coarseOpponentInsight(insight, evidence) {
+  if (evidence === 'established') return { ...insight, confidence:'Established' };
+  const qualifier = evidence === 'partial' ? 'Likely' : 'Possible';
+  return {
+    ...insight,
+    confidence:evidence === 'partial' ? 'Partial' : 'Limited',
+    threat:`${qualifier}: ${insight.threat}`,
+    weakness:`${qualifier}: ${insight.weakness}`,
+  };
+}
+
 /**
- * Team News projection for the same AI identity the match engine will use.
+ * Team News projection for the same squad-aware AI identity the match engine
+ * will use. Selection diagnostics stay private: the manager-facing surface gets
+ * only the chosen public profile plus coarse, evidence-qualified insight.
  */
 export function buildOpponentTacticalInsight({
   opponentTeam,
   userTeam,
   userIsHome,
+  opponentPlayers = [],
   form = [],
   keyPlayer = null,
 } = {}) {
-  const profile = getAITacticalProfile(opponentTeam, userTeam, !userIsHome);
+  const { profile } = buildSquadAwareAITacticalProfile({
+    team:opponentTeam,
+    opponent:userTeam,
+    isHome:!userIsHome,
+    players:opponentPlayers,
+  });
+  const insight = buildOppositionInsight({ team:opponentTeam, profile, form, keyPlayer });
   return {
     profile,
-    insight:buildOppositionInsight({ team:opponentTeam, profile, form, keyPlayer }),
+    insight:coarseOpponentInsight(insight, opponentEvidenceLevel(opponentPlayers, form)),
   };
 }
 
