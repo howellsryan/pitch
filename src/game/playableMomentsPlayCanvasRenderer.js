@@ -4,9 +4,9 @@ const CANDIDATE = PLAYABLE_POC_RENDERERS.playcanvas;
 const RAD_TO_DEG = 180 / Math.PI;
 
 export async function mountPlayCanvasPlayablePoc(canvas, initialMoment) {
-  const loadStarted = performance.now();
+  const loadStarted = window.performance.now();
   const pc = await import(/* @vite-ignore */ CANDIDATE.moduleUrl);
-  const moduleReady = performance.now();
+  const moduleReady = window.performance.now();
   const app = new pc.Application(canvas, {
     graphicsDeviceOptions:{ antialias:true, alpha:false, powerPreference:'high-performance' },
   });
@@ -192,7 +192,7 @@ export async function mountPlayCanvasPlayablePoc(canvas, initialMoment) {
   rebuildWorld(initialMoment);
   app.start();
   render({ moment:initialMoment, progress:0 });
-  const readyAt = performance.now();
+  const readyAt = window.performance.now();
 
   return {
     candidate:CANDIDATE,
