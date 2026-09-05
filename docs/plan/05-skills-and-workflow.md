@@ -1,5 +1,10 @@
 # 05 — Skills to vendor, and how the workflow changes
 
+> Historical migration record. The copy/install instructions below are superseded
+> by [the shared workflow contract](../agent-workflows.md). Shared skills are now
+> versioned dependencies of Agent-Template, not maintained copies in this repo.
+
+
 ## What to take from 3site
 
 `howellsryan/3site` vendors five skills. Three transfer; two don't.

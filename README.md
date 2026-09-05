@@ -99,3 +99,10 @@ See [`CLAUDE.md`](CLAUDE.md) for full architecture documentation, invariants, an
 | v3.2 | National cups per league, super cup fix, advanced transfer filters, honour cabinet localisation |
 | v3.1 | Token-optimised source, multi-league support, Watch Match live viewer |
 | v3.0 | Multi-season, cups, potential system, youth academy |
+
+## Shared agent workflows
+
+Agent contributors start with [AGENTS.md](AGENTS.md) and the
+[shared workflow setup](docs/agent-workflows.md). `npm run agents:install` loads
+the exact central/upstream revisions in `.agents/skills.lock.json`;
+`npm run agents:check` verifies the cached installation offline.

@@ -22,3 +22,16 @@ design-canvas/*.html
 # Seeded redesign-canvas output — regenerated from the .dc.html sources.
 design-canvas-v2/*.html
 !design-canvas-v2/*.dc.html
+
+# Generated agent dependencies; source and versions live in Agent-Template/skills.lock.json.
+.agents/cache/
+.agents/skills/
+.agents/skills-installed.json
+.agents/install.lock
+.claude/skills/delivery-loop
+.claude/skills/plan-gate
+.claude/skills/scope-fence
+.claude/skills/memory-hygiene
+.claude/skills/systematic-debugging
+.claude/skills/verification-before-completion
+.claude/skills/test-driven-development
