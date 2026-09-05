@@ -60,7 +60,9 @@ export function buildManagedMatchInputs({
 }
 
 function opponentEvidenceLevel(opponentPlayers = [], form = []) {
-  const knownSquad = (opponentPlayers ?? []).filter(player => player && player.inSquad !== false).length;
+  const knownSquad = (opponentPlayers ?? []).filter(player => (
+    player && player.inSquad !== false && !String(player.id ?? '').includes('_stub_')
+  )).length;
   const recentResults = (form ?? []).filter(Boolean).length;
   if (knownSquad >= 11 && recentResults >= 3) return 'established';
   if (knownSquad >= 11 || recentResults >= 2) return 'partial';
