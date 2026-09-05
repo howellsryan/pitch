@@ -71,6 +71,7 @@ MODULES += [
     ('modules/fixtures.js',         'FIXTURES'),
     ('modules/competitionRules.js', 'COMPETITION RULES'),
     ('modules/cups.js',             'CUPS'),
+    ('modules/scoutingTacticalAssessment.js', 'SCOUTING TACTICAL ASSESSMENT'),
     ('modules/scouting.js',         'SCOUTING'),
     ('modules/academyPathways.js',  'ACADEMY PATHWAYS'),
     ('modules/squadPlanning.js',    'SQUAD PLANNING'),
