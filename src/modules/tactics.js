@@ -9,9 +9,8 @@ import { effectiveAttribute } from './playerModel.js';
  * so existing careers and older callers migrate without losing explicit choices.
  */
 
+export const P2_TACTICS_VERSION = 1;
 export const TACTICS_PLAN_VERSION = 2;
-// Historical export retained for callers that used the P2 constant as "current".
-export const P2_TACTICS_VERSION = TACTICS_PLAN_VERSION;
 
 export const TEAM_INSTRUCTION_DEFS = Object.freeze([
   { id:'buildUp', phase:'in_possession', label:'Build-up', values:[['patient','Patient'],['balanced','Balanced'],['direct','Direct']] },
@@ -75,14 +74,11 @@ function tacticsV2LegacyMappedInput(input = {}) {
 }
 
 function tacticsV2CompatibilityAliases(canonical) {
-  const width = canonical.attackingWidth === canonical.defensiveWidth
-    ? canonical.attackingWidth
-    : canonical.attackingWidth;
   const chanceCreation = canonical.shotSelection === 'work_into_box'
     ? 'work_ball'
     : canonical.deliveryTiming === 'early' ? 'early_delivery' : 'balanced';
   return {
-    width,
+    width:canonical.attackingWidth,
     transition:canonical.onWin,
     chanceCreation,
   };
