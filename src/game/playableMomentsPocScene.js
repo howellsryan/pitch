@@ -311,19 +311,54 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const keeperArc = Math.sin(clamp(phaseProgress(progress, .44, .84), 0, 1) * Math.PI);
 
   const contactProgress = outcome ? flight : 0;
-  const ballX = outcome === 'blocked'
-    ? lerp(world.ball.x, world.defender.x, contactProgress)
-    : lerp(world.ball.x, targetX, contactProgress);
-  const baseBallY = outcome === 'blocked'
-    ? lerp(world.ball.y, .62, contactProgress)
-    : lerp(world.ball.y, targetY, contactProgress);
-  const shotArc = outcome && outcome !== 'blocked'
-    ? Math.sin(contactProgress * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12)
-    : 0;
-  const ballY = baseBallY + shotArc;
-  const ballZ = outcome === 'blocked'
-    ? lerp(world.ball.z, targetZ, contactProgress)
-    : lerp(world.ball.z, targetZ, contactProgress);
+  let ballX;
+  let ballY;
+  let ballZ;
+  let ballMotionProgress = contactProgress;
+  let parryProgress = 0;
+
+  if (outcome === 'saved') {
+    // A save needs an unmistakable contact event. Fly the ball into the
+    // goalkeeper's actual reach point first, then send it back out into the
+    // pitch on a deterministic parry trajectory. This shared presentation path
+    // is used by both synthetic shooting and synthetic goalkeeper drills.
+    const saveFlight = easeInOut(phaseProgress(progress, .43, .70));
+    parryProgress = easeInOut(phaseProgress(progress, .70, .96));
+    ballMotionProgress = saveFlight + parryProgress;
+    const saveContactX = keeperTargetX;
+    const saveContactY = clamp(keeperTargetY, .32, world.goalHeight * .96);
+    const saveContactZ = Number(world.keeper.z ?? .35) + .18;
+    const parrySide = saveContactX < 0 ? -1 : 1;
+    const parryX = saveContactX + parrySide * (1.05 + Math.abs(saveContactX) * .16);
+    const parryY = Math.max(.16, saveContactY * .48);
+    const parryZ = saveContactZ + 3.15;
+
+    if (parryProgress > 0) {
+      const reboundArc = Math.sin(parryProgress * Math.PI) * .42;
+      ballX = lerp(saveContactX, parryX, parryProgress);
+      ballY = lerp(saveContactY, parryY, parryProgress) + reboundArc;
+      ballZ = lerp(saveContactZ, parryZ, parryProgress);
+    } else {
+      const saveArc = Math.sin(saveFlight * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12);
+      ballX = lerp(world.ball.x, saveContactX, saveFlight);
+      ballY = lerp(world.ball.y, saveContactY, saveFlight) + saveArc;
+      ballZ = lerp(world.ball.z, saveContactZ, saveFlight);
+    }
+  } else {
+    ballX = outcome === 'blocked'
+      ? lerp(world.ball.x, world.defender.x, contactProgress)
+      : lerp(world.ball.x, targetX, contactProgress);
+    const baseBallY = outcome === 'blocked'
+      ? lerp(world.ball.y, .62, contactProgress)
+      : lerp(world.ball.y, targetY, contactProgress);
+    const shotArc = outcome && outcome !== 'blocked'
+      ? Math.sin(contactProgress * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12)
+      : 0;
+    ballY = baseBallY + shotArc;
+    ballZ = outcome === 'blocked'
+      ? lerp(world.ball.z, targetZ, contactProgress)
+      : lerp(world.ball.z, targetZ, contactProgress);
+  }
 
   return {
     progress:clamp(progress, 0, 1),
@@ -367,8 +402,9 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
       y:ballY,
       z:ballZ,
       visible:true,
-      spinX:contactProgress * Math.PI * 8,
-      spinZ:targetDirection * contactProgress * Math.PI * 2.4,
+      spinX:ballMotionProgress * Math.PI * 8,
+      spinZ:targetDirection * ballMotionProgress * Math.PI * 2.4,
+      parry:parryProgress,
     },
     world,
   };
