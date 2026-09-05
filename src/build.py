@@ -54,13 +54,15 @@ MODULES += [
     ('modules/clubPhilosophy.js',   'CLUB PHILOSOPHY'),
     ('modules/facilities.js',       'CLUB FACILITIES'),
     # T3/T4/T5 share one action/fit stack. T5's squad-aware AI identity consumes
-    # projection and plan feedback; managerTactics now consumes that identity for
-    # Team News, so it must follow the AI selector while remaining before the
-    # authoritative resolver/engine consumers in the stripped legacy bundle.
+    # projection and plan feedback; careerTacticalFit then reuses that identity
+    # plus the projection weights for recruitment/loans. managerTactics consumes
+    # the same AI identity for Team News. Keep all of them before downstream
+    # career and authoritative resolver/engine consumers in the legacy bundle.
     ('modules/matchActionVocabulary.js', 'MATCH ACTION VOCABULARY'),
     ('modules/tacticalProjection.js', 'TACTICAL PROJECTION'),
     ('modules/tacticalPlanFeedback.js', 'TACTICAL PLAN FEEDBACK'),
     ('modules/aiTacticalIdentity.js', 'AI TACTICAL IDENTITY'),
+    ('modules/careerTacticalFit.js', 'CAREER TACTICAL FIT'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
     ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
