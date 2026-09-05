@@ -274,6 +274,10 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const keeperPlan = shot?.presentation?.keeper ?? null;
   const keeperTargetX = keeperPlan ? Number(keeperPlan.x ?? 0) * world.goalWidth * .43 : targetX * .8;
   const keeperTargetY = keeperPlan ? Number(keeperPlan.y ?? .45) * world.goalHeight : targetY * .82;
+  // A keeper reaches high shots mostly through body angle and arm extension,
+  // not by translating their entire ~1.84 m body to the ball height. Keep the
+  // jump/lift grounded and let the articulated pose provide the visible reach.
+  const keeperLift = clamp((keeperTargetY - 1.05) * .62, 0, .52);
 
   const contactProgress = outcome ? flight : 0;
   const ballX = outcome === 'blocked'
@@ -301,7 +305,7 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
     },
     keeper:{
       x:lerp(world.keeper.x, keeperTargetX, keeperPose),
-      y:lerp(0, Math.max(0, keeperTargetY - .58), keeperPose),
+      y:lerp(0, keeperLift, keeperPose),
       z:world.keeper.z,
       dive:keeperPose,
       roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.05 * keeperPose,
