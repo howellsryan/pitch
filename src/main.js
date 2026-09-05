@@ -58,53 +58,53 @@ window.navigateTo = navigateTo;
 // the rest of the legacy screens do.
 
 const entryMount = document.getElementById('entry-mount');
-if (entryMount) mount(EntryScreen, { target: entryMount });
+if (entryMount) mount(EntryScreen, { target:entryMount });
 
 const entryStage = document.getElementById('ng');
-if (entryStage) mount(CareerMenu, { target: entryStage });
+if (entryStage) mount(CareerMenu, { target:entryStage });
 
 const tabbarMount = document.getElementById('tabbar-mount');
-if (tabbarMount) mount(TabBar, { target: tabbarMount });
+if (tabbarMount) mount(TabBar, { target:tabbarMount });
 
 const leagueMount = document.getElementById('screen-competitions');
-if (leagueMount) mount(LeagueScreen, { target: leagueMount });
+if (leagueMount) mount(LeagueScreen, { target:leagueMount });
 
 const homeMount = document.getElementById('screen-home');
-if (homeMount) mount(HomeScreen, { target: homeMount });
+if (homeMount) mount(HomeScreen, { target:homeMount });
 
 const squadMount = document.getElementById('screen-squad');
-if (squadMount) mount(SquadScreen, { target: squadMount });
+if (squadMount) mount(SquadScreen, { target:squadMount });
 
 const academyMount = document.getElementById('screen-academy');
-if (academyMount) mount(AcademyScreen, { target: academyMount });
+if (academyMount) mount(AcademyScreen, { target:academyMount });
 
 const trophiesMount = document.getElementById('screen-trophies');
-if (trophiesMount) mount(TrophiesScreen, { target: trophiesMount });
+if (trophiesMount) mount(TrophiesScreen, { target:trophiesMount });
 
 const settingsMount = document.getElementById('screen-settings');
-if (settingsMount) mount(SettingsScreen, { target: settingsMount });
+if (settingsMount) mount(SettingsScreen, { target:settingsMount });
 
 const transfersMount = document.getElementById('screen-transfers');
 if (transfersMount) {
-  mount(TransfersScreen, { target: transfersMount });
-  mount(ScoutingDrawer, { target: transfersMount });
+  mount(TransfersScreen, { target:transfersMount });
+  mount(ScoutingDrawer, { target:transfersMount });
   // Loan pathways belongs to the loan market. The component gates its launcher
   // against Transfers' active Loans tab so it cannot float over Squad or other
   // market surfaces while retaining the existing P9 pathway workflow.
-  mount(LoanPathwaysPanel, { target: transfersMount });
+  mount(LoanPathwaysPanel, { target:transfersMount });
 }
 
 const matchMount = document.getElementById('screen-match');
-if (matchMount) mount(MatchScreen, { target: matchMount });
+if (matchMount) mount(MatchScreen, { target:matchMount });
 
 const inboxMount = document.getElementById('screen-inbox');
-if (inboxMount) mount(InboxScreen, { target: inboxMount });
+if (inboxMount) mount(InboxScreen, { target:inboxMount });
 
 // Phase 1 Playable Key Moments is deliberately dev-only and lazy. The POC UI
 // and both 3D renderer adapters stay completely outside the ordinary management
 // load unless this explicit query flag is present. Nothing in this harness can
 // write a real career fixture.
-const playablePocEnabled = new URLSearchParams(window.location.search).get('playable-poc') === '1';
+const playablePocEnabled = new window.URLSearchParams(window.location.search).get('playable-poc') === '1';
 if (playablePocEnabled) {
   const playablePocMount = document.createElement('div');
   playablePocMount.id = 'playable-poc-mount';
