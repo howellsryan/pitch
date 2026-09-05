@@ -24,7 +24,11 @@ import { tacticalActionUsage } from './tacticalProjection.js';
  */
 
 export const AI_TACTICAL_IDENTITY_VERSION = 1;
-export const AI_IDENTITY_SWITCH_MARGIN = 6;
+// Calibration evidence: a broadly elite/versatile XI topped out at a 2.8-point
+// alternative advantage, while an intentionally specialist compact-counter XI
+// reached 4.53 points over its stable Controller identity. Four points therefore
+// separates ordinary fit preference from a material squad/identity mismatch.
+export const AI_IDENTITY_SWITCH_MARGIN = 4;
 
 const ARCHETYPE_BY_ID = new Map(AI_TACTICAL_ARCHETYPES.map(archetype => [archetype.id, archetype]));
 const BASELINE_ACTION_USAGE = tacticalActionUsage(DEFAULT_TEAM_INSTRUCTIONS);
