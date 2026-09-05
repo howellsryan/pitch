@@ -46,8 +46,9 @@ jobs:
 
       # T7 deep calibration remains separate from the unchanged fast balance
       # gate inside npm test. The final reviewed matrix uses 100 paired seeds
-      # across all 25 scenarios (5,000 authoritative simulations).
-      - run: npm run balance:match:deep -- --matches=100
+      # across all 25 scenarios (5,000 authoritative simulations) and the
+      # reviewed T7.2 structural guardrails are asserted against that exact run.
+      - run: npm run balance:match:deep:check
 
       - run: npm run check:accents
 
