@@ -303,8 +303,6 @@ export async function promoteYouthPlayer(playerId) {
   const save = await getSave();
   const player = normalizePlayerStatus(await getPlayer(playerId));
   if (!save || !player || !isAcademyPlayer(player, save.userTeamId)) throw new Error('Youth player not found');
-  const allPlayers = await getAllPlayers();
-  if (allPlayers.filter(candidate => isSeniorEligiblePlayer(candidate, save.userTeamId)).length >= 30) throw new Error('SQUAD_FULL');
   const year = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 2025;
   const promoted = transitionPlayerStatus(player, {
     status:'first_team', contractTeamId:save.userTeamId, registeredTeamId:save.userTeamId,

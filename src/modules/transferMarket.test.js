@@ -138,6 +138,119 @@ describe('P4 transfer-market contracts', () => {
     expect(result.decisionLog.map(entry => entry.reasonCode)).toEqual(['seller_accepts']);
   });
 
+  it('tells the selling manager how personal terms landed, in their own terms', () => {
+    const tickKey = '2025/26:4';
+    const sale = (id, playerName, reasonCode, actor) => ({
+      id, playerId:id, playerName, buyerTeamId:'buyer', sellerTeamId:'user',
+      decisionLog:[{ actor, weekKey:tickKey, reasonCode }],
+    });
+    const responses = projectPlayerDecisionNotifications([
+      sale('sold', 'Sam Sold', 'player_accepts', 'player'),
+      sale('stayed', 'Sid Stayed', 'player_rejects', 'player'),
+      sale('wages', 'Wes Wages', 'buyer_declines_personal_terms', 'buyer'),
+    ], 'user', tickKey);
+
+    expect(responses.map(response => response.message)).toEqual([
+      'Sam Sold agreed personal terms. The sale is going through.',
+      'Sid Stayed turned down the move on personal terms.',
+      'Wes Wages stays: the buying club would not meet their wage demands.',
+    ]);
+    // Never the buyer-side wording: the manager did not make this offer.
+    expect(responses.some(response => response.message.includes('your contract offer'))).toBe(false);
+  });
+
+  it('lets the buying club settle personal terms when the manager is the seller', () => {
+    // An AI club bidding for one of the manager's players negotiates the wage
+    // with the player itself. The manager agrees the fee and nothing else.
+    const lowWage = { ...terms(), contract:{ wage:30_000, duration:4, squadRole:'important', signingBonus:0 } };
+    const subject = deal({ userSide:'seller', delegated:false, seed:'inbound-bid', terms:lowWage });
+    const context = {
+      player:player(),
+      buyer:{ id:'buyer', reputation:70, league:'Premier League', budget:60_000_000 },
+      seller:{ id:'seller', reputation:72, league:'Premier League' },
+      buyerSquad:[], marketValue:16_500_000, windowOpen:true,
+    };
+
+    const result = advanceMarketDeal(subject, context, '2025/26:3');
+
+    expect(result.decisionLog.map(entry => entry.reasonCode)).toEqual(['seller_accepts','player_accepts']);
+    expect(result.state).toBe('agreed');
+    expect(result.awaiting).toBe('completion');
+    // The wage the player held out for is what the buying club ends up paying.
+    expect(result.terms.contract.wage).toBeGreaterThan(lowWage.contract.wage);
+    expect(advanceMarketDeal(subject, context, '2025/26:3')).toEqual(result);
+  });
+
+  it('collapses an inbound bid when the buying club will not stretch that far on wages', () => {
+    // The player earns 20k and the bid offers 10k, so their counter lands well
+    // beyond what a club that opened at that number will move to.
+    const lowWage = { ...terms(), contract:{ wage:10_000, duration:4, squadRole:'important', signingBonus:0 } };
+    const subject = deal({ userSide:'seller', delegated:false, seed:'inbound-bid', terms:lowWage });
+    const result = advanceMarketDeal(subject, {
+      player:player({ wage:20_000 }),
+      buyer:{ id:'buyer', reputation:76, league:'Premier League' },
+      seller:{ id:'seller', reputation:72, league:'Premier League' },
+      buyerSquad:[], marketValue:16_500_000, windowOpen:true,
+    }, '2025/26:3');
+
+    expect(result.state).toBe('rejected');
+    expect(result.awaiting).toBeNull();
+    expect(result.decisionLog.at(-1).reasonCode).toBe('buyer_declines_personal_terms');
+  });
+
+  it('never puts a sale’s personal terms in front of the manager, across the whole parameter space', () => {
+    // The behaviour the manager actually asked for: agreeing a fee is their
+    // decision, the player's wage is not. Swept rather than sampled, because a
+    // single missed branch here silently parks a deal on them forever —
+    // `advanceTransferMarketWeek` skips anything already awaiting the user.
+    const outcomes = new Set();
+    for (const currentWage of [20_000, 40_000, 70_000, 110_000]) {
+      for (const offeredWage of [12_000, 20_000, 30_000, 45_000, 70_000]) {
+        for (const buyerRep of [58, 64, 70, 76, 84]) {
+          for (const morale of [30, 55, 80]) {
+            for (const squadRole of ['squad','rotation','important']) {
+              const subject = deal({
+                userSide:'seller', delegated:false, createdBy:'ai',
+                seed:`sweep:${currentWage}:${offeredWage}:${buyerRep}:${morale}:${squadRole}`,
+                terms:{ fee:{ upfront:19_000_000 }, contract:{ wage:offeredWage, duration:4, squadRole, signingBonus:0 } },
+              });
+              const result = advanceMarketDeal(subject, {
+                player:player({ wage:currentWage, individualMorale:morale }),
+                buyer:{ id:'buyer', reputation:buyerRep, league:'Premier League' },
+                seller:{ id:'seller', reputation:72, league:'Premier League' },
+                buyerSquad:[], marketValue:18_000_000, windowOpen:true,
+              }, '2025/26:3');
+
+              expect(result.awaiting).not.toBe('user');
+              expect(result.stateOwner).not.toBe('user');
+              outcomes.add(result.decisionLog.at(-1)?.reasonCode);
+            }
+          }
+        }
+      }
+    }
+
+    // And the sweep is not vacuous: every branch of the buyer-led resolution is
+    // genuinely reachable, so none of them is dead code.
+    expect(outcomes).toContain('player_accepts');
+    expect(outcomes).toContain('player_rejects');
+    expect(outcomes).toContain('buyer_declines_personal_terms');
+  });
+
+  it('never parks an AI-versus-AI negotiation on the manager', () => {
+    const lowWage = { ...terms(), contract:{ wage:30_000, duration:4, squadRole:'important', signingBonus:0 } };
+    const subject = deal({ userSide:null, delegated:true, seed:'ai-vs-ai', terms:lowWage });
+    const result = advanceMarketDeal(subject, {
+      player:player(),
+      buyer:{ id:'buyer', reputation:70, league:'Premier League', budget:60_000_000 },
+      seller:{ id:'seller', reputation:72, league:'Premier League' },
+      buyerSquad:[], marketValue:16_500_000, windowOpen:true,
+    }, '2025/26:3');
+
+    expect(result.awaiting).not.toBe('user');
+    expect(result.stateOwner).not.toBe('user');
+  });
+
   it('returns the player contract decision immediately after personal terms are submitted', () => {
     const subject = transitionMarketDeal(deal({ userSide:'buyer' }), 'player_negotiation', {
       weekKey:'2025/26:3', actor:'seller', reasonCode:'seller_accepts', awaiting:'user', stateOwner:'user',

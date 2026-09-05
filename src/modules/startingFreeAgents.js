@@ -75,6 +75,7 @@ export async function seedVerifiedStartingFreeAgents() {
     ...save,
     playerRoles:nextRoles,
     lineup:lineupWasAffected ? (nextXi.length === 11 ? nextXi : null) : save.lineup,
+    bench:Array.isArray(save.bench) ? save.bench.filter(id => !movedIds.has(String(id))) : save.bench,
     startingFreeAgentsSeeded:true,
   });
 

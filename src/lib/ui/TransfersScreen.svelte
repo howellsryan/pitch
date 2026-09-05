@@ -3,16 +3,17 @@
   import { primaryRating } from '../../modules/matchEngine.js';
   import { counterMarketDeal, isUserClubDeal, reconcileManagedClubInboundOffers, submitContractTerms } from '../../modules/transferDealActions.js';
   import {
-    _loanFee, _loanWageCost, acceptMarketDeal, canClubSignPlayer, contractYearsRemaining, createUserMarketDeal, formAdjustedValue,
-    getLoanableInPlayers, loanOutPlayer, playerMinRepToSign, transferWindowStatus, withdrawMarketDeal,
+    _loanFee, _loanWageCost, acceptMarketDeal, canClubSignPlayer, canClubSignPlayerAtRating, contractYearsRemaining, createUserMarketDeal, formAdjustedValue,
+    getLoanableInPlayers, loanOutPlayer, playerMinRepToSignForRating, transferWindowStatus, withdrawMarketDeal,
     setManagedPlayerTransferListing,
   } from '../../modules/transfers.js';
   import { getPotentialLabel, getPotentialStars } from '../../modules/potential.js';
-  import { projectScoutedPlayerView } from '../../modules/scoutingView.js';
+  import { projectScoutedListKey, projectScoutedPlayerView, scoutingViewContext } from '../../modules/scoutingView.js';
   import { scoutingAssignmentIsCurrent } from '../../modules/scouting.js';
   import { scoutPlayerInFull } from '../../modules/p5Runtime.js';
   import { fmt, formLabel, playerNationality, posGroup, toast } from '../../ui/helpers.js';
   import { _updateOffersBadge } from '../../ui/squad_tactics_offers.js';
+  import { clampMarketPage, marketPageCount, marketPageLabel, marketPageSlice } from '../../game/marketPagination.js';
   import { screenTicks } from '../state/screens.svelte.js';
 
   const POT_COLORS = ['', '#8a9ab0', 'var(--color-live)', '#3b82f6', 'var(--color-warn)', 'var(--color-bad)'];
@@ -38,6 +39,7 @@
   let byId = $state(new Map());
   let leagues = $state([]);
   let buyTargets = $state([]);
+  let buyKeys = $state(new Map());
   let squadPlayers = $state([]);
   let freeAgents = $state([]);
   let winStatus = $state({ open: true, label: '' });
@@ -53,14 +55,18 @@
     maxPrice: 0, minPot: 0, query: '', affordable: false, canSign: false,
   });
 
-  function projectMarketPlayer(player) {
-    return projectScoutedPlayerView(player, save?.scouting, {
+  function projectionContext() {
+    return {
       season:save?.season,
       gameweek:save?.currentGameweek,
       userTeam:team,
       teamsById:byId,
       valueFor:formAdjustedValue,
-    });
+    };
+  }
+
+  function projectMarketPlayer(player) {
+    return projectScoutedPlayerView(player, save?.scouting, projectionContext());
   }
 
   // A completed dedicated scout reads exactly, so its figures are shown as one
@@ -99,7 +105,15 @@
     byId = new Map(allTeams.map(t => [t.id, t]));
     leagues = [...new Set(allTeams.map(t => t.league || 'Premier League'))].sort();
     const allPl = await getAllPlayers();
-    buyTargets = allPl.filter(p => p.teamId !== s.userTeamId && p.teamId !== 'free_agents').map(projectMarketPlayer);
+    // Copying every player in the world through the full scouting projection
+    // cost roughly a third of a second per load on a desktop — several seconds
+    // on a throttled phone, repeated on every screen tick — and was why this
+    // list could fail to appear at all. The rows stay canonical; a cheap key
+    // carries the *observed* ability, fee and potential the list sorts and
+    // filters on, and only the visible page pays for a full projection.
+    buyTargets = allPl.filter(p => p.teamId !== s.userTeamId && p.teamId !== 'free_agents');
+    const listContext = scoutingViewContext(s.scouting, projectionContext());
+    buyKeys = new Map(buyTargets.map(p => [p.id, projectScoutedListKey(p, s.scouting, listContext)]));
     freeAgents = allPl.filter(p => p.teamId === 'free_agents').map(projectMarketPlayer);
     squadPlayers = [...(await getPlayersByTeam(s.userTeamId))].sort((a, b) => primaryRating(b) - primaryRating(a));
 
@@ -160,47 +174,85 @@
   // here since their wages were already prepaid in full at signing.
   const weeklyWageBill = $derived(squadPlayers.filter(p => !p.onLoan).reduce((sum, p) => sum + (p.wage ?? 0), 0));
 
+  // Every ability, fee and potential predicate below reads the *scouted* key,
+  // never the canonical row: filtering or ordering on hidden attributes would
+  // both contradict the figures on screen and leak a player's true ability
+  // through the sort order.
+  const EMPTY_KEY = { rating:0, value:0, potentialStars:0, exact:false };
+  const keyFor = (player) => buyKeys.get(player.id) ?? EMPTY_KEY;
+
   const filteredBuyList = $derived.by(() => {
     const f = filters;
     let fil = buyTargets;
     if (f.pos !== 'ALL') fil = fil.filter(p => posGroup(p.position) === f.pos);
     if (f.league !== 'ALL') fil = fil.filter(p => leagueByTeam.get(p.teamId) === f.league);
     fil = fil.filter(p => (p.age || 25) >= f.minAge && (p.age || 25) <= f.maxAge);
-    fil = fil.filter(p => primaryRating(p) >= f.minRat && primaryRating(p) <= f.maxRat);
-    if (f.maxPrice > 0) fil = fil.filter(p => scoutedValue(p) <= f.maxPrice);
-    if (f.affordable) fil = fil.filter(p => Math.floor(scoutedValue(p) * 0.88) <= budget);
-    if (f.canSign) fil = fil.filter(p => canClubSignPlayer({ reputation: userRep }, p));
-    if (f.minPot > 0) fil = fil.filter(p => getPotentialStars(p) >= f.minPot);
+    fil = fil.filter(p => keyFor(p).rating >= f.minRat && keyFor(p).rating <= f.maxRat);
+    if (f.maxPrice > 0) fil = fil.filter(p => keyFor(p).value <= f.maxPrice);
+    if (f.affordable) fil = fil.filter(p => Math.floor(keyFor(p).value * 0.88) <= budget);
+    // Scouted rating, like every other predicate here: the reputation gate is a
+    // read of ability, so running it on the canonical row would leak the very
+    // number the fog exists to hide.
+    if (f.canSign) fil = fil.filter(p => canClubSignPlayerAtRating({ reputation: userRep }, p, keyFor(p).rating));
+    if (f.minPot > 0) fil = fil.filter(p => keyFor(p).potentialStars >= f.minPot);
     const q = searchKey(f.query).trim();
     if (q) fil = fil.filter(p => searchKey(p.name).includes(q) || searchKey(byId.get(p.teamId)?.name).includes(q));
 
     const sortFns = {
-      rating: (a, b) => primaryRating(b) - primaryRating(a),
-      value: (a, b) => scoutedValue(b) - scoutedValue(a),
+      rating: (a, b) => keyFor(b).rating - keyFor(a).rating,
+      value: (a, b) => keyFor(b).value - keyFor(a).value,
       age: (a, b) => (a.age || 25) - (b.age || 25),
-      potential: (a, b) => getPotentialStars(b) - getPotentialStars(a),
+      potential: (a, b) => keyFor(b).potentialStars - keyFor(a).potentialStars,
       goals: (a, b) => (b.goals || 0) - (a.goals || 0),
       assists: (a, b) => (b.assists || 0) - (a.assists || 0),
     };
     return [...fil].sort(sortFns[f.sort] || sortFns.rating);
   });
 
-  function resetFilters() {
-    Object.assign(filters, { pos: 'ALL', league: 'ALL', sort: 'rating', minAge: 15, maxAge: 40, minRat: 40, maxRat: 99, maxPrice: 0, minPot: 0, query: '', affordable: false, canSign: false });
+  // ── Buy list paging ────────────────────────────────────────
+  let buyPageRequest = $state(0);
+  const buyPageCount = $derived(marketPageCount(filteredBuyList.length));
+  // Filters change under a manager who is already several pages deep, so the
+  // page they end up on is always clamped back into the list that now exists.
+  const buyPage = $derived(clampMarketPage(buyPageRequest, filteredBuyList.length));
+  const buyPageLabel = $derived(marketPageLabel(buyPage, filteredBuyList.length));
+  const buyPageProjected = $derived(marketPageSlice(filteredBuyList, buyPage).map(projectMarketPlayer));
+
+  // The derived page is clamped for display, but the *request* has to be pulled
+  // back too: otherwise narrowing the filters to one page and widening them
+  // again teleports the manager to whatever page they were on before, rather
+  // than the one they were just looking at.
+  $effect(() => {
+    const clamped = clampMarketPage(buyPageRequest, filteredBuyList.length);
+    if (clamped !== buyPageRequest) buyPageRequest = clamped;
+  });
+
+  function goToBuyPage(page) {
+    buyPageRequest = clampMarketPage(page, filteredBuyList.length);
+    buyScrollTop = 0;
+    if (buyScroller) buyScroller.scrollTop = 0;
   }
 
-  // Virtualized scroll window over filteredBuyList.
+  function resetFilters() {
+    Object.assign(filters, { pos: 'ALL', league: 'ALL', sort: 'rating', minAge: 15, maxAge: 40, minRat: 40, maxRat: 99, maxPrice: 0, minPot: 0, query: '', affordable: false, canSign: false });
+    buyPageRequest = 0;
+  }
+
+  // Virtualized scroll window over the current page.
   let buyScrollTop = $state(0);
   let buyContainerH = $state(600);
+  let buyScroller = $state(null);
   const buyStart = $derived(Math.max(0, Math.floor(buyScrollTop / ROW_H) - OVERSCAN));
-  const buyEnd = $derived(Math.min(filteredBuyList.length, Math.ceil((buyScrollTop + buyContainerH) / ROW_H) + OVERSCAN));
-  const buyVisible = $derived(filteredBuyList.slice(buyStart, buyEnd).map((p, i) => ({ p, top: (buyStart + i) * ROW_H })));
-  const buyTotalHeight = $derived(filteredBuyList.length * ROW_H);
+  const buyEnd = $derived(Math.min(buyPageProjected.length, Math.ceil((buyScrollTop + buyContainerH) / ROW_H) + OVERSCAN));
+  const buyVisible = $derived(buyPageProjected.slice(buyStart, buyEnd).map((p, i) => ({ p, top: (buyStart + i) * ROW_H })));
+  const buyTotalHeight = $derived(buyPageProjected.length * ROW_H);
 
   function onBuyScroll(e) { buyScrollTop = e.currentTarget.scrollTop; }
 
+  // Reads the same scouted rating the "Can sign" filter does, so the badge and
+  // the filter can never disagree about whether a player is out of reach.
   function repInfo(p) {
-    const minRep = playerMinRepToSign(p);
+    const minRep = playerMinRepToSignForRating(keyFor(p).rating);
     const adjMin = p.transferListed ? Math.max(0, minRep - 4) : minRep;
     return { adjMin, blocked: adjMin > 0 && userRep < adjMin };
   }
@@ -603,7 +655,7 @@
       <div class="tr-panel">
         <div class="tr-search-row">
           <input class="tr-search" type="text" placeholder="Search name or club…" bind:value={filters.query} />
-          <span class="tr-count">{filteredBuyList.length} player{filteredBuyList.length !== 1 ? 's' : ''}</span>
+          <span class="tr-count">{buyPageLabel}</span>
         </div>
         <div class="ftabs">
           {#each ['ALL', 'ATT', 'MID', 'DEF', 'GK'] as p (p)}
@@ -664,8 +716,8 @@
           </div>
         </details>
 
-        <div class="buy-scroll" bind:clientHeight={buyContainerH} onscroll={onBuyScroll}>
-          {#if !filteredBuyList.length}
+        <div class="buy-scroll" bind:this={buyScroller} bind:clientHeight={buyContainerH} onscroll={onBuyScroll}>
+          {#if !buyPageProjected.length}
             <div class="tr-empty-inline">No players match your filters.<br><span>Try adjusting the filters above.</span></div>
           {:else}
             <div class="buy-spacer" style="height:{buyTotalHeight}px">
@@ -704,6 +756,13 @@
             </div>
           {/if}
         </div>
+        {#if buyPageCount > 1}
+          <div class="buy-pager">
+            <button class="ftab" disabled={buyPage <= 0} onclick={() => goToBuyPage(buyPage - 1)} aria-label="Previous page">Prev</button>
+            <span class="buy-pager-label">Page {buyPage + 1} of {buyPageCount}</span>
+            <button class="ftab" disabled={buyPage >= buyPageCount - 1} onclick={() => goToBuyPage(buyPage + 1)} aria-label="Next page">Next</button>
+          </div>
+        {/if}
       </div>
     {:else if tab === 'sell'}
       <div class="tr-panel">
@@ -1148,6 +1207,10 @@
 
   .buy-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; position: relative; }
   .buy-spacer { position: relative; }
+  .buy-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--color-line); }
+  .buy-pager .ftab { min-height: 44px; padding: 0 16px; }
+  .buy-pager .ftab:disabled { opacity: .4; cursor: not-allowed; }
+  .buy-pager-label { color: var(--color-tx-3); font: 700 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
   .buy-row {
     position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
     background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px;

@@ -67,6 +67,7 @@ export async function terminateManagedPlayerContract(playerId) {
   const updatedSave = {
     ...save,
     lineup:Array.isArray(save.lineup) ? save.lineup.filter(id => String(id) !== String(player.id)) : save.lineup,
+    bench:Array.isArray(save.bench) ? save.bench.filter(id => String(id) !== String(player.id)) : save.bench,
     playerRoles,
   };
 

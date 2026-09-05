@@ -407,9 +407,11 @@ export async function advanceOneFixture(overrideFormation) {
       const aFm = userIsHome ? undefined : fm;
       const hLineup = userIsHome ? (save.lineup ?? null) : null;
       const aLineup = userIsHome ? null : (save.lineup ?? null);
+      const hBench = userIsHome ? (save.bench ?? null) : null;
+      const aBench = userIsHome ? null : (save.bench ?? null);
       const hMentality = userIsHome ? (save.mentality ?? 'balanced') : undefined;
       const aMentality = userIsHome ? undefined : (save.mentality ?? 'balanced');
-      const result = simulateMatch(home, away, hPl, aPl, hFm, aFm, hLineup, aLineup, hMentality, aMentality);
+      const result = simulateMatch(home, away, hPl, aPl, hFm, aFm, hLineup, aLineup, hMentality, aMentality, { homeBench:hBench, awayBench:aBench });
       await putFixture(toCanonicalLeagueRecord(fix, result, save.season));
       const worldResults = await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
       singleResult = { ...result, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
@@ -432,6 +434,7 @@ export async function advanceOneFixture(overrideFormation) {
       playersByTeam,
       overrideFormation ?? save.formation ?? '4-3-3',
       save.lineup ?? null,
+      save.bench ?? null,
     );
     if (mdResult) {
       const reportResult = {
@@ -459,6 +462,7 @@ export async function advanceOneFixture(overrideFormation) {
       userMentality:save.mentality ?? 'balanced',
       userFormation:overrideFormation ?? save.formation ?? '4-3-3',
       userLineup:save.lineup ?? null,
+      userBench:save.bench ?? null,
     });
     const progress = resolveCupProgress(
       event.cupId,

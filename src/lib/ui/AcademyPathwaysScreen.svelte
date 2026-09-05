@@ -97,8 +97,8 @@
       toast(`${player.name} promoted to the first team`, 'success');
       screenTicks.academy++;
       screenTicks.squad++;
-    } catch (error) {
-      toast(error.message === 'SQUAD_FULL' ? 'Your senior squad is full.' : 'Could not promote this player.', 'error');
+    } catch {
+      toast('Could not promote this player.', 'error');
     }
   }
 
