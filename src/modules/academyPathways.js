@@ -2,7 +2,7 @@ import { currentEffectiveLevel } from './playerModel.js';
 import { durableLevel, potentialEstimate } from './playerDevelopment.js';
 import { coachingEffects } from './coaching.js';
 import { trainingEfficiencyMultiplier } from './facilities.js';
-import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
+import { evaluateCareerTacticalFit } from './careerTacticalFit.js';
 import { isAcademyPlayer, isLoanPlayer, isSeniorEligiblePlayer, normalizePlayerStatus } from './playerStatus.js';
 
 /*
@@ -82,8 +82,8 @@ export function createAcademyPathwaysState() {
   };
 }
 
-export function normalizeAcademyPathwaysState(state) {
-  const source = state && typeof state === 'object' && !Array.isArray(state) ? state : {};
+export function normalizeAcademyPathwaysState(stateInput) {
+  const source = stateInput && typeof stateInput === 'object' && !Array.isArray(stateInput) ? stateInput : {};
   const assignments = Array.isArray(source.youthScoutingAssignments)
     ? source.youthScoutingAssignments.filter(Boolean).slice(-MAX_YOUTH_SCOUTING_HISTORY)
     : [];
@@ -311,16 +311,15 @@ export function loanDestinationProjection(playerInput, team, players = [], conte
   const ahead = depth.filter(candidate => Number(currentEffectiveLevel(candidate) ?? 0) > level + 1).length;
   const expectedMinutes = academyPathwayClamp(Math.round(2350 - ahead * 430 + (level - Number(team.reputation ?? 65)) * 22), 250, 3000);
   const expectedRole = expectedMinutes >= 2250 ? 'important' : expectedMinutes >= 1500 ? 'rotation' : expectedMinutes >= 800 ? 'squad' : 'prospect';
-  const tacticalProfile = getAITacticalProfile(team);
-  const roleId = chooseAIRole(player, tacticalProfile);
-  const tacticalFit = roleId ? roleSuitability(player, roleId) : .85;
+  const tactical = evaluateCareerTacticalFit({ player, team, squad:players });
+  const tacticalFit = tactical.tacticalFit;
   const coaching = coachingEffects(team, player).development;
   const facilities = trainingEfficiencyMultiplier(team);
   const affordability = Number(team.budget ?? 0) >= Number(player.wage ?? 0) * 26 ? 1 : .72;
   const levelFit = academyPathwayClamp(1 - Math.abs(Number(team.reputation ?? 65) - level) / 45, .55, 1);
   const pathwayScore = academyPathwayRound1(academyPathwayClamp(
-    (expectedMinutes / 3000) * 42
-    + academyPathwayClamp(tacticalFit, .65, 1.12) / 1.12 * 18
+    (expectedMinutes / 3000) * 48
+    + academyPathwayClamp(tacticalFit, .72, 1.10) / 1.10 * 12
     + academyPathwayClamp(coaching, .88, 1.12) / 1.12 * 16
     + academyPathwayClamp(facilities, .9, 1.12) / 1.12 * 12
     + affordability * 6
@@ -332,8 +331,9 @@ export function loanDestinationProjection(playerInput, team, players = [], conte
     teamId:team.id,
     expectedMinutes,
     expectedRole,
-    tacticalRole:roleId,
+    tacticalRole:tactical.roleId,
     tacticalFit:academyPathwayRound2(tacticalFit),
+    tacticalProfileId:tactical.profileId,
     coaching:academyPathwayRound2(coaching),
     facilities:academyPathwayRound2(facilities),
     affordability:academyPathwayRound2(affordability),
