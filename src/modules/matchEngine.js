@@ -276,11 +276,14 @@ export function pickScorer(eleven, rng = Math.random) {
     const norm = matchAttribute(p, 'attack') / 99;
     return base * (norm * norm * 1.5 + .5);
   });
-  const total = weights.reduce((a,b) => a+b, 0);
+  const total = weights.reduce((a,b) => a + b, 0);
   if (!total) return eleven.find(p => (p.matchPosition ?? p.position) !== 'GK') ?? eleven[0];
   let roll = _matchRandomValue(rng) * total;
-  for (let i=0; i<eleven.length; i++) { roll -= weights[i]; if (roll <= 0) return eleven[i]; }
-  return eleven[eleven.length-1];
+  for (let i = 0; i < eleven.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return eleven[i];
+  }
+  return eleven[eleven.length - 1];
 }
 
 /** Historical P2 helper retained for compatibility; T3 assists come from pass chains. */
@@ -294,10 +297,13 @@ export function pickAssister(eleven, scorerId, rng = Math.random) {
     if (!base) return 0;
     return base * ((matchAttribute(p, 'midfield') / 99) * .6 + .4);
   });
-  const total = weights.reduce((a,b) => a+b, 0);
+  const total = weights.reduce((a,b) => a + b, 0);
   if (!total) return cands[0];
   let roll = _matchRandomValue(rng) * total;
-  for (let i=0; i<cands.length; i++) { roll -= weights[i]; if (roll <= 0) return cands[i]; }
+  for (let i = 0; i < cands.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return cands[i];
+  }
   return cands[0];
 }
 
