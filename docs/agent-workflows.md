@@ -91,10 +91,9 @@ script cannot execute, disclose the specific limitation before dependent work.
 5. To roll back, restore the previous lock and rerun the installer. Existing clean
    cached revisions are reused. Local/project-owned skills are never overwritten.
 
-The initial adoption may pin the central PR commit for verification before merge.
-Merge Agent-Template before this PR. If that PR is squash/rebase merged, regenerate
-the lock from the resulting merged commit and rerun verification before merging
-Pitch. Avoid relying on a subsequently unreachable PR commit.
+Pin a merged central commit when adopting updates. If a central PR is squash or
+rebase merged, regenerate the lock from the resulting merged commit and rerun
+verification. Avoid relying on a subsequently unreachable PR commit.
 
 Do not enable a native marketplace copy of the same workflow alongside bootstrap
 links. Marketplace installation is an alternative for separate environments and
