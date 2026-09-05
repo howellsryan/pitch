@@ -24,6 +24,13 @@ export const SYNTHETIC_KEEPER_TARGETS = Object.freeze([
   Object.freeze({ x:.56, y:.55, label:'MID RIGHT' }),
 ]);
 
+export const SYNTHETIC_SPECIAL_FINISH_ZONE = Object.freeze({
+  centerX:.79,
+  centerY:.82,
+  radiusX:.18,
+  radiusY:.17,
+});
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -39,6 +46,12 @@ function easeInOut(value) {
 
 function phaseProgress(progress, start, end) {
   return clamp((progress - start) / Math.max(.0001, end - start), 0, 1);
+}
+
+function motionPulse(progress, start, peak, end) {
+  if (progress <= start || progress >= end) return 0;
+  if (progress <= peak) return easeInOut(phaseProgress(progress, start, peak));
+  return 1 - easeInOut(phaseProgress(progress, peak, end));
 }
 
 function numeric(value, fallback) {
@@ -125,12 +138,15 @@ function syntheticKeeper(intent = {}) {
 
 export function isSyntheticSpecialFinish(intent = {}) {
   const attack = syntheticAttack(intent);
-  return Math.abs(attack.aimX) >= .68
-    && Math.abs(attack.aimX) <= .98
-    && attack.aimY >= .70
-    && attack.aimY <= .96
-    && attack.power >= .68
-    && attack.timing >= .72;
+  const zone = SYNTHETIC_SPECIAL_FINISH_ZONE;
+  const closestCornerX = attack.aimX < 0 ? -zone.centerX : zone.centerX;
+  const dx = Math.abs(attack.aimX - closestCornerX) / zone.radiusX;
+  const dy = Math.abs(attack.aimY - zone.centerY) / zone.radiusY;
+  // The gold marker is the complete synthetic-drill contract: if the visible
+  // goal-plane endpoint lands inside it, the player has executed the special
+  // finish. Power/timing remain useful presentation inputs but are deliberately
+  // not hidden second gates after the user has hit the advertised target.
+  return (dx * dx) + (dy * dy) <= 1;
 }
 
 export function resolveSyntheticAttackShot(intent = {}) {
@@ -155,10 +171,10 @@ export function resolveSyntheticAttackShot(intent = {}) {
 
   const keeper = special
     ? {
-        x:Number((target.x * .56).toFixed(4)),
-        y:Number((target.y * .58).toFixed(4)),
-        timing:.78,
-        reach:.46,
+        x:Number((target.x * .48).toFixed(4)),
+        y:Number((target.y * .52).toFixed(4)),
+        timing:.74,
+        reach:.42,
       }
     : {
         x:target.x,
@@ -256,14 +272,31 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const shot = resolution?.shot ?? resolution ?? null;
   const target = shot?.presentation?.target ?? { x:0, y:.48, power:.72 };
   const outcome = shot?.finish ?? null;
-  const run = easeInOut(phaseProgress(progress, .02, .28));
-  const strike = easeInOut(phaseProgress(progress, .22, .42));
-  const flight = easeInOut(phaseProgress(progress, .38, .82));
+
+  const approach = easeInOut(phaseProgress(progress, .01, .27));
+  const runStride = Math.sin(approach * Math.PI * 3.5) * (1 - approach);
+  const backswing = motionPulse(progress, .17, .29, .38);
+  const strikeDrive = motionPulse(progress, .29, .43, .62);
+  const plantSet = easeInOut(phaseProgress(progress, .22, .39));
+  const plantBend = motionPulse(progress, .27, .39, .66);
   const recovery = easeInOut(phaseProgress(progress, .74, 1));
-  const strikePulse = Math.sin(strike * Math.PI);
-  const keeperDive = easeInOut(phaseProgress(progress, .40, .72));
-  const keeperPose = keeperDive * (1 - recovery);
-  const defenderLunge = outcome === 'blocked' ? easeInOut(phaseProgress(progress, .30, .54)) * (1 - recovery) : 0;
+  const flight = outcome ? easeInOut(phaseProgress(progress, .43, .82)) : 0;
+
+  // Keep the ball completely still until foot contact. The earlier POC began
+  // moving the ball before the kicking leg reached contact, which made both the
+  // shot and the keeper response look disconnected from the animation.
+  const kick = (-.38 * backswing + 1.24 * strikeDrive) * (1 - recovery);
+  const followThrough = strikeDrive * (1 - recovery);
+  const balanceArms = (.16 + strikeDrive * .34 + backswing * .14) * (1 - recovery);
+  const targetDirection = clamp(Number(target.x ?? 0), -1, 1);
+
+  const keeperCrouch = motionPulse(progress, .28, .40, .50);
+  const keeperPush = easeInOut(phaseProgress(progress, .43, .56));
+  const keeperExtension = easeInOut(phaseProgress(progress, .48, .71));
+  const keeperLanding = easeInOut(phaseProgress(progress, .70, .84));
+  const keeperRecovery = easeInOut(phaseProgress(progress, .84, 1));
+  const keeperPose = keeperExtension * (1 - keeperRecovery);
+  const defenderLunge = outcome === 'blocked' ? easeInOut(phaseProgress(progress, .31, .55)) * (1 - recovery) : 0;
 
   const targetX = Number(target.x ?? 0) * world.goalWidth / 2;
   const targetY = clamp(Number(target.y ?? .48), -.35, 1.35) * world.goalHeight;
@@ -274,18 +307,20 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const keeperPlan = shot?.presentation?.keeper ?? null;
   const keeperTargetX = keeperPlan ? Number(keeperPlan.x ?? 0) * world.goalWidth * .43 : targetX * .8;
   const keeperTargetY = keeperPlan ? Number(keeperPlan.y ?? .45) * world.goalHeight : targetY * .82;
-  // A keeper reaches high shots mostly through body angle and arm extension,
-  // not by translating their entire ~1.84 m body to the ball height. Keep the
-  // jump/lift grounded and let the articulated pose provide the visible reach.
-  const keeperLift = clamp((keeperTargetY - 1.05) * .62, 0, .52);
+  const keeperLift = clamp((keeperTargetY - .90) * .55, .08, .48);
+  const keeperArc = Math.sin(clamp(phaseProgress(progress, .44, .84), 0, 1) * Math.PI);
 
   const contactProgress = outcome ? flight : 0;
   const ballX = outcome === 'blocked'
     ? lerp(world.ball.x, world.defender.x, contactProgress)
     : lerp(world.ball.x, targetX, contactProgress);
-  const ballY = outcome === 'blocked'
+  const baseBallY = outcome === 'blocked'
     ? lerp(world.ball.y, .62, contactProgress)
     : lerp(world.ball.y, targetY, contactProgress);
+  const shotArc = outcome && outcome !== 'blocked'
+    ? Math.sin(contactProgress * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12)
+    : 0;
+  const ballY = baseBallY + shotArc;
   const ballZ = outcome === 'blocked'
     ? lerp(world.ball.z, targetZ, contactProgress)
     : lerp(world.ball.z, targetZ, contactProgress);
@@ -294,23 +329,31 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
     progress:clamp(progress, 0, 1),
     outcome,
     shooter:{
-      x:world.shooter.x,
-      y:0,
-      z:lerp(world.shooter.z + .8, world.shooter.z, run),
-      lean:-.14 * strikePulse * (1 - recovery),
-      kick:strikePulse * 1.18 * (1 - recovery),
-      plant:-strikePulse * .16 * (1 - recovery),
-      arms:strikePulse * .24 * (1 - recovery),
+      x:world.shooter.x + runStride * .025,
+      y:Math.abs(runStride) * .018,
+      z:lerp(world.shooter.z + 1.05, world.shooter.z, approach),
+      lean:(-.055 * backswing + .13 * strikeDrive) * (1 - recovery),
+      kick,
+      plant:.17 * plantSet * (1 - recovery),
+      plantBend:.32 * plantBend * (1 - recovery),
+      arms:balanceArms,
+      torsoTwist:targetDirection * .10 * followThrough,
+      headDip:.06 * strikeDrive * (1 - recovery),
+      backswing,
+      followThrough,
       recovery,
     },
     keeper:{
-      x:lerp(world.keeper.x, keeperTargetX, keeperPose),
-      y:lerp(0, keeperLift, keeperPose),
+      x:lerp(world.keeper.x, keeperTargetX, keeperPush * keeperPose),
+      y:keeperLift * keeperArc * keeperPose,
       z:world.keeper.z,
       dive:keeperPose,
-      roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.05 * keeperPose,
-      arms:.18 + keeperPose * .82,
-      recovery,
+      roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.12 * keeperPose,
+      arms:.12 + keeperPose * .98,
+      crouch:keeperCrouch * (1 - keeperRecovery),
+      push:keeperPush * (1 - keeperRecovery),
+      landing:keeperLanding * (1 - keeperRecovery),
+      recovery:keeperRecovery,
     },
     defender:{
       x:world.defender.x,
@@ -319,7 +362,14 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
       lunge:defenderLunge,
       recovery,
     },
-    ball:{ x:ballX, y:ballY, z:ballZ, visible:true },
+    ball:{
+      x:ballX,
+      y:ballY,
+      z:ballZ,
+      visible:true,
+      spinX:contactProgress * Math.PI * 8,
+      spinZ:targetDirection * contactProgress * Math.PI * 2.4,
+    },
     world,
   };
 }
