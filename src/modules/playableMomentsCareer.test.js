@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PLAYABLE_KEY_MOMENTS_FLAGS,
   PLAYABLE_MOMENT_SOFT_CAP,
+  acknowledgePlayableMoment,
   assertSupportedPlayableSession,
   attachPendingPlayableMoment,
   commitPlayableMomentToSession,
@@ -90,6 +91,18 @@ function session(slotId = 'career_a', fixtureId = 'fixture-1') {
   });
 }
 
+function committedSession() {
+  const pending = attachPendingPlayableMoment(session(), { moment:moment(), continuation:continuation() });
+  const resolution = { moment:moment(), shot:{ finish:'goal', goal:true, presentation:{ contact:'goal' } }, record:{ phase:61, finish:'goal' }, goalEvent:{ type:'goal', minute:46, teamId:'home' } };
+  return commitPlayableMomentToSession(pending, {
+    momentId:pending.pending.momentId,
+    intent:{ attack:{ aimX:.4, aimY:.7, power:.8, timing:.9 } },
+    resolution,
+    updatedState:liveState({ hGoals:2, rngState:777 }),
+    segEvents:[resolution.goalEvent],
+  });
+}
+
 describe('Phase 2 playable career session', () => {
   it('round-trips live state Maps through plain save-safe data', () => {
     const serialized = serializeLiveMatchState(liveState());
@@ -144,28 +157,33 @@ describe('Phase 2 playable career session', () => {
     expect(runtime.currentPhase).toBe(60);
   });
 
-  it('commits normalized intent, authoritative receipt and advanced state once into the session contract', () => {
-    const pending = attachPendingPlayableMoment(session(), { moment:moment(), continuation:continuation() });
-    const resolution = { moment:moment(), shot:{ finish:'goal', goal:true, presentation:{ contact:'goal' } }, record:{ phase:61, finish:'goal' }, goalEvent:{ type:'goal', minute:46, teamId:'home' } };
-    const committed = commitPlayableMomentToSession(pending, {
-      momentId:pending.pending.momentId,
-      intent:{ attack:{ aimX:.4, aimY:.7, power:.8, timing:.9 } },
-      resolution,
-      updatedState:liveState({ hGoals:2, rngState:777 }),
-      segEvents:[resolution.goalEvent],
-    });
+  it('commits normalized intent, authoritative receipt and advanced state into a recoverable result-reveal state', () => {
+    const committed = committedSession();
 
-    expect(committed.session.status).toBe('active');
+    expect(committed.session.status).toBe('committed');
     expect(committed.session.pending).toBeNull();
     expect(committed.session.currentPhase).toBe(61);
-    expect(committed.session.lastReceipt.momentId).toBe(pending.pending.momentId);
     expect(committed.session.lastReceipt.intent.version).toBe(1);
     expect(committed.session.lastReceipt.resolution.shot.finish).toBe('goal');
     expect(committed.session.history.at(-1).finish).toBe('goal');
-    expect(restorePlayableRuntime(committed.session).liveState.hGoals).toBe(2);
+
+    const restored = restorePlayableRuntime(committed.session);
+    expect(restored.liveState.hGoals).toBe(2);
+    expect(restored.receipt).toEqual(committed.receipt);
   });
 
-  it('marks full time only after no pending moment remains', () => {
+  it('requires explicit acknowledgement after a durable result reveal before match simulation can continue', () => {
+    const committed = committedSession();
+    expect(evaluatePlayableMomentSelection({ moment:moment({ phase:80 }), session:committed.session }).reason).toBe('session_busy');
+    expect(() => markPlayableMatchReadyToClose(committed.session, {})).toThrow(/unresolved presentation/i);
+
+    const acknowledged = acknowledgePlayableMoment(committed.session);
+    expect(acknowledged.status).toBe('active');
+    expect(acknowledged.revision).toBe(committed.session.revision + 1);
+    expect(acknowledged.lastReceipt).toEqual(committed.receipt);
+  });
+
+  it('marks full time only after no pending or unacknowledged result remains', () => {
     const active = session();
     const closed = markPlayableMatchReadyToClose(active, { homeGoals:2, awayGoals:1 });
     expect(closed.status).toBe('ready_to_close');
@@ -173,7 +191,7 @@ describe('Phase 2 playable career session', () => {
     expect(closed.finalResult.homeGoals).toBe(2);
 
     const pending = attachPendingPlayableMoment(active, { moment:moment(), continuation:continuation() });
-    expect(() => markPlayableMatchReadyToClose(pending, {})).toThrow(/unresolved moment/i);
+    expect(() => markPlayableMatchReadyToClose(pending, {})).toThrow(/unresolved presentation or moment/i);
   });
 
   it('rejects unsupported started versions instead of silently relabelling them', () => {
