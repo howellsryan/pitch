@@ -26,6 +26,7 @@ import {
   packetDerivedSeed,
   resolveAuthoritativePhase,
 } from './matchActionResolver.js';
+import { buildMatchTacticalAnalysis } from './matchTacticalAnalysis.js';
 
 /**
  * modules/matchEngine.js — authoritative P2/P3/T3/T5 simulation core.
@@ -275,14 +276,11 @@ export function pickScorer(eleven, rng = Math.random) {
     const norm = matchAttribute(p, 'attack') / 99;
     return base * (norm * norm * 1.5 + .5);
   });
-  const total = weights.reduce((a,b) => a + b, 0);
+  const total = weights.reduce((a,b) => a+b, 0);
   if (!total) return eleven.find(p => (p.matchPosition ?? p.position) !== 'GK') ?? eleven[0];
   let roll = _matchRandomValue(rng) * total;
-  for (let i = 0; i < eleven.length; i++) {
-    roll -= weights[i];
-    if (roll <= 0) return eleven[i];
-  }
-  return eleven[eleven.length - 1];
+  for (let i=0; i<eleven.length; i++) { roll -= weights[i]; if (roll <= 0) return eleven[i]; }
+  return eleven[eleven.length-1];
 }
 
 /** Historical P2 helper retained for compatibility; T3 assists come from pass chains. */
@@ -296,13 +294,10 @@ export function pickAssister(eleven, scorerId, rng = Math.random) {
     if (!base) return 0;
     return base * ((matchAttribute(p, 'midfield') / 99) * .6 + .4);
   });
-  const total = weights.reduce((a,b) => a + b, 0);
+  const total = weights.reduce((a,b) => a+b, 0);
   if (!total) return cands[0];
   let roll = _matchRandomValue(rng) * total;
-  for (let i = 0; i < cands.length; i++) {
-    roll -= weights[i];
-    if (roll <= 0) return cands[i];
-  }
+  for (let i=0; i<cands.length; i++) { roll -= weights[i]; if (roll <= 0) return cands[i]; }
   return cands[0];
 }
 
@@ -756,6 +751,9 @@ export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
       state.hMods.shotsMultSelf, state.aMods.shotsMultSelf,
       createSeededRng(state.rngState ?? state.seed),
     );
+  const tacticalAnalysis = hasAuthoritativeLedger && (state.homePlanSource === 'user' || state.awayPlanSource === 'user')
+    ? buildMatchTacticalAnalysis({ ledger, homeTeamId:homeTeam.id, awayTeamId:awayTeam.id })
+    : null;
 
   return {
     matchEngineVersion:state.matchEngineVersion ?? MATCH_ENGINE_VERSION,
@@ -768,7 +766,7 @@ export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
     homeGoals, awayGoals,
     homeScorers, awayScorers, events,
     outcome:homeGoals > awayGoals ? 'home_win' : homeGoals < awayGoals ? 'away_win' : 'draw',
-    fitnessUpdates, stats,
+    fitnessUpdates, stats, tacticalAnalysis,
     homeFormation:state.homeFormation, awayFormation:state.awayFormation,
     homeMentality:state.homeMentality, awayMentality:state.awayMentality,
     homeTactics:state.homeTactics, awayTactics:state.awayTactics,
