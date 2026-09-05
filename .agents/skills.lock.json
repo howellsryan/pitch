@@ -1,13 +1,13 @@
 {
   "version": 1,
   "bootstrap": {
-    "revision": "890740baae830c0b832047b22a629142c3a058fb",
+    "revision": "33d1296532e5c4dfac8ec4ca14c9fe403bdbc34e",
     "sha256": "c414d029c6ee0285125ee8c43bab51155edea9b0ce9a82ea8d051a6d08bec0d2"
   },
   "sources": [
     {
       "repository": "howellsryan/Agent-Template",
-      "revision": "890740baae830c0b832047b22a629142c3a058fb",
+      "revision": "33d1296532e5c4dfac8ec4ca14c9fe403bdbc34e",
       "skills": {
         "delivery-loop": "plugins/engineering-workflow/skills/delivery-loop",
         "memory-hygiene": "plugins/engineering-workflow/skills/memory-hygiene",
