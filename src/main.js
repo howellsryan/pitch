@@ -99,3 +99,17 @@ if (matchMount) mount(MatchScreen, { target: matchMount });
 
 const inboxMount = document.getElementById('screen-inbox');
 if (inboxMount) mount(InboxScreen, { target: inboxMount });
+
+// Phase 1 Playable Key Moments is deliberately dev-only and lazy. The POC UI
+// and both 3D renderer adapters stay completely outside the ordinary management
+// load unless this explicit query flag is present. Nothing in this harness can
+// write a real career fixture.
+const playablePocEnabled = new URLSearchParams(window.location.search).get('playable-poc') === '1';
+if (playablePocEnabled) {
+  const playablePocMount = document.createElement('div');
+  playablePocMount.id = 'playable-poc-mount';
+  document.body.appendChild(playablePocMount);
+  import('./lib/ui/PlayableMomentsPoc.svelte')
+    .then(({ default:PlayableMomentsPoc }) => mount(PlayableMomentsPoc, { target:playablePocMount }))
+    .catch(error => console.error('Playable Key Moments POC failed to load', error));
+}
