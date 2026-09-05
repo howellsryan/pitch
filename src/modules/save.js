@@ -466,6 +466,7 @@ export async function startNewGame(userTeamId, managerName) {
     formation:       '4-3-3',
     mentality:       'balanced',
     lineup:          null,
+    bench:           null,
     tactics:         createUserTacticalPlan(),
     playerRoles:     {},
     managerDNA:      createManagerDNA(),
