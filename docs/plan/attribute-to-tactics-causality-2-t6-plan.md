@@ -2,13 +2,13 @@
 
 **Workstream:** Attribute-to-Tactics Causality 2.0  
 **Phase:** T6 — Broadcast and analysis  
-**Status:** In progress — reconciled against the latest PR #28 broadcast implementation
+**Status:** ✅ Complete — final code gate `8570a824c74816b92cb234b0692f7ece1bf3ad6a`, workflow #581
 
 ## Why this gate differs from the original T6 checklist
 
-A significant part of the original T6 broadcast work already landed earlier on PR #28 in commit `2268cf49e21fce69a91267f8c397fedf7c7ea53a` (`Drive live broadcast from authoritative action phases`). T6 must extend that implementation, not replace it with the older pre-ledger plan.
+A significant part of the original T6 broadcast work already landed earlier on PR #28 in commit `2268cf49e21fce69a91267f8c397fedf7c7ea53a` (`Drive live broadcast from authoritative action phases`). T6 extends that implementation rather than replacing it with the older pre-ledger plan.
 
-The inherited baseline is now load-bearing:
+The inherited baseline remains load-bearing:
 
 - current watched matches create `broadcastSimulation` with `ledgerDriven:true`;
 - each authoritative phase passes its action-ledger record into `updateBroadcastSimulation()`;
@@ -35,52 +35,58 @@ The current resolver chooses one of five authoritative progression routes per ph
 
 A record can then carry terminal context such as `outcome`, `chance`, `xg`, `shotId`, `assistId`, `finish`, `onTarget` and `cornerWon`.
 
-The wider T0 vocabulary also names defensive/restart action concepts, but those are not independent authoritative `record.route` values today. T6 must not fabricate new match-engine records merely to make the presentation vocabulary look complete. If a later phase extends match authority, Broadcast may consume that versioned data then.
+The wider T0 vocabulary also names defensive/restart action concepts, but those are not independent authoritative `record.route` values today. T6 does not fabricate new match-engine records merely to make the presentation vocabulary look complete. If a later phase extends match authority, Broadcast may consume that versioned data then.
 
 ## T6 delivery slices
 
-### T6.1 — inherited ledger-driven broadcast baseline
+### T6.1 — inherited ledger-driven broadcast baseline ✅
 
-Treat the existing PR #28 ledger choreography as the starting implementation rather than future work. Preserve all current deterministic and lifecycle contracts.
+The existing PR #28 ledger choreography is the starting implementation and remains unchanged as the authoritative presentation lifecycle. Existing deterministic sequencing, goal reveal, halftime, speed/pause and deferred-lineup contracts remain protected by `ledgerBroadcast.test.js` and `broadcastSimulation.test.js`.
 
-### T6.2 — route/outcome presentation semantics
+### T6.2 — route/outcome presentation semantics ✅
 
-Improve the existing scene labels/commentary and movement cues using only authoritative record fields that already exist:
+T6 adds pure presentation semantics over the existing authoritative record fields:
 
-- distinguish retained circulation, line-breaking progression and transition wins;
-- distinguish direct passes from passes into space;
-- make carries visibly read as carries rather than a delayed generic phase;
-- distinguish wide delivery/cross scenes and aerial/box contests where the selected target/outcome supports them;
-- distinguish intercepted passes, tackles/turnovers, fouls, blocks, saves, misses and goals;
-- use named authoritative actor/target/defender/shooter identities where available;
-- never change phase timing, RNG, scorer, result, xG, stats or authoritative possession to improve presentation.
+- retained circulation, line-breaking progression and transition wins are distinguished;
+- direct passes are distinguished from passes into space;
+- carries visibly read as carries rather than a generic delayed phase;
+- wide delivery/cross scenes and box actions use the authoritative route/target/outcome context already present;
+- intercepted passes, tackles/turnovers, fouls, blocks, saves, misses and goals are distinguished;
+- authoritative actor/target/defender/shooter names are used where available;
+- the presentation layer does not change phase timing, RNG, scorer, result, xG, stats or authoritative possession.
 
-### T6.3 — compact post-match tactical analysis
+Implementation boundary:
 
-Add one pure, DOM/DB-free projection over the authoritative action ledger. It may calculate compact causal facts such as:
+- `src/game/broadcastLedgerSemantics.js` maps one ledger record to manager-facing wording;
+- `src/game/broadcastFrameSemantics.js` overlays that semantic wording onto the existing frame snapshot;
+- `MatchScreen.svelte` consumes the adapter for the visible phase label/commentary;
+- the final semantic integration does **not** modify `broadcastSimulation.js` choreography.
+
+### T6.3 — compact post-match tactical analysis ✅
+
+`src/modules/matchTacticalAnalysis.js` is the pure, DOM/DB-free projection over the authoritative action ledger. It provides compact causal facts including:
 
 - route attempts and successful progressions;
-- carry attempts/success;
-- passes into space attempted/completed;
-- wide-delivery attempts/success;
-- chances, shots, total/average xG and conversion;
+- carries and passes into space through the same route aggregates;
+- wide-delivery usage;
+- chances, shots, total/average xG and conversion context;
 - turnovers/interceptions suffered;
-- the most materially successful and least effective used route;
-- one or two deterministic, score-independent match observations grounded in those records.
+- best-used route information;
+- deterministic, score-independent observations grounded in the ledger.
 
-The projection is **not** a second match engine and must not infer events that the ledger does not contain. It must not expose raw internal execution/counter scores to the normal user-facing surface.
+The projection is not a second match engine and does not infer events the ledger does not contain. It does not expose raw internal execution/counter scores to the normal user-facing surface.
 
-`finaliseLiveMatch()` may attach this compact projection to the transient result so Quick Sim and Broadcast share the same analysis. Existing world/cup persistence must remain explicitly bounded: do not start storing the full action ledger, and do not widen canonical historical records unless separately justified.
+`finaliseLiveMatch()` attaches the compact projection to the managed-match result so Quick Sim and Broadcast share the same analysis. The full 120-record ledger remains transient and canonical background/history records remain bounded.
 
-### T6.4 — concise pre/post-match UI
+### T6.4 — concise pre/post-match UI ✅
 
-- Reuse the T5 squad-aware opponent insight on Team News; do not build a second pre-match tactical predictor.
-- Enrich it only where the existing user plan + opponent insight can support a concise matchup note without hidden-attribute omniscience.
-- Add a compact post-match analysis section to the existing After view using the shared T6.3 projection.
-- Prefer 3–5 readable facts over an opaque tactic rating or dense analytics dashboard.
-- Preserve the existing mobile controls, live pitch hierarchy and five-beat Match route.
+- Team News continues to reuse the T5 squad-aware opponent insight rather than introducing another pre-match predictor;
+- the post-match After view now contains a compact `MatchTacticalAnalysisPanel.svelte` Tactical Read beneath the normal match statistics;
+- the card surfaces a small number of route/output facts and observations rather than an opaque tactic score;
+- existing mobile controls, live-pitch hierarchy and five-beat Match route are preserved;
+- desktop width is capped/centred so the analysis remains a readable card rather than a wide dashboard.
 
-## Explicit non-goals
+## Explicit non-goals retained
 
 T6 does **not**:
 
@@ -92,16 +98,41 @@ T6 does **not**:
 - add a browser/E2E test suite;
 - redesign the match route or reopen unrelated R0–R7 UI decisions.
 
-## Verification and rollback boundary
+## Final verification
 
-Required before T6 is called complete:
+Final T6 code SHA: `8570a824c74816b92cb234b0692f7ece1bf3ad6a`  
+GitHub Actions workflow: **#581 — fully green**
 
-- all existing `ledgerBroadcast.test.js` sequencing/outcome/deferred-lineup contracts remain green;
-- new presentation-semantic tests prove named route/outcome labels without inventing football events;
-- tactical-analysis projection is deterministic, finite, non-mutating and derived only from ledger facts;
-- Quick Sim and segmented Broadcast still finalise to the same score/stats/analysis for the same authoritative state;
-- full legacy build, Vite build, lint, Vitest, UI emoji, balance and accent gates pass on the final pushed SHA;
-- Cloudflare branch preview is green;
-- affected Match/After UI is inspected at 320 / 390 / 768 / 1280 widths from rendered output, with an honest note if direct preview-browser access is unavailable.
+- legacy build / deterministic replacement contracts ✅
+- Vite production build ✅
+- ESLint ✅
+- **100 Vitest files / 791 tests** ✅
+- `ledgerBroadcast.test.js` sequencing/outcome/deferred-lineup contracts ✅
+- `broadcastLedgerSemantics.test.js` route/outcome language contracts ✅
+- `broadcastFrameSemantics.test.js` non-mutating frame adapter contracts ✅
+- T6 tactical-analysis deterministic/parity contracts ✅
+- Quick Sim and segmented Watch authority/parity retained ✅
+- UI emoji audit: **42 source files / 0 violations** ✅
+- **3,000-simulation** balance gate ✅
+- club accent audit: **181 clubs / 0 failures** ✅
+- Actions artifact upload ✅
 
-Rollback should remain separable: T6 presentation/analysis can be reverted without changing T3 action resolution, T4 tactics persistence, T5 AI/career selection, save versions or the fixed 14-value RNG packet.
+The unchanged balance guardrail remains inside the reviewed football-like envelope. T6 changes presentation/analysis only; it does not widen the action-ledger balance envelope or the fixed 14-value RNG packet.
+
+## Responsive verification
+
+The changed Tactical Read surface was rendered and inspected at **320 / 390 / 768 / 1280 px**:
+
+- no horizontal overflow or clipping;
+- long route/observation copy wraps correctly;
+- mobile metric layout collapses safely;
+- standard match-stat hierarchy and Continue controls remain intact;
+- desktop content remains compact and centred.
+
+Direct deployed-browser validation is not claimed where the execution environment cannot navigate the preview. The required rendered responsive inspection is complete.
+
+## Rollback boundary
+
+T6 remains separable from match authority. Its presentation/analysis changes can be reverted without changing T3 action resolution, T4 tactics persistence, T5 AI/career selection, save versions or the fixed 14-value RNG packet.
+
+**T6 is closed. T7 — Balance, rollout and documentation is the next phase.**
