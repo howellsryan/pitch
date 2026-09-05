@@ -156,6 +156,7 @@ export function assertSupportedPlayableSession(session) {
     throw new Error('Playable match session was started by an unsupported version');
   }
   if (session.pending && session.pending.version !== PLAYABLE_PENDING_VERSION) throw new Error('Unsupported pending playable moment version');
+  if (session.lastReceipt && session.lastReceipt.version !== PLAYABLE_RECEIPT_VERSION) throw new Error('Unsupported playable receipt version');
   return session;
 }
 
@@ -258,7 +259,11 @@ export function commitPlayableMomentToSession(session, { momentId, intent = null
   return {
     session:{
       ...session,
-      status:'active',
+      // The official result is already durable at this point, but presentation
+      // has not necessarily been observed. Keeping this explicit state means a
+      // refresh after commit reopens the stored receipt rather than rerolling or
+      // silently skipping the result reveal.
+      status:'committed',
       revision:nextRevision,
       currentPhase:Math.max(session.currentPhase, Math.trunc(numeric(receipt.phase))),
       liveState:serializeLiveMatchState(updatedState),
@@ -271,9 +276,19 @@ export function commitPlayableMomentToSession(session, { momentId, intent = null
   };
 }
 
+export function acknowledgePlayableMoment(session) {
+  assertSupportedPlayableSession(session);
+  if (session.status !== 'committed' || !session.lastReceipt) throw new Error('Playable result is not awaiting acknowledgement');
+  return {
+    ...session,
+    status:'active',
+    revision:session.revision + 1,
+  };
+}
+
 export function markPlayableMatchReadyToClose(session, result) {
   assertSupportedPlayableSession(session);
-  if (session.pending) throw new Error('Cannot finalize a playable match with an unresolved moment');
+  if (session.status !== 'active' || session.pending) throw new Error('Cannot finalize a playable match with unresolved presentation or moment state');
   return {
     ...session,
     status:'ready_to_close',
@@ -293,6 +308,7 @@ export function restorePlayableRuntime(session) {
       ...clonePlain(session.pending),
       continuation:deserializePlayableContinuation(session.pending.continuation),
     } : null,
+    receipt:session.lastReceipt ? clonePlain(session.lastReceipt) : null,
     finalResult:session.finalResult ? clonePlain(session.finalResult) : null,
   };
 }
