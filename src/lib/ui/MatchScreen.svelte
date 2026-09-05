@@ -21,6 +21,7 @@
   import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
   import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, setMatchNavigationLocked, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
@@ -29,6 +30,7 @@
   import { screenTicks } from '../state/screens.svelte.js';
   import Crest from './kit/Crest.svelte';
   import Icon from './kit/Icon.svelte';
+  import MatchTacticalAnalysisPanel from './MatchTacticalAnalysisPanel.svelte';
   import TeamInstructionsPanel from './TeamInstructionsPanel.svelte';
 
   /**
@@ -571,6 +573,7 @@
   });
 
   const matchKits = $derived(live ? resolveMatchKits(live.homeTeam, live.awayTeam) : null);
+  const broadcastPresentation = $derived(describeBroadcastFrame(broadcastFrame, broadcastSimulation));
   const tacticsSlots = $derived(SLOT_LAYOUT[tacticsPickerFormation] ?? SLOT_LAYOUT['4-3-3']);
   const tacticsActivePlayers = $derived.by(() => {
     if (!live?.liveState) return [];
@@ -900,7 +903,7 @@
         </div>
       </div>
       <div class="progress-wrap"><div class="progress-bar" style="width:{(live.currentPhase / TOTAL_PHASES) * 100}%"></div></div>
-      <div class="phase-strip"><span class="phase-live">{live.paused ? 'PAUSED' : 'LIVE'}</span><strong>{broadcastFrame?.phaseLabel ?? 'Kick off'}</strong></div>
+      <div class="phase-strip"><span class="phase-live">{live.paused ? 'PAUSED' : 'LIVE'}</span><strong>{broadcastPresentation?.phaseLabel ?? 'Kick off'}</strong></div>
       <div class="broadcast-pitch" role="img" aria-label="Live match pitch. Player movement illustrates the simulated action.">
         <div class="pitch-stripes"></div><div class="pitch-goal goal-top"></div><div class="pitch-goal goal-bottom"></div><div class="six-yard six-top"></div><div class="six-yard six-bottom"></div><div class="pitch-half"></div><div class="pitch-circle"></div><div class="pitch-box pitch-box-top"></div><div class="pitch-box pitch-box-bottom"></div>
         {#each broadcastFrame?.markers ?? [] as marker (marker.id)}
@@ -925,7 +928,7 @@
           </div>
         {/if}
       </div>
-      <div class="match-commentary"><strong>{broadcastFrame?.action ?? 'TEAMS SET'}</strong><span>{broadcastFrame?.carrierName || 'Ball in flight'}</span></div>
+      <div class="match-commentary"><strong>{broadcastPresentation?.action ?? 'TEAMS SET'}</strong><span>{broadcastPresentation?.detail || broadcastFrame?.carrierName || 'Ball in flight'}</span></div>
       <div class="momentum" aria-label={`Match possession: ${homeShare}% ${live.homeTeam.name}`}><span>{homeShare}%</span><div><i style={`width:${homeShare}%`}></i></div><span>{100 - homeShare}%</span></div>
     </div>
 
@@ -997,6 +1000,13 @@
           </div>
         {/each}
       </div>
+
+      <MatchTacticalAnalysisPanel
+        analysis={result.tacticalAnalysis}
+        userTeamId={matchCtx?.save.userTeamId}
+        homeTeamName={result.homeTeamName}
+        awayTeamName={result.awayTeamName}
+      />
 
       {#if userSubs.length}
         <div class="after-section">
