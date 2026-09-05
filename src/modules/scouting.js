@@ -1,6 +1,6 @@
 import { currentEffectiveLevel } from './playerModel.js';
 import { durableLevel, potentialEstimate } from './playerDevelopment.js';
-import { chooseAIRole, getAITacticalProfile, roleSuitability } from './tactics.js';
+import { buildScoutingTacticalAssessment } from './scoutingTacticalAssessment.js';
 import { coachingEffects } from './coaching.js';
 import { scoutingConfidenceMultiplier } from './facilities.js';
 
@@ -230,9 +230,14 @@ function buildExactScoutingReport(player, context = {}) {
   // ability, since potential is a bound on durable ability alone.
   const current = Math.round(Number(durableLevel(player) ?? currentEffectiveLevel(player) ?? 50));
   const potential = Math.round(scoutingClamp(Number(player.potentialRating ?? current), current, 99));
-  const tacticalProfile = getAITacticalProfile(userTeam ?? {});
-  const roleId = chooseAIRole(player, tacticalProfile);
-  const fit = roleId ? roleSuitability(player, roleId) : .8;
+  const tactical = buildScoutingTacticalAssessment({
+    player,
+    userTeam,
+    userSquad:context.userSquad ?? [],
+    tacticalProfile:context.tacticalProfile ?? null,
+    currentRange:{ min:current, max:current },
+    exact:true,
+  });
   const value = Math.round(Math.max(0, Number(context.valueFor?.(player) ?? player.value ?? 0)));
   const wage = Math.round(Math.max(0, Number(player.wage ?? 0)));
   return {
@@ -247,7 +252,7 @@ function buildExactScoutingReport(player, context = {}) {
     confidenceLabel:'Complete',
     stage:'complete',
     current:{ min:current, max:current, evidence:'Complete' },
-    tactical:{ roleId, fit:fit >= 1.02 ? 'Strong' : fit >= .91 ? 'Good' : 'Stretch', confidence:'Complete' },
+    tactical:{ roleId:tactical.roleId, fit:tactical.fit, focus:tactical.focus, confidence:'Complete' },
     future:{ min:potential, max:potential, growthProfileConfidence:'Complete' },
     financial:{ feeMin:value, feeMax:value, wageMin:wage, wageMax:wage },
     status:{
@@ -278,9 +283,17 @@ export function buildScoutingReport(player, context = {}) {
   const current = Number(durableLevel(player) ?? currentEffectiveLevel(player) ?? 50);
   const currentRange = observedRange(current, adjustedConfidence, `${seed}:current`, { baseWidth:9 });
   const future = potentialEstimate(player, adjustedConfidence);
-  const tacticalProfile = getAITacticalProfile(userTeam ?? {});
-  const roleId = chooseAIRole(player, tacticalProfile);
-  const fit = roleId ? roleSuitability(player, roleId) : .8;
+  // Partial/public tactical projection intentionally receives only the observed
+  // current range through a masked proxy inside the adapter. Hidden detailed
+  // attributes therefore cannot leak into the manager-facing fit label.
+  const tactical = buildScoutingTacticalAssessment({
+    player,
+    userTeam,
+    userSquad:context.userSquad ?? [],
+    tacticalProfile:context.tacticalProfile ?? null,
+    currentRange,
+    exact:false,
+  });
   const value = Math.max(0, Number(context.valueFor?.(player) ?? player.value ?? 0));
   const wage = Math.max(0, Number(player.wage ?? 0));
   const feeRange = observedFinancialRange(value, adjustedConfidence, `${seed}:fee`);
@@ -296,7 +309,7 @@ export function buildScoutingReport(player, context = {}) {
     confidenceLabel:confidenceLabel(adjustedConfidence),
     stage:context.stage ?? reportStage(context.weeks ?? 1, context.mode),
     current:{ ...currentRange, evidence:confidenceLabel(adjustedConfidence) },
-    tactical:{ roleId, fit:fit >= 1.02 ? 'Strong' : fit >= .91 ? 'Good' : 'Stretch', confidence:confidenceLabel(adjustedConfidence) },
+    tactical:{ roleId:tactical.roleId, fit:tactical.fit, focus:tactical.focus, confidence:confidenceLabel(adjustedConfidence) },
     future:{ min:future.min, max:future.max, growthProfileConfidence:confidenceLabel(adjustedConfidence) },
     financial:{
       feeMin:feeRange.min,
@@ -422,6 +435,8 @@ export function advanceScoutingState(stateInput, context = {}) {
         season:context.season,
         gameweek:context.gameweek,
         userTeam:context.userTeam,
+        userSquad:context.userSquad,
+        tacticalProfile:context.tacticalProfile,
         teamsById,
         valueFor:context.valueFor,
         confidence,
