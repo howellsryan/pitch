@@ -169,10 +169,10 @@ export function playableMatchImportance(event = {}) {
   let importance = 0;
   if (event.type === 'ucl_md') importance += .025;
   if (event.type === 'cup') importance += .035;
-  if (round.includes('final')) importance += .075;
-  else if (round.includes('semi')) importance += .055;
+  if (round.includes('semi')) importance += .055;
   else if (round.includes('quarter')) importance += .035;
   else if (round.includes('round of 16') || round.includes('r16')) importance += .020;
+  else if (round.includes('final')) importance += .075;
   if (event.type === 'league' && Number(event.gw) >= 34) importance += .020;
   return clamp(importance, 0, .11);
 }
