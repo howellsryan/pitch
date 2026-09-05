@@ -1,0 +1,39 @@
+name: Fix T7 calibration copy
+
+on:
+  push:
+    branches:
+      - scratch/t7-balance-rollout
+    paths:
+      - .github/workflows/fix-t7-calibration-copy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-copy:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: scratch/t7-balance-rollout
+      - name: Replace superseded diagnostic footer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tools/lib/matchBalanceT7.mjs')
+          text = path.read_text()
+          old = "This report is diagnostic until T7.2 reviews the observed distributions and encodes justified dominance/quality/specialist guardrails."
+          new = "T7.2 structural guardrails are reviewed and encoded; run this matrix with --check (the CI default) to assert them against the reported distribution."
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one superseded footer, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/lib/matchBalanceT7.mjs
+          git commit -m "docs(T7): describe enforced calibration guardrails"
+          git push origin HEAD:scratch/t7-balance-rollout
