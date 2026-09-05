@@ -372,6 +372,32 @@ describe('Playable Key Moments POC motion contract', () => {
     expect(landing.keeper.landing).toBeGreaterThan(.5);
   });
 
+  it('parries every saved synthetic shot visibly away from the keeper after contact', () => {
+    const attackMoment = createSyntheticPlayableMoment('attack');
+    const attackShot = resolveSyntheticAttackShot({ attack:{ aimX:0, aimY:.55, power:.82, timing:.9 } });
+    const attackContact = samplePlayablePocMotion(attackMoment, { shot:attackShot }, .70);
+    const attackParry = samplePlayablePocMotion(attackMoment, { shot:attackShot }, .88);
+
+    expect(attackShot.finish).toBe('saved');
+    expect(attackContact.ball.parry).toBeCloseTo(0, 6);
+    expect(attackParry.ball.parry).toBeGreaterThan(.5);
+    expect(attackParry.ball.z).toBeGreaterThan(attackContact.ball.z + 1);
+    expect(Math.abs(attackParry.ball.x - attackContact.ball.x)).toBeGreaterThan(.3);
+
+    const keeperMoment = createSyntheticPlayableMoment('goalkeeper', 1);
+    const keeperShot = resolveSyntheticGoalkeeperShot(keeperMoment, {
+      goalkeeper:{ x:keeperMoment.syntheticTarget.x, y:keeperMoment.syntheticTarget.y, timing:.85 },
+    });
+    const keeperContact = samplePlayablePocMotion(keeperMoment, { shot:keeperShot }, .70);
+    const keeperParry = samplePlayablePocMotion(keeperMoment, { shot:keeperShot }, .88);
+
+    expect(keeperShot.finish).toBe('saved');
+    expect(keeperContact.ball.parry).toBeCloseTo(0, 6);
+    expect(keeperParry.ball.parry).toBeGreaterThan(.5);
+    expect(keeperParry.ball.z).toBeGreaterThan(keeperContact.ball.z + 1);
+    expect(Math.abs(keeperParry.ball.x - keeperContact.ball.x)).toBeGreaterThan(.3);
+  });
+
   it('returns the shooter and goalkeeper to a neutral pose after strike/dive recovery', () => {
     const moment = createSyntheticPlayableMoment('attack');
     const resolution = {
