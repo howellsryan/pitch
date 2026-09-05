@@ -70,9 +70,9 @@ function baseSave() {
   };
 }
 
-function session(fixtureId = 'f1') {
+function session(fixtureId = 'f1', slotId = 'career_a') {
   return createPlayableMatchSession({
-    slotId:'career_a',
+    slotId,
     event:{ type:'league', gw:3, fixtureId, userIsHome:true },
     userTeamId:'home', userIsHome:true, liveState:liveState(),
   });
@@ -116,6 +116,20 @@ describe('Phase 2 playable atomic persistence', () => {
     const retry = await startPlayableMatchSessionAtomic(created);
     expect(retry.idempotent).toBe(true);
     expect(retry.session.sessionId).toBe(created.sessionId);
+  });
+
+  it('rejects a session created for another active career slot before writing', async () => {
+    await expect(startPlayableMatchSessionAtomic(session('f1', 'career_b')))
+      .rejects.toThrow('PLAYABLE_SESSION_SLOT_STALE');
+    expect(dbHarness.row.playableMatchSession).toBeUndefined();
+
+    const created = session();
+    await startPlayableMatchSessionAtomic(created);
+    dbHarness.activeSlot = 'career_b';
+    await expect(persistPlayableSessionAtomic({ ...created, revision:created.revision + 1 }, {
+      expectedSessionId:created.sessionId,
+      expectedRevision:created.revision,
+    })).rejects.toThrow('PLAYABLE_SESSION_SLOT_STALE');
   });
 
   it('rejects a different active fixture instead of creating a parallel match lifecycle', async () => {
