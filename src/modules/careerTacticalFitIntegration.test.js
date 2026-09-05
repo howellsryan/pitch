@@ -163,8 +163,8 @@ describe('T5.3 player interest tactical fit', () => {
 describe('T5.3 loan destination tactical fit', () => {
   it('lets tactical/action fit separate destinations with the same expected opportunity', () => {
     const player = careerPlayer('loan-target','parent','CM',103,{ passing:99, dribbling:99, defending:30, pace:78, physical:74 }, { age:20, wage:8_000 });
-    const controllerTeam = { id:'controller-dest', reputation:75, budget:20_000_000 };
-    const compactTeam = { id:'compact-dest', reputation:75, budget:20_000_000 };
+    const controllerTeam = { id:'identity_5', league:'Premier League', reputation:75, budget:20_000_000 };
+    const compactTeam = { id:'t5dest16', league:'Premier League', reputation:75, budget:20_000_000 };
     const controller = loanDestinationProjection(player, controllerTeam, controllerSquad(controllerTeam.id), { weekKey:'2026/27:4' });
     const compact = loanDestinationProjection(player, compactTeam, compactSquad(compactTeam.id), { weekKey:'2026/27:4' });
 
@@ -175,8 +175,8 @@ describe('T5.3 loan destination tactical fit', () => {
 
   it('keeps a material playing-time advantage ahead of a better tactical fit', () => {
     const player = careerPlayer('loan-target','parent','CM',86,{ passing:98, dribbling:96, defending:35, pace:78, physical:74 }, { age:20, wage:8_000 });
-    const minutesTeam = { id:'minutes-dest', reputation:72, budget:20_000_000 };
-    const fitTeam = { id:'fit-dest', reputation:72, budget:20_000_000 };
+    const minutesTeam = { id:'t5dest16', league:'Premier League', reputation:72, budget:20_000_000 };
+    const fitTeam = { id:'identity_5', league:'Premier League', reputation:72, budget:20_000_000 };
     const minutesProjection = loanDestinationProjection(player, minutesTeam, compactSquad(minutesTeam.id), { weekKey:'2026/27:4' });
     const fitSquad = controllerSquad(fitTeam.id).concat([
       careerPlayer('fit-ahead-1',fitTeam.id,'CM',96,{ passing:96, dribbling:94 }),
