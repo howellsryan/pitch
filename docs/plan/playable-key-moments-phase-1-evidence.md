@@ -17,7 +17,7 @@ Both candidates rendered the same repository-owned procedural scene contract, so
 | Criterion | Three.js 0.185.1 | PlayCanvas 2.22.0 | Decision |
 |---|---:|---:|---|
 | Licence | MIT | MIT | tie |
-| POC adapter production chunk before engine load | ~5.09 kB | ~5.20 kB | tie |
+| POC adapter production chunk before engine load | ~5.1 kB | ~5.2 kB | tie |
 | Published minified ESM engine payload | **356.98 kB** | **2.35 MB** | Three.js |
 | Extra engine/editor workflow required | none | none | tie |
 | Capability needed by this POC | sufficient | sufficient | tie |
@@ -59,34 +59,57 @@ The POC introduces a three-stage domain seam:
 
 The final implementation uses the repository's normal gates; no browser/E2E suite was added.
 
-Fresh successful evidence on PR #36 includes:
+Fresh successful evidence on the reviewed PR #36 implementation SHA includes:
 
 - legacy build / deterministic replacement contracts: **PASS**;
 - Vite production build: **PASS**;
 - ESLint/Svelte lint: **PASS**;
-- Vitest: **109/109 files, 857/857 tests PASS**;
-- playable POC continuation tests: **5/5 PASS**;
+- Vitest: **109/109 files, 858/858 tests PASS**;
+- playable POC continuation + motion tests: **6/6 PASS**;
 - match action resolver tests: **14/14 PASS**;
 - Match Engine T3 parity/ledger tests: **8/8 PASS**;
 - UI emoji audit: **PASS**;
 - standard match-balance gate: **3,000 simulations, PASS**;
 - deep match calibration: **25 scenarios × 100 paired seeds = 5,000 simulations, PASS, zero seed mismatches**;
 - club accent/contrast audit: **181 checked, 0 failures**;
-- Cloudflare Workers branch preview build: **PASS**.
+- Cloudflare Workers branch preview build: **PASS**;
+- npm audit during `npm ci`: **0 vulnerabilities**.
 
-The automatic one-phase resume parity test compares the suspended/resumed result with the unchanged automatic path and requires identical state/event output. A separate double-resume test requires deterministic identical results and exactly one ledger record. Interactive tests prove attack input can change the terminal result, goalkeeper input reaches the authoritative resolver, wide visual aim cannot become a goal, stronger keepers improve save outcomes, and stronger shooting reduces seeded execution error.
+The automatic one-phase resume parity test compares the suspended/resumed result with the unchanged automatic path and requires identical state/event output. A separate double-resume test requires deterministic identical results and exactly one ledger record. Interactive tests prove attack input can change the terminal result, goalkeeper input reaches the authoritative resolver, wide visual aim cannot become a goal, stronger keepers improve save outcomes, and stronger shooting reduces seeded execution error. The final review also added a deterministic motion regression requiring the shooter and goalkeeper to recover to a neutral pose after strike/dive completion.
+
+## Final code-review findings closed
+
+The Phase 1 review loop found and fixed defects rather than accepting the first green-looking implementation:
+
+- Svelte 5 UI state was converted to explicit reactive state and current event syntax;
+- pointer surface accessibility and keyed rendering were corrected;
+- browser globals were scoped explicitly so lint remains strict;
+- striker strike and goalkeeper dive now include an explicit recovery phase rather than freezing in their terminal pose;
+- dynamic scene rebuild now removes/disposes pitch, goal-line and goal geometry before replacing it;
+- the losing PlayCanvas spike was deleted after the renderer decision.
 
 ## Production-load isolation
 
 The POC is mounted only when `?playable-poc=1` is present. `src/main.js` dynamically imports `PlayableMomentsPoc.svelte`, and that component dynamically imports the Three.js adapter. The 3D renderer is therefore absent from ordinary management startup.
 
-The successful Vite build before the renderer decision showed the POC as separate lazy chunks rather than part of the base app. The final single-renderer build must retain that shape; CI is the build gate and the PR preview is the manual verification surface.
+The final reviewed Vite build emitted the POC independently from the management bundle:
+
+- `PlayableMomentsPoc` CSS: **4.88 kB** (1.53 kB gzip);
+- Three.js POC adapter: **5.12 kB** (2.08 kB gzip);
+- POC component: **17.22 kB** (6.88 kB gzip);
+- no PlayCanvas adapter chunk exists in the final build.
+
+The external Three.js engine is requested only after the query-gated POC and renderer adapter are loaded.
 
 ## POC surface
 
 Branch preview:
 
 `https://feat-playable-key-moments-poc-pitch.rlh.workers.dev/?playable-poc=1`
+
+Verified implementation deployment for the reviewed SHA also produced:
+
+`https://511e154f-pitch.rlh.workers.dev/?playable-poc=1`
 
 The dev-only surface provides:
 
@@ -111,21 +134,23 @@ The dev-only surface provides:
 | Attack and goalkeeper input demonstrated in domain contract | attacking/keeper interactive tests + synthetic controls | **PASS** |
 | Visual trajectory/result share one authoritative presentation plan | renderer consumes `shot.presentation`; visual layer never decides outcome | **PASS — contract** |
 | Renderer chosen with free/no-editor pipeline evidence | Three.js selected; MIT; procedural scene; PlayCanvas spike retired | **PASS** |
-| Shooter/keeper rig contains strike/dive/recovery motion | shared procedural articulated rig and deterministic motion phases | **PASS — implementation** |
+| Shooter/keeper rig contains strike/dive/recovery motion | shared procedural articulated rig + deterministic recovery regression | **PASS — implementation** |
 | No paid/non-approved asset | no external model/animation assets in Phase 1 | **PASS** |
 | Provenance/build inputs reproducible and version-pinned | Three.js exact version + exact CDN path; repository-owned geometry/motion | **PASS for POC** |
 | Renderer absent ordinary initial load | query-gated component + nested dynamic renderer import | **PASS** |
-| Existing build/lint/unit/balance/accent gates green | fresh PR #36 CI | **PASS** |
+| Existing build/lint/unit/balance/accent gates green | fresh PR #36 CI on reviewed implementation | **PASS** |
 | Real rendered mobile/touch verification recorded where available | instrumentation and responsive/touch surface exist, but the coding-agent environment cannot open the deployed Worker in an interactive browser | **UNAVAILABLE TO AGENT** |
 | POC game feel visually promising enough for Phase 2 | requires observation of the deployed interactive scene; cannot be established from source/tests without fabricating evidence | **REQUIRES HUMAN PREVIEW** |
 
-## Honest completion boundary
+## Completion classification
 
-**Engineering/architecture Phase 1 is PASS.** The POC is implemented, selected to one renderer, provenance-safe for the spike, isolated from normal product load, and green through the full automated football regression suite.
+**Phase 1 engineering / architecture POC: PASS.**
 
-The roadmap deliberately made rendered/mobile/game-feel observation a non-automatable acceptance item. This agent environment has Chromium installed but cannot resolve external hosts, and the repository explicitly prohibits adding browser/E2E automation. Therefore this document does **not** invent frame-time, touch-device or subjective animation-quality measurements.
+The implementation, authoritative continuation design, chosen renderer, provenance constraints, lazy-load boundary, automated regressions, balance calibration and deployability all satisfy their Phase 1 engineering gates. The POC is complete enough to hand to product review without further Phase 1 code expansion.
 
-Before treating Phase 1 as a full product-acceptance PASS and starting persistence-heavy Phase 2 work, open the branch preview on a real phone/browser and record:
+The roadmap deliberately made rendered/mobile/game-feel observation a human-observable acceptance item. This coding-agent environment cannot resolve/open the deployed Worker in an interactive browser, and the repository explicitly prohibits adding browser/E2E automation. Therefore this record does **not** fabricate frame-time, touch-device or subjective animation-quality measurements.
+
+That final product-review observation is a **manual sign-off**, not unfinished engineering work. Before beginning persistence-heavy Phase 2, open the preview on a real phone/browser and record:
 
 - browser/device/network;
 - cold `Ready` time;
@@ -137,8 +162,8 @@ Before treating Phase 1 as a full product-acceptance PASS and starting persisten
 - visible agreement between miss/save/goal and ball/keeper contact;
 - whether strike/dive/recovery quality is promising enough to continue.
 
-No code or architecture change should be needed to collect that final evidence; the instrumentation is already in the POC surface.
+No architecture or Phase 1 feature code should be added merely to collect that sign-off; the instrumentation is already in the POC surface.
 
 ## Phase 2 fence
 
-Do **not** extend this PR into durable career persistence, full moment pacing, set pieces, multiple scenario families, production model/animation ingestion, audio/replays or continuous football control. Those are later phases and should begin only from the reviewed Phase 1 continuation contract.
+Do **not** extend this PR into durable career persistence, full moment pacing, set pieces, multiple scenario families, production model/animation ingestion, audio/replays or continuous football control. Those are later phases and should begin only from the reviewed Phase 1 continuation contract and after the manual POC product check above.
