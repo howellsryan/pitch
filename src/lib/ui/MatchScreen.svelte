@@ -14,10 +14,11 @@
     positionGroup, primaryRating, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
   import { buildManagedMatchInputs, buildOpponentTacticalInsight } from '../../modules/managerTactics.js';
+  import { createUserTacticalPlan } from '../../modules/tactics.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
-  import { applyFormationChange, applyMentalityChange } from '../../game/formationChange.js';
+  import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
   import { advanceBroadcastSimulation, createBroadcastSimulation, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
@@ -28,6 +29,7 @@
   import { screenTicks } from '../state/screens.svelte.js';
   import Crest from './kit/Crest.svelte';
   import Icon from './kit/Icon.svelte';
+  import TeamInstructionsPanel from './TeamInstructionsPanel.svelte';
 
   /**
    * MatchScreen.svelte — the live-match route (Phase 5,
@@ -38,9 +40,10 @@
    * registerScreen()/navigateTo() mechanism every other screen uses — not a
    * TabBar destination of its own.
    *
-   * P2 keeps this route presentation-only: Quick Sim and Watch both construct
-   * the same authoritative manager/AI tactical inputs before matchEngine.js
-   * advances the result stream. Broadcast only visualises that stream.
+   * T4 keeps this route presentation-only around one shared authoritative
+   * tactics schema: pre-match changes persist the user plan, and live changes
+   * update the same engine state through formationChange.js before persisting
+   * that canonical v2 plan for future matches.
    */
 
   const WATCH_PHASES_PER_TICK = 1;
@@ -282,6 +285,20 @@
     };
   }
 
+  async function applyTeamNewsInstruction(instructionId, value) {
+    if (!matchCtx || beat !== 'teamNews') return;
+    const currentSave = await getSave();
+    if (!currentSave || currentSave._deleted) return;
+    const instructions = {
+      ...(currentSave.tactics?.instructions ?? currentSave.tactics ?? {}),
+      [instructionId]:value,
+    };
+    const tactics = createUserTacticalPlan(instructions);
+    const updatedSave = { ...currentSave, tactics };
+    await putSave(updatedSave);
+    matchCtx = { ...matchCtx, save:updatedSave };
+  }
+
   $effect(() => {
     void screenTicks.match;
     if (!active) loadMatch();
@@ -333,9 +350,7 @@
     loading = false;
     if (!resolved) { await simInstant(); return; }
 
-    // The watched route now uses the exact same save-backed manager context as
-    // Quick Sim: persisted instructions/roles on the user side and undefined
-    // AI overrides so matchEngine resolves the stable P2 opponent identity.
+    // Watched and instant paths consume the same persisted v2 manager context.
     const inputs = buildManagedMatchInputs({
       save:matchCtx.save,
       homeTeam:resolved.homeTeam,
@@ -602,6 +617,16 @@
     if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, mentality });
     toast(`Mentality changed to ${mentality}`, 'info', 3000);
   }
+  async function applyTacticsInstruction(instructionId, value) {
+    if (!live?.liveState || !matchCtx) return;
+    const newLs = applyTeamInstructionChange(live.liveState, live.userIsHome, instructionId, value);
+    live = { ...live, liveState:newLs };
+    const nextInstructions = live.userIsHome ? newLs.homeTactics : newLs.awayTactics;
+    const tactics = createUserTacticalPlan(nextInstructions);
+    matchCtx = { ...matchCtx, save:{ ...matchCtx.save, tactics } };
+    const currentSave = await getSave();
+    if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, tactics });
+  }
   function closeTacticsSheet() {
     tacticsSheetOpen = false;
     tacticsSubInId = null;
@@ -783,6 +808,17 @@
           <Icon name={mentalityIcon(m.save.mentality ?? 'balanced')} size={14} />
           <span class="tn-mentality-label">{(m.save.mentality ?? 'balanced')}</span>
         </div>
+      </div>
+
+      <div class="tn-section">
+        <div class="tn-section-title"><Icon name="tactics" size={14} /><span>Your Team Plan</span></div>
+        <TeamInstructionsPanel
+          compact
+          instructions={m.save.tactics?.instructions ?? m.save.tactics ?? {}}
+          players={teamNewsXI}
+          rolesById={m.save.playerRoles ?? {}}
+          onchange={applyTeamNewsInstruction}
+        />
       </div>
 
       {#if m.injuredInLineup.length}
@@ -990,6 +1026,14 @@
       </div>
 
       <div class="match-tactics-scroll">
+        <TeamInstructionsPanel
+          compact
+          instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
+          players={tacticsActivePlayers}
+          rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
+          onchange={applyTacticsInstruction}
+        />
+
         <div class="match-tactics-pitch-wrap">
           <div class="match-tactics-pitch">
             <div class="mtp-half"></div><div class="mtp-circle"></div>
@@ -1248,7 +1292,7 @@
   .match-tactics-mentalities::-webkit-scrollbar { display: none; }
   .match-tactics-mentalities button { flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
   .match-tactics-mentalities button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; }
+  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; display:grid; gap:14px; }
   .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
   .match-tactics-pitch {
     position: relative; width: 100%; aspect-ratio: 68 / 91; overflow: hidden;
