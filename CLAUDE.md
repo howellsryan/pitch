@@ -218,7 +218,18 @@ works in the browser, open the app and look at it — see §7's visual rule.
 
 ## 6) Required skills / workflow
 
-Use the repo skills under `.claude/skills/`:
+Shared skills are owned by [Agent-Template](https://github.com/howellsryan/Agent-Template),
+with exact revisions and source paths in [`.agents/skills.lock.json`](.agents/skills.lock.json).
+Before implementation or instruction edits, run `python3 tools/agent-skills.py`,
+then `python3 tools/agent-skills.py --check`, and **read the full selected
+`.agents/skills/<name>/SKILL.md`**. These generated dependencies are also exposed
+under `.claude/skills/`; never edit or commit their contents.
+
+Read [the repository workflow contract](docs/agent-workflows.md) for loading,
+GitHub-only fallback, project-specific gates, updates and rollback. If a required
+skill cannot be loaded, report that limitation rather than claiming it ran.
+
+Use these selected workflows:
 
 - **delivery-loop** for implementation: Plan → Build → Code Review → Verify. A failed review or verification returns to Build.
 - **plan-gate** before IndexedDB schema/lifecycle changes, event-queue changes, simulation maths, module ordering or data-pipeline changes.

@@ -15,6 +15,8 @@ export default [
   {
     ignores: [
       'dist/**', 'web/**', 'node_modules/**', '.build/**', '.wrangler/**',
+      // Installed agent dependencies are not Pitch application sources.
+      '.agents/cache/**', '.agents/skills/**', '.claude/skills/**',
       'src/modules/**', 'src/ui/**', 'src/data/**', 'src/validate.js',
       'index.html',
     ],
