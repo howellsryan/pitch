@@ -99,6 +99,13 @@ describe('P4 shared squad planning', () => {
     expect(ranked[0].reasons).toContain('fills_priority_position');
   });
 
+  it('lets a club register as many players as it likes', () => {
+    // There is no buyer-side ceiling: a squad of any size may keep signing.
+    const sellerSquad = Array.from({ length:30 }, (_, i) => player(`s${i}`, 'seller', i === 0 ? 'GK' : 'CM', 60));
+    const buyerSquad = Array.from({ length:60 }, (_, i) => player(`b${i}`, 'buyer', 'CM', 60));
+    expect(assessSquadSafety({ buyerSquad, sellerSquad, player:sellerSquad[5] })).toEqual({ ok:true, reason:null });
+  });
+
   it('guards seller squad and goalkeeper safety at completion', () => {
     const movingKeeper = player('gk', 'seller', 'GK', 70);
     const sellerSquad = [movingKeeper, ...Array.from({ length:15 }, (_, i) => player(`s${i}`, 'seller', 'CM', 60))];

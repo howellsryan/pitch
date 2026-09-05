@@ -16,6 +16,7 @@ import {
 } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { rolloverTransferMarket } from './transferMarket.js';
+import { pruneBenchToSquad } from './matchEngine.js';
 import { applyLedgerMovement, financialPressure, operatingIncomeFor } from './clubFinance.js';
 import { evaluateBoardContractSeasonClose, evaluateBoardObjective, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { evolveClubPhilosophy } from './clubPhilosophy.js';
@@ -450,6 +451,11 @@ export async function processEndOfSeason() {
     cups:newCups,
     worldCompetitions:buildWorldCompetitionState(allTeamsRefreshed, nextSeason, save.userTeamId, 1),
     lineup:save.lineup ?? null,
+    // Retirees are deleted above but still sit in `agedPlayers`, so they have to
+    // be excluded here too — a retired substitute is exactly the dead id this
+    // prune exists to clear.
+    bench:pruneBenchToSquad(save.bench ?? null, agedPlayers.filter(player =>
+      String(player.teamId) === String(save.userTeamId) && !retireIds.includes(player.id))),
     formation:save.formation ?? '4-3-3',
     youthCohort:newYouthCohort,
     boardObjective:nextBoardObjective,

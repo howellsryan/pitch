@@ -118,7 +118,6 @@
     } catch (error) {
       const messages = {
         WINDOW_CLOSED:'The transfer window is closed.',
-        DESTINATION_SQUAD_FULL:'That club has no senior registration space.',
         DESTINATION_CANNOT_AFFORD:'That club cannot afford the loan package.',
         PLAYER_HAS_ACTIVE_DEAL:'This player already has an active negotiation.',
         SIGNED_THIS_SEASON:'This player already moved this season.',

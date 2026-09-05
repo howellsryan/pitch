@@ -130,7 +130,11 @@ export function withDefaultCoaching(team) {
 export function coachingEffects(team, playerOrPosition) {
   const position = typeof playerOrPosition === 'string' ? playerOrPosition : playerOrPosition?.position;
   const department = coachingDepartmentForPosition(position);
-  const coach = normalizeCoachingDepartments(team?.coaching, team)[department];
+  // Only this player's own department is needed. Normalising all four on every
+  // call was the single most expensive step in building a scouting report, and
+  // recruitment surfaces build one per player.
+  const source = team?.coaching && typeof team.coaching === 'object' && !Array.isArray(team.coaching) ? team.coaching : {};
+  const coach = normalizeCoach(source[department], team, department);
   const qualityDelta = (coach.quality - 3) * .03;
   const assessment = coachingClamp(1 + qualityDelta + (coach.specialism === 'assessment' ? .03 : 0), .91, 1.09);
   const development = coachingClamp(1 + qualityDelta + (coach.specialism === 'development' ? .03 : 0), .91, 1.09);
