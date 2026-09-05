@@ -98,7 +98,7 @@ describe('applyMentalityChange', () => {
 describe('applyTeamInstructionChange', () => {
   it('changes only the controlled side and preserves the shared normalized v2 shape', () => {
     const ls = makeLiveState();
-    const awayBefore = structuredClone(ls.awayTactics);
+    const awayBefore = { ...ls.awayTactics };
     const after = applyTeamInstructionChange(ls, true, 'useOfSpace', 'pass_into_space');
 
     expect(after.homeTactics.useOfSpace).toBe('pass_into_space');
