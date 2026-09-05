@@ -1,6 +1,6 @@
 # Attribute-to-Tactics Causality 2.0 — implementation status
 
-**Updated:** 4 September 2026
+**Updated:** 5 September 2026
 
 **Design source:** [`attribute-to-tactics-causality-2.md`](./attribute-to-tactics-causality-2.md)
 
@@ -14,7 +14,8 @@ This file is the short execution ledger for the workstream. The design document 
 | **T1 — Detailed attribute data and player-model migration** | ✅ Complete | Versioned PAC/SHO/PAS/DRI/DEF/PHY profile is durable across import, generated data, fresh careers, existing-career migration, youth/newgens, development/decline and scouting masking. |
 | **T2 — Roles and tactical-fit projection in shadow mode** | ✅ Complete | Pure action-oriented role participation, lineup action strengths/counters, tactic-driven route usage and matchup vulnerabilities are computed in `tacticalProjection.js`. |
 | **T3 — Authoritative action ledger foundation** | ✅ Complete | One seeded fixed-packet action ledger is authoritative for football outcomes; tactics choose routes, roles choose actors and detailed attributes resolve actions against opponents while Quick Sim/Watch remain exactly identical. |
-| **T4 — Tactics schema v2 and mobile UI** | ⏭️ Next | Add the priority-one instruction controls, versioned v1→v2 save migration, tactical fit/trade-off feedback and one shared pre-match/in-match command path. |
+| **T4 — Tactics schema v2 and mobile UI** | ✅ Complete | Versioned v2 instructions, dedicated v1→v2 migration, independent causal route controls, squad-specific fit/strength/risk/conflict feedback and one shared pre-match/live instruction path. |
+| **T5 — AI and career-system integration** | 🚧 In progress | Plan-gate committed. First slice is proving a squad-aware AI tactical identity selector before it is allowed to affect authoritative match inputs; recruitment/scouting/training remain untouched until that common identity is green. |
 
 ## T1 contract
 
@@ -46,7 +47,7 @@ The FC27 refresh persists the six detailed columns, rejects incomplete non-goalk
 
 ## T2 projection contract
 
-`src/modules/tacticalProjection.js` provides the reusable action-oriented football model consumed by T3:
+`src/modules/tacticalProjection.js` provides the reusable action-oriented football model consumed by T3/T4:
 
 - the T0 action vocabulary (`circulation`, `direct_pass`, `pass_into_space`, `carry`, `wide_delivery`, `aerial_duel`, `shot`, `high_press`, `interception_tackle`, `recovery_defence`, `attacking_set_piece`);
 - action-specific detailed-attribute execution and counter weights;
@@ -74,9 +75,28 @@ T3 replaces the aggregate score/stat synthesis for real matches with one version
 
 T3 also activates the legacy module order `matchActionVocabulary` → `tacticalProjection` → `matchActionResolver` → `matchEngine` and removes the resulting private helper collision rather than allow-listing it.
 
-## Frozen baseline and T3 calibration
+## T4 tactics-v2 boundary
 
-The T0 benchmark remains historical evidence and is **not overwritten** by T3. `npm run balance:match:check` now compares the current action-ledger distribution with the frozen T0 snapshot and fails if the new engine leaves the reviewed football-like envelope.
+T4 extends the single tactics model rather than creating separate pre-match/live schemas.
+
+- `P2_TACTICS_VERSION` remains the historical literal **1**.
+- `TACTICS_PLAN_VERSION` is **2**.
+- the historical P2 save backfill remains frozen and a dedicated retry-safe `ensureTacticsV2()` owns the v1→v2 migration;
+- existing explicit v1 choices are preserved, including asymmetric attacking/defensive widths after normalization;
+- priority-one controls now separate Use of Space, Ball Carrying, Shot Selection, Delivery Timing, Attacking Width, On Win, Defensive Transition, Defensive Line, Line of Engagement, Pressing, Defensive Width, Defensive Approach and Set Pieces;
+- `TACTICAL_PROJECTION_VERSION` is **2** and reads those dimensions independently;
+- `MATCH_ACTION_RESOLVER_VERSION` is **2**, while the action-ledger version and fixed 14-value RNG packet remain **1**;
+- Work Into Box / Shoot on Sight causally alter authoritative chance frequency/quality; Delivery Timing remains a separate service choice;
+- route controls alter what the team attempts rather than silently changing player attributes;
+- `applyTeamInstructionChange()` is the shared live command and refreshes authoritative match state through the same path as formation/mentality changes;
+- `tacticalPlanFeedback.js` derives squad-specific XI fit, strengths, risks and structural conflicts from the same action model without creating a second overall player rating;
+- `TeamInstructionsPanel.svelte` groups the v2 controls by In Possession / Transition / Out of Possession / Shape / Set Pieces and displays that shared feedback;
+- Team News and the live Match tactics sheet use the same panel; live changes affect the current match immediately and persist the canonical v2 plan for future matches;
+- SquadScreen already renders `TEAM_INSTRUCTION_DEFS` dynamically, so the complete v2 control set remains available on the persistent squad/tactics surface.
+
+## Frozen baseline and T3/T4 calibration
+
+The T0 benchmark remains historical evidence and is **not overwritten** by later phases. `npm run balance:match:check` compares the current action-ledger distribution with the frozen T0 snapshot and fails if the engine leaves the reviewed football-like envelope.
 
 Final T3 neutral distribution from 600 deterministic matches:
 
@@ -99,41 +119,52 @@ Final T3 paired-seed tactic movement also remains inside guardrails:
 - wide delivery vs narrow block: **+1.036 shots**, **+0.049 xG**;
 - work ball vs balanced block: **-1.367 shots**, **-0.037 xG**, **+3.493pp possession**.
 
+T4 retained the existing balance gate. Its independent route controls, live command path and mobile panel therefore landed without widening the reviewed statistical envelope or changing RNG packet width.
+
 ## Verification
 
 T1 completed on PR #28 SHA `ca2d22ca61f14c7ea09c67284dd081429e72dca1` with the complete GitHub Actions build/validate job green.
 
 T2 completed on PR #28 SHA `489f2345446a8f4d5cae8da030a1fa3fc3050a76` after one fixture-isolation correction, with the complete GitHub Actions build/validate job green.
 
-T3 completed on PR #28 SHA `177eeddbb7cf2908059ac8a112d8c131691dea7b` with workflow run **#550** fully green:
+T3 completed on PR #28 SHA `177eeddbb7cf2908059ac8a112d8c131691dea7b` with workflow run **#550** fully green.
+
+T4 completed its automated gate on PR #28 SHA `54716b9af13e6b40a018c09333cc92a6d2ae4dd7` with workflow run **#557** fully green:
 
 - legacy build / deterministic validator ✅
-- no unexpected concatenated-bundle duplicate functions ✅
 - Vite production build ✅
 - ESLint ✅
-- **85 Vitest files / 683 tests** ✅
-- T3 fixed-packet, detailed-attribute causality and ledger-authority contracts ✅
-- exact Quick Sim/Watch parity at 1/7/10/30/120 phase segmentation ✅
-- unchanged 600-match statistical regression ceiling: **3.056s < 5s** ✅
+- complete Vitest suite ✅
+- T4 schema/migration contracts ✅
+- independent tactic-causality contracts ✅
+- shared live-command isolation/normalization contracts ✅
+- XI-fit/strength/risk/conflict feedback contracts ✅
+- exact Quick Sim/Watch parity retained ✅
+- unchanged 600-match sample and unchanged **5s** regression ceiling ✅
 - UI emoji audit ✅
-- 3,000-simulation T0→T3 balance comparison ✅
+- T0/current balance comparison ✅
 - club accent audit ✅
 - Actions artifact upload ✅
 
-No new rendered UI surface was introduced by T3, so rendered breakpoint verification was not applicable.
+The first UI milestone had exposed a test-runner timeout in the old P2 statistical fixture because it still constructed pre-T1 players with no detailed profile. The fix made that fixture use the canonical player-model-v5 `attributeProfile`; the 600-match sample, assertions and 5s ceiling were not reduced or weakened. On the final T4 gate the regression completed safely below the ceiling.
 
-## Next phase — T4
+### T4 rendered-inspection limitation
 
-T4 now owns the first player-facing expansion of the system. It should extend the single normalized tactics schema rather than creating parallel pre-match/live models.
+The repository asks for hands-on responsive inspection at 320, 390, 768 and 1280 widths for UI changes. The available Cloudflare PR integration exposed only its private dashboard/log link during this session and did not provide a public branch-preview URL accessible through the available tooling. Therefore the automated production/Vite/UI gates are complete, but manual browser inspection of those four widths was **not claimed**. A later agent with an accessible preview should perform that visual-only check without reopening T4 simulation behaviour.
 
-Priority-one controls from the design contract:
+## T5 in progress
 
-- **Use of Space:** To Feet / Mixed / Pass Into Space
-- **Ball Carrying:** Dribble Less / Balanced / Run at Defence
-- **Shot Selection:** Work Into Box / Balanced / Shoot on Sight
-- **Defensive Transition:** Regroup / Balanced / Counter-press
-- **Line of Engagement:** Low / Mid / High
-- **Attacking Width:** Narrow / Balanced / Wide
-- **Defensive Width:** Narrow / Balanced / Wide
+T5 is governed by [`attribute-to-tactics-causality-2-t5-plan.md`](./attribute-to-tactics-causality-2-t5-plan.md).
 
-T4 must increment the tactics-plan version and use a dedicated idempotent v1→v2 save migration. Existing explicit choices must be preserved; the historical P2 backfill must not be rewritten in place. Pre-match and in-match controls must resolve through one command path and the UI must surface squad-specific strengths, risks, lineup fit and conflict warnings without removing current functionality.
+The first slice is intentionally isolated as a pure squad-aware AI tactical identity selector:
+
+- existing hash identity remains the club prior;
+- formation coverage, role suitability and action-relevant detailed attributes determine squad feasibility;
+- one elite player cannot define the identity;
+- a small fit advantage retains the club identity;
+- only a material specialist mismatch may switch archetype;
+- legacy/insufficient squads fall back safely to the current stable AI profile;
+- no save/database/RNG version changes are part of T5.1;
+- authoritative `matchEngine.js`, Team News, recruitment, loans, scouting and training remain unchanged until the pure selector gate is green.
+
+After T5.1 is proven, the next allowed step is the minimum authoritative match-input adapter plus exact Quick Sim/Watch parity coverage. Career-system consumers should then migrate to that same squad-aware identity rather than invent independent tactical-fit formulas.
