@@ -16,14 +16,14 @@
   } from '../../game/playableMomentsPocScene.js';
 
   const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
+  const renderer = PLAYABLE_POC_RENDERERS.three;
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
   let canvas = $state();
-  let rendererChoice = $state('three');
   let controller = null;
   let rendererError = $state('');
   let rendererLoading = $state(false);
-  let metrics = $state({});
+  let metrics = $state(null);
   let frameTimes = [];
   let lifecycleResult = $state('');
   let animationFrame = 0;
@@ -138,7 +138,7 @@
     };
   }
 
-  async function mountRenderer(choice = rendererChoice) {
+  async function mountRenderer() {
     if (!canvas) return;
     rendererLoading = true;
     rendererError = '';
@@ -146,36 +146,22 @@
     controller = null;
     frameTimes = [];
     try {
-      const module = choice === 'playcanvas'
-        ? await import('../../game/playableMomentsPlayCanvasRenderer.js')
-        : await import('../../game/playableMomentsThreeRenderer.js');
-      controller = choice === 'playcanvas'
-        ? await module.mountPlayCanvasPlayablePoc(canvas, currentMoment)
-        : await module.mountThreePlayablePoc(canvas, currentMoment);
+      const module = await import('../../game/playableMomentsThreeRenderer.js');
+      controller = await module.mountThreePlayablePoc(canvas, currentMoment);
       metrics = {
-        ...metrics,
-        [choice]:{
-          loadMs:controller.loadMs,
-          initMs:controller.initMs,
-          readyMs:controller.readyMs,
-          frameP95:null,
-          frames:0,
-        },
+        loadMs:controller.loadMs,
+        initMs:controller.initMs,
+        readyMs:controller.readyMs,
+        frameP95:null,
+        frames:0,
       };
       controller.render({ moment:currentMoment, resolution, progress:currentProgress });
     } catch (error) {
-      rendererError = `${PLAYABLE_POC_RENDERERS[choice].label} failed to load: ${error?.message ?? error}`;
+      rendererError = `${renderer.label} failed to load: ${error?.message ?? error}`;
       status = '3D renderer unavailable. The authoritative Simulate path remains usable.';
     } finally {
       rendererLoading = false;
     }
-  }
-
-  async function chooseRenderer(choice) {
-    if (choice === rendererChoice && controller) return;
-    rendererChoice = choice;
-    lifecycleResult = '';
-    await mountRenderer(choice);
   }
 
   function startAnimation(nextResolution) {
@@ -186,17 +172,12 @@
   }
 
   function updateMetrics(delta) {
-    if (!Number.isFinite(delta) || delta <= 0 || delta > 250) return;
+    if (!Number.isFinite(delta) || delta <= 0 || delta > 250 || !metrics) return;
     frameTimes = [...frameTimes.slice(-299), delta];
-    const prior = metrics[rendererChoice];
-    if (!prior) return;
     metrics = {
       ...metrics,
-      [rendererChoice]:{
-        ...prior,
-        frameP95:percentile95(frameTimes),
-        frames:frameTimes.length,
-      },
+      frameP95:percentile95(frameTimes),
+      frames:frameTimes.length,
     };
   }
 
@@ -347,19 +328,14 @@
   async function runLifecycleCheck() {
     if (!canvas || rendererLoading) return;
     lifecycleResult = 'Running 20 mount/dispose cycles…';
-    const choice = rendererChoice;
     const currentController = controller;
     controller = null;
     currentController?.dispose?.();
     let completed = 0;
     try {
+      const module = await import('../../game/playableMomentsThreeRenderer.js');
       for (let index = 0; index < 20; index += 1) {
-        const module = choice === 'playcanvas'
-          ? await import('../../game/playableMomentsPlayCanvasRenderer.js')
-          : await import('../../game/playableMomentsThreeRenderer.js');
-        const temporary = choice === 'playcanvas'
-          ? await module.mountPlayCanvasPlayablePoc(canvas, currentMoment)
-          : await module.mountThreePlayablePoc(canvas, currentMoment);
+        const temporary = await module.mountThreePlayablePoc(canvas, currentMoment);
         temporary.render({ moment:currentMoment, resolution, progress:currentProgress });
         temporary.dispose();
         completed += 1;
@@ -368,7 +344,7 @@
     } catch (error) {
       lifecycleResult = `Lifecycle check stopped at ${completed}/20: ${error?.message ?? error}`;
     }
-    await mountRenderer(choice);
+    await mountRenderer();
   }
 
   function closePoc() {
@@ -378,7 +354,7 @@
   }
 
   onMount(() => {
-    mountRenderer(rendererChoice);
+    mountRenderer();
     animationFrame = window.requestAnimationFrame(animationLoop);
     return () => {
       window.cancelAnimationFrame(animationFrame);
@@ -393,22 +369,15 @@
     <div>
       <div class="eyebrow">DEV-ONLY · PHASE 1 POC</div>
       <h1>Playable Key Moments</h1>
-      <p>Free procedural 3D · authoritative football · no career writeback</p>
+      <p>Three.js · free procedural 3D · authoritative football · no career writeback</p>
     </div>
     <button class="ghost" type="button" onclick={closePoc}>Close POC</button>
   </header>
 
   <section class="toolbar" aria-label="POC mode controls">
-    <div class="control-group">
+    <div class="control-group renderer-choice">
       <span>Renderer</span>
-      {#each Object.values(PLAYABLE_POC_RENDERERS) as candidate (candidate.id)}
-        <button
-          type="button"
-          class:active={rendererChoice === candidate.id}
-          onclick={() => chooseRenderer(candidate.id)}
-          disabled={rendererLoading}
-        >{candidate.label}</button>
-      {/each}
+      <strong>{renderer.label} {renderer.version}</strong>
     </div>
     <div class="control-group">
       <span>Scenario</span>
@@ -435,7 +404,7 @@
         onpointercancel={() => pointerStart = null}
       >
         <canvas bind:this={canvas} aria-label="Playable football 3D scene"></canvas>
-        {#if rendererLoading}<div class="stage-message">Loading {PLAYABLE_POC_RENDERERS[rendererChoice].label}…</div>{/if}
+        {#if rendererLoading}<div class="stage-message">Loading {renderer.label}…</div>{/if}
         {#if rendererError}<div class="stage-message error">{rendererError}</div>{/if}
         {#if source === 'authoritative' && !pendingContinuation && !fixtureComplete && currentPhase > 1}
           <div class="stage-message">Moment committed. Continue when ready.</div>
@@ -469,23 +438,20 @@
       </div>
 
       <h2>Renderer evidence</h2>
-      {#each Object.values(PLAYABLE_POC_RENDERERS) as candidate (candidate.id)}
-        {@const candidateMetrics = metrics[candidate.id]}
-        <div class="metric-card" class:current={rendererChoice === candidate.id}>
-          <div><strong>{candidate.label}</strong><span>{candidate.version} · {candidate.licence}</span></div>
-          {#if candidateMetrics}
-            <dl>
-              <dt>Module load</dt><dd>{candidateMetrics.loadMs.toFixed(1)} ms</dd>
-              <dt>Init</dt><dd>{candidateMetrics.initMs.toFixed(1)} ms</dd>
-              <dt>Ready</dt><dd>{candidateMetrics.readyMs.toFixed(1)} ms</dd>
-              <dt>p95 frame</dt><dd>{candidateMetrics.frameP95 == null ? 'collecting…' : `${candidateMetrics.frameP95.toFixed(1)} ms`}</dd>
-              <dt>Samples</dt><dd>{candidateMetrics.frames}</dd>
-            </dl>
-          {:else}
-            <p>Not loaded in this session.</p>
-          {/if}
-        </div>
-      {/each}
+      <div class="metric-card current">
+        <div><strong>{renderer.label}</strong><span>{renderer.version} · {renderer.licence}</span></div>
+        {#if metrics}
+          <dl>
+            <dt>Module load</dt><dd>{metrics.loadMs.toFixed(1)} ms</dd>
+            <dt>Init</dt><dd>{metrics.initMs.toFixed(1)} ms</dd>
+            <dt>Ready</dt><dd>{metrics.readyMs.toFixed(1)} ms</dd>
+            <dt>p95 frame</dt><dd>{metrics.frameP95 == null ? 'collecting…' : `${metrics.frameP95.toFixed(1)} ms`}</dd>
+            <dt>Samples</dt><dd>{metrics.frames}</dd>
+          </dl>
+        {:else}
+          <p>Renderer metrics begin once the scene loads.</p>
+        {/if}
+      </div>
       <button type="button" onclick={runLifecycleCheck} disabled={rendererLoading}>Run 20× lifecycle check</button>
       {#if lifecycleResult}<p class="evidence-note">{lifecycleResult}</p>{/if}
       <p class="evidence-note">Reduced motion: <strong>{reducedMotion ? 'active' : 'not requested'}</strong>. Network/device/browser must be recorded with any benchmark.</p>
@@ -518,6 +484,7 @@
   .toolbar { display:flex; flex-wrap:wrap; gap:12px 24px; padding:12px clamp(16px, 3vw, 36px); border-bottom:1px solid rgba(255,255,255,.08); }
   .control-group { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
   .control-group > span { margin-right:4px; color:#8da197; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .renderer-choice strong { font-size:13px; color:#dce8e0; }
   .poc-main { display:grid; grid-template-columns:minmax(0, 1fr) minmax(250px, 340px); gap:16px; padding:16px clamp(12px, 2.5vw, 30px) 28px; max-width:1400px; margin:0 auto; }
   .stage-card, .panel { border:1px solid rgba(255,255,255,.1); border-radius:14px; background:#0c1912; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.28); }
   .score-strip { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; padding:10px 14px; background:#111f17; font-size:12px; color:#a9b9af; }
