@@ -1,7 +1,7 @@
 <script>
   import { flip } from 'svelte/animate';
   import {
-    getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB, putSave,
+    getActiveSlotId, getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB, putSave,
   } from '../../modules/db.js';
   import { CUP_META } from '../../modules/cups.js';
   // 🚑 Injuries — legacy validation anchor; UI uses the injury icon/text section below.
@@ -13,6 +13,21 @@
     buildLiveMatchState, finaliseLiveMatch,
     positionGroup, primaryRating, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
+  import {
+    assertSupportedPlayableSession,
+    createPlayableMatchSession,
+    playableEventKey,
+    restorePlayableRuntime,
+  } from '../../modules/playableMomentsCareer.js';
+  import { startPlayableMatchSessionAtomic } from '../../modules/playableMomentsPersistence.js';
+  import {
+    acknowledgePlayableResult,
+    advancePlayableMatchPhase,
+    checkpointPlayableMatch,
+    clearPlayableMatchAfterClose,
+    preparePlayableMatchClose,
+    resolvePendingPlayableMoment,
+  } from '../../modules/playableMomentsRuntime.js';
   import { buildManagedMatchInputs, buildOpponentTacticalInsight } from '../../modules/managerTactics.js';
   import { createUserTacticalPlan } from '../../modules/tactics.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
@@ -31,6 +46,7 @@
   import Crest from './kit/Crest.svelte';
   import Icon from './kit/Icon.svelte';
   import MatchTacticalAnalysisPanel from './MatchTacticalAnalysisPanel.svelte';
+  import PlayableMomentOverlay from './PlayableMomentOverlay.svelte';
   import TeamInstructionsPanel from './TeamInstructionsPanel.svelte';
 
   /**
@@ -42,10 +58,10 @@
    * registerScreen()/navigateTo() mechanism every other screen uses — not a
    * TabBar destination of its own.
    *
-   * T4 keeps this route presentation-only around one shared authoritative
-   * tactics schema: pre-match changes persist the user plan, and live changes
-   * update the same engine state through formationChange.js before persisting
-   * that canonical v2 plan for future matches.
+   * Play Key Moments is an optional bounded interaction mode on this same
+   * authoritative route. It does not create a second match engine or fixture
+   * lifecycle: selected phases pause before terminal finish, persist first,
+   * resolve through matchEngine, then return to this route.
    */
 
   const WATCH_PHASES_PER_TICK = 1;
@@ -75,6 +91,19 @@
   let goalNoticeTimer = null;
   let displayHomeGoals = $state(0);
   let displayAwayGoals = $state(0);
+
+  let playableSession = $state.raw(null);
+  let playableBusy = $state(false);
+  let playableRevealEvents = $state.raw([]);
+
+  const playableMoment = $derived.by(() => {
+    if (playableSession?.status === 'pending') return playableSession.pending?.moment ?? null;
+    if (playableSession?.status === 'committed') return playableSession.lastReceipt?.resolution?.moment ?? null;
+    return null;
+  });
+  const playableResolution = $derived(
+    playableSession?.status === 'committed' ? playableSession.lastReceipt?.resolution ?? null : null
+  );
 
   let result          = $state.raw(null);
   let resultCommitted = $state(false);
@@ -156,9 +185,6 @@
       return null;
     }
 
-    // P1 already tracks the real world; use it for cup/European opponents when
-    // the drawn club exists in the persisted world rather than showing a
-    // generic scouting card.
     if (!isLeague && oppTeam?.id && teamsById.has(oppTeam.id)) {
       [oppForm, oppInForm] = await Promise.all([
         getTeamRecentForm(oppTeam.id, 5).catch(() => []),
@@ -249,13 +275,106 @@
   const displayHomeTeam = $derived(live?.homeTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.userTeam : matchCtx.oppTeam) : null));
   const displayAwayTeam = $derived(live?.awayTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.oppTeam : matchCtx.userTeam) : null));
 
+  function buildInputs(ctx, resolved) {
+    return buildManagedMatchInputs({
+      save:ctx.save,
+      homeTeam:resolved.homeTeam,
+      awayTeam:resolved.awayTeam,
+      homePlayers:resolved.homePlayers,
+      awayPlayers:resolved.awayPlayers,
+      userIsHome:resolved.userIsHome,
+      overrideFormation:ctx.userFormation,
+    });
+  }
+
+  function installLiveMatch({ inputs, resolved, liveState, allEvents = [], currentPhase = 0, playable = false }) {
+    live = {
+      liveState, allEvents,
+      homeTeam:inputs.homeTeam, awayTeam:inputs.awayTeam,
+      userTeam:matchCtx.userTeam, oppTeam:matchCtx.oppTeam,
+      userPlayers:resolved.userIsHome ? inputs.homePlayers : inputs.awayPlayers,
+      oppPlayers:resolved.userIsHome ? inputs.awayPlayers : inputs.homePlayers,
+      userIsHome:resolved.userIsHome,
+      matchEvent:resolved.patchedEvent,
+      currentPhase, paused:false, speedMultiplier:1, playable,
+    };
+    setMatchNavigationLocked(true);
+    displayHomeGoals = liveState.hGoals ?? 0;
+    displayAwayGoals = liveState.aGoals ?? 0;
+    presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
+    broadcastSimulation = createBroadcastSimulation({
+      homeTeamId:live.homeTeam.id, awayTeamId:live.awayTeam.id, ledgerDriven:true,
+      possessionTeamId:presentationPossession,
+      homeFormation:live.liveState.homeFormation, awayFormation:live.liveState.awayFormation,
+      homePlayers:live.liveState.hActive, awayPlayers:live.liveState.aActive,
+    });
+    if (currentPhase > 0) {
+      updateBroadcastSimulation(broadcastSimulation, {
+        phase:currentPhase,
+        possessionTeamId:presentationPossession,
+        record:liveState.actionLedger?.at?.(-1) ?? null,
+      });
+    }
+    broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
+    startPresentation();
+  }
+
+  async function restorePlayableMatch(ctx, session) {
+    assertSupportedPlayableSession(session);
+    const resolved = await resolveMatchTeams(ctx);
+    if (!resolved) throw new Error('Unable to restore teams for saved Play Key Moments match');
+    const inputs = buildInputs(ctx, resolved);
+    const runtime = restorePlayableRuntime(session);
+    playableSession = session;
+    playableRevealEvents = session.status === 'committed'
+      ? (runtime.receipt?.resolution?.goalEvent ? [runtime.receipt.resolution.goalEvent] : [])
+      : [];
+    installLiveMatch({
+      inputs,
+      resolved,
+      liveState:runtime.liveState,
+      allEvents:runtime.allEvents,
+      currentPhase:runtime.currentPhase,
+      playable:true,
+    });
+    if (session.status === 'ready_to_close') {
+      result = runtime.finalResult;
+      resultCommitted = false;
+      window.cancelAnimationFrame(presentationFrame);
+      beat = 'fulltime';
+      return;
+    }
+    beat = 'live';
+    if (session.status === 'active') scheduleTick();
+  }
+
   async function loadMatch() {
     active = true;
     loading = true;
     await openDB();
     const save = await getSave();
     if (!save || save._deleted) { active = false; loading = true; return; }
+    let storedPlayable = save.playableMatchSession ?? null;
     const event = await getNextMatchEvent();
+
+    if (storedPlayable) {
+      try {
+        assertSupportedPlayableSession(storedPlayable);
+        const eventMatches = event && event.type !== 'no_user_event' && playableEventKey(event) === storedPlayable.eventKey;
+        if (!eventMatches && storedPlayable.status === 'ready_to_close') {
+          await clearPlayableMatchAfterClose(storedPlayable);
+          storedPlayable = null;
+        } else if (!eventMatches) {
+          loading = false;
+          toast('Saved Play Key Moments state does not match the current fixture. The saved session has been preserved rather than reinterpreted.', 'error', 8000);
+          return;
+        }
+      } catch (error) {
+        loading = false;
+        toast(`Play Key Moments save cannot be resumed safely: ${error.message}`, 'error', 8000);
+        return;
+      }
+    }
 
     if (!event || event.type === 'no_user_event') {
       await advanceOneFixture(null);
@@ -277,6 +396,15 @@
     matchCtx = ctx;
     beforeTable = ctx.isLeague ? await getTableSliceAroundTeam(save.userTeamId, 1).catch(() => []) : [];
     loading = false;
+    if (storedPlayable) {
+      try {
+        await restorePlayableMatch(ctx, storedPlayable);
+      } catch (error) {
+        toast(`Unable to restore Play Key Moments: ${error.message}`, 'error', 8000);
+        console.error(error);
+      }
+      return;
+    }
     beat = 'teamNews';
     cloudSaveCheckpoint();
   }
@@ -335,8 +463,8 @@
       awayTeam = userIsHome2 ? realOpp : ctx.userTeam;
       homePlayers = userIsHome2 ? userPlayers : oppPlayers;
       awayPlayers = userIsHome2 ? oppPlayers : userPlayers;
-      patchedEvent = { ...ctx.event, userIsHome: userIsHome2 };
-      return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHome2, patchedEvent };
+      patchedEvent = { ...ctx.event, userIsHome:userIsHome2 };
+      return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome:userIsHome2, patchedEvent };
     }
 
     const userIsHomeC = ctx.event.userIsHome ?? true;
@@ -355,28 +483,16 @@
     awayTeam = userIsHomeC ? realOpp : ctx.userTeam;
     homePlayers = userIsHomeC ? userPlayers : oppPlayers;
     awayPlayers = userIsHomeC ? oppPlayers : userPlayers;
-    patchedEvent = { ...ctx.event, userIsHome: userIsHomeC };
-    return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHomeC, patchedEvent };
+    patchedEvent = { ...ctx.event, userIsHome:userIsHomeC };
+    return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome:userIsHomeC, patchedEvent };
   }
 
-  async function startWatch() {
+  async function startManagedMatch(playable) {
     if (matchCtx.lineupBlocked) { toast(blockMsg, 'error', 5000); return; }
     loading = true;
     const resolved = await resolveMatchTeams(matchCtx);
-    loading = false;
-    if (!resolved) { await simInstant(); return; }
-
-    // Watched and instant paths consume the same persisted v2 manager context.
-    const inputs = buildManagedMatchInputs({
-      save:matchCtx.save,
-      homeTeam:resolved.homeTeam,
-      awayTeam:resolved.awayTeam,
-      homePlayers:resolved.homePlayers,
-      awayPlayers:resolved.awayPlayers,
-      userIsHome:resolved.userIsHome,
-      overrideFormation:matchCtx.userFormation,
-    });
-
+    if (!resolved) { loading = false; await simInstant(); return; }
+    const inputs = buildInputs(matchCtx, resolved);
     const liveState = buildLiveMatchState(
       inputs.homeTeam, inputs.awayTeam, inputs.homePlayers, inputs.awayPlayers,
       inputs.homeFormation, inputs.awayFormation, inputs.homeLineup, inputs.awayLineup,
@@ -384,32 +500,46 @@
       { homeBench:inputs.homeBench, awayBench:inputs.awayBench }
     );
 
-    live = {
-      liveState, allEvents: [],
-      homeTeam: inputs.homeTeam, awayTeam: inputs.awayTeam,
-      userTeam: matchCtx.userTeam, oppTeam: matchCtx.oppTeam,
-      userPlayers: resolved.userIsHome ? inputs.homePlayers : inputs.awayPlayers,
-      oppPlayers:  resolved.userIsHome ? inputs.awayPlayers : inputs.homePlayers,
-      userIsHome: resolved.userIsHome,
-      matchEvent: resolved.patchedEvent,
-      currentPhase: 0, paused: false, speedMultiplier: 1,
-    };
-    setMatchNavigationLocked(true);
-    displayHomeGoals = 0;
-    displayAwayGoals = 0;
-    presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
-    broadcastSimulation = createBroadcastSimulation({
-      homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id, ledgerDriven: true,
-      possessionTeamId: presentationPossession,
-      homeFormation: live.liveState.homeFormation, awayFormation: live.liveState.awayFormation,
-      homePlayers: live.liveState.hActive, awayPlayers: live.liveState.aActive,
-    });
-    broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
-    startPresentation();
+    if (playable) {
+      try {
+        const created = createPlayableMatchSession({
+          slotId:getActiveSlotId(),
+          event:resolved.patchedEvent,
+          userTeamId:matchCtx.userTeam.id,
+          userIsHome:resolved.userIsHome,
+          liveState,
+        });
+        const persisted = await startPlayableMatchSessionAtomic(created);
+        playableSession = persisted.session;
+        if (persisted.idempotent) {
+          loading = false;
+          await restorePlayableMatch(matchCtx, persisted.session);
+          return;
+        }
+        cloudSaveCheckpoint();
+      } catch (error) {
+        loading = false;
+        toast(`Unable to start Play Key Moments safely: ${error.message}`, 'error', 7000);
+        return;
+      }
+    } else {
+      playableSession = null;
+    }
+
+    installLiveMatch({ inputs, resolved, liveState, playable });
+    loading = false;
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
       if (beat === 'kickoff') { beat = 'live'; scheduleTick(); }
     }, 900);
+  }
+
+  async function startWatch() {
+    await startManagedMatch(false);
+  }
+
+  async function startPlayableKeyMoments() {
+    await startManagedMatch(true);
   }
 
   async function openSquadFromTeamNews() {
@@ -437,7 +567,7 @@
       }
       result = res.singleResult;
       resultCommitted = true;
-      live = { userTeam: matchCtx.userTeam, matchEvent: matchCtx.event, userIsHome: result?.homeTeamId === matchCtx.save.userTeamId };
+      live = { userTeam:matchCtx.userTeam, matchEvent:matchCtx.event, userIsHome:result?.homeTeamId === matchCtx.save.userTeamId, playable:false };
       applyCommitExtras(res);
       beat = 'fulltime';
       cloudSaveCheckpoint();
@@ -449,31 +579,159 @@
   }
 
   function scheduleTick(extraDelay = 0) {
+    if (!live || live.paused) return;
+    if (live.playable && playableSession?.status !== 'active') return;
     const delay = Math.round(WATCH_TICK_MS / (live.speedMultiplier || 1));
-    tickTimer = window.setTimeout(runTick, delay + extraDelay);
+    window.clearTimeout(tickTimer);
+    tickTimer = window.setTimeout(() => { void runTick(); }, delay + extraDelay);
   }
 
-  function runTick() {
-    if (!live || live.paused) return;
+  async function runTick() {
+    if (!live || live.paused || playableBusy) return;
+    if (live.playable && playableSession?.status !== 'active') return;
     if (!isBroadcastReady(broadcastSimulation)) { scheduleTick(); return; }
-    if (live.currentPhase >= TOTAL_PHASES) { finishMatch(); return; }
+    if (live.currentPhase >= TOTAL_PHASES) { await finishMatch(); return; }
     const startPhase = live.currentPhase + 1;
-    const endPhase   = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
+    const endPhase = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
     const beforeState = live.liveState;
-    const { segEvents, updatedState } = simulateMatchSegment(
-      live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase, live.userTeam.id
-    );
-    live = { ...live, liveState: updatedState, currentPhase: endPhase, allEvents: [...live.allEvents, ...segEvents] };
+    let segEvents;
+    let updatedState;
+    let nextPhase = endPhase;
+
+    try {
+      if (live.playable) {
+        const step = await advancePlayableMatchPhase({
+          session:playableSession,
+          homeTeam:live.homeTeam,
+          awayTeam:live.awayTeam,
+          liveState:beforeState,
+          allEvents:live.allEvents,
+          currentPhase:live.currentPhase,
+          controlledTeamId:live.userTeam.id,
+        });
+        if (step.kind === 'pending') {
+          playableSession = step.session;
+          cloudSaveCheckpoint();
+          return;
+        }
+        segEvents = step.segEvents;
+        updatedState = step.updatedState;
+        nextPhase = step.currentPhase;
+      } else {
+        const step = simulateMatchSegment(
+          live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase, live.userTeam.id
+        );
+        segEvents = step.segEvents;
+        updatedState = step.updatedState;
+      }
+    } catch (error) {
+      live = { ...live, paused:true };
+      toast(`Match paused to protect your saved state: ${error.message}`, 'error', 7000);
+      console.error(error);
+      return;
+    }
+
+    live = { ...live, liveState:updatedState, currentPhase:nextPhase, allEvents:[...live.allEvents, ...segEvents] };
     const possessionTeamId = updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id;
     presentationPossession = possessionTeamId;
     presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
-    updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent, record: updatedState.actionLedger.at(-1) });
+    updateBroadcastSimulation(broadcastSimulation, { phase:nextPhase, possessionTeamId, event:presentationEvent, record:updatedState.actionLedger.at(-1) });
     replaceBroadcastLineups(broadcastSimulation, {
-      homeFormation: updatedState.homeFormation, awayFormation: updatedState.awayFormation,
-      homePlayers: updatedState.hActive, awayPlayers: updatedState.aActive,
+      homeFormation:updatedState.homeFormation, awayFormation:updatedState.awayFormation,
+      homePlayers:updatedState.hActive, awayPlayers:updatedState.aActive,
     });
     handleNewEvents(segEvents);
-    scheduleTick();
+
+    if (live.playable && nextPhase === 60) {
+      try {
+        playableBusy = true;
+        playableSession = await checkpointPlayableMatch(playableSession, {
+          liveState:live.liveState,
+          currentPhase:live.currentPhase,
+          allEvents:live.allEvents,
+        });
+        cloudSaveCheckpoint();
+      } catch (error) {
+        live = { ...live, paused:true };
+        toast(`Half-time checkpoint failed; match paused safely: ${error.message}`, 'error', 7000);
+        return;
+      } finally {
+        playableBusy = false;
+      }
+    }
+
+    if (nextPhase >= TOTAL_PHASES) await finishMatch();
+    else scheduleTick();
+  }
+
+  async function resolvePlayableIntent(intent = null) {
+    if (!live?.playable || playableBusy || playableSession?.status !== 'pending') return;
+    playableBusy = true;
+    const previousEventCount = live.allEvents.length;
+    try {
+      const resolved = await resolvePendingPlayableMoment({
+        session:playableSession,
+        homeTeam:live.homeTeam,
+        awayTeam:live.awayTeam,
+        controlledTeamId:live.userTeam.id,
+        intent,
+      });
+      playableSession = resolved.session;
+      playableRevealEvents = resolved.allEvents.slice(previousEventCount);
+      live = {
+        ...live,
+        liveState:resolved.liveState,
+        allEvents:resolved.allEvents,
+        currentPhase:resolved.currentPhase,
+      };
+      displayHomeGoals = resolved.liveState.hGoals ?? displayHomeGoals;
+      displayAwayGoals = resolved.liveState.aGoals ?? displayAwayGoals;
+      replaceBroadcastLineups(broadcastSimulation, {
+        homeFormation:resolved.liveState.homeFormation, awayFormation:resolved.liveState.awayFormation,
+        homePlayers:resolved.liveState.hActive, awayPlayers:resolved.liveState.aActive,
+      });
+      cloudSaveCheckpoint();
+    } catch (error) {
+      toast(`Could not commit this moment: ${error.message}`, 'error', 7000);
+      console.error(error);
+    } finally {
+      playableBusy = false;
+    }
+  }
+
+  async function continuePlayableMoment() {
+    if (!live?.playable || playableBusy || playableSession?.status !== 'committed') return;
+    playableBusy = true;
+    const receipt = playableSession.lastReceipt;
+    try {
+      playableSession = await acknowledgePlayableResult(playableSession);
+      const goalEvent = receipt?.resolution?.goalEvent ?? null;
+      updateBroadcastSimulation(broadcastSimulation, {
+        phase:live.currentPhase,
+        possessionTeamId:receipt?.resolution?.moment?.attackingTeamId ?? presentationPossession,
+        event:null,
+        record:receipt?.resolution?.record ?? live.liveState.actionLedger?.at?.(-1) ?? null,
+      });
+      for (const event of playableRevealEvents) {
+        if (event.type === 'goal') {
+          if (event.teamId === live.userTeam.id) toast(`GOAL! ${event.playerName}`, 'success');
+          continue;
+        }
+        handleNewEvents([event]);
+      }
+      if (goalEvent && !playableRevealEvents.some(event => event.type === 'goal')) {
+        if (goalEvent.teamId === live.userTeam.id) toast(`GOAL! ${goalEvent.playerName}`, 'success');
+      }
+      playableRevealEvents = [];
+      cloudSaveCheckpoint();
+      if (live.currentPhase >= TOTAL_PHASES) await finishMatch();
+      else scheduleTick(120);
+    } catch (error) {
+      toast(`Could not continue safely: ${error.message}`, 'error', 7000);
+      console.error(error);
+    } finally {
+      playableBusy = false;
+    }
   }
 
   function handleNewEvents(segEvents) {
@@ -509,8 +767,7 @@
       const elapsed = now - presentationAt;
       if (elapsed < 30) return;
       presentationAt = now;
-      if (!live.paused) {
-        // Substep accelerated presentation instead of losing time to the 50ms safety clamp.
+      if (!live.paused && !(live.playable && playableSession?.status !== 'active')) {
         let remaining = Math.min(elapsed, 100) * live.speedMultiplier;
         while (remaining > 0) {
           const step = Math.min(remaining, 50);
@@ -524,15 +781,15 @@
   }
 
   function togglePause() {
-    if (!live) return;
-    live = { ...live, paused: !live.paused };
+    if (!live || (live.playable && playableSession?.status !== 'active')) return;
+    live = { ...live, paused:!live.paused };
     if (!live.paused) scheduleTick();
     else window.clearTimeout(tickTimer);
   }
 
   function setSpeed(mult) {
     if (!live) return;
-    live = { ...live, speedMultiplier: mult };
+    live = { ...live, speedMultiplier:mult };
     if (!live.paused) {
       window.clearTimeout(tickTimer);
       scheduleTick();
@@ -541,23 +798,51 @@
 
   function skipMatch() {
     if (!live || live.currentPhase >= TOTAL_PHASES) return;
+    if (live.playable) {
+      toast('Play Key Moments keeps eligible moments interactive. Use Sim Instantly before kick-off if you want the whole match resolved automatically.', 'info', 5000);
+      return;
+    }
     window.clearTimeout(tickTimer);
     const startPhase = live.currentPhase + 1;
     const beforeState = live.liveState;
     const { segEvents, updatedState } = simulateMatchSegment(
       live.homeTeam, live.awayTeam, beforeState, startPhase, TOTAL_PHASES, live.userTeam.id
     );
-    live = { ...live, liveState: updatedState, currentPhase: TOTAL_PHASES, allEvents: [...live.allEvents, ...segEvents] };
-    updateBroadcastSimulation(broadcastSimulation, { phase: TOTAL_PHASES, possessionTeamId: updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id, event: segEvents.find(event => event.type === 'goal') ?? null });
+    live = { ...live, liveState:updatedState, currentPhase:TOTAL_PHASES, allEvents:[...live.allEvents, ...segEvents] };
+    updateBroadcastSimulation(broadcastSimulation, { phase:TOTAL_PHASES, possessionTeamId:updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id, event:segEvents.find(event => event.type === 'goal') ?? null });
     handleNewEvents(segEvents);
-    finishMatch();
+    void finishMatch();
   }
 
-  function finishMatch() {
+  async function finishMatch() {
+    if (!live || beat === 'fulltime') return;
     window.clearTimeout(tickTimer);
     window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
-    result = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
+    try {
+      if (live.playable) {
+        playableBusy = true;
+        const prepared = await preparePlayableMatchClose({
+          session:playableSession,
+          homeTeam:live.homeTeam,
+          awayTeam:live.awayTeam,
+          liveState:live.liveState,
+          allEvents:live.allEvents,
+        });
+        playableSession = prepared.session;
+        result = prepared.result;
+        cloudSaveCheckpoint();
+      } else {
+        result = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
+      }
+    } catch (error) {
+      live = { ...live, paused:true };
+      toast(`Full-time checkpoint failed; result has not been closed: ${error.message}`, 'error', 8000);
+      console.error(error);
+      return;
+    } finally {
+      playableBusy = false;
+    }
     resultCommitted = false;
     vibrate([80, 40, 80]);
     beat = 'fulltime';
@@ -593,9 +878,9 @@
       return;
     }
     const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90);
-    const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, inPlayer.id, outPlayer.id, minute, live.userTeam.id);
+    const { ok, liveState:newLs, event } = applySubstitution(live.liveState, live.userIsHome, inPlayer.id, outPlayer.id, minute, live.userTeam.id);
     if (ok) {
-      live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
+      live = { ...live, liveState:newLs, allEvents:[...live.allEvents, event] };
       replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
       toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
     }
@@ -633,15 +918,15 @@
   function applyTactics(formation) {
     tacticsPickerFormation = formation;
     const newLs = applyFormationChange(live.liveState, live.userIsHome, formation);
-    live = { ...live, liveState: newLs };
+    live = { ...live, liveState:newLs };
     replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
     toast(`Formation changed to ${formation}`, 'info', 3000);
   }
   async function applyTacticsMentality(mentality) {
     if (!live || !matchCtx) return;
     const newLs = applyMentalityChange(live.liveState, live.userIsHome, mentality);
-    live = { ...live, liveState: newLs };
-    matchCtx = { ...matchCtx, save: { ...matchCtx.save, mentality } };
+    live = { ...live, liveState:newLs };
+    matchCtx = { ...matchCtx, save:{ ...matchCtx.save, mentality } };
     const currentSave = await getSave();
     if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, mentality });
     toast(`Mentality changed to ${mentality}`, 'info', 3000);
@@ -656,7 +941,23 @@
     const currentSave = await getSave();
     if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, tactics });
   }
-  function closeTacticsSheet() {
+  async function closeTacticsSheet() {
+    if (live?.playable && playableSession?.status === 'active') {
+      try {
+        playableBusy = true;
+        playableSession = await checkpointPlayableMatch(playableSession, {
+          liveState:live.liveState,
+          currentPhase:live.currentPhase,
+          allEvents:live.allEvents,
+        });
+        cloudSaveCheckpoint();
+      } catch (error) {
+        playableBusy = false;
+        toast(`Tactics checkpoint failed; changes are still on screen but the match remains paused: ${error.message}`, 'error', 7000);
+        return;
+      }
+      playableBusy = false;
+    }
     tacticsSheetOpen = false;
     tacticsSubInId = null;
     tacticsSubOutId = null;
@@ -678,7 +979,7 @@
     if (res.newOffers?.length) {
       for (const o of res.newOffers) {
         toast(`${o.clubName} bid ${fmt.money(o.fee)} for ${o.playerName}`, 'info', 5000);
-        newsAIBid({ name: o.playerName, id: o.playerId }, o.fee, o.clubName, matchCtx.save).catch(() => {});
+        newsAIBid({ name:o.playerName, id:o.playerId }, o.fee, o.clubName, matchCtx.save).catch(() => {});
       }
     }
     for (const response of res.playerResponses ?? []) {
@@ -688,7 +989,7 @@
     for (const inj of userInjEvts) {
       const wks = inj.injuryGWsLeft ?? 1;
       toast(`${inj.playerName} — ${inj.injuryName} (${injuryDurationLabel(wks)})`, 'error', 8000);
-      newsInjury({ name: inj.playerName, id: inj.playerId }, inj.injuryName, wks, matchCtx.save).catch(() => {});
+      newsInjury({ name:inj.playerName, id:inj.playerId }, inj.injuryName, wks, matchCtx.save).catch(() => {});
     }
     for (const p of res.recoveredPlayers ?? []) {
       toast(`${p.name} is fit and available again!`, 'success', 6000);
@@ -699,17 +1000,29 @@
   async function proceedToAfter() {
     if (!resultCommitted) {
       committing = true;
+      let res;
       try {
-        const res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
-        applyCommitExtras(res);
+        res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
         resultCommitted = true;
-        cloudSaveCheckpoint();
       } catch (err) {
         committing = false;
         toast('Error saving result: ' + err.message, 'error');
         console.error(err);
         return;
       }
+
+      if (live.playable && playableSession) {
+        try {
+          await clearPlayableMatchAfterClose(playableSession);
+          playableSession = null;
+          cloudSaveCheckpoint();
+        } catch (error) {
+          console.warn('Playable session cleanup will be retried on next load', error);
+          toast('Match result is saved. Key-moment cleanup will retry automatically next time.', 'info', 5000);
+        }
+      }
+      applyCommitExtras(res);
+      if (!live.playable) cloudSaveCheckpoint();
       committing = false;
     }
     await renderHome();
@@ -727,6 +1040,7 @@
     active = false;
     setMatchNavigationLocked(false);
     live = null; result = null; matchCtx = null; broadcastSimulation = null;
+    playableSession = null; playableRevealEvents = []; playableBusy = false;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
     beforeTable = []; afterTable = [];
     await navigateTo('home');
@@ -740,10 +1054,10 @@
     return ug > og ? 'WIN' : ug < og ? 'LOSS' : 'DRAW';
   }
   const MENTALITIES = [
-    { id: 'defensive', label: 'Defensive' }, { id: 'balanced', label: 'Balanced' },
-    { id: 'possession', label: 'Possession' }, { id: 'attacking', label: 'Attacking' },
+    { id:'defensive', label:'Defensive' }, { id:'balanced', label:'Balanced' },
+    { id:'possession', label:'Possession' }, { id:'attacking', label:'Attacking' },
   ];
-  const MENTALITY_ICONS = { defensive: 'suspension', balanced: 'tactics', possession: 'ball', attacking: 'spark' };
+  const MENTALITY_ICONS = { defensive:'suspension', balanced:'tactics', possession:'ball', attacking:'spark' };
   function mentalityIcon(mentality) {
     return MENTALITY_ICONS[mentality] ?? MENTALITY_ICONS.balanced;
   }
@@ -869,9 +1183,10 @@
       {/if}
     </div>
 
-    <div class="tn-actions">
+    <div class="tn-actions tn-actions-modes">
       <button class="btn-full btn-secondary" disabled={m.lineupBlocked || loading} onclick={simInstant}><Icon name="speed" size={15} />Sim Instantly</button>
-      <button class="btn-full btn-primary" disabled={m.lineupBlocked || loading} onclick={startWatch}><Icon name="eye" size={15} />Kick Off →</button>
+      <button class="btn-full btn-secondary" disabled={m.lineupBlocked || loading} onclick={startWatch}><Icon name="eye" size={15} />Watch Match</button>
+      <button class="btn-full btn-primary" disabled={m.lineupBlocked || loading} onclick={startPlayableKeyMoments}><Icon name="spark" size={15} />Play Key Moments</button>
     </div>
 
   {:else if beat === 'kickoff' && live}
@@ -885,7 +1200,7 @@
     {@const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90)}
     {@const homeShare = live.currentPhase ? Math.round((live.liveState.hPhases / Math.max(1, live.liveState.hPhases + live.liveState.aPhases)) * 100) : 50}
     <div class="live-wrap">
-      <div class="broadcast-label">LIVE · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
+      <div class="broadcast-label">{live.playable ? 'PLAY KEY MOMENTS' : 'LIVE'} · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
       <div class="score-bug">
         <div class="sb-team">
           <div class="sb-crest"><Crest team={live.homeTeam} size={26} /></div>
@@ -896,7 +1211,7 @@
             <span>{displayHomeGoals}</span><span class="sb-sep">–</span><span>{displayAwayGoals}</span>
           </div>
           <div class="sb-clock">{minute}'</div>
-          <div class="sb-status">{live.paused ? 'PAUSED' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
+          <div class="sb-status">{live.paused ? 'PAUSED' : playableMoment ? 'KEY MOMENT' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
         </div>
         <div class="sb-team">
           <div class="sb-crest"><Crest team={live.awayTeam} size={26} /></div>
@@ -940,9 +1255,22 @@
           <button class="speed-btn" class:active={live.speedMultiplier === s} aria-label={`Match speed ${s} times`} aria-pressed={live.speedMultiplier === s} onclick={() => setSpeed(s)}>{s}×</button>
         {/each}
       </div>
-      <button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>
+      {#if !live.playable}<button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>{/if}
       <button class="ctrl-btn tactics-control" onclick={openTacticsSheet}><Icon name="tactics" size={14} />Tactics <span>{subsLeft}</span></button>
     </div>
+
+    {#if live.playable && playableMoment}
+      {#key playableSession?.pending?.momentId ?? playableSession?.lastReceipt?.momentId}
+        <PlayableMomentOverlay
+          moment={playableMoment}
+          resolution={playableResolution}
+          busy={playableBusy}
+          onsubmit={resolvePlayableIntent}
+          onsimulate={() => resolvePlayableIntent(null)}
+          oncontinue={continuePlayableMoment}
+        />
+      {/key}
+    {/if}
 
   {:else if beat === 'fulltime' && result}
     {@const verdict = userVerdict(result)}
@@ -1027,7 +1355,7 @@
           <div class="after-section-title"><Icon name="table" size={14} /><span>League Position</span></div>
           <div class="after-table">
             {#each tableSlice as row (row.teamId)}
-              <div class="after-table-row" class:after-table-user={row.isUserTeam} animate:flip={{ duration: 400 }}>
+              <div class="after-table-row" class:after-table-user={row.isUserTeam} animate:flip={{ duration:400 }}>
                 <span class="after-table-pos">{row.displayPosition}</span>
                 <span class="after-table-crest"><Crest size={18} label={`${row.teamName} crest`} /></span>
                 <span class="after-table-name">{row.shortName ?? row.teamName}</span>
@@ -1123,7 +1451,7 @@
 </div>
 
 <style>
-  .match-screen { height: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; font-family: var(--font-body); color: var(--color-tx); background: var(--color-ground); }
+  .match-screen { position: relative; height: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; font-family: var(--font-body); color: var(--color-tx); background: var(--color-ground); }
   .match-loading { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--color-tx-2); }
 
   .tn-wrap { flex: 1; overflow-y: auto; padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 14px; }
@@ -1183,6 +1511,8 @@
   .tn-squad-link { margin-top: 9px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-club); border-radius: 8px; background: transparent; color: var(--color-club); font: 700 11px var(--font-body); cursor: pointer; }
 
   .tn-actions, .ft-actions, .after-actions { display: flex; gap: 10px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); flex-shrink: 0; }
+  .tn-actions-modes { flex-wrap: wrap; }
+  .tn-actions-modes .btn-full { min-width: 120px; }
   .tn-actions .btn-full, .live-controls .ctrl-btn, .after-section-title, .ft-scorers div { display: flex; align-items: center; justify-content: center; gap: 5px; }
 
   .kickoff-beat { flex: 1; display: flex; align-items: center; justify-content: center; gap: 24px; cursor: pointer; animation: ko-in 0.6s ease; }
@@ -1275,6 +1605,8 @@
   @media (max-width: 768px) {
     .broadcast-pitch { flex: 1 1 auto; min-height: 220px; max-height: 57dvh; }
     .live-controls { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+    .tn-actions-modes { display:grid; grid-template-columns:1fr 1fr; }
+    .tn-actions-modes .btn-full:last-child { grid-column:1 / -1; }
   }
 
   .ctrl-btn:focus-visible, .speed-btn:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
