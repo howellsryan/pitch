@@ -6,7 +6,15 @@ import {
   simulateMatchSegment,
 } from '../modules/matchEngine.js';
 import { createUserTacticalPlan } from '../modules/tactics.js';
-import { createSyntheticPlayableMoment, samplePlayablePocMotion } from './playableMomentsPocScene.js';
+import {
+  SYNTHETIC_KEEPER_TARGETS,
+  createSyntheticPlayableMoment,
+  gestureToPlayableIntent,
+  isSyntheticSpecialFinish,
+  resolveSyntheticAttackShot,
+  resolveSyntheticGoalkeeperShot,
+  samplePlayablePocMotion,
+} from './playableMomentsPocScene.js';
 
 const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
 
@@ -255,6 +263,69 @@ describe('Playable Key Moments POC authoritative continuation', () => {
       return;
     }
     throw new Error('Could not find an on-target goalkeeper moment');
+  });
+});
+
+describe('Playable Key Moments synthetic drills', () => {
+  it('saves ordinary on-target synthetic shots', () => {
+    const shot = resolveSyntheticAttackShot({ attack:{ aimX:0, aimY:.55, power:.82, timing:.9 } });
+    expect(shot.finish).toBe('saved');
+    expect(shot.goal).toBe(false);
+    expect(shot.syntheticSpecial).toBe(false);
+    expect(shot.presentation.contact).toBe('save');
+  });
+
+  it.each([-1, 1])('scores a strong well-timed synthetic finish into either top corner (%s)', side => {
+    const intent = { attack:{ aimX:side * .80, aimY:.80, power:.80, timing:.86 } };
+    expect(isSyntheticSpecialFinish(intent)).toBe(true);
+    const shot = resolveSyntheticAttackShot(intent);
+    expect(shot.finish).toBe('goal');
+    expect(shot.goal).toBe(true);
+    expect(shot.syntheticSpecial).toBe(true);
+    expect(shot.presentation.contact).toBe('goal');
+  });
+
+  it('still saves a top-corner attempt when power or timing is not special enough', () => {
+    expect(resolveSyntheticAttackShot({ attack:{ aimX:.80, aimY:.80, power:.52, timing:.90 } }).finish).toBe('saved');
+    expect(resolveSyntheticAttackShot({ attack:{ aimX:-.80, aimY:.80, power:.80, timing:.48 } }).finish).toBe('saved');
+  });
+
+  it('cycles goalkeeper training shots through visible non-centre targets', () => {
+    const targets = SYNTHETIC_KEEPER_TARGETS.map((_, index) => createSyntheticPlayableMoment('goalkeeper', index).syntheticTarget);
+    expect(targets).toHaveLength(6);
+    expect(new Set(targets.map(target => target.label)).size).toBe(6);
+    expect(targets.every(target => Math.abs(target.x) >= .5)).toBe(true);
+    expect(createSyntheticPlayableMoment('goalkeeper', 6).syntheticTarget).toEqual(targets[0]);
+  });
+
+  it('makes the goalkeeper drill forgiving for a correct cue read but punishes the wrong side', () => {
+    const moment = createSyntheticPlayableMoment('goalkeeper', 0);
+    const target = moment.syntheticTarget;
+    const correct = resolveSyntheticGoalkeeperShot(moment, {
+      goalkeeper:{ x:target.x, y:target.y, timing:.7 },
+    });
+    const wrong = resolveSyntheticGoalkeeperShot(moment, {
+      goalkeeper:{ x:-target.x, y:target.y, timing:1 },
+    });
+
+    expect(correct.finish).toBe('saved');
+    expect(correct.syntheticCue).toBe(target.label);
+    expect(wrong.finish).toBe('goal');
+  });
+
+  it('allows renderer goal-plane coordinates to override whole-canvas gesture approximation', () => {
+    const intent = gestureToPlayableIntent({
+      mode:'attack',
+      start:{ x:100, y:500 },
+      end:{ x:300, y:120 },
+      bounds:{ left:0, top:0, width:400, height:600 },
+      durationMs:480,
+      goalTarget:{ x:.82, y:.84 },
+    });
+    expect(intent.attack.aimX).toBe(.82);
+    expect(intent.attack.aimY).toBe(.84);
+    expect(intent.attack.power).toBeGreaterThan(.68);
+    expect(intent.attack.timing).toBe(1);
   });
 });
 
