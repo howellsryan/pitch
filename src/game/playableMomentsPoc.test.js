@@ -6,6 +6,7 @@ import {
   simulateMatchSegment,
 } from '../modules/matchEngine.js';
 import { createUserTacticalPlan } from '../modules/tactics.js';
+import { createSyntheticPlayableMoment, samplePlayablePocMotion } from './playableMomentsPocScene.js';
 
 const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
 
@@ -254,5 +255,34 @@ describe('Playable Key Moments POC authoritative continuation', () => {
       return;
     }
     throw new Error('Could not find an on-target goalkeeper moment');
+  });
+});
+
+describe('Playable Key Moments POC motion contract', () => {
+  it('returns the shooter and goalkeeper to a neutral pose after strike/dive recovery', () => {
+    const moment = createSyntheticPlayableMoment('attack');
+    const resolution = {
+      shot:{
+        finish:'saved',
+        presentation:{
+          target:{ x:.72, y:.62, power:.72 },
+          keeper:{ x:.72, y:.62, timing:.9, reach:.5 },
+          contact:'save',
+        },
+      },
+    };
+    const contact = samplePlayablePocMotion(moment, resolution, .62);
+    const recovered = samplePlayablePocMotion(moment, resolution, 1);
+
+    expect(Math.abs(contact.keeper.x)).toBeGreaterThan(.2);
+    expect(Math.abs(contact.keeper.roll)).toBeGreaterThan(.1);
+    expect(recovered.shooter.lean).toBeCloseTo(0, 6);
+    expect(recovered.shooter.kick).toBeCloseTo(0, 6);
+    expect(recovered.keeper.x).toBeCloseTo(moment.geometry.goalkeeper.x, 6);
+    expect(recovered.keeper.y).toBeCloseTo(0, 6);
+    expect(recovered.keeper.roll).toBeCloseTo(0, 6);
+    expect(recovered.keeper.dive).toBeCloseTo(0, 6);
+    expect(recovered.shooter.recovery).toBe(1);
+    expect(recovered.keeper.recovery).toBe(1);
   });
 });
