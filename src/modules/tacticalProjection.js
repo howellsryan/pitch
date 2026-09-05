@@ -2,15 +2,12 @@ import { effectiveAttribute, effectiveDetailedAttribute } from './playerModel.js
 import { normalizeTeamInstructions, resolvePlayerRole } from './tactics.js';
 
 /**
- * T2 shadow-only tactical projection.
- *
- * This module deliberately does not participate in authoritative match
- * resolution. It describes the future action-oriented model beside the current
- * P2 aggregate engine so roles/tactics/attributes can be calibrated before T3
- * changes any scoreline, statistic or RNG path.
+ * Shared action-oriented tactical projection consumed by the T3/T4 action
+ * resolver and diagnostics. T4 keeps the action vocabulary stable but moves
+ * route intent onto the independent v2 instruction dimensions.
  */
 
-export const TACTICAL_PROJECTION_VERSION = 1;
+export const TACTICAL_PROJECTION_VERSION = 2;
 
 export const TACTICAL_ACTION_DEFS = Object.freeze({
   circulation:Object.freeze({
@@ -226,28 +223,87 @@ export function tacticalActionUsage(instructionInput = {}) {
   } else if (instructions.buildUp === 'direct') {
     adjustUsage(usage, 'circulation', -.25);
     adjustUsage(usage, 'direct_pass', .50);
-    adjustUsage(usage, 'pass_into_space', .28);
     adjustUsage(usage, 'aerial_duel', .22);
   }
 
   if (instructions.tempo === 'slow') {
     adjustUsage(usage, 'circulation', .24);
-    adjustUsage(usage, 'pass_into_space', -.15);
-    adjustUsage(usage, 'carry', -.10);
-    adjustUsage(usage, 'high_press', -.15);
+    adjustUsage(usage, 'pass_into_space', -.12);
+    adjustUsage(usage, 'carry', -.08);
+    adjustUsage(usage, 'high_press', -.12);
   } else if (instructions.tempo === 'fast') {
     adjustUsage(usage, 'direct_pass', .12);
-    adjustUsage(usage, 'pass_into_space', .25);
-    adjustUsage(usage, 'carry', .20);
-    adjustUsage(usage, 'high_press', .20);
+    adjustUsage(usage, 'pass_into_space', .14);
+    adjustUsage(usage, 'carry', .12);
+    adjustUsage(usage, 'high_press', .16);
+  }
+
+  if (instructions.useOfSpace === 'to_feet') {
+    adjustUsage(usage, 'circulation', .28);
+    adjustUsage(usage, 'direct_pass', -.08);
+    adjustUsage(usage, 'pass_into_space', -.42);
+  } else if (instructions.useOfSpace === 'pass_into_space') {
+    adjustUsage(usage, 'circulation', -.16);
+    adjustUsage(usage, 'direct_pass', .08);
+    adjustUsage(usage, 'pass_into_space', .58);
+  }
+
+  if (instructions.ballCarrying === 'dribble_less') {
+    adjustUsage(usage, 'circulation', .12);
+    adjustUsage(usage, 'carry', -.46);
+  } else if (instructions.ballCarrying === 'run_at_defence') {
+    adjustUsage(usage, 'circulation', -.08);
+    adjustUsage(usage, 'carry', .58);
+  }
+
+  if (instructions.attackingWidth === 'wide') {
+    adjustUsage(usage, 'wide_delivery', .55);
+    adjustUsage(usage, 'carry', .16);
+    adjustUsage(usage, 'aerial_duel', .15);
+  } else if (instructions.attackingWidth === 'narrow') {
+    adjustUsage(usage, 'circulation', .15);
+    adjustUsage(usage, 'carry', .16);
+    adjustUsage(usage, 'wide_delivery', -.30);
+  }
+
+  if (instructions.onWin === 'counter') {
+    adjustUsage(usage, 'circulation', -.20);
+    adjustUsage(usage, 'direct_pass', .30);
+    adjustUsage(usage, 'pass_into_space', .38);
+    adjustUsage(usage, 'carry', .18);
+  } else if (instructions.onWin === 'hold_shape') {
+    adjustUsage(usage, 'circulation', .15);
+    adjustUsage(usage, 'direct_pass', -.10);
+  }
+
+  if (instructions.shotSelection === 'work_into_box') {
+    adjustUsage(usage, 'circulation', .25);
+    adjustUsage(usage, 'carry', .12);
+    adjustUsage(usage, 'shot', -.18);
+  } else if (instructions.shotSelection === 'shoot_on_sight') {
+    adjustUsage(usage, 'circulation', -.10);
+    adjustUsage(usage, 'shot', .36);
+  }
+
+  if (instructions.deliveryTiming === 'patient') {
+    adjustUsage(usage, 'wide_delivery', -.20);
+    adjustUsage(usage, 'circulation', .10);
+  } else if (instructions.deliveryTiming === 'early') {
+    adjustUsage(usage, 'wide_delivery', .50);
+    adjustUsage(usage, 'aerial_duel', .35);
   }
 
   if (instructions.defensiveLine === 'high') {
-    adjustUsage(usage, 'high_press', .15);
     adjustUsage(usage, 'recovery_defence', .25);
   } else if (instructions.defensiveLine === 'low') {
-    adjustUsage(usage, 'high_press', -.15);
     adjustUsage(usage, 'recovery_defence', -.10);
+  }
+
+  if (instructions.lineOfEngagement === 'high') {
+    adjustUsage(usage, 'high_press', .30);
+    adjustUsage(usage, 'interception_tackle', .10);
+  } else if (instructions.lineOfEngagement === 'low') {
+    adjustUsage(usage, 'high_press', -.28);
   }
 
   if (instructions.pressing === 'aggressive') {
@@ -258,33 +314,19 @@ export function tacticalActionUsage(instructionInput = {}) {
     adjustUsage(usage, 'interception_tackle', -.10);
   }
 
-  if (instructions.width === 'wide') {
-    adjustUsage(usage, 'wide_delivery', .55);
-    adjustUsage(usage, 'carry', .20);
-    adjustUsage(usage, 'aerial_duel', .15);
-  } else if (instructions.width === 'narrow') {
-    adjustUsage(usage, 'circulation', .15);
-    adjustUsage(usage, 'carry', .20);
-    adjustUsage(usage, 'wide_delivery', -.30);
+  if (instructions.defensiveTransition === 'counter_press') {
+    adjustUsage(usage, 'high_press', .38);
+    adjustUsage(usage, 'interception_tackle', .20);
+    adjustUsage(usage, 'recovery_defence', .08);
+  } else if (instructions.defensiveTransition === 'regroup') {
+    adjustUsage(usage, 'high_press', -.22);
+    adjustUsage(usage, 'recovery_defence', .18);
   }
 
-  if (instructions.transition === 'counter') {
-    adjustUsage(usage, 'circulation', -.20);
-    adjustUsage(usage, 'direct_pass', .30);
-    adjustUsage(usage, 'pass_into_space', .50);
-    adjustUsage(usage, 'carry', .25);
-  } else if (instructions.transition === 'hold_shape') {
-    adjustUsage(usage, 'circulation', .15);
-    adjustUsage(usage, 'direct_pass', -.10);
-  }
-
-  if (instructions.chanceCreation === 'work_ball') {
-    adjustUsage(usage, 'circulation', .25);
-    adjustUsage(usage, 'carry', .15);
-    adjustUsage(usage, 'shot', -.12);
-  } else if (instructions.chanceCreation === 'early_delivery') {
-    adjustUsage(usage, 'wide_delivery', .50);
-    adjustUsage(usage, 'aerial_duel', .35);
+  if (instructions.defensiveWidth === 'narrow') {
+    adjustUsage(usage, 'interception_tackle', .12);
+  } else if (instructions.defensiveWidth === 'wide') {
+    adjustUsage(usage, 'recovery_defence', .10);
   }
 
   if (instructions.defensiveApproach === 'compact') {
@@ -329,22 +371,43 @@ export function tacticalContextEdge(actionId, selfInput = {}, opponentInput = {}
   if (actionId === 'pass_into_space') {
     if (opponent.defensiveLine === 'high') edge += 6;
     if (opponent.defensiveLine === 'low') edge -= 5;
+    if (opponent.defensiveTransition === 'regroup') edge -= 2;
+    if (opponent.defensiveTransition === 'counter_press') edge += 1;
   }
   if (actionId === 'direct_pass') {
     if (opponent.defensiveLine === 'high') edge += 3;
     if (opponent.pressing === 'aggressive') edge += 2;
+    if (opponent.lineOfEngagement === 'high') edge += 2;
+    if (opponent.lineOfEngagement === 'low') edge -= 1;
   }
-  if (actionId === 'carry' && opponent.defensiveApproach === 'compact') edge -= 4;
+  if (actionId === 'carry') {
+    if (opponent.defensiveApproach === 'compact') edge -= 4;
+    if (opponent.defensiveTransition === 'counter_press') edge -= 2;
+    if (opponent.defensiveTransition === 'regroup') edge += 1;
+  }
   if (actionId === 'wide_delivery') {
-    if (opponent.width === 'narrow') edge += 5;
-    if (opponent.width === 'wide') edge -= 2;
+    if (opponent.defensiveWidth === 'narrow') edge += 5;
+    if (opponent.defensiveWidth === 'wide') edge -= 2;
   }
-  if (actionId === 'circulation' && opponent.pressing === 'aggressive') edge -= 3;
+  if (actionId === 'circulation') {
+    if (opponent.pressing === 'aggressive') edge -= 3;
+    if (opponent.lineOfEngagement === 'high') edge -= 2;
+    if (opponent.lineOfEngagement === 'low') edge += 1;
+    if (opponent.defensiveTransition === 'counter_press') edge -= 1;
+  }
   if (actionId === 'high_press') {
     if (opponent.buildUp === 'patient') edge += 3;
     if (opponent.buildUp === 'direct') edge -= 2;
+    if (self.lineOfEngagement === 'high') edge += 2;
+    if (self.lineOfEngagement === 'low') edge -= 2;
+    if (self.defensiveTransition === 'counter_press') edge += 2;
+    if (self.defensiveTransition === 'regroup') edge -= 2;
   }
-  if (actionId === 'recovery_defence' && self.defensiveLine === 'high') edge -= 2;
+  if (actionId === 'recovery_defence') {
+    if (self.defensiveLine === 'high') edge -= 2;
+    if (self.defensiveTransition === 'regroup') edge += 2;
+    if (self.defensiveTransition === 'counter_press') edge -= 1;
+  }
   if (actionId === 'attacking_set_piece' && opponent.setPieces === 'secure') edge -= 3;
 
   return edge;
@@ -387,7 +450,8 @@ export function projectTacticalMatchup(homeInput = {}, awayInput = {}) {
 
 /**
  * Diagnostics/test wrapper. The authoritative result is kept by reference and
- * never cloned or decorated, preventing shadow data from becoming live state.
+ * never cloned or decorated, preventing diagnostic data from replacing the
+ * authoritative match state.
  */
 export function attachTacticalShadow(authoritativeResult, homeInput = {}, awayInput = {}) {
   return { authoritativeResult, shadow:projectTacticalMatchup(homeInput, awayInput) };
