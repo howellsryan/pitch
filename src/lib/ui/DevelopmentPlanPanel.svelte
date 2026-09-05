@@ -2,7 +2,8 @@
   import { getSave } from '../../modules/db.js';
   import { contractTerminationQuote, terminateManagedPlayerContract } from '../../modules/contracts.js';
   import { setManagedDevelopmentPlan } from '../../modules/p5Runtime.js';
-  import { DEVELOPMENT_PLAN_DEFS, automaticPlanRecommendationDetail, effectiveDevelopmentPlan } from '../../modules/training.js';
+  import { DEVELOPMENT_PLAN_DEFS, effectiveDevelopmentPlan } from '../../modules/training.js';
+  import { automaticPlanRecommendationDetail } from '../../modules/trainingTacticalRecommendation.js';
   import { fmt, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
 
