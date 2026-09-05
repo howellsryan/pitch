@@ -89,6 +89,18 @@ describe('T6 tactical-analysis result integration', () => {
     expect(quick).not.toHaveProperty('actionLedger');
   });
 
+  it('keeps managed tactical analysis compact instead of retaining the authoritative ledger', () => {
+    const result = simulateMatch(
+      managedTeam(), awayTeam,
+      cloneSquad(squad('h')), cloneSquad(squad('a')),
+      '4-3-3', '4-3-3', null, null, 'balanced', 'balanced', { seed:6062 },
+    );
+
+    expect(result).not.toHaveProperty('actionLedger');
+    expect(result.tacticalAnalysis?.version).toBe(1);
+    expect(Buffer.byteLength(JSON.stringify(result.tacticalAnalysis), 'utf8')).toBeLessThan(12_000);
+  });
+
   it('does not build user-facing tactical analysis for an AI-v-AI background result', () => {
     const result = simulateMatch(
       { id:'h', name:'Home AI', reputation:75 },
