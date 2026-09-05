@@ -1,0 +1,72 @@
+name: Phase 2 selection maintenance
+
+on:
+  push:
+    branches:
+      - feat/playable-key-moments-mvp
+
+permissions:
+  contents: write
+
+jobs:
+  patch-selection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/playable-key-moments-mvp
+          fetch-depth: 0
+
+      - name: Add pre-finish match-importance pacing
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/modules/playableMomentsCareer.js')
+          text = path.read_text()
+
+          anchor = "export function isPlayableScenarioEnabled(mode) {\n  return Boolean(PLAYABLE_KEY_MOMENTS_FLAGS.enabled && PLAYABLE_KEY_MOMENTS_FLAGS[mode]);\n}\n\nexport function evaluatePlayableMomentSelection"
+          replacement = """export function isPlayableScenarioEnabled(mode) {
+  return Boolean(PLAYABLE_KEY_MOMENTS_FLAGS.enabled && PLAYABLE_KEY_MOMENTS_FLAGS[mode]);
+}
+
+export function playableMatchImportance(event = {}) {
+  const round = String(event.roundName ?? '').toLowerCase();
+  let importance = 0;
+  if (event.type === 'ucl_md') importance += .025;
+  if (event.type === 'cup') importance += .035;
+  if (round.includes('final')) importance += .075;
+  else if (round.includes('semi')) importance += .055;
+  else if (round.includes('quarter')) importance += .035;
+  else if (round.includes('round of 16') || round.includes('r16')) importance += .020;
+  if (event.type === 'league' && Number(event.gw) >= 34) importance += .020;
+  return clamp(importance, 0, .11);
+}
+
+export function evaluatePlayableMomentSelection"""
+          if text.count(anchor) != 1:
+              raise SystemExit('Expected one scenario/selection anchor')
+          text = text.replace(anchor, replacement, 1)
+
+          old = "  if (moment.mode === 'goalkeeper') probability += .025;\n  if (repeatedMode) probability -= .08;"
+          new = "  if (moment.mode === 'goalkeeper') probability += .025;\n  probability += playableMatchImportance(session.event);\n  if (repeatedMode) probability -= .08;"
+          if text.count(old) != 1:
+              raise SystemExit('Expected one selection probability anchor')
+          text = text.replace(old, new, 1)
+
+          old_comment = "  // Selection is strictly pre-finish. It uses chance context and match pacing,\n  // never packet.shot / packet.finish or the would-have-been automatic result."
+          new_comment = "  // Selection is strictly pre-finish. It uses chance context, score/minute,\n  // event importance and match pacing, never packet.shot / packet.finish or\n  // the would-have-been automatic result."
+          if text.count(old_comment) != 1:
+              raise SystemExit('Expected one selection comment anchor')
+          text = text.replace(old_comment, new_comment, 1)
+
+          path.write_text(text)
+          PY
+
+          git rm .github/workflows/phase2-selection-maintenance.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modules/playableMomentsCareer.js
+          git commit -m "Include match importance in playable moment pacing"
+          git push origin HEAD:feat/playable-key-moments-mvp
