@@ -165,12 +165,20 @@
     }
 
     const userPlayers  = await getPlayersByTeam(save.userTeamId);
+    let opponentPlayers = oppTeam?.id
+      ? await getPlayersByTeam(oppTeam.id).catch(() => [])
+      : [];
+    if (!opponentPlayers.length && !isLeague) {
+      const strength = event.opponentRep ?? event.oppStrength ?? 72;
+      opponentPlayers = generateStubPlayers(oppTeam, strength);
+    }
     const userFormation = save.formation ?? '4-3-3';
     const userLineup    = save.lineup ?? null;
     const { profile:oppTacticalProfile, insight:oppInsight } = buildOpponentTacticalInsight({
       opponentTeam:oppTeam,
       userTeam,
       userIsHome,
+      opponentPlayers,
       form:oppForm,
       keyPlayer:oppInForm,
     });
@@ -178,7 +186,7 @@
     const { injuredInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers);
 
     return {
-      event, save, userTeam, oppTeam, oppForm, oppInForm, oppTacticalProfile, oppInsight,
+      event, save, userTeam, oppTeam, oppForm, oppInForm, opponentPlayers, oppTacticalProfile, oppInsight,
       matchTitle, compLabel, compColor, isLeague, userIsHome,
       userPlayers, userFormation, userLineup,
       injuredInLineup, lineupIncomplete,
@@ -317,10 +325,14 @@
       const userIsHome2 = fix2.homeTeamId === ctx.save.userTeamId;
       const oppId2  = userIsHome2 ? fix2.awayTeamId : fix2.homeTeamId;
       const realOpp = teamsById2.get(oppId2) ?? ctx.oppTeam;
+      const userPlayers = await getPlayersByTeam(ctx.userTeam.id);
+      const oppPlayers = ctx.opponentPlayers?.length
+        ? ctx.opponentPlayers
+        : await getPlayersByTeam(realOpp.id);
       homeTeam = userIsHome2 ? ctx.userTeam : realOpp;
       awayTeam = userIsHome2 ? realOpp : ctx.userTeam;
-      homePlayers = await getPlayersByTeam(homeTeam.id);
-      awayPlayers = await getPlayersByTeam(awayTeam.id);
+      homePlayers = userIsHome2 ? userPlayers : oppPlayers;
+      awayPlayers = userIsHome2 ? oppPlayers : userPlayers;
       patchedEvent = { ...ctx.event, userIsHome: userIsHome2 };
       return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHome2, patchedEvent };
     }
@@ -328,9 +340,11 @@
     const userIsHomeC = ctx.event.userIsHome ?? true;
     const realOpp = teamsById2.get(ctx.event.opponentId) ?? teamByName2(ctx.oppTeam.name) ?? ctx.oppTeam;
     const userPlayers = await getPlayersByTeam(ctx.userTeam.id);
-    let oppPlayers = realOpp?.id
-      ? await getPlayersByTeam(realOpp.id).catch(() => [])
-      : [];
+    let oppPlayers = ctx.opponentPlayers?.length
+      ? ctx.opponentPlayers
+      : realOpp?.id
+        ? await getPlayersByTeam(realOpp.id).catch(() => [])
+        : [];
     if (!oppPlayers.length) {
       const strength = ctx.event.opponentRep ?? ctx.event.oppStrength ?? 72;
       oppPlayers = generateStubPlayers(realOpp, strength);
