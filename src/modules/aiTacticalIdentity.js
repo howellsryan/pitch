@@ -22,7 +22,7 @@ import { buildTacticalPlanFeedback } from './tacticalPlanFeedback.js';
  */
 
 export const AI_TACTICAL_IDENTITY_VERSION = 1;
-export const AI_IDENTITY_SWITCH_MARGIN = 6;
+export const AI_IDENTITY_SWITCH_MARGIN = 4;
 
 const ARCHETYPE_BY_ID = new Map(AI_TACTICAL_ARCHETYPES.map(archetype => [archetype.id, archetype]));
 
