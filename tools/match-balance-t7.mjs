@@ -7,6 +7,7 @@ import {
   createT7CalibrationReport,
   renderT7CalibrationMarkdown,
 } from './lib/matchBalanceT7.mjs';
+import { assertT7CalibrationGuardrails } from './lib/matchBalanceT7Guardrails.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -33,10 +34,14 @@ function main() {
     fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive:true });
     fs.writeFileSync(OUTPUT_PATH, `${markdown}\n`, 'utf8');
     console.log(`Updated ${path.relative(REPO_ROOT, OUTPUT_PATH)}.`);
-    return;
+  } else {
+    process.stdout.write(`${markdown}\n`);
   }
 
-  process.stdout.write(`${markdown}\n`);
+  if (hasArg('--check')) {
+    assertT7CalibrationGuardrails(report);
+    console.log('T7 deep calibration guardrails: PASS.');
+  }
 }
 
 main();
