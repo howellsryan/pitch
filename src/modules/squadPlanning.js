@@ -217,8 +217,11 @@ export function rankRecruitmentCandidates({ need, buyer, players = [], teamsById
     if (value > maxBudget || value <= 0) continue;
     const rating = observedCurrentLevel(player, observation);
     const abilityFloor = need.targetAbilityBand.min - 3;
-    const abilityCeiling = need.targetAbilityBand.max + 3;
-    if (rating < abilityFloor || rating > abilityCeiling) continue;
+    // The target band is a minimum viability gate plus a ranking preference,
+    // not a ceiling. An affordable/signable player who is better than the
+    // requested band remains eligible; band fit still prevents overqualified
+    // targets from automatically dominating otherwise comparable options.
+    if (rating < abilityFloor) continue;
     const positionFit = player.position === need.position ? 1.08 : .94;
     const tactical = evaluateCareerTacticalFit({ player, team:buyer, tacticalProfile, roleId:need.roleId });
     const roleId = tactical.roleId;
