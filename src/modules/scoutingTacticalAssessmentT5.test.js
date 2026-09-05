@@ -99,12 +99,13 @@ describe('T5.4 scouting tactical assessment', () => {
   });
 
   it('uses the supplied user plan rather than one fixed hash-only tactical identity', () => {
-    const player = midfielder();
+    const player = { ...midfielder(), position:'RW', attack:84, midfield:76, defence:42 };
     const base = { player, userTeam:{ id:'user', reputation:80 }, currentRange:{ min:80, max:86 }, exact:false };
     const controller = buildScoutingTacticalAssessment({ ...base, tacticalProfile:controllerProfile });
     const compact = buildScoutingTacticalAssessment({ ...base, tacticalProfile:compactProfile });
 
-    expect({ roleId:controller.roleId, focus:controller.focus }).not.toEqual({ roleId:compact.roleId, focus:compact.focus });
+    expect(controller.roleId).toBe('wide_creator');
+    expect(compact.roleId).toBe('inside_forward');
   });
 
   it('is deterministic and non-mutating', () => {
