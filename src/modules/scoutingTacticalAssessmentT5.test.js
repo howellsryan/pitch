@@ -123,14 +123,20 @@ describe('T5.4 scouting tactical assessment', () => {
     expect(stale.tactical).toEqual(stored.tactical);
   });
 
-  it('uses the supplied user plan rather than one fixed hash-only tactical identity', () => {
+  it('uses the supplied user plan to change the action emphasis even when the masked role stays structurally valid', () => {
     const player = { ...midfielder(), position:'RW', attack:84, midfield:76, defence:42 };
     const base = { player, userTeam:{ id:'user', reputation:80 }, currentRange:{ min:80, max:86 }, exact:false };
     const controller = buildScoutingTacticalAssessment({ ...base, tacticalProfile:controllerProfile });
     const compact = buildScoutingTacticalAssessment({ ...base, tacticalProfile:compactProfile });
 
+    // Both plans can legitimately prefer Wide Creator because Compact Counter's
+    // early delivery also aligns that role. The plan still has to change what
+    // the scout says the player will be asked to do: the controller emphasises
+    // wide service while the counter plan emphasises vertical progression.
     expect(controller.roleId).toBe('wide_creator');
-    expect(compact.roleId).toBe('inside_forward');
+    expect(compact.roleId).toBe('wide_creator');
+    expect(controller.focus).toBe('Wide and aerial play');
+    expect(compact.focus).toBe('Progression and passing');
   });
 
   it('is deterministic and non-mutating', () => {
