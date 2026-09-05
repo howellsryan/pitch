@@ -16,6 +16,7 @@
 ### Authoritative football outcome
 
 - `src/modules/matchEngine.js` owns football outcomes.
+- Current Broadcast consumes each authoritative action-ledger phase and waits for its scene to complete before advancing; speed/pause affect both clocks. Lineup visuals change after the active scene. See `docs/plan/live-broadcast.md`.
 - `src/game/broadcastSimulation.js` is a deterministic spatial/presentation layer. It may visualise an authoritative result/event plan but must never invent a conflicting score, scorer or result.
 - Quick Sim and Broadcast must consume the same authoritative football outcome.
 - P1 background fixtures also use the authoritative fast match engine. Never run Broadcast simulation for the background world.
