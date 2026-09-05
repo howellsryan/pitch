@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { buildSquadAwareAITacticalProfile } from '../modules/aiTacticalIdentity.js';
 import {
   applyManagerDNAResult,
   buildManagedMatchInputs,
   buildManagerDNASample,
   buildOpponentTacticalInsight,
 } from '../modules/managerTactics.js';
+import { generateStubPlayers } from './opponents.js';
 
-function player(id, position) {
+function player(id, position, overrides = {}) {
+  const attacking = ['ST','CF','RW','LW','CAM','RM','LM'].includes(position);
+  const midfield = ['CM','CDM','CAM','RM','LM','RW','LW'].includes(position);
+  const defending = ['CB','RB','LB','CDM'].includes(position);
   return {
     id,
     name:id,
@@ -20,7 +25,27 @@ function player(id, position) {
     injured:false,
     suspended:false,
     inSquad:true,
+    traits:[],
+    attributeProfile:{
+      version:1,
+      pace:overrides.pace ?? (position === 'GK' ? 55 : 78),
+      shooting:overrides.shooting ?? (attacking ? 80 : 58),
+      passing:overrides.passing ?? (midfield || attacking ? 80 : 70),
+      dribbling:overrides.dribbling ?? (midfield || attacking ? 78 : 64),
+      defending:overrides.defending ?? (defending ? 82 : 56),
+      physical:overrides.physical ?? 80,
+    },
+    ...overrides,
   };
+}
+
+function opponentSquad() {
+  return [
+    player('ogk','GK'), player('ocb1','CB'), player('ocb2','CB'),
+    player('orb','RB'), player('olb','LB'), player('odm','CDM'),
+    player('ocm1','CM'), player('ocm2','CM'), player('orw','RW'),
+    player('olw','LW'), player('ost','ST'), player('ost2','ST'),
+  ];
 }
 
 const save = {
@@ -66,24 +91,62 @@ describe('P2 manager match context', () => {
     expect(inputs.awayLineup).toBeNull();
   });
 
-  it('builds Team News insight from the same AI profile contract', () => {
+  it('builds Team News from the same squad-aware profile as match authority without leaking selector internals', () => {
     const opponentTeam = { id:'opponent', name:'Opponent', league:'Premier League', reputation:76 };
     const userTeam = { id:'user', name:'User', league:'Premier League', reputation:82 };
+    const opponentPlayers = opponentSquad();
+    const expected = buildSquadAwareAITacticalProfile({
+      team:opponentTeam,
+      opponent:userTeam,
+      isHome:false,
+      players:opponentPlayers,
+    }).profile;
     const { profile, insight } = buildOpponentTacticalInsight({
       opponentTeam,
       userTeam,
       userIsHome:true,
+      opponentPlayers,
       form:[{ result:'W' }, { result:'D' }, { result:'L' }],
       keyPlayer:{ name:'Key Threat', position:'ST' },
     });
 
+    expect(profile).toEqual(expected);
     expect(insight.style).toBe(profile.label);
     expect(insight.shape).toBe(profile.formation);
     expect(insight.mentality).toBe(profile.mentality);
     expect(insight.formText).toBe('WDL');
     expect(insight.keyPlayer).toBe('Key Threat · ST');
+    expect(insight.confidence).toBe('Established');
     expect(insight.threat.length).toBeGreaterThan(10);
     expect(insight.weakness.length).toBeGreaterThan(10);
+    expect(insight).not.toHaveProperty('margin');
+    expect(insight).not.toHaveProperty('evaluations');
+    expect(JSON.stringify(insight)).not.toContain('attributeProfile');
+    expect(JSON.stringify(insight)).not.toContain('actionFit');
+  });
+
+  it('uses cautious wording for synthetic or otherwise limited opponent evidence', () => {
+    const opponentTeam = { id:'legacy_opponent', name:'Legacy Opponent', league:'Premier League', reputation:76 };
+    const userTeam = { id:'user', name:'User', league:'Premier League', reputation:82 };
+    const opponentPlayers = generateStubPlayers(opponentTeam, 76);
+    const { profile, insight } = buildOpponentTacticalInsight({
+      opponentTeam,
+      userTeam,
+      userIsHome:true,
+      opponentPlayers,
+      form:[],
+    });
+
+    const expected = buildSquadAwareAITacticalProfile({
+      team:opponentTeam,
+      opponent:userTeam,
+      isHome:false,
+      players:opponentPlayers,
+    }).profile;
+    expect(profile).toEqual(expected);
+    expect(insight.confidence).toBe('Limited');
+    expect(insight.threat.startsWith('Possible:')).toBe(true);
+    expect(insight.weakness.startsWith('Possible:')).toBe(true);
   });
 });
 

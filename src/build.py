@@ -53,15 +53,15 @@ MODULES += [
     ('modules/tactics.js',          'TACTICS'),
     ('modules/clubPhilosophy.js',   'CLUB PHILOSOPHY'),
     ('modules/facilities.js',       'CLUB FACILITIES'),
-    ('modules/managerTactics.js',   'MANAGER TACTICS'),
     # T3/T4/T5 share one action/fit stack. T5's squad-aware AI identity consumes
-    # the projection and plan-feedback layers, while matchEngine remains the
-    # sole authoritative orchestrator. Keep these dependencies ordered here so
-    # the stripped legacy bundle matches the ES-module graph used by Vite.
+    # projection and plan feedback; managerTactics now consumes that identity for
+    # Team News, so it must follow the AI selector while remaining before the
+    # authoritative resolver/engine consumers in the stripped legacy bundle.
     ('modules/matchActionVocabulary.js', 'MATCH ACTION VOCABULARY'),
     ('modules/tacticalProjection.js', 'TACTICAL PROJECTION'),
     ('modules/tacticalPlanFeedback.js', 'TACTICAL PLAN FEEDBACK'),
     ('modules/aiTacticalIdentity.js', 'AI TACTICAL IDENTITY'),
+    ('modules/managerTactics.js',   'MANAGER TACTICS'),
     ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/startingFreeAgents.js','STARTING FREE AGENTS'),

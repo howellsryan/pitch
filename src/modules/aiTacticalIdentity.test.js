@@ -145,6 +145,27 @@ describe('T5 squad-aware AI tactical identity', () => {
     expect(quick.actionFit).toBeGreaterThan(slow.actionFit);
   });
 
+  it('keeps the chosen identity but makes an away-underdog low block internally coherent', () => {
+    const team = { id:'identity_14', league:'Premier League', reputation:70 };
+    const opponent = { id:'strong_home', league:'Premier League', reputation:82 };
+    expect(getAITacticalProfile(team).id).toBe('vertical_press');
+
+    const { profile, selection } = buildSquadAwareAITacticalProfile({
+      team,
+      opponent,
+      isHome:false,
+      players:verticalPressSquad(92),
+    });
+
+    expect(profile.id).toBe(selection.archetypeId);
+    expect(profile.instructions.defensiveLine).toBe('low');
+    expect(profile.instructions.lineOfEngagement).toBe('low');
+    expect(profile.instructions.defensiveTransition).toBe('regroup');
+    expect(profile.instructions.pressing).toBe('passive');
+    expect(profile.instructions.onWin).toBe('counter');
+    expect(profile.mentality).toBe('defensive');
+  });
+
   it('retains a versatile squad identity but switches a materially mismatched specialist squad', () => {
     const controllerTeam = { id:'identity_5', league:'Premier League', reputation:78 };
     expect(getAITacticalProfile(controllerTeam).id).toBe('controller');
