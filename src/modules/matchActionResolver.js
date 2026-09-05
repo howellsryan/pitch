@@ -13,7 +13,7 @@ import {
 import { normalizeTeamInstructions, resolvePlayerRole, stableStringHash } from './tactics.js';
 
 /**
- * T3 pure action resolver.
+ * T3/T4 pure action resolver.
  *
  * matchEngine.js remains the authoritative orchestrator. This module receives
  * one already-allocated RNG packet and returns a compact football action record
@@ -21,7 +21,7 @@ import { normalizeTeamInstructions, resolvePlayerRole, stableStringHash } from '
  * randomness itself, which keeps whole-match and segmented simulation aligned.
  */
 
-export const MATCH_ACTION_RESOLVER_VERSION = 1;
+export const MATCH_ACTION_RESOLVER_VERSION = 2;
 export const MATCH_ACTION_LEDGER_VERSION = 1;
 export const MATCH_RNG_PACKET_VERSION = 1;
 
@@ -287,12 +287,13 @@ function actionRouteCounter(route, defender) {
   return actionWeightedDetailed(defender, TACTICAL_ACTION_DEFS[route]?.counter);
 }
 
-function actionTacticalChanceAdjustments(instructions, mentality = 'balanced', riskMode = 'normal') {
+export function tacticalChanceAdjustments(instructions, mentality = 'balanced', riskMode = 'normal') {
   const normalized = actionTacticContext(instructions).normalized;
   let frequency = 1;
   let xg = 0;
-  if (normalized.chanceCreation === 'work_ball') { frequency *= .82; xg += .045; }
-  if (normalized.chanceCreation === 'early_delivery') { frequency *= 1.08; xg -= .018; }
+  if (normalized.shotSelection === 'work_into_box') { frequency *= .82; xg += .045; }
+  if (normalized.shotSelection === 'shoot_on_sight') { frequency *= 1.14; xg -= .025; }
+  if (normalized.deliveryTiming === 'early') { frequency *= 1.08; xg -= .018; }
   if (mentality === 'attacking') frequency *= 1.10;
   if (mentality === 'defensive') frequency *= .86;
   if (mentality === 'possession') frequency *= .94;
@@ -302,7 +303,7 @@ function actionTacticalChanceAdjustments(instructions, mentality = 'balanced', r
 }
 
 function actionChanceQuality(route, edge, instructions, packet, mentality, riskMode) {
-  const adjustment = actionTacticalChanceAdjustments(instructions, mentality, riskMode);
+  const adjustment = tacticalChanceAdjustments(instructions, mentality, riskMode);
   const jitter = (actionClamp(packet.chance, 0, 1) - .5) * .06;
   const xg = actionClamp((ROUTE_XG_BASE[route] ?? .12) + edge * .0022 + adjustment.xg + jitter, .035, .48);
   return actionRound(xg, 3);
@@ -388,7 +389,7 @@ export function resolveAuthoritativePhase({
   packet,
   isHome = false,
 } = {}) {
-  if (!packet || packet.version !== MATCH_RNG_PACKET_VERSION) throw new Error('T3 requires a versioned fixed RNG packet');
+  if (!packet || packet.version !== MATCH_RNG_PACKET_VERSION) throw new Error('Action resolution requires a versioned fixed RNG packet');
 
   const selfTactics = actionTacticContext(instructions);
   const opponentTactics = actionTacticContext(opponentInstructions);
@@ -414,7 +415,7 @@ export function resolveAuthoritativePhase({
   let shot = null;
 
   if (success) {
-    const chanceAdjustments = actionTacticalChanceAdjustments(normalized, mentality, riskMode);
+    const chanceAdjustments = tacticalChanceAdjustments(normalized, mentality, riskMode);
     const chanceProbability = actionClamp((ROUTE_CHANCE_BASE[route] ?? .14) * chanceAdjustments.frequency * (1 + edge * .015), .025, .48);
     if (packet.chance < chanceProbability) {
       xg = actionChanceQuality(route, edge, normalized, packet, mentality, riskMode);
