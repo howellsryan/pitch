@@ -1,8 +1,8 @@
-
 # T7 Deep Match Calibration — reviewed baseline
 
 **Frozen:** 5 Sep 2026  
 **Authoritative implementation checkpoint:** `ef19644a23666b8f9b578d09a1d14c3c2a801415`  
+**Clean promoted scratch checkpoint:** `885c371a108685b58803e3f584f3fcb742dbe9e1` — workflow **#614** green  
 **Enforced GitHub Actions gate:** workflow **#607**, run `33960525220`  
 **Report version:** 1  
 **Samples:** **25 scenarios × 100 paired seeds = 5,000 authoritative simulations**
