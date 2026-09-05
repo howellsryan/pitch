@@ -2,7 +2,7 @@
   import { getSave } from '../../modules/db.js';
   import { contractTerminationQuote, terminateManagedPlayerContract } from '../../modules/contracts.js';
   import { setManagedDevelopmentPlan } from '../../modules/p5Runtime.js';
-  import { DEVELOPMENT_PLAN_DEFS, automaticPlanRecommendation, effectiveDevelopmentPlan } from '../../modules/training.js';
+  import { DEVELOPMENT_PLAN_DEFS, automaticPlanRecommendationDetail, effectiveDevelopmentPlan } from '../../modules/training.js';
   import { fmt, toast } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
 
@@ -10,11 +10,31 @@
   let busy = $state(false);
   let terminating = $state(false);
   let terminationQuote = $state(null);
+  let tacticalContext = $state({ tacticalProfile:null, roleId:null });
   let selected = $derived(player?.developmentPlan?.id ?? 'balanced');
 
   const effective = $derived(effectiveDevelopmentPlan({ ...player, developmentPlan:{ ...(player?.developmentPlan ?? {}), id:selected } }));
-  const recommendation = $derived(automaticPlanRecommendation(player));
+  const recommendation = $derived(automaticPlanRecommendationDetail(player, tacticalContext));
   const options = $derived(Object.values(DEVELOPMENT_PLAN_DEFS));
+
+  $effect(() => {
+    const playerId = player?.id;
+    if (playerId == null) {
+      tacticalContext = { tacticalProfile:null, roleId:null };
+      return;
+    }
+    let active = true;
+    void getSave().then(save => {
+      if (!active || String(player?.id) !== String(playerId)) return;
+      tacticalContext = {
+        tacticalProfile:save?.tactics ?? null,
+        roleId:save?.playerRoles?.[playerId] ?? null,
+      };
+    }).catch(() => {
+      if (active) tacticalContext = { tacticalProfile:null, roleId:null };
+    });
+    return () => { active = false; };
+  });
 
   async function choose(id) {
     if (busy || !player) return;
@@ -59,8 +79,12 @@
 <div class="development-panel">
   <div class="development-head">
     <div><span>Development plan</span><strong>{DEVELOPMENT_PLAN_DEFS[selected]?.label ?? 'Balanced'}</strong></div>
-    <div class="recommendation">Recommended: {DEVELOPMENT_PLAN_DEFS[recommendation]?.label ?? 'Balanced'}</div>
+    <div class="recommendation">Recommended: {DEVELOPMENT_PLAN_DEFS[recommendation.id]?.label ?? 'Balanced'}</div>
   </div>
+
+  {#if recommendation.reason}
+    <div class="recommendation-reason">{recommendation.reason}</div>
+  {/if}
 
   {#if effective.overridden}
     <div class="override">Recovery is temporarily overriding the manager plan while this player rebuilds medical or match readiness.</div>
@@ -100,6 +124,7 @@
   .development-head span, .contract-release > div > span { display:block; color:var(--color-tx-3); font:700 8px var(--font-mono); text-transform:uppercase; letter-spacing:.08em; }
   .development-head strong { display:block; margin-top:3px; font:15px var(--font-display); }
   .recommendation { padding:4px 7px; border-radius:999px; border:1px solid var(--color-line); color:var(--color-club); font:700 8px var(--font-mono); text-transform:uppercase; }
+  .recommendation-reason { color:var(--color-tx-3); font-size:10px; line-height:1.4; }
   .override { padding:8px 9px; border:1px solid color-mix(in oklch, var(--color-warn) 45%, var(--color-line)); border-radius:8px; color:var(--color-warn); font-size:10px; line-height:1.4; }
   .plan-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
   .plan-grid button { min-width:0; min-height:56px; padding:8px; text-align:left; border:1px solid var(--color-line); border-radius:8px; background:var(--color-raised); color:var(--color-tx); cursor:pointer; }
