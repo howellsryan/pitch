@@ -4,7 +4,14 @@ import {
   currentEffectiveLevel,
   normalizeAttributeProfile,
 } from './playerModel.js';
-import { observedPlayerProfile } from './scouting.js';
+import { getPotentialStars } from './potential.js';
+import {
+  latestScoutingReport,
+  normalizeScoutingState,
+  observedPlayerBands,
+  observedPlayerProfile,
+  scoutingReportIsCurrent,
+} from './scouting.js';
 
 /**
  * UI-only projection over a canonical player row.
@@ -24,14 +31,9 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
   const futureMax = Number(report.future?.max ?? futureMin);
   const currentMid = Math.max(1, Math.min(99, Math.round((currentMin + currentMax) / 2)));
   const futureMid = Math.max(currentMid, Math.min(99, Math.round((futureMin + futureMax) / 2)));
-  // A completed dedicated scout reads exactly, so it is not rounded into a band
-  // the way a partial observation is.
   const exact = report.exact === true;
   const confidence = exact ? 1 : Math.max(.2, Math.min(.96, Number(report.confidence ?? .42)));
-  const step = confidence >= .82 ? 2 : confidence >= .56 ? 5 : 10;
-  const coarse = (value) => (exact
-    ? Math.max(1, Math.min(99, Math.round(Number(value) || 1)))
-    : Math.max(1, Math.min(99, Math.round((Number(value) || 1) / step) * step)));
+  const coarse = coarsenFor(confidence, exact);
   const feeMin = Math.max(0, Number(report.financial?.feeMin ?? player.value ?? 0));
   const feeMax = Math.max(feeMin, Number(report.financial?.feeMax ?? feeMin));
   const wageMin = Math.max(0, Number(report.financial?.wageMin ?? player.wage ?? 0));
@@ -59,11 +61,85 @@ export function projectScoutedPlayerView(player, scoutingState, context = {}) {
     fullyScouted:exact,
   };
 
-  // The observed level belongs in whichever attribute the canonical model calls
-  // this position's baseline. Re-listing the positions here had CAM writing to
-  // midfield while playerModel treats it as an attacker, so a CAM's scouted
-  // ability landed in the wrong row.
   projected[baselineAttribute(player.position)] = currentMid;
-
   return projected;
+}
+
+/** Shared by the full projection and the cheap list key, so both fog alike. */
+function coarsenFor(confidence, exact) {
+  const step = confidence >= .82 ? 2 : confidence >= .56 ? 5 : 10;
+  return (value) => (exact
+    ? Math.max(1, Math.min(99, Math.round(Number(value) || 1)))
+    : Math.max(1, Math.min(99, Math.round((Number(value) || 1) / step) * step)));
+}
+
+/**
+ * Cheap observed keys for world-sized recruitment lists. Sorting/filtering on
+ * canonical values would leak true ability through ordering, so these figures
+ * are derived from the same scouting bands used by the full report.
+ */
+export function projectScoutedListKey(player, scoutingState, context = {}) {
+  if (!player) return { rating:0, value:0, potentialStars:0, exact:false };
+  const state = context.normalizedScouting
+    ?? normalizeScoutingState(scoutingState, { defaultKnowledge:context.defaultKnowledge ?? .42 });
+  const stored = context.reportsByPlayerId
+    ? context.reportsByPlayerId.get(String(player.id)) ?? null
+    : latestScoutingReport(state, player.id);
+
+  if (stored && scoutingReportIsCurrent(stored, context.season)) {
+    const projected = projectScoutedPlayerView(player, state, context);
+    return {
+      rating:Math.round(Number(currentEffectiveLevel(projected)) || 0),
+      value:Math.round(Number(projected.value) || 0),
+      potentialStars:getPotentialStars(projected),
+      exact:projected.fullyScouted === true,
+    };
+  }
+
+  const bands = observedPlayerBands(player, { ...context, confidence:state.defaultKnowledge });
+  const currentMid = Math.max(1, Math.min(99, Math.round((bands.current.min + bands.current.max) / 2)));
+  const futureMid = Math.max(currentMid, Math.min(99, Math.round((bands.future.min + bands.future.max) / 2)));
+  const confidence = Math.max(.2, Math.min(.96, bands.storedConfidence));
+  const coarse = coarsenFor(confidence, false);
+  const shim = {
+    id:player.id,
+    name:player.name,
+    position:player.position,
+    age:player.age,
+    form:player.form,
+    fitness:player.fitness,
+    individualMorale:player.individualMorale,
+    sharpness:player.sharpness,
+    injured:player.injured,
+    rehabilitation:player.rehabilitation,
+    positionSuitability:player.positionSuitability,
+    traits:player.traits,
+    growthProfile:player.growthProfile,
+    peakAge:player.peakAge,
+    attack:coarse(player.attack),
+    midfield:coarse(player.midfield),
+    defence:coarse(player.defence),
+    goalkeeping:coarse(player.goalkeeping),
+    potentialRating:futureMid,
+    potentialKnowledge:confidence,
+    isWonderkid:Number(player.age ?? 25) <= 21 && confidence >= .56 && futureMid >= 85,
+  };
+  shim[baselineAttribute(player.position)] = currentMid;
+  return {
+    rating:Math.round(Number(currentEffectiveLevel(shim)) || 0),
+    value:Math.round((bands.financial.feeMin + bands.financial.feeMax) / 2),
+    potentialStars:getPotentialStars(shim),
+    exact:false,
+  };
+}
+
+/** Build the per-load half of a projection context once instead of per player. */
+export function scoutingViewContext(scoutingState, context = {}) {
+  const normalizedScouting = normalizeScoutingState(
+    scoutingState,
+    { defaultKnowledge:context.defaultKnowledge ?? .42 },
+  );
+  const reportsByPlayerId = new Map();
+  for (const report of normalizedScouting.reports) reportsByPlayerId.set(String(report.playerId), report);
+  return { ...context, normalizedScouting, reportsByPlayerId };
 }
