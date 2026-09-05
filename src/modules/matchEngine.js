@@ -27,6 +27,7 @@ import {
   resolveAuthoritativePhase,
 } from './matchActionResolver.js';
 import { buildMatchTacticalAnalysis } from './matchTacticalAnalysis.js';
+import { validateMatchSimulationVersion } from './matchSimulationVersion.js';
 
 /**
  * modules/matchEngine.js — authoritative P2/P3/T3/T5 simulation core.
@@ -45,6 +46,16 @@ export const MID = new Set(['CM','CDM','CAM','RM','LM']);
 export const DEF = new Set(['CB','RB','LB']);
 export const MATCH_INJURY_CHECK_INTERVAL = 6;
 export const MATCH_PHASES = 120;
+export const MAX_MATCHDAY_BENCH = 9;
+
+function currentSimulationVersions() {
+  return {
+    matchEngineVersion:MATCH_ENGINE_VERSION,
+    actionResolverVersion:MATCH_ACTION_RESOLVER_VERSION,
+    actionLedgerVersion:MATCH_ACTION_LEDGER_VERSION,
+    rngPacketVersion:MATCH_RNG_PACKET_VERSION,
+  };
+}
 
 export function matchInjuryIntervalRate(perPhaseRate, interval = MATCH_INJURY_CHECK_INTERVAL) {
   return 1 - Math.pow(1 - perPhaseRate, interval);
@@ -191,11 +202,49 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
   return chosen.slice(0, 11);
 }
 
-export function selectBench(players, eleven) {
+function automaticBench(available) {
+  const chosen = available.slice(0, MAX_MATCHDAY_BENCH);
+  const isKeeper = player => (player.matchPosition ?? player.position) === 'GK';
+  if (chosen.length < MAX_MATCHDAY_BENCH || chosen.some(isKeeper)) return chosen;
+  const keeper = available.find(isKeeper);
+  if (!keeper) return chosen;
+  return [...chosen.slice(0, MAX_MATCHDAY_BENCH - 1), keeper];
+}
+
+export function selectBench(players, eleven, benchIds = null) {
   const usedIds = new Set(eleven.map(p => p.id));
   const primaryFor = createPrimaryRatingLookup();
-  return players
+  const available = players
     .filter(p => !p.injured && !p.suspended && p.inSquad !== false && !usedIds.has(p.id))
+    .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
+
+  if (!Array.isArray(benchIds)) return automaticBench(available);
+
+  const availableById = new Map(available.map(p => [p.id, p]));
+  const chosen = [];
+  const taken = new Set();
+  for (const id of benchIds) {
+    if (chosen.length >= MAX_MATCHDAY_BENCH) break;
+    const player = availableById.get(id);
+    if (!player || taken.has(player.id)) continue;
+    chosen.push(player);
+    taken.add(player.id);
+  }
+  return chosen;
+}
+
+export function pruneBenchToSquad(bench, squadPlayers = []) {
+  if (!Array.isArray(bench) || !bench.length) return bench;
+  const atClub = new Set(squadPlayers.map(player => String(player?.id)));
+  const next = bench.filter(id => atClub.has(String(id)));
+  return next.length === bench.length ? bench : next;
+}
+
+export function selectReserves(players, eleven, bench) {
+  const namedIds = new Set([...eleven, ...bench].map(p => p.id));
+  const primaryFor = createPrimaryRatingLookup();
+  return players
+    .filter(p => p.inSquad !== false && !namedIds.has(p.id))
     .sort((a,b) => primaryFor(b) - primaryFor(a) || String(a.id).localeCompare(String(b.id)));
 }
 
@@ -527,8 +576,8 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
   const aIdentity = resolveTeamTacticalIdentity(awayTeam, homeTeam, awayPlayers, awayFormation, awayMentality, false);
   const rawHElev = selectEleven(homePlayers, hIdentity.formation, homeLineup ?? null);
   const rawAElev = selectEleven(awayPlayers, aIdentity.formation, awayLineup ?? null);
-  const rawHBench = selectBench(homePlayers, rawHElev);
-  const rawABench = selectBench(awayPlayers, rawAElev);
+  const rawHBench = selectBench(homePlayers, rawHElev, options.homeBench ?? null);
+  const rawABench = selectBench(awayPlayers, rawAElev, options.awayBench ?? null);
   const hElev = rawHElev.map(cloneMatchPlayer);
   const aElev = rawAElev.map(cloneMatchPlayer);
   const hBench = rawHBench.map(cloneMatchPlayer);
@@ -542,10 +591,7 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
   }));
 
   return refreshLiveMatchState({
-    matchEngineVersion:MATCH_ENGINE_VERSION,
-    actionResolverVersion:MATCH_ACTION_RESOLVER_VERSION,
-    actionLedgerVersion:MATCH_ACTION_LEDGER_VERSION,
-    rngPacketVersion:MATCH_RNG_PACKET_VERSION,
+    ...currentSimulationVersions(),
     actionLedger:[],
     hActive:[...hElev], aActive:[...aElev], hBenchLeft:[...hBench], aBenchLeft:[...aBench],
     hFitness:new Map(hElev.map(p => [p.id, Math.min(100, Number(p.fitness ?? 90))])),
@@ -564,6 +610,7 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
 }
 
 export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase, controlledTeamId = null) {
+  const versionCheck = validateMatchSimulationVersion(liveState, currentSimulationVersions());
   let state = refreshLiveMatchState(liveState);
   const attackingFitnessDrain = 0.18;
   const defendingFitnessDrain = 0.12;
@@ -700,14 +747,12 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     }
   }
 
+  const versionFields = versionCheck.legacy ? {} : versionCheck.versions;
   return {
     segEvents,
     updatedState:{
       ...state,
-      matchEngineVersion:MATCH_ENGINE_VERSION,
-      actionResolverVersion:MATCH_ACTION_RESOLVER_VERSION,
-      actionLedgerVersion:MATCH_ACTION_LEDGER_VERSION,
-      rngPacketVersion:MATCH_RNG_PACKET_VERSION,
+      ...versionFields,
       actionLedger,
       hActive:curHActive, aActive:curAActive, hBenchLeft:curHBench, aBenchLeft:curABench,
       hFitness, aFitness, hSubsLeft:curHSubs, aSubsLeft:curASubs,
@@ -734,10 +779,11 @@ export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, home
 }
 
 export function finaliseLiveMatch(homeTeam, awayTeam, liveState, allEvents) {
+  validateMatchSimulationVersion(liveState, currentSimulationVersions());
   const state = refreshLiveMatchState(liveState);
   const fitnessUpdates = [];
   for (const player of state.hElev) fitnessUpdates.push({ id:player.id, teamId:homeTeam.id, newFitness:Math.max(30, state.hFitness.get(player.id) ?? 65) });
-  for (const player of state.aElev) fitnessUpdates.push({ id:player.id, teamId:awayTeam.id, newFitness:Math.max(30, state.aFitness.get(player.id) ?? 65) });
+  for (const player of state.aElev) fitnessUpdates.push({ id:player.id, teamId:awayTeam.id, newFitness:Math.max(30, state.hFitness.get(player.id) ?? 65) });
   const events = [...(allEvents ?? [])].sort((left, right) => left.minute - right.minute);
   const hasAuthoritativeLedger = Array.isArray(state.actionLedger);
   const ledger = hasAuthoritativeLedger ? state.actionLedger : [];
