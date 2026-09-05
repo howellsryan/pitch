@@ -28,40 +28,36 @@ function nextSaveRow(current, playableMatchSession) {
   };
 }
 
-function atomicSaveMutation(mutator) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      await openDB();
-      const saves = store('save', 'readwrite');
-      const tx = saves.transaction;
-      let result = null;
-      let failure = null;
+async function atomicSaveMutation(mutator) {
+  await openDB();
+  return new Promise((resolve, reject) => {
+    const saves = store('save', 'readwrite');
+    const tx = saves.transaction;
+    let result = null;
+    let failure = null;
 
-      const abort = error => {
-        failure = error instanceof Error ? error : new Error(String(error));
-        try { tx.abort(); } catch {}
-      };
+    const abort = error => {
+      failure = error instanceof Error ? error : new Error(String(error));
+      try { tx.abort(); } catch {}
+    };
 
-      const request = saves.get('active');
-      request.onerror = () => abort(request.error ?? new Error('PLAYABLE_SAVE_READ_FAILED'));
-      request.onsuccess = () => {
-        try {
-          const current = request.result;
-          if (!current || current._deleted) throw new Error('PLAYABLE_SAVE_NOT_FOUND');
-          const mutation = mutator(current);
-          result = mutation.result;
-          if (mutation.write !== false) saves.put(nextSaveRow(current, mutation.session ?? null));
-        } catch (error) {
-          abort(error);
-        }
-      };
+    const request = saves.get('active');
+    request.onerror = () => abort(request.error ?? new Error('PLAYABLE_SAVE_READ_FAILED'));
+    request.onsuccess = () => {
+      try {
+        const current = request.result;
+        if (!current || current._deleted) throw new Error('PLAYABLE_SAVE_NOT_FOUND');
+        const mutation = mutator(current);
+        result = mutation.result;
+        if (mutation.write !== false) saves.put(nextSaveRow(current, mutation.session ?? null));
+      } catch (error) {
+        abort(error);
+      }
+    };
 
-      tx.oncomplete = () => resolve(result);
-      tx.onerror = () => reject(failure ?? tx.error ?? new Error('PLAYABLE_SAVE_TRANSACTION_FAILED'));
-      tx.onabort = () => reject(failure ?? tx.error ?? new Error('PLAYABLE_SAVE_TRANSACTION_ABORTED'));
-    } catch (error) {
-      reject(error);
-    }
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = () => reject(failure ?? tx.error ?? new Error('PLAYABLE_SAVE_TRANSACTION_FAILED'));
+    tx.onabort = () => reject(failure ?? tx.error ?? new Error('PLAYABLE_SAVE_TRANSACTION_ABORTED'));
   });
 }
 
