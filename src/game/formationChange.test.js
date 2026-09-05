@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildLiveMatchState } from '../modules/matchEngine.js';
-import { applyFormationChange, applyMentalityChange } from './formationChange.js';
+import { createUserTacticalPlan } from '../modules/tactics.js';
+import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from './formationChange.js';
 
 function squad(tid) {
   const gks = [
@@ -9,17 +10,21 @@ function squad(tid) {
   ];
   const outfield = ['CB','CB','RB','LB','CM','CM','CDM','RW','LW','ST','CB','CM','ST'].map((pos, i) => ({
     id: tid+'_'+i, name: pos+i, position: pos, teamId: tid,
-    attack: 65, midfield: 65, defence: 65, goalkeeping: 20, fitness: 90,
-    inSquad: true, injured: false, suspended: false,
+    attack:65, midfield:65, defence:65, goalkeeping:20, fitness:90,
+    inSquad:true, injured:false, suspended:false,
   }));
   return [...gks, ...outfield];
 }
 
 function makeLiveState() {
-  const home = { id: 'h', name: 'Home', crest: 'H', reputation: 80 };
-  const away = { id: 'a', name: 'Away', crest: 'A', reputation: 75 };
-  // Explicit balanced overrides isolate the command contract from P2's AI
-  // pre-match identity selection. Separate P2 tests cover AI starting styles.
+  const home = {
+    id:'h', name:'Home', crest:'H', reputation:80,
+    tacticalPlan:createUserTacticalPlan(),
+  };
+  const away = {
+    id:'a', name:'Away', crest:'A', reputation:75,
+    tacticalPlan:createUserTacticalPlan(),
+  };
   return buildLiveMatchState(
     home, away, squad('h'), squad('a'),
     '4-3-3', '4-3-3', null, null, 'balanced', 'balanced',
@@ -87,5 +92,48 @@ describe('applyMentalityChange', () => {
     expect(after.homeMentality).toBe(ls.homeMentality);
     expect(after.awayMentality).toBe('defensive');
     expect(after.aMods.defResistMult).toBeGreaterThan(ls.aMods.defResistMult);
+  });
+});
+
+describe('applyTeamInstructionChange', () => {
+  it('changes only the controlled side and preserves the shared normalized v2 shape', () => {
+    const ls = makeLiveState();
+    const awayBefore = structuredClone(ls.awayTactics);
+    const after = applyTeamInstructionChange(ls, true, 'useOfSpace', 'pass_into_space');
+
+    expect(after.homeTactics.useOfSpace).toBe('pass_into_space');
+    expect(after.awayTactics).toEqual(awayBefore);
+    expect(after.homeTactics.attackingWidth).toBe('balanced');
+    expect(after.homeTactics.defensiveWidth).toBe('balanced');
+    expect(after.homeTactics.transition).toBe(after.homeTactics.onWin);
+  });
+
+  it('supports asymmetric attacking and defensive widths in live state', () => {
+    const ls = makeLiveState();
+    const wideAttack = applyTeamInstructionChange(ls, true, 'attackingWidth', 'wide');
+    const compactBlock = applyTeamInstructionChange(wideAttack, true, 'defensiveWidth', 'narrow');
+
+    expect(compactBlock.homeTactics.attackingWidth).toBe('wide');
+    expect(compactBlock.homeTactics.defensiveWidth).toBe('narrow');
+    expect(compactBlock.awayTactics.attackingWidth).toBe('balanced');
+    expect(compactBlock.awayTactics.defensiveWidth).toBe('balanced');
+  });
+
+  it('refreshes authoritative tactical modifiers immediately', () => {
+    const ls = makeLiveState();
+    const after = applyTeamInstructionChange(ls, true, 'pressing', 'aggressive');
+
+    expect(after.homeTactics.pressing).toBe('aggressive');
+    expect(after.hMods.fitnessDrainMult).toBeGreaterThan(ls.hMods.fitnessDrainMult);
+    expect(after.hMods.yellowRiskMult).toBeGreaterThan(ls.hMods.yellowRiskMult);
+    expect(after.aMods).toEqual(ls.aMods);
+  });
+
+  it('normalizes invalid values instead of allowing them into authoritative state', () => {
+    const ls = makeLiveState();
+    const after = applyTeamInstructionChange(ls, false, 'shotSelection', 'always-score');
+
+    expect(after.awayTactics.shotSelection).toBe('balanced');
+    expect(after.homeTactics).toEqual(ls.homeTactics);
   });
 });
