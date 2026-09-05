@@ -2,7 +2,7 @@
 
 **Workstream:** Attribute-to-Tactics Causality 2.0  
 **Phase:** T7 — Balance, rollout and documentation  
-**Status:** COMPLETE — 5 Sep 2026; enforced implementation gate workflow #607 green at `ef19644a23666b8f9b578d09a1d14c3c2a801415`
+**Status:** COMPLETE — 5 Sep 2026; enforced implementation gate workflow #607 green at `ef19644a23666b8f9b578d09a1d14c3c2a801415`; clean promoted scratch head `885c371a108685b58803e3f584f3fcb742dbe9e1` green in workflow #614
 
 ## Goal
 
@@ -192,7 +192,6 @@ Suggested promotion checkpoints:
 4. **T7.4 closure docs/help** — final PR metadata and merge gate.
 
 The PR branch must not be advanced from a known-green checkpoint merely to expose incomplete calibration work.
-
 
 ## Closure evidence — 5 Sep 2026
 
