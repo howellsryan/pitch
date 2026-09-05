@@ -115,7 +115,11 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const run = easeInOut(phaseProgress(progress, .02, .28));
   const strike = easeInOut(phaseProgress(progress, .22, .42));
   const flight = easeInOut(phaseProgress(progress, .38, .82));
-  const recovery = easeInOut(phaseProgress(progress, .72, 1));
+  const recovery = easeInOut(phaseProgress(progress, .74, 1));
+  const strikePulse = Math.sin(strike * Math.PI);
+  const keeperDive = easeInOut(phaseProgress(progress, .40, .72));
+  const keeperPose = keeperDive * (1 - recovery);
+  const defenderLunge = outcome === 'blocked' ? easeInOut(phaseProgress(progress, .30, .54)) * (1 - recovery) : 0;
 
   const targetX = Number(target.x ?? 0) * world.goalWidth / 2;
   const targetY = clamp(Number(target.y ?? .48), -.35, 1.35) * world.goalHeight;
@@ -126,8 +130,6 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const keeperPlan = shot?.presentation?.keeper ?? null;
   const keeperTargetX = keeperPlan ? Number(keeperPlan.x ?? 0) * world.goalWidth * .43 : targetX * .8;
   const keeperTargetY = keeperPlan ? Number(keeperPlan.y ?? .45) * world.goalHeight : targetY * .82;
-  const keeperMove = easeInOut(phaseProgress(progress, .40, .72));
-  const blockMove = outcome === 'blocked' ? easeInOut(phaseProgress(progress, .30, .54)) : 0;
 
   const contactProgress = outcome ? flight : 0;
   const ballX = outcome === 'blocked'
@@ -147,25 +149,27 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
       x:world.shooter.x,
       y:0,
       z:lerp(world.shooter.z + .8, world.shooter.z, run),
-      lean:lerp(0, -.18, strike),
-      kick:Math.sin(strike * Math.PI) * 1.12,
-      plant:-Math.sin(strike * Math.PI) * .18,
-      arms:Math.sin(strike * Math.PI) * .28,
+      lean:-.18 * strikePulse * (1 - recovery),
+      kick:strikePulse * 1.12 * (1 - recovery),
+      plant:-strikePulse * .18 * (1 - recovery),
+      arms:strikePulse * .28 * (1 - recovery),
       recovery,
     },
     keeper:{
-      x:lerp(world.keeper.x, keeperTargetX, keeperMove),
-      y:lerp(0, Math.max(0, keeperTargetY - .72), keeperMove),
+      x:lerp(world.keeper.x, keeperTargetX, keeperPose),
+      y:lerp(0, Math.max(0, keeperTargetY - .72), keeperPose),
       z:world.keeper.z,
-      dive:keeperMove,
-      roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.18 * keeperMove,
-      arms:.3 + keeperMove * .9,
+      dive:keeperPose,
+      roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.18 * keeperPose,
+      arms:.3 + keeperPose * .9,
+      recovery,
     },
     defender:{
       x:world.defender.x,
       y:0,
-      z:lerp(world.defender.z, world.defender.z + .45, blockMove),
-      lunge:blockMove,
+      z:lerp(world.defender.z, world.defender.z + .45, defenderLunge),
+      lunge:defenderLunge,
+      recovery,
     },
     ball:{ x:ballX, y:ballY, z:ballZ, visible:true },
     world,
