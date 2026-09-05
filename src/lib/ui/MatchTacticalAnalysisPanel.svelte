@@ -66,7 +66,7 @@
 {/if}
 
 <style>
-  .tactical-read { display:grid; gap:10px; padding:11px 12px; border:1px solid var(--color-line); border-radius:10px; background:var(--color-surface); }
+  .tactical-read { width:100%; max-width:760px; margin-inline:auto; display:grid; gap:10px; padding:11px 12px; border:1px solid var(--color-line); border-radius:10px; background:var(--color-surface); }
   header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
   header span { display:block; color:var(--color-tx-3); font:700 8px var(--font-mono); text-transform:uppercase; letter-spacing:.08em; }
   header strong { display:block; margin-top:2px; font:15px var(--font-display); }
