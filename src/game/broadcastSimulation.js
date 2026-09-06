@@ -638,26 +638,32 @@ function advanceBroadcastSimulationStep(sim, elapsedMs) {
   return snapshotBroadcastSimulation(sim);
 }
 
+function presentationMilestone(action = '') {
+  if (action === 'GOAL') return 'goal';
+  if (action === 'HALF TIME') return 'half-time';
+  if (action.startsWith('SHOT')) return 'shot';
+  if (/^(FREE KICK|CORNER|GOAL KICK|THROW-IN)/.test(action)) return 'restart';
+  return null;
+}
+
 export function advanceBroadcastSimulation(sim, elapsedMs) {
   const realElapsed = clamp(elapsedMs, 0, 50);
   if (!sim?.ledgerDriven || realElapsed <= 0) return advanceBroadcastSimulationStep(sim, realElapsed);
 
-  // The authoritative engine budgets 750ms of wall-clock time to each ledger
-  // phase (120 phases = 90 seconds = one real second per match minute). The
-  // broadcast choreography deliberately contains longer internal waits so a
-  // goal, save, restart or half-time sequence looks coherent. Advance only the
-  // presentation clock faster, in stable 50ms physics steps, so those visual
-  // beats fit inside the fixed phase budget rather than extending the match.
-  // Stop at each action transition so every meaningful beat still gets at
-  // least one rendered frame and goal/half-time notices cannot be skipped.
+  // A ledger phase gets 750ms of wall-clock budget: 120 phases therefore map
+  // to 90 real seconds, i.e. one real second per match minute. Internal scene
+  // choreography can be longer, so advance only presentation time faster in
+  // stable 50ms physics steps. Routine build-up may compress across multiple
+  // internal action labels, but key football beats remain mandatory frames.
   let remainingPresentationMs = realElapsed * LEDGER_PRESENTATION_TIME_SCALE;
   let frame = snapshotBroadcastSimulation(sim);
-  const startingAction = frame.action;
+  const startingMilestone = presentationMilestone(frame.action);
   while (remainingPresentationMs > 0) {
     const step = Math.min(remainingPresentationMs, 50);
     frame = advanceBroadcastSimulationStep(sim, step);
     remainingPresentationMs -= step;
-    if (frame.action !== startingAction) break;
+    const milestone = presentationMilestone(frame.action);
+    if (milestone && milestone !== startingMilestone) break;
   }
   return frame;
 }
