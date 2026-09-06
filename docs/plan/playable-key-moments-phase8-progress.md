@@ -115,6 +115,30 @@ Implemented a versioned local rollout policy:
 
 Quick Sim and Watch Match remain first-class paths in `MatchScreen.svelte` and do not read presentation preferences or import the Three.js renderers.
 
+## Live-match fixed-cadence regression fix
+
+A Phase 7/8 live-broadcast regression was found during preview review: the constants still encoded the intended `120 phases × 750 ms = 90 seconds`, but an event-heavy match could take materially longer because `MatchScreen` waited for `isBroadcastReady(...)` and retried every 80 ms whenever presentation choreography overran its 750 ms phase slot. Those retries accumulated on top of the nominal 90-second regulation duration.
+
+The fix keeps the authoritative engine cadence unchanged and compresses only ledger-driven presentation time:
+
+- the football engine still advances exactly one authoritative phase at a time;
+- the public cadence remains one phase every 750 ms, which maps 120 phases to exactly 90 real seconds and therefore one real second to one match minute;
+- long internal positioning, route, carry, restart, goal-hold and half-time choreography is advanced in stable 50 ms presentation substeps at a separate accelerated presentation clock;
+- routine build-up labels may compress inside a single frame;
+- shots, goals, half-time and restart/set-piece states are semantic presentation milestones and remain surfaced as visible frames;
+- score, ledger result, player statistics, RNG, match balance and fixture outcome are untouched;
+- non-ledger presentation behaviour is unchanged.
+
+A new regression suite, `liveMatchFixedCadence.test.js`, proves the user-facing timing contract directly rather than merely checking constants:
+
+- seeded full matches for seeds 12, 34 and 56 run all 120 authoritative phases;
+- every individual authoritative phase must become broadcast-ready within its 750 ms wall-clock budget;
+- the test is not allowed to grant extra time for event-heavy phases;
+- all returned goal presentations must equal the authoritative ledger goal count;
+- `120 × 750 ms = 90,000 ms` is locked as the regulation wall-clock target.
+
+The test was introduced red before the implementation change and reproduced the regression. After the final presentation-clock correction, it passes alongside the existing `ledgerBroadcast.test.js` semantics, including shot visibility, goal visibility, half-time ordering, no invented goals and seeded full-ledger drainage.
+
 ## Accessibility and mobile
 
 Retained and strengthened:
@@ -170,32 +194,35 @@ Arbitrary player names, user IDs and input vectors are stripped by the diagnosti
   - lazy renderer delivery;
   - Quick Sim/Watch independence;
   - current playable-event policy remains shot/set-piece/save only.
+- `liveMatchFixedCadence.test.js`
+  - exact 90-second regulation cadence contract;
+  - every seeded phase bounded to 750 ms regardless of event density;
+  - no authoritative goal lost while presentation catches up.
 - the older Phase 5 continuation overlay source contract was updated to assert the same compatibility authority through the new Phase 8 director rather than requiring the obsolete direct-import implementation shape.
 
 ## Verification evidence
 
-Before this final documentation checkpoint, Phase 8 code had already reached:
+The completed timing-fix code head `1ef0a76990ebea4f97789eb5c31b58dc1c28d201` passed:
 
-- legacy build — success;
-- app build — success;
-- lint — success;
-- the remaining unit failures were stale source-shape assertions caused by the intentional director abstraction, and those contracts were updated without weakening their authority guarantees.
+- Agent workflows;
+- legacy build;
+- app build;
+- lint;
+- full unit tests, including the new fixed-cadence seeded regression suite;
+- deep match-balance check;
+- accent validation;
+- artifact upload.
 
-The final PR must not be promoted from Draft until the exact final documentation/code SHA passes:
-
-1. Agent workflows;
-2. legacy build;
-3. app build;
-4. lint;
-5. full unit tests;
-6. deep match-balance check;
-7. accent validation;
-8. artifact upload.
+The final PR must not be promoted from Draft until this documentation checkpoint also passes the same exact-head workflow gates.
 
 ## Human preview evidence still required before merge
 
 Repository rules intentionally do not add browser/E2E automation solely for this presentation phase. The deployed Phase 8 preview should therefore receive a human smoke check for:
 
+- a normal live game completing at approximately 90 real seconds for 90 regulation match minutes;
+- event-heavy live games not accumulating extra wall-clock delay;
+- shots, saves, goals, restarts and half-time remaining visibly coherent at the fixed cadence;
+- scoreboard/commentary/pitch remaining synchronized while presentation catches up;
 - narrow iPhone-class viewport;
 - wider mobile/tablet/desktop;
 - touch/tap and pointer input;
