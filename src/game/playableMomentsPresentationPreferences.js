@@ -35,6 +35,11 @@ function finite(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function browserStorage() {
+  try { return globalThis.localStorage ?? null; }
+  catch { return null; }
+}
+
 export function normalizePlayablePresentationPreferences(value = {}) {
   const quality = PLAYABLE_PRESENTATION_QUALITY.includes(value?.quality)
     ? value.quality
@@ -82,9 +87,9 @@ export function resolvePresentationQuality(preferences, capabilities = {}) {
 
 export function presentationQualityProfile(tier = 'medium') {
   const profiles = {
-    low:{ tier:'low', maxPixelRatio:1, antialias:false, shadows:false, geometryDetail:.65, atmosphere:false },
-    medium:{ tier:'medium', maxPixelRatio:1.25, antialias:true, shadows:true, geometryDetail:.85, atmosphere:true },
-    high:{ tier:'high', maxPixelRatio:1.5, antialias:true, shadows:true, geometryDetail:1, atmosphere:true },
+    low:{ tier:'low', targetFps:30, maxPixelRatio:1, antialias:false, shadows:false, geometryDetail:.65, atmosphere:false },
+    medium:{ tier:'medium', targetFps:45, maxPixelRatio:1.25, antialias:true, shadows:true, geometryDetail:.85, atmosphere:true },
+    high:{ tier:'high', targetFps:60, maxPixelRatio:1.5, antialias:true, shadows:true, geometryDetail:1, atmosphere:true },
   };
   return { ...(profiles[tier] ?? profiles.medium) };
 }
@@ -96,19 +101,21 @@ export function isPlayablePresentationScenarioEnabled(preferences, scenarioFamil
   return normalized.scenarios[scenarioFamily] !== false;
 }
 
-export function readPlayablePresentationPreferences(storage = globalThis?.localStorage) {
-  if (!storage?.getItem) return normalizePlayablePresentationPreferences();
+export function readPlayablePresentationPreferences(storage) {
+  const target = storage === undefined ? browserStorage() : storage;
+  if (!target?.getItem) return normalizePlayablePresentationPreferences();
   try {
-    const raw = storage.getItem(PLAYABLE_PRESENTATION_STORAGE_KEY);
+    const raw = target.getItem(PLAYABLE_PRESENTATION_STORAGE_KEY);
     return raw ? normalizePlayablePresentationPreferences(JSON.parse(raw)) : normalizePlayablePresentationPreferences();
   } catch {
     return normalizePlayablePresentationPreferences();
   }
 }
 
-export function writePlayablePresentationPreferences(preferences, storage = globalThis?.localStorage) {
+export function writePlayablePresentationPreferences(preferences, storage) {
   const normalized = normalizePlayablePresentationPreferences(preferences);
-  try { storage?.setItem?.(PLAYABLE_PRESENTATION_STORAGE_KEY, JSON.stringify(normalized)); } catch { /* optional local preference */ }
+  const target = storage === undefined ? browserStorage() : storage;
+  try { target?.setItem?.(PLAYABLE_PRESENTATION_STORAGE_KEY, JSON.stringify(normalized)); } catch { /* optional local preference */ }
   return normalized;
 }
 
