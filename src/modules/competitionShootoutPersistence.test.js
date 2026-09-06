@@ -170,7 +170,7 @@ describe('Phase 7 competition shootout persistence', () => {
     expect(dbHarness.row.pendingEvents[0].shootoutSession.status).toBe('committed');
 
     const next = acknowledgeCompetitionShootoutSession(committed);
-    dbHarness.row.pendingEvents[0].shootoutSession.revision += 1;
+    dbHarness.row.pendingEvents[0].shootoutSession.revision += 2;
     await expect(persistCompetitionShootoutSessionAtomic(next, {
       eventKey:playableEventKey(matchEvent),
       expectedRevision:committed.revision,
