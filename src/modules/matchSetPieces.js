@@ -5,11 +5,11 @@ export const MATCH_SET_PIECE_VERSION = 1;
 const PENALTY_XG = .76;
 const WALL_DISTANCE_METRES = 9.15;
 
-function clamp(value, min, max) {
+function setPieceClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function round(value, digits = 3) {
+function setPieceRound(value, digits = 3) {
   const factor = 10 ** digits;
   return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
 }
@@ -37,7 +37,7 @@ function weightedDetailed(player, weights = {}) {
     total += numericWeight;
     sum += detailed(player, attribute) * numericWeight;
   }
-  return clamp(total ? sum / total : 50, 1, 99);
+  return setPieceClamp(total ? sum / total : 50, 1, 99);
 }
 
 function goalkeeper(players = []) {
@@ -47,7 +47,7 @@ function goalkeeper(players = []) {
 function keeperRating(players = []) {
   const keeper = goalkeeper(players);
   const value = Number(effectiveAttribute(keeper, 'goalkeeping') ?? keeper?.goalkeeping ?? 50);
-  return clamp(Number.isFinite(value) ? value : 50, 1, 99);
+  return setPieceClamp(Number.isFinite(value) ? value : 50, 1, 99);
 }
 
 function stableCandidateSort(left, right, scoreFor) {
@@ -62,7 +62,7 @@ function selectSetPieceTaker(attackers = [], kind, roll = .5) {
     : player => weightedDetailed(player, { shooting:.58, passing:.34, physical:.08 });
   const ranked = [...candidates].sort((left, right) => stableCandidateSort(left, right, scoreFor));
   const top = ranked.slice(0, Math.min(4, ranked.length));
-  const index = Math.min(top.length - 1, Math.floor(clamp(Number(roll) || 0, 0, .999999) * top.length));
+  const index = Math.min(top.length - 1, Math.floor(setPieceClamp(Number(roll) || 0, 0, .999999) * top.length));
   return top[index] ?? ranked[0];
 }
 
@@ -75,24 +75,24 @@ function wallParticipants(defenders = [], size) {
 }
 
 function freeKickDistance(chanceRoll) {
-  const normalized = clamp((Number(chanceRoll) - .02) / .08, 0, 1);
-  return round(18 + normalized * 10, 2);
+  const normalized = setPieceClamp((Number(chanceRoll) - .02) / .08, 0, 1);
+  return setPieceRound(18 + normalized * 10, 2);
 }
 
 function freeKickChannel(targetRoll) {
-  return round(clamp((Number(targetRoll) - .5) * 1.5, -.72, .72), 3);
+  return setPieceRound(setPieceClamp((Number(targetRoll) - .5) * 1.5, -.72, .72), 3);
 }
 
 function freeKickWall({ defenders, distance, channel }) {
-  const size = clamp(Math.round(5 - (distance - 18) / 3.3), 2, 5);
+  const size = setPieceClamp(Math.round(5 - (distance - 18) / 3.3), 2, 5);
   const selected = wallParticipants(defenders, size);
-  const wallZ = round(Math.max(2.2, distance - WALL_DISTANCE_METRES), 2);
-  const centreX = round(channel * 1.15, 3);
+  const wallZ = setPieceRound(Math.max(2.2, distance - WALL_DISTANCE_METRES), 2);
+  const centreX = setPieceRound(channel * 1.15, 3);
   const spacing = .48;
   const members = selected.map((player, index) => ({
     id:player.id,
     name:player.name,
-    x:round(centreX + (index - (selected.length - 1) / 2) * spacing, 3),
+    x:setPieceRound(centreX + (index - (selected.length - 1) / 2) * spacing, 3),
     y:0,
     z:wallZ,
   }));
@@ -112,7 +112,7 @@ export function deriveAuthoritativeSetPiece(prepared) {
   // Phase 4 deliberately derives the award before terminal shot resolution.
   // Only packet fields consumed before shot/finish are used here so eligibility
   // cannot leak a would-have-been result into the set-piece decision.
-  const awardRoll = clamp(Number(prepared.packet.chance) || 0, 0, .999999);
+  const awardRoll = setPieceClamp(Number(prepared.packet.chance) || 0, 0, .999999);
   if (awardRoll >= .10) return null;
 
   const kind = awardRoll < .02 ? 'penalty' : 'direct_free_kick';
@@ -140,7 +140,7 @@ export function deriveAuthoritativeSetPiece(prepared) {
 
   const distance = freeKickDistance(awardRoll);
   const channel = freeKickChannel(prepared.packet.target);
-  const xg = round(clamp(.17 - (distance - 18) * .009 - Math.abs(channel) * .025, .055, .17), 3);
+  const xg = setPieceRound(setPieceClamp(.17 - (distance - 18) * .009 - Math.abs(channel) * .025, .055, .17), 3);
   return {
     version:MATCH_SET_PIECE_VERSION,
     kind,
@@ -153,15 +153,15 @@ export function deriveAuthoritativeSetPiece(prepared) {
     goalkeeperName:keeper.name,
     directAttemptEligible:true,
     xg,
-    location:{ coordinateSystem:'goal-facing-v1', distance, channel, x:round(channel * 2.4, 3) },
+    location:{ coordinateSystem:'goal-facing-v1', distance, channel, x:setPieceRound(channel * 2.4, 3) },
     wall:freeKickWall({ defenders:prepared.defenders, distance, channel }),
   };
 }
 
 function targetFromAutomaticPacket(packet, { yBase = .48, yRange = .36 } = {}) {
   return {
-    x:round(clamp((Number(packet.finish) - .5) * 1.48, -.96, .96), 4),
-    y:round(clamp(yBase + (Number(packet.shot) - .5) * yRange, .10, .92), 4),
+    x:setPieceRound(setPieceClamp((Number(packet.finish) - .5) * 1.48, -.96, .96), 4),
+    y:setPieceRound(setPieceClamp(yBase + (Number(packet.shot) - .5) * yRange, .10, .92), 4),
     power:.78,
     executionQuality:.72,
   };
@@ -171,10 +171,10 @@ function normalizedAttack(intent) {
   const attack = intent?.attack;
   if (!attack) return null;
   return {
-    aimX:clamp(Number(attack.aimX) || 0, -1.25, 1.25),
-    aimY:clamp(Number.isFinite(Number(attack.aimY)) ? Number(attack.aimY) : .5, -.2, 1.2),
-    power:clamp(Number.isFinite(Number(attack.power)) ? Number(attack.power) : .72, 0, 1),
-    timing:clamp(Number.isFinite(Number(attack.timing)) ? Number(attack.timing) : .65, 0, 1),
+    aimX:setPieceClamp(Number(attack.aimX) || 0, -1.25, 1.25),
+    aimY:setPieceClamp(Number.isFinite(Number(attack.aimY)) ? Number(attack.aimY) : .5, -.2, 1.2),
+    power:setPieceClamp(Number.isFinite(Number(attack.power)) ? Number(attack.power) : .72, 0, 1),
+    timing:setPieceClamp(Number.isFinite(Number(attack.timing)) ? Number(attack.timing) : .65, 0, 1),
   };
 }
 
@@ -182,52 +182,52 @@ function normalizedKeeper(intent) {
   const keeperIntent = intent?.goalkeeper;
   if (!keeperIntent) return null;
   return {
-    x:clamp(Number(keeperIntent.x) || 0, -1, 1),
-    y:clamp(Number.isFinite(Number(keeperIntent.y)) ? Number(keeperIntent.y) : .5, 0, 1),
-    timing:clamp(Number.isFinite(Number(keeperIntent.timing)) ? Number(keeperIntent.timing) : .65, 0, 1),
+    x:setPieceClamp(Number(keeperIntent.x) || 0, -1, 1),
+    y:setPieceClamp(Number.isFinite(Number(keeperIntent.y)) ? Number(keeperIntent.y) : .5, 0, 1),
+    timing:setPieceClamp(Number.isFinite(Number(keeperIntent.timing)) ? Number(keeperIntent.timing) : .65, 0, 1),
   };
 }
 
 function setPieceTrajectory({ attack, packet, technique, pressure = 0, type }) {
-  const ability = clamp((technique - 45) / 54, 0, 1);
-  const timing = clamp(attack.timing, 0, 1);
+  const ability = setPieceClamp((technique - 45) / 54, 0, 1);
+  const timing = setPieceClamp(attack.timing, 0, 1);
   const preferredPower = type === 'penalty' ? .76 : .70;
   const powerControl = 1 - Math.abs(attack.power - preferredPower) * .72;
   const baseSpread = type === 'penalty' ? .18 : .26;
-  const spread = clamp(baseSpread - ability * .11 + (1 - timing) * .11 + pressure * .08, .025, .34);
+  const spread = setPieceClamp(baseSpread - ability * .11 + (1 - timing) * .11 + pressure * .08, .025, .34);
   return {
-    x:round(attack.aimX + (Number(packet.finish) - .5) * 2 * spread, 4),
-    y:round(attack.aimY + (Number(packet.shot) - .5) * spread * .7, 4),
-    power:round(attack.power, 4),
-    executionQuality:round(clamp(ability * .62 + timing * .28 + powerControl * .10, .08, .99), 4),
+    x:setPieceRound(attack.aimX + (Number(packet.finish) - .5) * 2 * spread, 4),
+    y:setPieceRound(attack.aimY + (Number(packet.shot) - .5) * spread * .7, 4),
+    power:setPieceRound(attack.power, 4),
+    executionQuality:setPieceRound(setPieceClamp(ability * .62 + timing * .28 + powerControl * .10, .08, .99), 4),
   };
 }
 
 function automaticKeeper(target, packet, keeping, { penalty = false } = {}) {
-  const ability = clamp((keeping - 35) / 64, 0, 1);
+  const ability = setPieceClamp((keeping - 35) / 64, 0, 1);
   const error = (penalty ? .58 : .50) - ability * .38;
   return {
-    x:clamp(target.x + (Number(packet.shot) - .5) * 2 * error, -1, 1),
-    y:clamp(target.y + (Number(packet.finish) - .5) * error * .62, 0, 1),
-    timing:clamp(.48 + ability * .42, .4, .93),
+    x:setPieceClamp(target.x + (Number(packet.shot) - .5) * 2 * error, -1, 1),
+    y:setPieceClamp(target.y + (Number(packet.finish) - .5) * error * .62, 0, 1),
+    timing:setPieceClamp(.48 + ability * .42, .4, .93),
   };
 }
 
 function interactiveKeeperSave({ target, keeperIntent, keeping, power, penalty = false }) {
-  const ability = clamp((keeping - 35) / 64, 0, 1);
-  const reach = clamp((penalty ? .19 : .20) + ability * .24 + keeperIntent.timing * .12, .18, .58);
+  const ability = setPieceClamp((keeping - 35) / 64, 0, 1);
+  const reach = setPieceClamp((penalty ? .19 : .20) + ability * .24 + keeperIntent.timing * .12, .18, .58);
   const dx = target.x - keeperIntent.x;
   const dy = (target.y - keeperIntent.y) * 1.16;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  const powerPenalty = clamp((power - .72) * .14, -.04, .05);
+  const powerPenalty = setPieceClamp((power - .72) * .14, -.04, .05);
   return {
-    save:distance <= clamp(reach - powerPenalty, .17, .62),
-    reach:round(reach, 4),
+    save:distance <= setPieceClamp(reach - powerPenalty, .17, .62),
+    reach:setPieceRound(reach, 4),
     keeper:{
-      x:round(keeperIntent.x, 4),
-      y:round(keeperIntent.y, 4),
-      timing:round(keeperIntent.timing, 4),
-      reach:round(reach, 4),
+      x:setPieceRound(keeperIntent.x, 4),
+      y:setPieceRound(keeperIntent.y, 4),
+      timing:setPieceRound(keeperIntent.timing, 4),
+      reach:setPieceRound(reach, 4),
     },
   };
 }
@@ -239,27 +239,27 @@ export function resolvePenaltyOutcome({ setPiece, shooter, defenders = [], packe
   const attack = normalizedAttack(intent);
 
   if (!attack) {
-    const missChance = clamp(.105 - (shooting - 75) * .0022, .045, .17);
+    const missChance = setPieceClamp(.105 - (shooting - 75) * .0022, .045, .17);
     if (Number(packet.shot) < missChance) {
       const target = { ...targetFromAutomaticPacket(packet), x:Math.sign(Number(packet.finish) - .5 || 1) * 1.08 };
       return {
         setPieceType:'penalty', finish:'missed', onTarget:false, goal:false,
-        shooting:round(shooting), pressure:0, goalkeeping:round(keeping), restart:'goal_kick',
+        shooting:setPieceRound(shooting), pressure:0, goalkeeping:setPieceRound(keeping), restart:'goal_kick',
         presentation:{ target, blockerId:null, keeper:null, contact:'miss' },
       };
     }
-    const conversion = clamp(.76 + (shooting - 75) * .0034 - (keeping - 75) * .0026, .58, .88);
+    const conversion = setPieceClamp(.76 + (shooting - 75) * .0034 - (keeping - 75) * .0026, .58, .88);
     const goal = Number(packet.finish) < conversion;
     const target = targetFromAutomaticPacket(packet, { yBase:.51, yRange:.34 });
     const keeperIntent = automaticKeeper(target, packet, keeping, { penalty:true });
     return {
       setPieceType:'penalty', finish:goal ? 'goal' : 'saved', onTarget:true, goal,
-      shooting:round(shooting), pressure:0, goalkeeping:round(keeping), goalChance:round(conversion),
+      shooting:setPieceRound(shooting), pressure:0, goalkeeping:setPieceRound(keeping), goalChance:setPieceRound(conversion),
       restart:goal ? 'kickoff' : 'keeper_possession',
       presentation:{
         target,
         blockerId:null,
-        keeper:{ x:round(keeperIntent.x, 4), y:round(keeperIntent.y, 4), timing:round(keeperIntent.timing, 4), reach:round(.46, 4) },
+        keeper:{ x:setPieceRound(keeperIntent.x, 4), y:setPieceRound(keeperIntent.y, 4), timing:setPieceRound(keeperIntent.timing, 4), reach:setPieceRound(.46, 4) },
         contact:goal ? 'goal' : 'save',
       },
     };
@@ -270,7 +270,7 @@ export function resolvePenaltyOutcome({ setPiece, shooter, defenders = [], packe
   if (!insideGoal) {
     return {
       setPieceType:'penalty', finish:'missed', onTarget:false, goal:false,
-      shooting:round(shooting), pressure:0, goalkeeping:round(keeping), restart:'goal_kick',
+      shooting:setPieceRound(shooting), pressure:0, goalkeeping:setPieceRound(keeping), restart:'goal_kick',
       presentation:{ target, blockerId:null, keeper:null, contact:'miss' },
     };
   }
@@ -279,7 +279,7 @@ export function resolvePenaltyOutcome({ setPiece, shooter, defenders = [], packe
   const saveResult = interactiveKeeperSave({ target, keeperIntent, keeping, power:attack.power, penalty:true });
   return {
     setPieceType:'penalty', finish:saveResult.save ? 'saved' : 'goal', onTarget:true, goal:!saveResult.save,
-    shooting:round(shooting), pressure:0, goalkeeping:round(keeping),
+    shooting:setPieceRound(shooting), pressure:0, goalkeeping:setPieceRound(keeping),
     restart:saveResult.save ? 'keeper_possession' : 'kickoff',
     presentation:{ target, blockerId:null, keeper:saveResult.keeper, contact:saveResult.save ? 'save' : 'goal' },
   };
@@ -300,11 +300,11 @@ function nearestWallMember(setPiece, targetX) {
 function freeKickBlockThreshold(setPiece, target, technique) {
   const wallSize = Number(setPiece?.wall?.size ?? 0);
   const distance = Number(setPiece?.location?.distance ?? 24);
-  const heightExposure = clamp((.68 - Number(target.y ?? .5)) * .32, -.05, .10);
+  const heightExposure = setPieceClamp((.68 - Number(target.y ?? .5)) * .32, -.05, .10);
   const sizeEffect = wallSize * .025;
-  const distanceEffect = clamp((25 - distance) * .008, -.03, .05);
-  const skillEffect = clamp((technique - 75) * .0022, -.04, .05);
-  return clamp(.14 + sizeEffect + distanceEffect + heightExposure - skillEffect, .08, .34);
+  const distanceEffect = setPieceClamp((25 - distance) * .008, -.03, .05);
+  const skillEffect = setPieceClamp((technique - 75) * .0022, -.04, .05);
+  return setPieceClamp(.14 + sizeEffect + distanceEffect + heightExposure - skillEffect, .08, .34);
 }
 
 export function resolveDirectFreeKickOutcome({ setPiece, shooter, defenders = [], packet, intent = null } = {}) {
@@ -321,7 +321,7 @@ export function resolveDirectFreeKickOutcome({ setPiece, shooter, defenders = []
     const blocker = nearestWallMember(setPiece, target.x) ?? setPiece.wall?.members?.[0] ?? null;
     return {
       setPieceType:'direct_free_kick', finish:'blocked', onTarget:false, goal:false,
-      shooting:round(technique), pressure:round(blockThreshold * 100), goalkeeping:round(keeping),
+      shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping),
       restart:'defensive_restart',
       presentation:{ target, blockerId:blocker?.id ?? null, keeper:null, contact:'block' },
     };
@@ -332,7 +332,7 @@ export function resolveDirectFreeKickOutcome({ setPiece, shooter, defenders = []
     if (!insideGoal) {
       return {
         setPieceType:'direct_free_kick', finish:'missed', onTarget:false, goal:false,
-        shooting:round(technique), pressure:round(blockThreshold * 100), goalkeeping:round(keeping), restart:'goal_kick',
+        shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping), restart:'goal_kick',
         presentation:{ target, blockerId:null, keeper:null, contact:'miss' },
       };
     }
@@ -340,33 +340,33 @@ export function resolveDirectFreeKickOutcome({ setPiece, shooter, defenders = []
     const saveResult = interactiveKeeperSave({ target, keeperIntent, keeping, power:attack.power });
     return {
       setPieceType:'direct_free_kick', finish:saveResult.save ? 'saved' : 'goal', onTarget:true, goal:!saveResult.save,
-      shooting:round(technique), pressure:round(blockThreshold * 100), goalkeeping:round(keeping),
+      shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping),
       restart:saveResult.save ? 'keeper_possession' : 'kickoff',
       presentation:{ target, blockerId:null, keeper:saveResult.keeper, contact:saveResult.save ? 'save' : 'goal' },
     };
   }
 
   const distance = Number(setPiece.location?.distance ?? 24);
-  const onTargetChance = clamp(.30 + (technique - 70) * .0055 - (distance - 20) * .010, .18, .58);
+  const onTargetChance = setPieceClamp(.30 + (technique - 70) * .0055 - (distance - 20) * .010, .18, .58);
   if (Number(packet.shot) > onTargetChance) {
     return {
       setPieceType:'direct_free_kick', finish:'missed', onTarget:false, goal:false,
-      shooting:round(technique), pressure:round(blockThreshold * 100), goalkeeping:round(keeping), restart:'goal_kick',
+      shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping), restart:'goal_kick',
       presentation:{ target:{ ...target, x:Math.sign(target.x || 1) * 1.08 }, blockerId:null, keeper:null, contact:'miss' },
     };
   }
 
-  const goalChance = clamp(.105 + (technique - 75) * .0032 - (keeping - 75) * .0022 - (distance - 20) * .0045, .035, .24);
+  const goalChance = setPieceClamp(.105 + (technique - 75) * .0032 - (keeping - 75) * .0022 - (distance - 20) * .0045, .035, .24);
   const goal = Number(packet.finish) < goalChance;
   const keeperIntent = automaticKeeper(target, packet, keeping);
   return {
     setPieceType:'direct_free_kick', finish:goal ? 'goal' : 'saved', onTarget:true, goal,
-    shooting:round(technique), pressure:round(blockThreshold * 100), goalkeeping:round(keeping), goalChance:round(goalChance),
+    shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping), goalChance:setPieceRound(goalChance),
     restart:goal ? 'kickoff' : 'keeper_possession',
     presentation:{
       target,
       blockerId:null,
-      keeper:{ x:round(keeperIntent.x, 4), y:round(keeperIntent.y, 4), timing:round(keeperIntent.timing, 4), reach:round(.44, 4) },
+      keeper:{ x:setPieceRound(keeperIntent.x, 4), y:setPieceRound(keeperIntent.y, 4), timing:setPieceRound(keeperIntent.timing, 4), reach:setPieceRound(.44, 4) },
       contact:goal ? 'goal' : 'save',
     },
   };
