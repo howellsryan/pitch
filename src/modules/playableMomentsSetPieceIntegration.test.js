@@ -7,6 +7,7 @@ import {
 import { createUserTacticalPlan } from './tactics.js';
 
 const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
+const automaticCache = new Map();
 
 function player(id, position, rating = 80) {
   const attacking = ['ST','RW','LW','CAM'].includes(position);
@@ -55,12 +56,17 @@ function fullAutomatic(seed) {
   return { ...state, result };
 }
 
-function findAutomaticSetPiece() {
-  for (let index = 0; index < 48; index += 1) {
-    const candidate = fullAutomatic(`phase4-set-piece-${index}`);
-    if (candidate.result.updatedState.actionLedger.some(record => record.setPieceType)) return candidate;
+function findAutomaticSetPiece(kind = null) {
+  const key = kind ?? 'any';
+  if (automaticCache.has(key)) return automaticCache.get(key);
+  for (let index = 0; index < 128; index += 1) {
+    const candidate = fullAutomatic(`phase4-${key}-${index}`);
+    if (candidate.result.updatedState.actionLedger.some(record => record.setPieceType && (!kind || record.setPieceType === kind))) {
+      automaticCache.set(key, candidate);
+      return candidate;
+    }
   }
-  throw new Error('No deterministic Phase 4 set piece found in seeded search');
+  throw new Error(`No deterministic Phase 4 ${kind ?? 'set piece'} found in seeded search`);
 }
 
 function runAutomaticOnePhaseAtATime(seed) {
@@ -75,7 +81,7 @@ function runAutomaticOnePhaseAtATime(seed) {
   return { ...state, liveState, events };
 }
 
-function findSuspendedSetPiece(seed) {
+function findSuspendedSetPiece(seed, kind) {
   const state = fixture(seed);
   let liveState = state.liveState;
   for (let phase = 1; phase <= 120; phase += 1) {
@@ -89,7 +95,7 @@ function findSuspendedSetPiece(seed) {
       { suspend:true, controlledTeamId:'home' },
     );
     if (step.pendingPlayableMoment) {
-      if (step.pendingPlayableMoment.setPiece) {
+      if (step.pendingPlayableMoment.setPiece?.kind === kind) {
         return { ...state, liveState, phase, step };
       }
       const resumed = resumePlayableMatchPhase(
@@ -105,7 +111,7 @@ function findSuspendedSetPiece(seed) {
     }
     liveState = step.updatedState;
   }
-  throw new Error('Seed containing an automatic set piece did not expose a playable set-piece continuation');
+  throw new Error(`Seed containing an automatic ${kind} did not expose the same playable continuation`);
 }
 
 describe('Phase 4 set pieces in the authoritative match engine', () => {
@@ -120,48 +126,52 @@ describe('Phase 4 set pieces in the authoritative match engine', () => {
     expect(segmented.liveState.aGoals).toBe(found.result.updatedState.aGoals);
   });
 
-  it('stores a set piece as one foul phase with one authoritative shot and explicit restart', () => {
-    const found = findAutomaticSetPiece();
-    const records = found.result.updatedState.actionLedger.filter(record => record.setPieceType);
+  it('stores both set-piece families as one foul phase with one authoritative shot and explicit restart', () => {
+    for (const kind of ['penalty', 'direct_free_kick']) {
+      const found = findAutomaticSetPiece(kind);
+      const records = found.result.updatedState.actionLedger.filter(record => record.setPieceType === kind);
 
-    expect(records.length).toBeGreaterThan(0);
-    for (const record of records) {
-      expect(record.outcome).toBe('foul_won');
-      expect(record.shotId).toBeTruthy();
-      expect(record.xg).toBeGreaterThan(0);
-      expect(record.finish).toBeTruthy();
-      expect(record.restart).toBeTruthy();
-      expect(record.cornerWon).not.toBe(true);
-      expect(['penalty','direct_free_kick']).toContain(record.setPieceType);
+      expect(records.length).toBeGreaterThan(0);
+      for (const record of records) {
+        expect(record.outcome).toBe('foul_won');
+        expect(record.shotId).toBeTruthy();
+        expect(record.xg).toBeGreaterThan(0);
+        expect(record.finish).toBeTruthy();
+        expect(record.restart).toBeTruthy();
+        expect(record.cornerWon).not.toBe(true);
+        expect(record.setPieceType).toBe(kind);
+      }
     }
   });
 
-  it('suspends before the same set-piece finish and null-intent resume exactly matches automatic resolution', () => {
-    const automatic = findAutomaticSetPiece();
-    const suspended = findSuspendedSetPiece(automatic.liveState.seed);
-    const pending = suspended.step.pendingPlayableMoment;
-    const autoPhase = simulateMatchSegment(
-      suspended.home,
-      suspended.away,
-      suspended.liveState,
-      suspended.phase,
-      suspended.phase,
-      'home',
-    );
-    const resumed = resumePlayableMatchPhase(
-      suspended.home,
-      suspended.away,
-      suspended.liveState,
-      suspended.step.playableContinuation,
-      null,
-      'home',
-    );
+  it('suspends before each set-piece finish and null-intent resume exactly matches automatic resolution', () => {
+    for (const kind of ['penalty', 'direct_free_kick']) {
+      const automatic = findAutomaticSetPiece(kind);
+      const suspended = findSuspendedSetPiece(automatic.liveState.seed, kind);
+      const pending = suspended.step.pendingPlayableMoment;
+      const autoPhase = simulateMatchSegment(
+        suspended.home,
+        suspended.away,
+        suspended.liveState,
+        suspended.phase,
+        suspended.phase,
+        'home',
+      );
+      const resumed = resumePlayableMatchPhase(
+        suspended.home,
+        suspended.away,
+        suspended.liveState,
+        suspended.step.playableContinuation,
+        null,
+        'home',
+      );
 
-    expect(pending.setPiece.kind).toMatch(/penalty|direct_free_kick/);
-    expect(suspended.step.playableContinuation.preparedAction.setPiece).toEqual(pending.setPiece);
-    expect(resumed.playableResolution.moment.setPiece).toEqual(pending.setPiece);
-    expect(resumed.playableResolution.record).toEqual(autoPhase.updatedState.actionLedger.at(-1));
-    expect(resumed.updatedState.actionLedger).toEqual(autoPhase.updatedState.actionLedger);
-    expect(resumed.updatedState.rngState).toBe(autoPhase.updatedState.rngState);
+      expect(pending.setPiece.kind).toBe(kind);
+      expect(suspended.step.playableContinuation.preparedAction.setPiece).toEqual(pending.setPiece);
+      expect(resumed.playableResolution.moment.setPiece).toEqual(pending.setPiece);
+      expect(resumed.playableResolution.record).toEqual(autoPhase.updatedState.actionLedger.at(-1));
+      expect(resumed.updatedState.actionLedger).toEqual(autoPhase.updatedState.actionLedger);
+      expect(resumed.updatedState.rngState).toBe(autoPhase.updatedState.rngState);
+    }
   });
 });
