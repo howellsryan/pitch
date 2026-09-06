@@ -164,6 +164,30 @@ export function isPlayableScenarioEnabled(mode) {
   return Boolean(PLAYABLE_KEY_MOMENTS_FLAGS.enabled && PLAYABLE_KEY_MOMENTS_FLAGS[mode]);
 }
 
+/**
+ * Product policy for career Play Key Moments.
+ *
+ * The authoritative match engine can still resolve continuation passes,
+ * deliveries and contact/defending actions, but those actions no longer pause a
+ * managed match for user input. Playable interruptions are deliberately limited
+ * to attempts on goal: open-play shots, direct free kicks, penalties and
+ * shootout penalties. "Goal" and "save" are terminal results of those same
+ * pre-finish shot moments, not separate eligibility types.
+ */
+export function playableKeyEventType(moment) {
+  if (!moment || typeof moment !== 'object') return null;
+  if (moment.interactionType === 'continuation' || moment.interactionType === 'contact') return null;
+  if (moment.interactionType === 'shootout') return 'shot';
+  if (moment.setPiece?.kind === 'direct_free_kick') return 'free_kick';
+  if (moment.setPiece?.kind === 'penalty') return 'shot';
+  if (moment.shooterId && moment.goalkeeperId) return 'shot';
+  return null;
+}
+
+export function isPlayableKeyEventMoment(moment) {
+  return playableKeyEventType(moment) !== null;
+}
+
 export function playableMatchImportance(event = {}) {
   const round = String(event.roundName ?? '').toLowerCase();
   let importance = 0;
@@ -180,6 +204,7 @@ export function playableMatchImportance(event = {}) {
 export function evaluatePlayableMomentSelection({ moment, session, liveState = null } = {}) {
   assertSupportedPlayableSession(session);
   if (!moment || !isPlayableScenarioEnabled(moment.mode)) return { selected:false, reason:'scenario_disabled', probability:0, roll:1 };
+  if (!isPlayableKeyEventMoment(moment)) return { selected:false, reason:'event_type_disabled', probability:0, roll:1 };
   if (session.status !== 'active' || session.pending) return { selected:false, reason:'session_busy', probability:0, roll:1 };
   if (session.momentsOffered >= PLAYABLE_MOMENT_SOFT_CAP) return { selected:false, reason:'soft_cap', probability:0, roll:1 };
 

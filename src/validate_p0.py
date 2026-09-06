@@ -180,6 +180,22 @@ SUPERSEDED_LEGACY_CHECKS = {
     'AI auto-promotes talented youth',
     'Youth promotion (AI) sets a 3-year contract',
     'youthCohort seeded in startNewGame',
+
+    # Playable Key Moments Phase 7 retires variable 1x/2x/4x watched-match
+    # speeds. Regulation now advances all 120 authoritative phases on one fixed
+    # 750 ms cadence (90 real seconds total when uninterrupted), while pause,
+    # tactics and pending playable moments freeze that clock. The replacement
+    # source contract below asserts both the new cadence and that the old speed
+    # controls/multiplier cannot silently return.
+    'Speed control 1x/2x/4x',
+
+    # The old tactics assertions scan MatchScreen for controls that now live in
+    # the dedicated mobile-first LiveTacticsSheet component. The replacement
+    # contract checks the actual sheet plus MatchScreen's immediate authoritative
+    # formation-change/close handlers, so this is a source-layout replacement,
+    # not a weakening of the behaviour gate.
+    'In-match tactics formation changes auto-apply',
+    'In-match tactics has an explicit return to match',
 }
 
 P0_TEST_FILES = [
@@ -207,6 +223,14 @@ P0_TEST_FILES = [
     'src/modules/academyPathways.test.js',
     'src/modules/playerDevelopmentP9.test.js',
     'src/modules/youthAcademyP9.test.js',
+    # Playable Key Moments Phase 7 live-match replacement contracts. These
+    # explicitly cover the fixed cadence/ledger barrier, football clock, mobile
+    # tactics UX, direct substitutions and the non-authoritative goalkeeper read.
+    'src/game/matchScreenLiveTiming.test.js',
+    'src/game/liveMatchClock.test.js',
+    'src/game/liveTacticsMobile.test.js',
+    'src/game/substitutions.test.js',
+    'src/game/playableGoalkeeperRead.test.js',
 ]
 
 
