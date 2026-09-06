@@ -53,18 +53,10 @@ function continuationFamilyForPrepared(prepared) {
 function continuationTargetZone(prepared, family) {
   const stableChannel = continuationRound((continuationStableUnit(`${prepared.teamId}:${prepared.target?.id}:channel`) - .5) * 1.06, 3);
   if (family === 'cutback') {
-    return {
-      x:continuationRound(stableChannel * .42, 3),
-      y:.34,
-      radius:.22,
-    };
+    return { x:continuationRound(stableChannel * .42, 3), y:.34, radius:.22 };
   }
   if (family === 'cross') {
-    return {
-      x:continuationRound(stableChannel * .68, 3),
-      y:.66,
-      radius:.30,
-    };
+    return { x:continuationRound(stableChannel * .68, 3), y:.66, radius:.30 };
   }
   return {
     x:stableChannel,
@@ -104,10 +96,7 @@ function continuationFailureOutcome(family) {
 function buildContinuationAction(prepared, family) {
   if (!family || !prepared?.packet || !prepared.actor || !prepared.target || !prepared.defender) return null;
   if (prepared.actor.id === prepared.target.id) return null;
-
   const targetZone = continuationTargetZone(prepared, family);
-  const projectedXg = continuationProjectedXg(prepared, family);
-  const chanceProbability = continuationChanceProbability(prepared, family);
   return {
     version:MATCH_CONTINUATION_ACTION_VERSION,
     family,
@@ -128,8 +117,8 @@ function buildContinuationAction(prepared, family) {
     baselineSuccessChance:continuationBaselineSuccess(prepared, family),
     failureOutcome:continuationFailureOutcome(family),
     downstream:{
-      chanceProbability,
-      projectedXg,
+      chanceProbability:continuationChanceProbability(prepared, family),
+      projectedXg:continuationProjectedXg(prepared, family),
       shooterId:prepared.target.id,
       assistId:prepared.actor.id,
       pressureDefenderId:prepared.defender.id,
@@ -137,14 +126,16 @@ function buildContinuationAction(prepared, family) {
   };
 }
 
-export function deriveFinalPassContinuation(prepared) {
-  const family = prepared?.route === 'pass_into_space' ? 'through_ball'
-    : prepared?.route === 'direct_pass' ? 'final_pass' : null;
-  return buildContinuationAction(prepared, family);
-}
-
 export function deriveAuthoritativeContinuationAction(prepared) {
   return buildContinuationAction(prepared, continuationFamilyForPrepared(prepared));
+}
+
+// Backward-compatible export for the Phase 5 first slice. The resolver imported
+// this name before wide-delivery variants landed; keep it as an alias so the
+// match-engine wiring remains one generic continuation seam rather than adding
+// route-specific orchestration.
+export function deriveFinalPassContinuation(prepared) {
+  return deriveAuthoritativeContinuationAction(prepared);
 }
 
 export function normalizeContinuationIntent(input = {}) {
@@ -201,9 +192,8 @@ function continuationExecution(action, passer, receiver, defender, intent) {
   const qualityEdge = (passerQuality - 75) * .0025
     + (receiverQuality - 75) * .0013
     - (defenderQuality - 75) * .0020;
-  const inputEdge = (executionQuality - .62) * .38;
   return {
-    successChance:continuationClamp(action.baselineSuccessChance + qualityEdge + inputEdge, .12, .94),
+    successChance:continuationClamp(action.baselineSuccessChance + qualityEdge + (executionQuality - .62) * .38, .12, .94),
     executionQuality,
     target:{
       x:continuationRound(normalized.targetX, 4),
@@ -301,12 +291,7 @@ export function buildContinuationPlayableGeometry(action) {
   const interceptorZ = continuationRound((passerZ + receiverZ) * .5, 3);
   return {
     coordinateSystem:'goal-facing-v1',
-    staging:{
-      version:1,
-      variant:family,
-      targetZone:{ ...action.targetZone },
-      receiverOnsideAuthorized:true,
-    },
+    staging:{ version:1, variant:family, targetZone:{ ...action.targetZone }, receiverOnsideAuthorized:true },
     legalActions:['target','weight','timing'],
     continuousLocomotion:false,
     passer:{ id:action.passerId, name:action.passerName, x:continuationRound(passerX, 3), y:0, z:passerZ },
