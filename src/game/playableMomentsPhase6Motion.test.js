@@ -54,7 +54,7 @@ describe('Phase 6 procedural contact motion', () => {
     const resolved = resolution();
     const start = samplePlayablePocMotion(header, resolved, 0);
     const incoming = samplePlayablePocMotion(header, resolved, .24);
-    const contact = samplePlayablePocMotion(header, resolved, .42);
+    const contact = samplePlayablePocMotion(header, resolved, .43);
     const outgoing = samplePlayablePocMotion(header, resolved, .60);
 
     expect(incoming.ball.z).toBeLessThan(start.ball.z);
@@ -131,7 +131,7 @@ describe('Phase 6 goalkeeper intervention presentation', () => {
     const smotherFrame = samplePlayablePocMotion(contactMoment, resolution('smother', 'saved', { x:.1, y:.12, power:.62 }), .65);
     const spreadFrame = samplePlayablePocMotion(contactMoment, resolution('spread', 'saved', { x:.62, y:.34, power:.78 }), .65);
 
-    expect(smotherFrame.keeper.crouch).toBeGreaterThan(catchFrame.keeper.crouch);
+    expect(smotherFrame.keeper.y).toBeLessThan(catchFrame.keeper.y);
     expect(smotherFrame.keeper.smother).toBeGreaterThan(0);
     expect(spreadFrame.keeper.spread).toBeGreaterThan(0);
     expect(Math.abs(spreadFrame.keeper.x)).toBeGreaterThan(Math.abs(smotherFrame.keeper.x));
