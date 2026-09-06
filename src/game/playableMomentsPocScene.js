@@ -1,10 +1,5 @@
-export const PLAYABLE_POC_SCENE_VERSION = 1;
+export const PLAYABLE_POC_SCENE_VERSION = 2;
 
-// Phase 1 renderer decision: Three.js r185.1. The same-scene spike showed no
-// PlayCanvas capability advantage for this bounded shooter/keeper interaction,
-// while the exact current minified ESM payload is materially smaller. Keep the
-// engine version and URL pinned; Phase 2 may move this into the normal package
-// graph when the POC becomes a persistent career feature.
 export const PLAYABLE_POC_RENDERERS = Object.freeze({
   three:Object.freeze({
     id:'three',
@@ -142,10 +137,6 @@ export function isSyntheticSpecialFinish(intent = {}) {
   const closestCornerX = attack.aimX < 0 ? -zone.centerX : zone.centerX;
   const dx = Math.abs(attack.aimX - closestCornerX) / zone.radiusX;
   const dy = Math.abs(attack.aimY - zone.centerY) / zone.radiusY;
-  // The gold marker is the complete synthetic-drill contract: if the visible
-  // goal-plane endpoint lands inside it, the player has executed the special
-  // finish. Power/timing remain useful presentation inputs but are deliberately
-  // not hidden second gates after the user has hit the advertised target.
   return (dx * dx) + (dy * dy) <= 1;
 }
 
@@ -170,18 +161,8 @@ export function resolveSyntheticAttackShot(intent = {}) {
   }
 
   const keeper = special
-    ? {
-        x:Number((target.x * .48).toFixed(4)),
-        y:Number((target.y * .52).toFixed(4)),
-        timing:.74,
-        reach:.42,
-      }
-    : {
-        x:target.x,
-        y:target.y,
-        timing:.94,
-        reach:.64,
-      };
+    ? { x:Number((target.x * .48).toFixed(4)), y:Number((target.y * .52).toFixed(4)), timing:.74, reach:.42 }
+    : { x:target.x, y:target.y, timing:.94, reach:.64 };
 
   return {
     finish:special ? 'goal' : 'saved',
@@ -213,9 +194,6 @@ export function resolveSyntheticGoalkeeperShot(moment, intent = {}) {
   const dx = target.x - goalkeeper.x;
   const dy = (target.y - goalkeeper.y) * 1.12;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  // The synthetic keeper drill intentionally favours a correct read. The cue
-  // teaches the interaction rather than asking the POC user to guess a hidden
-  // RNG target; timing and approximate placement still matter.
   const reach = .46 + goalkeeper.timing * .20;
   const saved = distance <= reach;
 
@@ -264,6 +242,53 @@ export function sceneWorldFromMoment(moment) {
     keeper:{ x:Number(keeper.x ?? 0), y:Number(keeper.y ?? 0), z:Number(keeper.z ?? .35) },
     defender:{ x:Number(defender.x ?? 0), y:Number(defender.y ?? 0), z:Number(defender.z ?? Math.max(3.4, distance * .52)) },
     ball:{ x:Number(ball.x ?? 0), y:Number(ball.y ?? .11), z:Number(ball.z ?? distance) },
+    contact:geometry.contact ? {
+      x:Number(geometry.contact.x ?? ball.x ?? 0),
+      y:Number(geometry.contact.y ?? ball.y ?? .11),
+      z:Number(geometry.contact.z ?? distance),
+    } : null,
+  };
+}
+
+function goalkeeperIntervention(shot) {
+  return shot?.goalkeeperIntervention
+    ?? shot?.presentation?.goalkeeperIntervention
+    ?? shot?.presentation?.keeper?.intervention
+    ?? (shot?.finish === 'saved' ? 'parry' : null);
+}
+
+function contactMotionProfile(moment, progress, recovery) {
+  const type = moment?.contactType ?? moment?.geometry?.staging?.contactType ?? null;
+  const isHeader = type === 'standing_header' || type === 'running_header';
+  const runningHeader = type === 'running_header';
+  const volley = type === 'volley';
+  const halfVolley = type === 'half_volley';
+  const pulse = motionPulse(progress, .22, .42, .64) * (1 - recovery);
+  const approach = runningHeader ? easeInOut(phaseProgress(progress, .02, .37)) : easeInOut(phaseProgress(progress, .08, .34));
+  const jump = isHeader ? pulse * (runningHeader ? .27 : .16) : volley ? pulse * .035 : 0;
+  const kick = isHeader ? 0 : volley ? pulse * 1.28 : halfVolley ? pulse * .84 : pulse;
+  const backswing = isHeader ? 0 : motionPulse(progress, .18, .31, .41) * (1 - recovery);
+  const headDip = isHeader ? pulse * (runningHeader ? .20 : .15) : pulse * .04;
+  const lean = isHeader ? pulse * (runningHeader ? .19 : .14) : volley ? pulse * .17 : halfVolley ? pulse * .11 : pulse * .10;
+  const plant = isHeader ? 0 : pulse * (halfVolley ? .11 : .18);
+  const plantBend = isHeader ? pulse * .12 : pulse * (halfVolley ? .38 : .27);
+  const arms = isHeader ? .18 + pulse * .54 : .16 + pulse * .42;
+  const torsoTwist = isHeader ? 0 : pulse * .10;
+  return {
+    type,
+    isHeader,
+    runningHeader,
+    approach,
+    jump,
+    kick,
+    backswing,
+    followThrough:pulse,
+    headDip,
+    lean,
+    plant,
+    plantBend,
+    arms,
+    torsoTwist,
   };
 }
 
@@ -272,130 +297,191 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const shot = resolution?.shot ?? resolution ?? null;
   const target = shot?.presentation?.target ?? { x:0, y:.48, power:.72 };
   const outcome = shot?.finish ?? null;
-
-  const approach = easeInOut(phaseProgress(progress, .01, .27));
-  const runStride = Math.sin(approach * Math.PI * 3.5) * (1 - approach);
-  const backswing = motionPulse(progress, .17, .29, .38);
-  const strikeDrive = motionPulse(progress, .29, .43, .62);
-  const plantSet = easeInOut(phaseProgress(progress, .22, .39));
-  const plantBend = motionPulse(progress, .27, .39, .66);
-  const recovery = easeInOut(phaseProgress(progress, .74, 1));
-  const flight = outcome ? easeInOut(phaseProgress(progress, .43, .82)) : 0;
-
-  // Keep the ball completely still until foot contact. The earlier POC began
-  // moving the ball before the kicking leg reached contact, which made both the
-  // shot and the keeper response look disconnected from the animation.
-  const kick = (-.38 * backswing + 1.24 * strikeDrive) * (1 - recovery);
-  const followThrough = strikeDrive * (1 - recovery);
-  const balanceArms = (.16 + strikeDrive * .34 + backswing * .14) * (1 - recovery);
+  const isContact = moment?.interactionType === 'contact' && world.contact;
+  const recovery = easeInOut(phaseProgress(progress, .84, 1));
   const targetDirection = clamp(Number(target.x ?? 0), -1, 1);
 
-  const keeperCrouch = motionPulse(progress, .28, .40, .50);
+  let shooterPose;
+  let strikeAt = .43;
+  if (isContact) {
+    const contactProfile = contactMotionProfile(moment, progress, recovery);
+    const incoming = easeInOut(phaseProgress(progress, .04, .42));
+    const runningStride = Math.sin(contactProfile.approach * Math.PI * 3.2) * (1 - contactProfile.approach);
+    shooterPose = {
+      x:world.shooter.x + runningStride * .035,
+      y:contactProfile.jump,
+      z:lerp(world.shooter.z, world.contact.z, contactProfile.approach),
+      lean:contactProfile.lean,
+      kick:contactProfile.kick,
+      plant:contactProfile.plant,
+      plantBend:contactProfile.plantBend,
+      arms:contactProfile.arms,
+      torsoTwist:targetDirection * contactProfile.torsoTwist,
+      headDip:contactProfile.headDip,
+      backswing:contactProfile.backswing,
+      followThrough:contactProfile.followThrough,
+      recovery,
+      contactType:contactProfile.type,
+      incoming,
+    };
+  } else {
+    const approach = easeInOut(phaseProgress(progress, .01, .27));
+    const runStride = Math.sin(approach * Math.PI * 3.5) * (1 - approach);
+    const backswing = motionPulse(progress, .17, .29, .38);
+    const strikeDrive = motionPulse(progress, .29, .43, .62);
+    const plantSet = easeInOut(phaseProgress(progress, .22, .39));
+    const plantBend = motionPulse(progress, .27, .39, .66);
+    const groundRecovery = easeInOut(phaseProgress(progress, .74, 1));
+    shooterPose = {
+      x:world.shooter.x + runStride * .025,
+      y:Math.abs(runStride) * .018,
+      z:lerp(world.shooter.z + 1.05, world.shooter.z, approach),
+      lean:(-.055 * backswing + .13 * strikeDrive) * (1 - groundRecovery),
+      kick:(-.38 * backswing + 1.24 * strikeDrive) * (1 - groundRecovery),
+      plant:.17 * plantSet * (1 - groundRecovery),
+      plantBend:.32 * plantBend * (1 - groundRecovery),
+      arms:(.16 + strikeDrive * .34 + backswing * .14) * (1 - groundRecovery),
+      torsoTwist:targetDirection * .10 * strikeDrive * (1 - groundRecovery),
+      headDip:.06 * strikeDrive * (1 - groundRecovery),
+      backswing,
+      followThrough:strikeDrive * (1 - groundRecovery),
+      recovery:groundRecovery,
+      contactType:null,
+      incoming:0,
+    };
+  }
+
+  const intervention = goalkeeperIntervention(shot);
+  const keeperPlan = shot?.presentation?.keeper ?? null;
+  const keeperTargetX = keeperPlan ? Number(keeperPlan.x ?? 0) * world.goalWidth * .43 : Number(target.x ?? 0) * world.goalWidth * .40;
+  const keeperTargetY = keeperPlan ? Number(keeperPlan.y ?? .45) * world.goalHeight : Number(target.y ?? .45) * world.goalHeight;
+  const keeperCrouchBase = motionPulse(progress, .28, .40, .50);
   const keeperPush = easeInOut(phaseProgress(progress, .43, .56));
   const keeperExtension = easeInOut(phaseProgress(progress, .48, .71));
   const keeperLanding = easeInOut(phaseProgress(progress, .70, .84));
   const keeperRecovery = easeInOut(phaseProgress(progress, .84, 1));
-  const keeperPose = keeperExtension * (1 - keeperRecovery);
-  const defenderLunge = outcome === 'blocked' ? easeInOut(phaseProgress(progress, .31, .55)) * (1 - recovery) : 0;
+  const keeperPoseAmount = keeperExtension * (1 - keeperRecovery);
+  const keeperArc = Math.sin(clamp(phaseProgress(progress, .44, .84), 0, 1) * Math.PI);
+  const keeperSide = Math.sign(keeperTargetX) || 1;
+  const isSmother = intervention === 'smother';
+  const isSpread = intervention === 'spread';
+  const isCatch = intervention === 'catch';
+  const keeperDiveScale = isSmother ? .28 : isSpread ? .72 : isCatch ? .58 : 1;
+  const keeperRollScale = isSmother ? .22 : isSpread ? .55 : isCatch ? .48 : 1;
+  const keeperLift = isSmother ? .02 : isSpread ? .06 : clamp((keeperTargetY - .90) * .55, .08, .48);
+  const keeperCrouch = keeperCrouchBase * (isSmother ? 1.7 : isSpread ? 1.35 : 1) * (1 - keeperRecovery);
+  const keeperPose = {
+    x:lerp(world.keeper.x, keeperTargetX, keeperPush * keeperPoseAmount * keeperDiveScale),
+    y:keeperLift * keeperArc * keeperPoseAmount,
+    z:isSmother ? world.keeper.z + keeperPoseAmount * .18 : isSpread ? world.keeper.z + keeperPoseAmount * .10 : world.keeper.z,
+    dive:keeperPoseAmount * keeperDiveScale,
+    roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.12 * keeperPoseAmount * keeperRollScale,
+    arms:.12 + keeperPoseAmount * (isSpread ? .74 : isSmother ? .48 : .98),
+    crouch:keeperCrouch,
+    push:keeperPush * (1 - keeperRecovery),
+    landing:keeperLanding * (1 - keeperRecovery),
+    recovery:keeperRecovery,
+    intervention,
+    spread:isSpread ? keeperPoseAmount : 0,
+    smother:isSmother ? keeperPoseAmount : 0,
+    catch:isCatch ? keeperPoseAmount : 0,
+    side:keeperSide,
+  };
+
+  const defenderRecovery = isContact ? recovery : easeInOut(phaseProgress(progress, .74, 1));
+  const defenderLunge = outcome === 'blocked'
+    ? easeInOut(phaseProgress(progress, .31, .55)) * (1 - defenderRecovery)
+    : 0;
 
   const targetX = Number(target.x ?? 0) * world.goalWidth / 2;
   const targetY = clamp(Number(target.y ?? .48), -.35, 1.35) * world.goalHeight;
-  let targetZ = -.28;
-  if (outcome === 'saved') targetZ = Number(world.keeper.z ?? .35) + .2;
-  if (outcome === 'blocked') targetZ = world.defender.z + .08;
-
-  const keeperPlan = shot?.presentation?.keeper ?? null;
-  const keeperTargetX = keeperPlan ? Number(keeperPlan.x ?? 0) * world.goalWidth * .43 : targetX * .8;
-  const keeperTargetY = keeperPlan ? Number(keeperPlan.y ?? .45) * world.goalHeight : targetY * .82;
-  const keeperLift = clamp((keeperTargetY - .90) * .55, .08, .48);
-  const keeperArc = Math.sin(clamp(phaseProgress(progress, .44, .84), 0, 1) * Math.PI);
-
-  const contactProgress = outcome ? flight : 0;
-  let ballX;
-  let ballY;
-  let ballZ;
-  let ballMotionProgress = contactProgress;
+  const shotStart = isContact ? world.contact : world.ball;
+  const incomingProgress = isContact && outcome ? easeInOut(phaseProgress(progress, .04, strikeAt)) : 0;
+  const outgoingStart = isContact ? strikeAt : .43;
+  const outgoingEnd = .82;
+  const flight = outcome ? easeInOut(phaseProgress(progress, outgoingStart, outgoingEnd)) : 0;
+  let ballX = world.ball.x;
+  let ballY = world.ball.y;
+  let ballZ = world.ball.z;
+  let ballMotionProgress = 0;
   let parryProgress = 0;
+  let controlled = false;
 
-  if (outcome === 'saved') {
-    // A save needs an unmistakable contact event. Fly the ball into the
-    // goalkeeper's actual reach point first, then send it back out into the
-    // pitch on a deterministic parry trajectory. This shared presentation path
-    // is used by both synthetic shooting and synthetic goalkeeper drills.
-    const saveFlight = easeInOut(phaseProgress(progress, .43, .70));
-    parryProgress = easeInOut(phaseProgress(progress, .70, .96));
-    ballMotionProgress = saveFlight + parryProgress;
+  if (isContact && incomingProgress < 1) {
+    const incomingArc = Math.sin(incomingProgress * Math.PI) * (moment.contactType?.includes('header') ? .16 : .08);
+    ballX = lerp(world.ball.x, world.contact.x, incomingProgress);
+    ballY = lerp(world.ball.y, world.contact.y, incomingProgress) + incomingArc;
+    ballZ = lerp(world.ball.z, world.contact.z, incomingProgress);
+    ballMotionProgress = incomingProgress * .5;
+  } else if (outcome === 'saved') {
+    const saveFlight = easeInOut(phaseProgress(progress, outgoingStart, .70));
     const saveContactX = keeperTargetX;
-    const saveContactY = clamp(keeperTargetY, .32, world.goalHeight * .96);
-    const saveContactZ = Number(world.keeper.z ?? .35) + .18;
-    const parrySide = saveContactX < 0 ? -1 : 1;
-    const parryX = saveContactX + parrySide * (1.05 + Math.abs(saveContactX) * .16);
-    const parryY = Math.max(.16, saveContactY * .48);
-    const parryZ = saveContactZ + 3.15;
+    const saveContactY = isSmother
+      ? .20
+      : isSpread ? clamp(keeperTargetY * .68, .22, .68)
+        : clamp(keeperTargetY, .32, world.goalHeight * .96);
+    const saveContactZ = Number(world.keeper.z ?? .35) + (isSmother ? .42 : isSpread ? .26 : .18);
+    ballMotionProgress = .5 + saveFlight * .5;
 
-    if (parryProgress > 0) {
-      const reboundArc = Math.sin(parryProgress * Math.PI) * .42;
-      ballX = lerp(saveContactX, parryX, parryProgress);
-      ballY = lerp(saveContactY, parryY, parryProgress) + reboundArc;
-      ballZ = lerp(saveContactZ, parryZ, parryProgress);
+    if (isCatch || isSmother) {
+      const controlProgress = easeInOut(phaseProgress(progress, .70, .86));
+      controlled = controlProgress > 0;
+      const holdX = isSmother ? keeperTargetX * .35 : saveContactX;
+      const holdY = isSmother ? .18 : saveContactY;
+      const holdZ = isSmother ? world.keeper.z + .46 : saveContactZ + .04;
+      if (controlProgress > 0) {
+        ballX = lerp(saveContactX, holdX, controlProgress);
+        ballY = lerp(saveContactY, holdY, controlProgress);
+        ballZ = lerp(saveContactZ, holdZ, controlProgress);
+      } else {
+        ballX = lerp(shotStart.x, saveContactX, saveFlight);
+        ballY = lerp(shotStart.y, saveContactY, saveFlight);
+        ballZ = lerp(shotStart.z, saveContactZ, saveFlight);
+      }
     } else {
-      const saveArc = Math.sin(saveFlight * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12);
-      ballX = lerp(world.ball.x, saveContactX, saveFlight);
-      ballY = lerp(world.ball.y, saveContactY, saveFlight) + saveArc;
-      ballZ = lerp(world.ball.z, saveContactZ, saveFlight);
+      parryProgress = easeInOut(phaseProgress(progress, .70, .96));
+      const parrySide = saveContactX < 0 ? -1 : 1;
+      const deflectionScale = isSpread ? .55 : 1;
+      const parryX = saveContactX + parrySide * (1.05 + Math.abs(saveContactX) * .16) * deflectionScale;
+      const parryY = Math.max(.16, saveContactY * (isSpread ? .30 : .48));
+      const parryZ = saveContactZ + (isSpread ? 1.85 : 3.15);
+      if (parryProgress > 0) {
+        const reboundArc = Math.sin(parryProgress * Math.PI) * (isSpread ? .18 : .42);
+        ballX = lerp(saveContactX, parryX, parryProgress);
+        ballY = lerp(saveContactY, parryY, parryProgress) + reboundArc;
+        ballZ = lerp(saveContactZ, parryZ, parryProgress);
+      } else {
+        const saveArc = Math.sin(saveFlight * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12);
+        ballX = lerp(shotStart.x, saveContactX, saveFlight);
+        ballY = lerp(shotStart.y, saveContactY, saveFlight) + saveArc;
+        ballZ = lerp(shotStart.z, saveContactZ, saveFlight);
+      }
+      ballMotionProgress += parryProgress;
     }
-  } else {
-    ballX = outcome === 'blocked'
-      ? lerp(world.ball.x, world.defender.x, contactProgress)
-      : lerp(world.ball.x, targetX, contactProgress);
-    const baseBallY = outcome === 'blocked'
-      ? lerp(world.ball.y, .62, contactProgress)
-      : lerp(world.ball.y, targetY, contactProgress);
-    const shotArc = outcome && outcome !== 'blocked'
-      ? Math.sin(contactProgress * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12)
+  } else if (outcome) {
+    const terminalZ = outcome === 'blocked' ? world.defender.z + .08 : -.28;
+    const terminalX = outcome === 'blocked' ? world.defender.x : targetX;
+    const terminalY = outcome === 'blocked' ? .62 : targetY;
+    const shotArc = outcome !== 'blocked'
+      ? Math.sin(flight * Math.PI) * (.08 + clamp(Number(target.power ?? .72), 0, 1) * .12)
       : 0;
-    ballY = baseBallY + shotArc;
-    ballZ = outcome === 'blocked'
-      ? lerp(world.ball.z, targetZ, contactProgress)
-      : lerp(world.ball.z, targetZ, contactProgress);
+    ballX = lerp(shotStart.x, terminalX, flight);
+    ballY = lerp(shotStart.y, terminalY, flight) + shotArc;
+    ballZ = lerp(shotStart.z, terminalZ, flight);
+    ballMotionProgress = (isContact ? .5 : 0) + flight;
   }
 
   return {
     progress:clamp(progress, 0, 1),
     outcome,
-    shooter:{
-      x:world.shooter.x + runStride * .025,
-      y:Math.abs(runStride) * .018,
-      z:lerp(world.shooter.z + 1.05, world.shooter.z, approach),
-      lean:(-.055 * backswing + .13 * strikeDrive) * (1 - recovery),
-      kick,
-      plant:.17 * plantSet * (1 - recovery),
-      plantBend:.32 * plantBend * (1 - recovery),
-      arms:balanceArms,
-      torsoTwist:targetDirection * .10 * followThrough,
-      headDip:.06 * strikeDrive * (1 - recovery),
-      backswing,
-      followThrough,
-      recovery,
-    },
-    keeper:{
-      x:lerp(world.keeper.x, keeperTargetX, keeperPush * keeperPose),
-      y:keeperLift * keeperArc * keeperPose,
-      z:world.keeper.z,
-      dive:keeperPose,
-      roll:clamp(keeperTargetX / Math.max(.1, world.goalWidth / 2), -1, 1) * 1.12 * keeperPose,
-      arms:.12 + keeperPose * .98,
-      crouch:keeperCrouch * (1 - keeperRecovery),
-      push:keeperPush * (1 - keeperRecovery),
-      landing:keeperLanding * (1 - keeperRecovery),
-      recovery:keeperRecovery,
-    },
+    shooter:shooterPose,
+    keeper:keeperPose,
     defender:{
       x:world.defender.x,
       y:0,
       z:lerp(world.defender.z, world.defender.z + .45, defenderLunge),
       lunge:defenderLunge,
-      recovery,
+      recovery:defenderRecovery,
     },
     ball:{
       x:ballX,
@@ -405,6 +491,9 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
       spinX:ballMotionProgress * Math.PI * 8,
       spinZ:targetDirection * ballMotionProgress * Math.PI * 2.4,
       parry:parryProgress,
+      controlled,
+      intervention,
+      contactType:isContact ? moment.contactType ?? moment.geometry?.staging?.contactType ?? null : null,
     },
     world,
   };
