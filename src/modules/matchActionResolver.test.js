@@ -176,15 +176,18 @@ describe('T3 detailed attribute causality', () => {
 });
 
 describe('playable moment prepare/commit seam', () => {
-  it('prepares a chance without resolving its terminal shot and keeps automatic commit identical to the public resolver', () => {
+  it('prepares a terminal shot chance without resolving its finish and keeps automatic commit identical to the public resolver', () => {
     const attackers = attackingUnit(92);
     const defenders = defendingUnit(70);
-    const input = phaseInput(attackers, defenders, packet({ route:.55, chance:.001, shot:.21, finish:.17 }));
+    // Carry is deliberately used here so this test remains about the terminal
+    // shot seam; Phase 5 final-pass routes now suspend one stage earlier.
+    const input = phaseInput(attackers, defenders, packet({ route:.78, actor:.85, chance:.001, shot:.21, finish:.17 }));
 
     const prepared = prepareAuthoritativePhase(input);
     const committed = commitAuthoritativePhase(prepared);
     const publicResult = resolveAuthoritativePhase(input);
 
+    expect(prepared.continuationAction).toBeUndefined();
     expect(prepared.chance).toBeTruthy();
     expect(prepared.shooter).toBeTruthy();
     expect(prepared).not.toHaveProperty('shot');
@@ -207,8 +210,11 @@ describe('playable moment prepare/commit seam', () => {
     expect(firstMoment.route).toBe(secondMoment.route);
   });
 
-  it('maps a user-owned chance to attack and an opponent chance to goalkeeper control', () => {
-    const prepared = prepareAuthoritativePhase(phaseInput(attackingUnit(), defendingUnit(), packet({ chance:.001 })));
+  it('maps a user-owned terminal shot to attack and an opponent terminal shot to goalkeeper control', () => {
+    const prepared = prepareAuthoritativePhase(phaseInput(
+      attackingUnit(), defendingUnit(), packet({ route:.78, actor:.85, chance:.001 }),
+    ));
+    expect(prepared.continuationAction).toBeUndefined();
     expect(buildPlayableMoment(prepared, 'home')?.mode).toBe('attack');
     expect(buildPlayableMoment(prepared, 'away')?.mode).toBe('goalkeeper');
     expect(buildPlayableMoment(prepared, 'third')).toBeNull();
@@ -224,9 +230,10 @@ describe('playable moment intent and spatial coherence', () => {
       attack:{ aimX:9, aimY:-9, power:2, timing:-2 },
       goalkeeper:{ x:-4, y:8, timing:3 },
     })).toEqual({
-      version:1,
+      version:2,
       attack:{ aimX:1.25, aimY:-.2, power:1, timing:0 },
       goalkeeper:{ x:-1, y:1, timing:1 },
+      continuation:null,
     });
   });
 

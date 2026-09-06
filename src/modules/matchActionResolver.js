@@ -12,6 +12,13 @@ import {
 } from './tacticalProjection.js';
 import { normalizeTeamInstructions, resolvePlayerRole, stableStringHash } from './tactics.js';
 import {
+  MATCH_CONTINUATION_ACTION_VERSION,
+  buildContinuationPlayableGeometry,
+  deriveFinalPassContinuation,
+  normalizeContinuationIntent,
+  resolveContinuationAction,
+} from './matchContinuationActions.js';
+import {
   MATCH_SET_PIECE_VERSION,
   deriveAuthoritativeSetPiece,
   resolveDirectFreeKickOutcome,
@@ -32,13 +39,14 @@ import {
  * randomness itself, which keeps whole-match and segmented simulation aligned.
  */
 
-export const MATCH_ACTION_RESOLVER_VERSION = 3;
+export const MATCH_ACTION_RESOLVER_VERSION = 4;
 export const MATCH_ACTION_LEDGER_VERSION = 1;
 export const MATCH_RNG_PACKET_VERSION = 1;
-export const PLAYABLE_MOMENT_VERSION = 1;
-export const PLAYABLE_INTENT_VERSION = 1;
+export const PLAYABLE_MOMENT_VERSION = 2;
+export const PLAYABLE_INTENT_VERSION = 2;
 export const PLAYABLE_STAGING_VERSION = 1;
 export { MATCH_SET_PIECE_VERSION, deriveAuthoritativeSetPiece, resolveDirectFreeKickOutcome, resolvePenaltyOutcome };
+export { MATCH_CONTINUATION_ACTION_VERSION };
 
 export const MATCH_RNG_PACKET_FIELDS = Object.freeze([
   'possession',
@@ -385,6 +393,7 @@ function playableIntentAxis(value, fallback, min, max) {
 export function normalizePlayableIntent(input = {}) {
   const attackInput = input?.attack && typeof input.attack === 'object' ? input.attack : null;
   const keeperInput = input?.goalkeeper && typeof input.goalkeeper === 'object' ? input.goalkeeper : null;
+  const continuationInput = input?.continuation && typeof input.continuation === 'object' ? input.continuation : null;
   return {
     version:PLAYABLE_INTENT_VERSION,
     attack:attackInput ? {
@@ -398,6 +407,7 @@ export function normalizePlayableIntent(input = {}) {
       y:playableIntentAxis(keeperInput.y, .45, 0, 1),
       timing:playableIntentAxis(keeperInput.timing, .65, 0, 1),
     } : null,
+    continuation:continuationInput ? normalizeContinuationIntent({ continuation:continuationInput }) : null,
   };
 }
 
@@ -501,6 +511,55 @@ function actionSuccessOutcome(route) {
   return route === 'circulation' ? 'retain' : 'progress';
 }
 
+function prepareAutomaticContinuationPhase(prepared) {
+  const rolesById = prepared?.automaticContext?.rolesById ?? {};
+  const opponentRolesById = prepared?.automaticContext?.opponentRolesById ?? {};
+  const instructions = prepared?.automaticContext?.instructions ?? {};
+  const edge = Number(prepared.execution ?? 0) - Number(prepared.counter ?? 0) + Number(prepared.context ?? 0);
+  const success = prepared.packet.execution < prepared.successChance;
+  let outcome = success ? actionSuccessOutcome(prepared.route) : actionFailureOutcome(prepared.route, prepared.packet);
+  let xg = null;
+  let chance = null;
+  let shooter = null;
+  let assistId = null;
+  let pressureDefender = null;
+
+  if (success) {
+    const chanceAdjustments = tacticalChanceAdjustments(instructions, prepared.mentality, prepared.riskMode);
+    const chanceProbability = actionClamp(
+      (ROUTE_CHANCE_BASE[prepared.route] ?? .14) * chanceAdjustments.frequency * (1 + edge * .015),
+      .025,
+      .48,
+    );
+    if (prepared.packet.chance < chanceProbability) {
+      xg = actionChanceQuality(prepared.route, edge, instructions, prepared.packet, prepared.mentality, prepared.riskMode);
+      chance = actionChanceBucket(xg);
+      outcome = 'chance_created';
+      shooter = actionChooseShooter(prepared.attackers, rolesById, prepared.packet.shooter) ?? prepared.actor;
+      pressureDefender = actionChooseDefender(
+        prepared.defenders,
+        opponentRolesById,
+        TACTICAL_ACTION_DEFS.shot,
+        prepared.packet.defender,
+      );
+      if (PASS_ROUTES.has(prepared.route) && prepared.actor?.id !== shooter?.id && prepared.packet.assist < .86) {
+        assistId = prepared.actor?.id ?? null;
+      }
+    }
+  }
+
+  return attachAuthoritativeSetPiece({
+    ...prepared,
+    continuationAction:null,
+    outcome,
+    xg,
+    chance,
+    shooter,
+    assistId,
+    pressureDefender,
+  });
+}
+
 export function prepareAuthoritativePhase({
   phase,
   minute,
@@ -533,8 +592,42 @@ export function prepareAuthoritativePhase({
   const context = actionCachedContextEdge(route, normalized, opponentNormalized) + (isHome ? 2.0 : 0);
   const edge = execution - counter + context;
   const successChance = actionContestProbability(edge);
-  const success = packet.execution < successChance;
 
+  const preOutcome = {
+    version:1,
+    phase,
+    minute,
+    teamId,
+    opponentTeamId,
+    attackers,
+    defenders,
+    packet,
+    route,
+    actor,
+    target,
+    defender,
+    execution,
+    counter,
+    context,
+    successChance,
+    mentality,
+    riskMode,
+    automaticContext:{
+      rolesById:{ ...rolesById },
+      opponentRolesById:{ ...opponentRolesById },
+      instructions:{ ...normalized },
+    },
+    outcome:null,
+    xg:null,
+    chance:null,
+    shooter:null,
+    assistId:null,
+    pressureDefender:null,
+  };
+  const continuationAction = deriveFinalPassContinuation(preOutcome);
+  if (continuationAction) return { ...preOutcome, continuationAction };
+
+  const success = packet.execution < successChance;
   let outcome = success ? actionSuccessOutcome(route) : actionFailureOutcome(route, packet);
   let xg = null;
   let chance = null;
@@ -556,24 +649,7 @@ export function prepareAuthoritativePhase({
   }
 
   return attachAuthoritativeSetPiece({
-    version:1,
-    phase,
-    minute,
-    teamId,
-    opponentTeamId,
-    attackers,
-    defenders,
-    packet,
-    route,
-    actor,
-    target,
-    defender,
-    execution,
-    counter,
-    context,
-    successChance,
-    mentality,
-    riskMode,
+    ...preOutcome,
     outcome,
     xg,
     chance,
@@ -584,7 +660,7 @@ export function prepareAuthoritativePhase({
 }
 
 export function derivePlayableMomentStaging(prepared) {
-  if (!prepared?.packet || !prepared?.chance || !prepared?.shooter || prepared.setPiece) return null;
+  if (!prepared?.packet || !prepared?.chance || !prepared?.shooter || prepared.setPiece || prepared.continuationAction) return null;
 
   // Phase 3 staging is a projection of pre-finish football context only. It may
   // use route/chance quality, the already-selected pressure defender and packet
@@ -631,9 +707,39 @@ export function derivePlayableMomentStaging(prepared) {
   };
 }
 
+function buildContinuationPlayableMoment(prepared, controlledTeamId) {
+  const action = prepared?.continuationAction;
+  if (!action || prepared.teamId !== controlledTeamId) return null;
+  const geometry = buildContinuationPlayableGeometry(action);
+  if (!geometry) return null;
+  return {
+    version:PLAYABLE_MOMENT_VERSION,
+    phase:prepared.phase,
+    minute:prepared.minute,
+    mode:'attack',
+    interactionType:'continuation',
+    continuationType:action.family,
+    attackingTeamId:prepared.teamId,
+    defendingTeamId:prepared.opponentTeamId,
+    actorId:action.passerId,
+    actorName:action.passerName,
+    receiverId:action.receiverId,
+    receiverName:action.receiverName,
+    shooterId:action.receiverId,
+    shooterName:action.receiverName,
+    defenderId:action.interceptorId,
+    route:prepared.route,
+    xg:action.downstream.projectedXg,
+    continuationAction:{ ...action },
+    geometry,
+  };
+}
+
 export function buildPlayableMoment(prepared, controlledTeamId) {
   const setPieceMoment = buildSetPiecePlayableMoment(prepared, controlledTeamId, PLAYABLE_MOMENT_VERSION);
   if (setPieceMoment) return setPieceMoment;
+  const continuationMoment = buildContinuationPlayableMoment(prepared, controlledTeamId);
+  if (continuationMoment) return continuationMoment;
   if (!prepared?.chance || !prepared?.shooter || !controlledTeamId) return null;
   const mode = prepared.teamId === controlledTeamId
     ? 'attack'
@@ -682,8 +788,129 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
   };
 }
 
+function continuationRecordPayload(result) {
+  return {
+    version:result.version,
+    family:result.family,
+    success:result.success,
+    outcome:result.outcome,
+    passerId:result.passerId,
+    receiverId:result.receiverId,
+    interceptorId:result.interceptorId,
+    successChance:result.successChance,
+    executionQuality:result.executionQuality,
+    target:{ ...result.target },
+  };
+}
+
+function commitContinuationPhase(prepared, intent) {
+  const normalized = intent == null ? null : normalizePlayableIntent(intent);
+  const continuation = resolveContinuationAction({
+    action:prepared.continuationAction,
+    passer:prepared.actor,
+    receiver:prepared.target,
+    defender:prepared.defender,
+    packet:prepared.packet,
+    intent:normalized?.continuation ? { continuation:normalized.continuation } : null,
+  });
+
+  if (!continuation.success && prepared.packet.outcome < .16) {
+    const foulPrepared = attachAuthoritativeSetPiece({
+      ...prepared,
+      continuationAction:null,
+      outcome:'foul_won',
+      xg:null,
+      chance:null,
+      shooter:null,
+      assistId:null,
+      pressureDefender:null,
+    });
+    if (foulPrepared.setPiece) {
+      const setPiece = commitAuthoritativeSetPiecePhase(foulPrepared, {
+        intent:null,
+        ledgerVersion:MATCH_ACTION_LEDGER_VERSION,
+      });
+      return {
+        ...setPiece,
+        continuation,
+        record:{
+          ...setPiece.record,
+          continuationType:prepared.continuationAction.family,
+          continuationVersion:MATCH_CONTINUATION_ACTION_VERSION,
+          continuation:continuationRecordPayload(continuation),
+        },
+      };
+    }
+  }
+
+  const downstream = continuation.downstreamChance;
+  const shooter = downstream
+    ? prepared.attackers.find(player => player.id === downstream.shooterId) ?? prepared.target
+    : null;
+  const pressureDefender = downstream
+    ? prepared.defenders.find(player => player.id === downstream.pressureDefenderId) ?? prepared.defender
+    : null;
+  const xg = downstream ? Number(downstream.xg) : null;
+  const chance = xg != null ? actionChanceBucket(xg) : null;
+  const assistId = downstream?.assistId ?? null;
+  const shot = shooter && xg != null
+    ? resolveShotOutcome({ shooter, defender:pressureDefender, defenders:prepared.defenders, xg, packet:prepared.packet })
+    : null;
+  const outcome = !continuation.success && prepared.packet.outcome < .16
+    ? 'foul_won'
+    : continuation.outcome;
+  const cornerWon = shot?.finish === 'blocked' && prepared.packet.outcome < .45;
+
+  const record = {
+    version:MATCH_ACTION_LEDGER_VERSION,
+    vocabularyVersion:MATCH_ACTION_VOCABULARY_VERSION,
+    phase:prepared.phase,
+    minute:prepared.minute,
+    teamId:prepared.teamId,
+    opponentTeamId:prepared.opponentTeamId,
+    route:prepared.route,
+    actorId:prepared.actor?.id ?? null,
+    targetId:prepared.target?.id ?? null,
+    defenderId:prepared.defender?.id ?? null,
+    execution:actionRound(prepared.execution),
+    counter:actionRound(prepared.counter),
+    contextEdge:actionRound(prepared.context),
+    successChance:actionRound(prepared.successChance),
+    mentality:prepared.mentality,
+    riskMode:prepared.riskMode,
+    outcome,
+    continuationType:prepared.continuationAction.family,
+    continuationVersion:MATCH_CONTINUATION_ACTION_VERSION,
+    continuation:continuationRecordPayload(continuation),
+    ...(chance ? { chance } : {}),
+    ...(xg != null ? { xg } : {}),
+    ...(shooter ? { shotId:shooter.id } : {}),
+    ...(assistId ? { assistId } : {}),
+    ...(shot ? { finish:shot.finish, onTarget:shot.onTarget } : {}),
+    ...(cornerWon ? { cornerWon:true } : {}),
+  };
+
+  const goalEvent = shot?.goal && shooter ? {
+    type:'goal',
+    minute:prepared.minute,
+    teamId:prepared.teamId,
+    playerId:shooter.id,
+    playerName:shooter.name,
+    assistId,
+    assistName:assistId ? prepared.attackers.find(player => player.id === assistId)?.name ?? null : null,
+    route:prepared.route,
+    xg,
+  } : null;
+
+  return { record, goalEvent, shot, continuation };
+}
+
 export function commitAuthoritativePhase(prepared, { intent = null } = {}) {
   if (!prepared || prepared.version !== 1) throw new Error('Action commit requires a prepared authoritative phase');
+  if (prepared.continuationAction) {
+    if (intent == null) return commitAuthoritativePhase(prepareAutomaticContinuationPhase(prepared), { intent:null });
+    return commitContinuationPhase(prepared, intent);
+  }
   if (prepared.setPiece) {
     return commitAuthoritativeSetPiecePhase(prepared, {
       intent:intent == null ? null : normalizePlayableIntent(intent),

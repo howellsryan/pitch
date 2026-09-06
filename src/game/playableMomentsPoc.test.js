@@ -92,7 +92,7 @@ function freshFixture(seed) {
   return { home, away, state };
 }
 
-function findPendingMoment({ mode = null, boundary = false, requireUnblocked = false } = {}) {
+function findPendingMoment({ mode = null, boundary = false, requireUnblocked = false, requireTerminalShot = false } = {}) {
   for (let seedIndex = 0; seedIndex < 24; seedIndex += 1) {
     const fixture = freshFixture(`playable-poc-${mode ?? 'any'}-${boundary ? 'boundary' : 'free'}-${seedIndex}`);
     let state = fixture.state;
@@ -110,7 +110,9 @@ function findPendingMoment({ mode = null, boundary = false, requireUnblocked = f
         const modeMatches = mode == null || part.pendingPlayableMoment.mode === mode;
         const boundaryMatches = !boundary || phase % 10 === 0 || phase % 6 === 0;
         const blockMatches = !requireUnblocked || Number(part.playableContinuation.packet.outcome) > .3;
-        if (modeMatches && boundaryMatches && blockMatches) {
+        const terminalShotMatches = !requireTerminalShot
+          || (part.pendingPlayableMoment.interactionType !== 'continuation' && !part.pendingPlayableMoment.setPiece);
+        if (modeMatches && boundaryMatches && blockMatches && terminalShotMatches) {
           return { ...fixture, stateBefore:state, phase, pending:part };
         }
         const resumed = resumePlayableMatchPhase(
@@ -127,7 +129,7 @@ function findPendingMoment({ mode = null, boundary = false, requireUnblocked = f
       }
     }
   }
-  throw new Error(`Could not find playable moment for mode=${mode ?? 'any'} boundary=${boundary}`);
+  throw new Error(`Could not find playable moment for mode=${mode ?? 'any'} boundary=${boundary} terminalShot=${requireTerminalShot}`);
 }
 
 function stateShape(state) {
@@ -188,9 +190,12 @@ describe('Playable Key Moments POC authoritative continuation', () => {
 
   it('can resume the same continuation twice without replaying phase effects or changing the answer', () => {
     const found = findPendingMoment({ boundary:true, requireUnblocked:true });
-    const intent = found.pending.pendingPlayableMoment.mode === 'attack'
-      ? { attack:{ aimX:.2, aimY:.48, power:.72, timing:.82 } }
-      : { goalkeeper:{ x:.15, y:.5, timing:.82 } };
+    const moment = found.pending.pendingPlayableMoment;
+    const intent = moment.interactionType === 'continuation'
+      ? { continuation:{ targetX:moment.continuationAction.targetZone.x, targetY:moment.continuationAction.targetZone.y, weight:.72, timing:.82 } }
+      : moment.mode === 'attack'
+        ? { attack:{ aimX:.2, aimY:.48, power:.72, timing:.82 } }
+        : { goalkeeper:{ x:.15, y:.5, timing:.82 } };
 
     const first = resumePlayableMatchPhase(
       found.home,
@@ -215,8 +220,8 @@ describe('Playable Key Moments POC authoritative continuation', () => {
     expect(first.updatedState.actionLedger).toHaveLength(found.stateBefore.actionLedger.length + 1);
   });
 
-  it('lets attacking input create a visibly different authoritative result from the same prepared chance', () => {
-    const found = findPendingMoment({ mode:'attack', requireUnblocked:true });
+  it('lets attacking shot input create a visibly different authoritative target from the same prepared chance', () => {
+    const found = findPendingMoment({ mode:'attack', requireUnblocked:true, requireTerminalShot:true });
     const wide = resumePlayableMatchPhase(
       found.home,
       found.away,
@@ -235,9 +240,11 @@ describe('Playable Key Moments POC authoritative continuation', () => {
     );
 
     expect(wide.playableResolution.moment.mode).toBe('attack');
-    expect(wide.playableResolution.shot.finish).toBe('missed');
-    expect(central.playableResolution.shot.finish).not.toBe('missed');
-    expect(wide.updatedState.actionLedger.at(-1).finish).toBe('missed');
+    expect(wide.playableResolution.shot.presentation.target.x)
+      .toBeGreaterThan(central.playableResolution.shot.presentation.target.x);
+    expect(wide.playableResolution.shot.presentation.target)
+      .not.toEqual(central.playableResolution.shot.presentation.target);
+    expect(wide.updatedState.actionLedger.at(-1).finish).toBe(wide.playableResolution.shot.finish);
     expect(central.updatedState.actionLedger.at(-1).finish).toBe(central.playableResolution.shot.finish);
   });
 

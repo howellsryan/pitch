@@ -27,27 +27,47 @@
   const reducedMotion = typeof window !== 'undefined'
     && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
-  const finish = $derived(resolution?.shot?.finish ?? resolution?.finish ?? null);
+  const isContinuation = $derived(moment?.interactionType === 'continuation');
+  const continuationType = $derived(moment?.continuationType ?? null);
+  const finish = $derived(isContinuation ? null : resolution?.shot?.finish ?? resolution?.finish ?? null);
+  const continuationResult = $derived(resolution?.continuation ?? null);
+  const hasResolution = $derived(Boolean(resolution));
   const setPieceKind = $derived(moment?.setPiece?.kind ?? null);
-  const headline = $derived(setPieceKind === 'penalty'
-    ? moment?.mode === 'goalkeeper' ? 'FACE THE PENALTY' : 'TAKE THE PENALTY'
-    : setPieceKind === 'direct_free_kick'
-      ? moment?.mode === 'goalkeeper' ? 'DEFEND THE FREE KICK' : 'TAKE THE FREE KICK'
-      : moment?.mode === 'goalkeeper' ? 'DEFEND THE CHANCE' : 'TAKE THE CHANCE');
-  const instruction = $derived(setPieceKind === 'penalty'
-    ? moment?.mode === 'goalkeeper'
-      ? 'Choose where to commit. Your read and timing matter, while goalkeeper quality still controls the available reach.'
-      : 'Pick your placement, power and timing. The taker’s shooting quality still controls execution, so a perfect gesture does not erase player ability.'
-    : setPieceKind === 'direct_free_kick'
+
+  const headline = $derived(isContinuation
+    ? continuationType === 'through_ball' ? 'PLAY THE THROUGH BALL'
+      : continuationType === 'cutback' ? 'PLAY THE CUTBACK'
+        : continuationType === 'cross' ? 'PLAY THE CROSS'
+          : 'PLAY THE FINAL PASS'
+    : setPieceKind === 'penalty'
+      ? moment?.mode === 'goalkeeper' ? 'FACE THE PENALTY' : 'TAKE THE PENALTY'
+      : setPieceKind === 'direct_free_kick'
+        ? moment?.mode === 'goalkeeper' ? 'DEFEND THE FREE KICK' : 'TAKE THE FREE KICK'
+        : moment?.mode === 'goalkeeper' ? 'DEFEND THE CHANCE' : 'TAKE THE CHANCE');
+
+  const instruction = $derived(isContinuation
+    ? `Guide the ${continuationType === 'cross' ? 'delivery' : continuationType === 'cutback' ? 'cutback' : 'pass'} into the highlighted space for ${moment?.receiverName ?? 'the authorized receiver'}. Target, weight and timing matter, but passer, receiver and defender quality still decide execution.`
+    : setPieceKind === 'penalty'
       ? moment?.mode === 'goalkeeper'
-        ? 'Read the direct free kick and choose your commitment. The wall, taker quality and goalkeeper reach are already part of the authoritative situation.'
-        : 'Aim around or over the authoritative wall using placement, power and timing. There is no hidden curl control; player shooting and passing quality still govern execution.'
-      : moment?.mode === 'goalkeeper'
-        ? 'Choose where to commit the goalkeeper. Reading the chance matters, but goalkeeper quality still controls reach.'
-        : 'Place the shot. Your input matters, but the player’s shooting quality and the defensive pressure still control execution.');
-  const primaryAction = $derived(moment?.mode === 'goalkeeper'
-    ? 'Dive'
-    : setPieceKind === 'penalty' ? 'Take Penalty' : setPieceKind === 'direct_free_kick' ? 'Take Free Kick' : 'Shoot');
+        ? 'Choose where to commit. Your read and timing matter, while goalkeeper quality still controls the available reach.'
+        : 'Pick your placement, power and timing. The taker’s shooting quality still controls execution, so a perfect gesture does not erase player ability.'
+      : setPieceKind === 'direct_free_kick'
+        ? moment?.mode === 'goalkeeper'
+          ? 'Read the direct free kick and choose your commitment. The wall, taker quality and goalkeeper reach are already part of the authoritative situation.'
+          : 'Aim around or over the authoritative wall using placement, power and timing. There is no hidden curl control; player shooting and passing quality still govern execution.'
+        : moment?.mode === 'goalkeeper'
+          ? 'Choose where to commit the goalkeeper. Reading the chance matters, but goalkeeper quality still controls reach.'
+          : 'Place the shot. Your input matters, but the player’s shooting quality and the defensive pressure still control execution.');
+
+  const primaryAction = $derived(isContinuation
+    ? continuationType === 'cross' ? 'Cross' : continuationType === 'cutback' ? 'Cut Back' : 'Play Pass'
+    : moment?.mode === 'goalkeeper'
+      ? 'Dive'
+      : setPieceKind === 'penalty' ? 'Take Penalty' : setPieceKind === 'direct_free_kick' ? 'Take Free Kick' : 'Shoot');
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
 
   function resultLabel(value) {
     if (value === 'goal') return 'GOAL';
@@ -57,7 +77,25 @@
     return value ? String(value).toUpperCase() : '';
   }
 
+  function continuationResultLabel(result) {
+    if (!result) return '';
+    if (result.success && result.outcome === 'chance_created') return 'CHANCE CREATED';
+    if (result.success) return 'PASS COMPLETE';
+    if (result.outcome === 'cleared') return 'CLEARED';
+    if (result.outcome === 'intercepted') return 'INTERCEPTED';
+    if (result.outcome === 'foul_won') return 'FOUL WON';
+    return 'POSSESSION LOST';
+  }
+
   function resultCopy(value) {
+    if (isContinuation) {
+      if (continuationResult?.success && continuationResult?.outcome === 'chance_created') return 'The continuation creates an authoritative downstream chance.';
+      if (continuationResult?.success) return 'The authorized continuation succeeds.';
+      if (continuationResult?.outcome === 'cleared') return 'The defence clears the delivery.';
+      if (continuationResult?.outcome === 'intercepted') return 'The defender reads and intercepts the pass.';
+      if (continuationResult?.outcome === 'foul_won') return 'The continuation wins a foul.';
+      return 'The defence wins the continuation.';
+    }
     if (value === 'goal') return setPieceKind === 'penalty' ? 'Penalty converted.' : setPieceKind === 'direct_free_kick' ? 'Direct free kick converted.' : 'Chance converted.';
     if (value === 'saved') return 'The goalkeeper makes the save.';
     if (value === 'blocked') return setPieceKind === 'direct_free_kick' ? 'The wall gets the block.' : 'The defender gets the block.';
@@ -79,8 +117,13 @@
     rendererLoading = true;
     rendererError = '';
     try {
-      const module = await import('../../game/playableMomentsThreeRenderer.js');
-      controller = await module.mountThreePlayablePoc(canvas, moment);
+      if (isContinuation) {
+        const module = await import('../../game/playableMomentsContinuationRenderer.js');
+        controller = await module.mountThreePlayableContinuation(canvas, moment);
+      } else {
+        const module = await import('../../game/playableMomentsThreeRenderer.js');
+        controller = await module.mountThreePlayablePoc(canvas, moment);
+      }
       controller.render({ moment, resolution, progress:resolution ? 1 : 0 });
     } catch (error) {
       rendererError = `3D presentation unavailable — resolving this same saved moment automatically. ${error?.message ?? error}`;
@@ -110,6 +153,17 @@
 
   function accessibleIntent() {
     if (resolution || busy || rendererLoading) return;
+    if (isContinuation) {
+      void onsubmit({
+        continuation:{
+          targetX:selectedLane * .72,
+          targetY:selectedHeight,
+          weight:continuationType === 'cross' ? .78 : continuationType === 'through_ball' ? .76 : .70,
+          timing:.82,
+        },
+      });
+      return;
+    }
     if (moment?.mode === 'goalkeeper') {
       void onsubmit({ goalkeeper:{ x:selectedLane * .78, y:selectedHeight, timing:.82 } });
       return;
@@ -127,13 +181,33 @@
     if (!pointerStart || resolution || busy || rendererLoading) return;
     const bounds = canvas?.getBoundingClientRect?.();
     if (!bounds) return;
+    const durationMs = window.performance.now() - pointerStart.at;
+
+    if (isContinuation) {
+      const target = controller?.continuationIntentFromClientPoint?.(event.clientX, event.clientY) ?? null;
+      if (target) {
+        const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
+        const diagonal = Math.max(1, Math.hypot(bounds.width, bounds.height));
+        void onsubmit({
+          continuation:{
+            targetX:target.targetX,
+            targetY:target.targetY,
+            weight:clamp(.48 + (distance / diagonal) * 1.15, .35, 1),
+            timing:clamp(1 - Math.abs(durationMs - 430) / 850, 0, 1),
+          },
+        });
+      }
+      pointerStart = null;
+      return;
+    }
+
     const goalTarget = controller?.goalIntentFromClientPoint?.(event.clientX, event.clientY) ?? null;
     const intent = gestureToPlayableIntent({
       mode:moment?.mode ?? 'attack',
       start:pointerStart,
       end:{ x:event.clientX, y:event.clientY },
       bounds,
-      durationMs:window.performance.now() - pointerStart.at,
+      durationMs,
       goalTarget,
     });
     pointerStart = null;
@@ -157,13 +231,13 @@
       <span>PLAY KEY MOMENT · {moment?.minute ?? 0}'</span>
       <strong>{headline}</strong>
     </div>
-    <small>xG {Number(moment?.xg ?? 0).toFixed(2)}</small>
+    <small>{isContinuation ? 'projected ' : ''}xG {Number(moment?.xg ?? 0).toFixed(2)}</small>
   </header>
 
   <div
     class="pm-stage"
     role="group"
-    aria-label={moment?.mode === 'goalkeeper' ? 'Goalkeeper interaction surface' : 'Shot interaction surface'}
+    aria-label={isContinuation ? 'Continuation interaction surface' : moment?.mode === 'goalkeeper' ? 'Goalkeeper interaction surface' : 'Shot interaction surface'}
     onpointerdown={pointerDown}
     onpointerup={pointerUp}
     onpointercancel={() => { pointerStart = null; }}
@@ -175,38 +249,41 @@
     {#if rendererError}
       <div class="pm-overlay-note pm-warning">{rendererError}</div>
     {/if}
-    {#if finish}
-      <div class="pm-result" class:goal={finish === 'goal'}>{resultLabel(finish)}</div>
+    {#if hasResolution}
+      <div class="pm-result" class:goal={finish === 'goal'}>{finish ? resultLabel(finish) : continuationResultLabel(continuationResult)}</div>
     {/if}
   </div>
 
   <div class="pm-copy">
-    {#if finish}
+    {#if hasResolution}
       <strong>{resultCopy(finish)}</strong>
       <span>The result above is already committed to the authoritative match state.</span>
+    {:else if isContinuation}
+      <strong>{moment?.actorName ?? 'Passer'} → {moment?.receiverName ?? 'Authorized receiver'}</strong>
+      <span>{instruction}</span>
     {:else}
       <strong>{moment?.shooterName ?? 'Attacker'} vs {moment?.goalkeeperName ?? 'Goalkeeper'}</strong>
       <span>{instruction}</span>
     {/if}
   </div>
 
-  {#if !finish}
-    <div class="pm-accessible" aria-label="Accessible aim controls">
+  {#if !hasResolution}
+    <div class="pm-accessible" aria-label={isContinuation ? 'Accessible continuation controls' : 'Accessible aim controls'}>
       <div class="pm-choice" aria-label="Horizontal target">
         <button type="button" class:active={selectedLane === -1} onclick={() => { selectedLane = -1; }}>Left</button>
         <button type="button" class:active={selectedLane === 0} onclick={() => { selectedLane = 0; }}>Centre</button>
         <button type="button" class:active={selectedLane === 1} onclick={() => { selectedLane = 1; }}>Right</button>
       </div>
       <div class="pm-choice" aria-label="Vertical target">
-        <button type="button" class:active={selectedHeight === .30} onclick={() => { selectedHeight = .30; }}>Low</button>
+        <button type="button" class:active={selectedHeight === .30} onclick={() => { selectedHeight = .30; }}>{isContinuation ? 'Short' : 'Low'}</button>
         <button type="button" class:active={selectedHeight === .55} onclick={() => { selectedHeight = .55; }}>Mid</button>
-        <button type="button" class:active={selectedHeight === .80} onclick={() => { selectedHeight = .80; }}>High</button>
+        <button type="button" class:active={selectedHeight === .80} onclick={() => { selectedHeight = .80; }}>{isContinuation ? 'Long' : 'High'}</button>
       </div>
     </div>
   {/if}
 
   <footer class="pm-actions">
-    {#if finish}
+    {#if hasResolution}
       <button type="button" class="primary" disabled={busy} onclick={() => oncontinue()}>{busy ? 'Saving…' : 'Continue Match'}</button>
     {:else}
       <button type="button" class="primary" disabled={busy || rendererLoading} onclick={accessibleIntent}>{busy ? 'Saving…' : primaryAction}</button>

@@ -8,6 +8,7 @@ import { createUserTacticalPlan } from './tactics.js';
 
 const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
 const automaticCache = new Map();
+const suspendedCache = new Map();
 
 function player(id, position, rating = 80) {
   const attacking = ['ST','RW','LW','CAM'].includes(position);
@@ -81,37 +82,42 @@ function runAutomaticOnePhaseAtATime(seed) {
   return { ...state, liveState, events };
 }
 
-function findSuspendedSetPiece(seed, kind) {
-  const state = fixture(seed);
-  let liveState = state.liveState;
-  for (let phase = 1; phase <= 120; phase += 1) {
-    const step = simulateMatchSegment(
-      state.home,
-      state.away,
-      liveState,
-      phase,
-      phase,
-      'home',
-      { suspend:true, controlledTeamId:'home' },
-    );
-    if (step.pendingPlayableMoment) {
-      if (step.pendingPlayableMoment.setPiece?.kind === kind) {
-        return { ...state, liveState, phase, step };
-      }
-      const resumed = resumePlayableMatchPhase(
+function findSuspendedSetPiece(kind) {
+  if (suspendedCache.has(kind)) return suspendedCache.get(kind);
+  for (let seedIndex = 0; seedIndex < 128; seedIndex += 1) {
+    const state = fixture(`phase4-suspended-${kind}-${seedIndex}`);
+    let liveState = state.liveState;
+    for (let phase = 1; phase <= 120; phase += 1) {
+      const step = simulateMatchSegment(
         state.home,
         state.away,
         liveState,
-        step.playableContinuation,
-        null,
+        phase,
+        phase,
         'home',
+        { suspend:true, controlledTeamId:'home' },
       );
-      liveState = resumed.updatedState;
-      continue;
+      if (step.pendingPlayableMoment) {
+        if (step.pendingPlayableMoment.setPiece?.kind === kind) {
+          const found = { ...state, liveState, phase, step };
+          suspendedCache.set(kind, found);
+          return found;
+        }
+        const resumed = resumePlayableMatchPhase(
+          state.home,
+          state.away,
+          liveState,
+          step.playableContinuation,
+          null,
+          'home',
+        );
+        liveState = resumed.updatedState;
+        continue;
+      }
+      liveState = step.updatedState;
     }
-    liveState = step.updatedState;
   }
-  throw new Error(`Seed containing an automatic ${kind} did not expose the same playable continuation`);
+  throw new Error(`No directly playable ${kind} found in deterministic seeded search`);
 }
 
 describe('Phase 4 set pieces in the authoritative match engine', () => {
@@ -144,10 +150,9 @@ describe('Phase 4 set pieces in the authoritative match engine', () => {
     }
   });
 
-  it('suspends before each set-piece finish and null-intent resume exactly matches automatic resolution', () => {
+  it('suspends before each directly playable set-piece finish and null-intent resume exactly matches automatic resolution', () => {
     for (const kind of ['penalty', 'direct_free_kick']) {
-      const automatic = findAutomaticSetPiece(kind);
-      const suspended = findSuspendedSetPiece(automatic.liveState.seed, kind);
+      const suspended = findSuspendedSetPiece(kind);
       const pending = suspended.step.pendingPlayableMoment;
       const autoPhase = simulateMatchSegment(
         suspended.home,

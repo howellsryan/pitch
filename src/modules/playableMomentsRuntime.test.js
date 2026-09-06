@@ -75,7 +75,7 @@ async function findSelectedMoment() {
 }
 
 describe('Phase 2 playable runtime coordinator', () => {
-  it('suspends a selected authoritative chance before terminal finish and persists the pending state', async () => {
+  it('suspends a selected authoritative interaction before commit and persists the pending state', async () => {
     const found = await findSelectedMoment();
     expect(found.step.kind).toBe('pending');
     expect(found.step.session.status).toBe('pending');
@@ -96,7 +96,12 @@ describe('Phase 2 playable runtime coordinator', () => {
 
     expect(resolved.session.status).toBe('committed');
     expect(resolved.session.pending).toBeNull();
-    expect(resolved.receipt.resolution.shot.finish).toBeTruthy();
+    expect(resolved.receipt.resolution.record).toBeTruthy();
+    if (resolved.receipt.resolution.shot) {
+      expect(resolved.receipt.resolution.shot.finish).toBeTruthy();
+    } else {
+      expect(resolved.receipt.resolution.continuation?.outcome).toBeTruthy();
+    }
     expect(resolved.currentPhase).toBe(found.step.moment.phase);
 
     const acknowledged = await acknowledgePlayableResult(resolved.session);
