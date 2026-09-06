@@ -511,6 +511,55 @@ function actionSuccessOutcome(route) {
   return route === 'circulation' ? 'retain' : 'progress';
 }
 
+function prepareAutomaticContinuationPhase(prepared) {
+  const rolesById = prepared?.automaticContext?.rolesById ?? {};
+  const opponentRolesById = prepared?.automaticContext?.opponentRolesById ?? {};
+  const instructions = prepared?.automaticContext?.instructions ?? {};
+  const edge = Number(prepared.execution ?? 0) - Number(prepared.counter ?? 0) + Number(prepared.context ?? 0);
+  const success = prepared.packet.execution < prepared.successChance;
+  let outcome = success ? actionSuccessOutcome(prepared.route) : actionFailureOutcome(prepared.route, prepared.packet);
+  let xg = null;
+  let chance = null;
+  let shooter = null;
+  let assistId = null;
+  let pressureDefender = null;
+
+  if (success) {
+    const chanceAdjustments = tacticalChanceAdjustments(instructions, prepared.mentality, prepared.riskMode);
+    const chanceProbability = actionClamp(
+      (ROUTE_CHANCE_BASE[prepared.route] ?? .14) * chanceAdjustments.frequency * (1 + edge * .015),
+      .025,
+      .48,
+    );
+    if (prepared.packet.chance < chanceProbability) {
+      xg = actionChanceQuality(prepared.route, edge, instructions, prepared.packet, prepared.mentality, prepared.riskMode);
+      chance = actionChanceBucket(xg);
+      outcome = 'chance_created';
+      shooter = actionChooseShooter(prepared.attackers, rolesById, prepared.packet.shooter) ?? prepared.actor;
+      pressureDefender = actionChooseDefender(
+        prepared.defenders,
+        opponentRolesById,
+        TACTICAL_ACTION_DEFS.shot,
+        prepared.packet.defender,
+      );
+      if (PASS_ROUTES.has(prepared.route) && prepared.actor?.id !== shooter?.id && prepared.packet.assist < .86) {
+        assistId = prepared.actor?.id ?? null;
+      }
+    }
+  }
+
+  return attachAuthoritativeSetPiece({
+    ...prepared,
+    continuationAction:null,
+    outcome,
+    xg,
+    chance,
+    shooter,
+    assistId,
+    pressureDefender,
+  });
+}
+
 export function prepareAuthoritativePhase({
   phase,
   minute,
@@ -563,6 +612,11 @@ export function prepareAuthoritativePhase({
     successChance,
     mentality,
     riskMode,
+    automaticContext:{
+      rolesById:{ ...rolesById },
+      opponentRolesById:{ ...opponentRolesById },
+      instructions:{ ...normalized },
+    },
     outcome:null,
     xg:null,
     chance:null,
@@ -853,7 +907,10 @@ function commitContinuationPhase(prepared, intent) {
 
 export function commitAuthoritativePhase(prepared, { intent = null } = {}) {
   if (!prepared || prepared.version !== 1) throw new Error('Action commit requires a prepared authoritative phase');
-  if (prepared.continuationAction) return commitContinuationPhase(prepared, intent);
+  if (prepared.continuationAction) {
+    if (intent == null) return commitAuthoritativePhase(prepareAutomaticContinuationPhase(prepared), { intent:null });
+    return commitContinuationPhase(prepared, intent);
+  }
   if (prepared.setPiece) {
     return commitAuthoritativeSetPiecePhase(prepared, {
       intent:intent == null ? null : normalizePlayableIntent(intent),
