@@ -1,7 +1,7 @@
 <script>
   import { flip } from 'svelte/animate';
   import {
-    getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB, putSave,
+    getActiveSlotId, getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB, putSave,
   } from '../../modules/db.js';
   import { CUP_META } from '../../modules/cups.js';
   // 🚑 Injuries — legacy validation anchor; UI uses the injury icon/text section below.
@@ -11,8 +11,41 @@
   } from '../../modules/gameweek.js';
   import {
     buildLiveMatchState, finaliseLiveMatch,
-    positionGroup, primaryRating, selectEleven, simulateMatchSegment,
+    selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
+  import {
+    buildVersionedKnockoutContext,
+    createVersionedShootoutState,
+    resolveVersionedKnockout,
+  } from '../../modules/competitionShootouts.js';
+  import {
+    acknowledgeCompetitionShootoutSession,
+    competitionShootoutPresentation,
+    completedCompetitionShootout,
+    createCompetitionShootoutSession,
+    resolveCompetitionShootoutSession,
+  } from '../../modules/competitionShootoutSession.js';
+  import {
+    persistCompetitionShootoutSessionAtomic,
+    restoredCompetitionShootoutSession,
+    startCompetitionShootoutSessionAtomic,
+  } from '../../modules/competitionShootoutPersistence.js';
+  import { getShootoutScore } from '../../modules/matchShootout.js';
+  import {
+    assertSupportedPlayableSession,
+    createPlayableMatchSession,
+    playableEventKey,
+    restorePlayableRuntime,
+  } from '../../modules/playableMomentsCareer.js';
+  import { startPlayableMatchSessionAtomic } from '../../modules/playableMomentsPersistence.js';
+  import {
+    acknowledgePlayableResult,
+    advancePlayableMatchPhase,
+    checkpointPlayableMatch,
+    clearPlayableMatchAfterClose,
+    preparePlayableMatchClose,
+    resolvePendingPlayableMoment,
+  } from '../../modules/playableMomentsRuntime.js';
   import { buildManagedMatchInputs, buildOpponentTacticalInsight } from '../../modules/managerTactics.js';
   import { createUserTacticalPlan } from '../../modules/tactics.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
@@ -20,9 +53,14 @@
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
-  import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import {
+    advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady,
+    replaceBroadcastLineups, updateBroadcastSimulation,
+  } from '../../game/broadcastSimulation.js';
   import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
+  import { regulationClockForPhase } from '../../game/liveMatchClock.js';
+  import { decorateGoalkeeperMomentWithRead } from '../../game/playableGoalkeeperRead.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, setMatchNavigationLocked, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
   import { renderHome } from '../../ui/home_transfers.js';
@@ -30,7 +68,9 @@
   import { screenTicks } from '../state/screens.svelte.js';
   import Crest from './kit/Crest.svelte';
   import Icon from './kit/Icon.svelte';
+  import LiveTacticsSheet from './LiveTacticsSheet.svelte';
   import MatchTacticalAnalysisPanel from './MatchTacticalAnalysisPanel.svelte';
+  import PlayableMomentOverlay from './PlayableMomentOverlay.svelte';
   import TeamInstructionsPanel from './TeamInstructionsPanel.svelte';
 
   /**
@@ -42,15 +82,21 @@
    * registerScreen()/navigateTo() mechanism every other screen uses — not a
    * TabBar destination of its own.
    *
-   * T4 keeps this route presentation-only around one shared authoritative
-   * tactics schema: pre-match changes persist the user plan, and live changes
-   * update the same engine state through formationChange.js before persisting
-   * that canonical v2 plan for future matches.
+   * Play Key Moments is an optional bounded interaction mode on this same
+   * authoritative route. It does not create a second match engine or fixture
+   * lifecycle: selected phases pause before terminal finish, persist first,
+   * resolve through matchEngine, then return to this route.
    */
 
   const WATCH_PHASES_PER_TICK = 1;
-  const WATCH_TICK_MS         = 1000;
+  // The engine remains 120 authoritative regulation phases. Presentation now
+  // gates the next phase so a ledger action is actually seen before another
+  // authoritative action can supersede it; the football outcome itself is
+  // unchanged. The clock mapping is presentation-only and lives in
+  // liveMatchClock.js.
+  const WATCH_TICK_MS         = 750;
   const TOTAL_PHASES          = 120;
+  const PRESENTATION_RETRY_MS = 80;
 
   let active  = $state(false);
   let loading = $state(true);
@@ -75,6 +121,42 @@
   let goalNoticeTimer = null;
   let displayHomeGoals = $state(0);
   let displayAwayGoals = $state(0);
+
+  let playableSession = $state.raw(null);
+  let playableBusy = $state(false);
+  let playableRevealEvents = $state.raw([]);
+  let shootoutSession = $state.raw(null);
+  let shootoutBusy = $state(false);
+
+  const playableMoment = $derived.by(() => {
+    if (playableSession?.status !== 'pending') {
+      return playableSession?.status === 'committed' ? playableSession.lastReceipt?.resolution?.moment ?? null : null;
+    }
+    const moment = playableSession.pending?.moment ?? null;
+    const packet = playableSession.pending?.continuation?.packet ?? null;
+    return decorateGoalkeeperMomentWithRead(moment, packet);
+  });
+  const playableResolution = $derived(
+    playableSession?.status === 'committed' ? playableSession.lastReceipt?.resolution ?? null : null
+  );
+
+  const shootoutPresentation = $derived.by(() => (
+    shootoutSession?.status === 'committed' ? competitionShootoutPresentation(shootoutSession) : null
+  ));
+  const shootoutMoment = $derived.by(() => {
+    if (shootoutSession?.status === 'pending') {
+      return decorateGoalkeeperMomentWithRead(shootoutSession.pending?.moment ?? null, shootoutSession.pending?.kick?.packet ?? null);
+    }
+    return shootoutPresentation?.moment ?? null;
+  });
+  const shootoutResolution = $derived(shootoutPresentation?.resolution ?? null);
+  const shootoutScore = $derived.by(() => shootoutSession?.state ? getShootoutScore(shootoutSession.state) : { home:0, away:0 });
+  const shootoutRoundLabel = $derived.by(() => {
+    if (!shootoutSession) return 'Penalty shootout';
+    if (shootoutSession.state?.phase === 'sudden_death') return 'Sudden death';
+    const round = shootoutSession.pending?.kick?.round ?? shootoutSession.lastReceipt?.round ?? null;
+    return round ? `Round ${round}` : 'Penalty shootout';
+  });
 
   let result          = $state.raw(null);
   let resultCommitted = $state(false);
@@ -156,9 +238,6 @@
       return null;
     }
 
-    // P1 already tracks the real world; use it for cup/European opponents when
-    // the drawn club exists in the persisted world rather than showing a
-    // generic scouting card.
     if (!isLeague && oppTeam?.id && teamsById.has(oppTeam.id)) {
       [oppForm, oppInForm] = await Promise.all([
         getTeamRecentForm(oppTeam.id, 5).catch(() => []),
@@ -220,12 +299,24 @@
     return { text: 'Underdog', cls: 'diff-easy' };
   }
 
+  function tacticalPosition(player) {
+    return player?.matchPosition ?? player?.position;
+  }
+
+  function broadcastPlayers(players) {
+    return (players ?? []).map(player => ({
+      ...player,
+      naturalPosition:player.position,
+      position:tacticalPosition(player),
+    }));
+  }
+
   function assignToSlots(xi, slots) {
     const used = [];
     const out  = new Array(slots.length).fill(null);
     slots.forEach((slot, i) => {
       const acceptable = SLOT_POS_MAP[slot.p] ?? [slot.p];
-      const cand = xi.find(p => !used.includes(p.id) && acceptable.includes(p.position));
+      const cand = xi.find(p => !used.includes(p.id) && acceptable.includes(tacticalPosition(p)));
       if (cand) { out[i] = cand; used.push(cand.id); }
     });
     slots.forEach((slot, i) => {
@@ -249,13 +340,139 @@
   const displayHomeTeam = $derived(live?.homeTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.userTeam : matchCtx.oppTeam) : null));
   const displayAwayTeam = $derived(live?.awayTeam ?? (matchCtx ? (matchCtx.userIsHome ? matchCtx.oppTeam : matchCtx.userTeam) : null));
 
+  function buildInputs(ctx, resolved) {
+    return buildManagedMatchInputs({
+      save:ctx.save,
+      homeTeam:resolved.homeTeam,
+      awayTeam:resolved.awayTeam,
+      homePlayers:resolved.homePlayers,
+      awayPlayers:resolved.awayPlayers,
+      userIsHome:resolved.userIsHome,
+      overrideFormation:ctx.userFormation,
+    });
+  }
+
+  function installLiveMatch({ inputs, resolved, liveState, allEvents = [], currentPhase = 0, playable = false }) {
+    live = {
+      liveState, allEvents,
+      homeTeam:inputs.homeTeam, awayTeam:inputs.awayTeam,
+      userTeam:matchCtx.userTeam, oppTeam:matchCtx.oppTeam,
+      userPlayers:resolved.userIsHome ? inputs.homePlayers : inputs.awayPlayers,
+      oppPlayers:resolved.userIsHome ? inputs.awayPlayers : inputs.homePlayers,
+      userIsHome:resolved.userIsHome,
+      matchEvent:resolved.patchedEvent,
+      currentPhase, paused:false, playable,
+    };
+    setMatchNavigationLocked(true);
+    displayHomeGoals = liveState.hGoals ?? 0;
+    displayAwayGoals = liveState.aGoals ?? 0;
+    presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
+    broadcastSimulation = createBroadcastSimulation({
+      homeTeamId:live.homeTeam.id, awayTeamId:live.awayTeam.id, ledgerDriven:true,
+      possessionTeamId:presentationPossession,
+      homeFormation:live.liveState.homeFormation, awayFormation:live.liveState.awayFormation,
+      homePlayers:broadcastPlayers(live.liveState.hActive), awayPlayers:broadcastPlayers(live.liveState.aActive),
+    });
+    if (currentPhase > 0) {
+      updateBroadcastSimulation(broadcastSimulation, {
+        phase:currentPhase,
+        possessionTeamId:presentationPossession,
+        record:liveState.actionLedger?.at?.(-1) ?? null,
+      });
+    }
+    broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
+    startPresentation();
+  }
+
+  async function restorePlayableMatch(ctx, session) {
+    assertSupportedPlayableSession(session);
+    const resolved = await resolveMatchTeams(ctx);
+    if (!resolved) throw new Error('Unable to restore teams for saved Play Key Moments match');
+    const inputs = buildInputs(ctx, resolved);
+    const runtime = restorePlayableRuntime(session);
+    playableSession = session;
+    playableRevealEvents = session.status === 'committed'
+      ? (runtime.receipt?.resolution?.goalEvent ? [runtime.receipt.resolution.goalEvent] : [])
+      : [];
+    installLiveMatch({
+      inputs,
+      resolved,
+      liveState:runtime.liveState,
+      allEvents:runtime.allEvents,
+      currentPhase:runtime.currentPhase,
+      playable:true,
+    });
+    if (session.status === 'ready_to_close') {
+      result = runtime.finalResult;
+      resultCommitted = false;
+      window.cancelAnimationFrame(presentationFrame);
+      beat = 'fulltime';
+      return;
+    }
+    beat = 'live';
+    if (session.status === 'active') scheduleTick();
+  }
+
+  async function restoreCompetitionShootout(ctx, session, event) {
+    const resolved = await resolveMatchTeams(ctx);
+    if (!resolved) throw new Error('Unable to restore teams for saved shootout');
+    const inputs = buildInputs(ctx, resolved);
+    shootoutSession = session;
+    result = session.regulationResult;
+    live = {
+      homeTeam:inputs.homeTeam,
+      awayTeam:inputs.awayTeam,
+      userTeam:ctx.userTeam,
+      oppTeam:ctx.oppTeam,
+      userIsHome:resolved.userIsHome,
+      matchEvent:{ ...resolved.patchedEvent, ...event },
+      currentPhase:TOTAL_PHASES,
+      paused:true,
+      playable:true,
+      liveState:null,
+      allEvents:session.regulationResult?.events ?? [],
+    };
+    displayHomeGoals = Number(result?.homeGoals ?? 0);
+    displayAwayGoals = Number(result?.awayGoals ?? 0);
+    setMatchNavigationLocked(true);
+    beat = 'shootout';
+  }
+
   async function loadMatch() {
     active = true;
     loading = true;
     await openDB();
     const save = await getSave();
     if (!save || save._deleted) { active = false; loading = true; return; }
+    let storedPlayable = save.playableMatchSession ?? null;
     const event = await getNextMatchEvent();
+    let storedShootout;
+    try {
+      storedShootout = restoredCompetitionShootoutSession(event);
+    } catch (error) {
+      loading = false;
+      toast(`Saved shootout cannot be resumed safely: ${error.message}`, 'error', 8000);
+      return;
+    }
+
+    if (storedPlayable && !storedShootout) {
+      try {
+        assertSupportedPlayableSession(storedPlayable);
+        const eventMatches = event && event.type !== 'no_user_event' && playableEventKey(event) === storedPlayable.eventKey;
+        if (!eventMatches && storedPlayable.status === 'ready_to_close') {
+          await clearPlayableMatchAfterClose(storedPlayable);
+          storedPlayable = null;
+        } else if (!eventMatches) {
+          loading = false;
+          toast('Saved Play Key Moments state does not match the current fixture. The saved session has been preserved rather than reinterpreted.', 'error', 8000);
+          return;
+        }
+      } catch (error) {
+        loading = false;
+        toast(`Play Key Moments save cannot be resumed safely: ${error.message}`, 'error', 8000);
+        return;
+      }
+    }
 
     if (!event || event.type === 'no_user_event') {
       await advanceOneFixture(null);
@@ -277,6 +494,24 @@
     matchCtx = ctx;
     beforeTable = ctx.isLeague ? await getTableSliceAroundTeam(save.userTeamId, 1).catch(() => []) : [];
     loading = false;
+    if (storedShootout) {
+      try {
+        await restoreCompetitionShootout(ctx, storedShootout, event);
+      } catch (error) {
+        toast(`Unable to restore penalty shootout: ${error.message}`, 'error', 8000);
+        console.error(error);
+      }
+      return;
+    }
+    if (storedPlayable) {
+      try {
+        await restorePlayableMatch(ctx, storedPlayable);
+      } catch (error) {
+        toast(`Unable to restore Play Key Moments: ${error.message}`, 'error', 8000);
+        console.error(error);
+      }
+      return;
+    }
     beat = 'teamNews';
     cloudSaveCheckpoint();
   }
@@ -335,8 +570,8 @@
       awayTeam = userIsHome2 ? realOpp : ctx.userTeam;
       homePlayers = userIsHome2 ? userPlayers : oppPlayers;
       awayPlayers = userIsHome2 ? oppPlayers : userPlayers;
-      patchedEvent = { ...ctx.event, userIsHome: userIsHome2 };
-      return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHome2, patchedEvent };
+      patchedEvent = { ...ctx.event, userIsHome:userIsHome2 };
+      return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome:userIsHome2, patchedEvent };
     }
 
     const userIsHomeC = ctx.event.userIsHome ?? true;
@@ -355,28 +590,16 @@
     awayTeam = userIsHomeC ? realOpp : ctx.userTeam;
     homePlayers = userIsHomeC ? userPlayers : oppPlayers;
     awayPlayers = userIsHomeC ? oppPlayers : userPlayers;
-    patchedEvent = { ...ctx.event, userIsHome: userIsHomeC };
-    return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome: userIsHomeC, patchedEvent };
+    patchedEvent = { ...ctx.event, userIsHome:userIsHomeC };
+    return { homeTeam, awayTeam, homePlayers, awayPlayers, userIsHome:userIsHomeC, patchedEvent };
   }
 
-  async function startWatch() {
+  async function startManagedMatch(playable) {
     if (matchCtx.lineupBlocked) { toast(blockMsg, 'error', 5000); return; }
     loading = true;
     const resolved = await resolveMatchTeams(matchCtx);
-    loading = false;
-    if (!resolved) { await simInstant(); return; }
-
-    // Watched and instant paths consume the same persisted v2 manager context.
-    const inputs = buildManagedMatchInputs({
-      save:matchCtx.save,
-      homeTeam:resolved.homeTeam,
-      awayTeam:resolved.awayTeam,
-      homePlayers:resolved.homePlayers,
-      awayPlayers:resolved.awayPlayers,
-      userIsHome:resolved.userIsHome,
-      overrideFormation:matchCtx.userFormation,
-    });
-
+    if (!resolved) { loading = false; await simInstant(); return; }
+    const inputs = buildInputs(matchCtx, resolved);
     const liveState = buildLiveMatchState(
       inputs.homeTeam, inputs.awayTeam, inputs.homePlayers, inputs.awayPlayers,
       inputs.homeFormation, inputs.awayFormation, inputs.homeLineup, inputs.awayLineup,
@@ -384,32 +607,47 @@
       { homeBench:inputs.homeBench, awayBench:inputs.awayBench }
     );
 
-    live = {
-      liveState, allEvents: [],
-      homeTeam: inputs.homeTeam, awayTeam: inputs.awayTeam,
-      userTeam: matchCtx.userTeam, oppTeam: matchCtx.oppTeam,
-      userPlayers: resolved.userIsHome ? inputs.homePlayers : inputs.awayPlayers,
-      oppPlayers:  resolved.userIsHome ? inputs.awayPlayers : inputs.homePlayers,
-      userIsHome: resolved.userIsHome,
-      matchEvent: resolved.patchedEvent,
-      currentPhase: 0, paused: false, speedMultiplier: 1,
-    };
-    setMatchNavigationLocked(true);
-    displayHomeGoals = 0;
-    displayAwayGoals = 0;
-    presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
-    broadcastSimulation = createBroadcastSimulation({
-      homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id, ledgerDriven: true,
-      possessionTeamId: presentationPossession,
-      homeFormation: live.liveState.homeFormation, awayFormation: live.liveState.awayFormation,
-      homePlayers: live.liveState.hActive, awayPlayers: live.liveState.aActive,
-    });
-    broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
-    startPresentation();
+    if (playable) {
+      try {
+        const created = createPlayableMatchSession({
+          slotId:getActiveSlotId(),
+          event:resolved.patchedEvent,
+          userTeamId:matchCtx.userTeam.id,
+          userIsHome:resolved.userIsHome,
+          liveState,
+        });
+        const persisted = await startPlayableMatchSessionAtomic(created);
+        playableSession = persisted.session;
+        if (persisted.idempotent) {
+          loading = false;
+          await restorePlayableMatch(matchCtx, persisted.session);
+          return;
+        }
+        cloudSaveCheckpoint();
+      } catch (error) {
+        loading = false;
+        toast(`Unable to start Play Key Moments safely: ${error.message}`, 'error', 7000);
+        return;
+      }
+    } else {
+      playableSession = null;
+    }
+
+    shootoutSession = null;
+    installLiveMatch({ inputs, resolved, liveState, playable });
+    loading = false;
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
       if (beat === 'kickoff') { beat = 'live'; scheduleTick(); }
     }, 900);
+  }
+
+  async function startWatch() {
+    await startManagedMatch(false);
+  }
+
+  async function startPlayableKeyMoments() {
+    await startManagedMatch(true);
   }
 
   async function openSquadFromTeamNews() {
@@ -437,7 +675,7 @@
       }
       result = res.singleResult;
       resultCommitted = true;
-      live = { userTeam: matchCtx.userTeam, matchEvent: matchCtx.event, userIsHome: result?.homeTeamId === matchCtx.save.userTeamId };
+      live = { userTeam:matchCtx.userTeam, matchEvent:matchCtx.event, userIsHome:result?.homeTeamId === matchCtx.save.userTeamId, playable:false };
       applyCommitExtras(res);
       beat = 'fulltime';
       cloudSaveCheckpoint();
@@ -449,37 +687,185 @@
   }
 
   function scheduleTick(extraDelay = 0) {
-    const delay = Math.round(WATCH_TICK_MS / (live.speedMultiplier || 1));
-    tickTimer = window.setTimeout(runTick, delay + extraDelay);
+    if (!live || live.paused) return;
+    if (live.playable && playableSession?.status !== 'active') return;
+    window.clearTimeout(tickTimer);
+    const delay = Math.max(PRESENTATION_RETRY_MS, WATCH_TICK_MS + extraDelay);
+    tickTimer = window.setTimeout(() => { void runTick(); }, delay);
   }
 
-  function runTick() {
-    if (!live || live.paused) return;
-    if (!isBroadcastReady(broadcastSimulation)) { scheduleTick(); return; }
-    if (live.currentPhase >= TOTAL_PHASES) { finishMatch(); return; }
+  async function runTick() {
+    if (!live || live.paused || playableBusy) return;
+    if (live.playable && playableSession?.status !== 'active') return;
+    if (live.currentPhase >= TOTAL_PHASES) { await finishMatch(); return; }
+
+    // Do not let the authoritative ledger outrun the scene the manager is
+    // watching. One ledger phase must settle visually before another phase is
+    // simulated, otherwise a later record can replace the action that should
+    // have produced a visible goal/save/pass.
+    if (broadcastSimulation && !isBroadcastReady(broadcastSimulation)) {
+      scheduleTick(PRESENTATION_RETRY_MS - WATCH_TICK_MS);
+      return;
+    }
+
     const startPhase = live.currentPhase + 1;
-    const endPhase   = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
+    const endPhase = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
     const beforeState = live.liveState;
-    const { segEvents, updatedState } = simulateMatchSegment(
-      live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase, live.userTeam.id
-    );
-    live = { ...live, liveState: updatedState, currentPhase: endPhase, allEvents: [...live.allEvents, ...segEvents] };
+    let segEvents;
+    let updatedState;
+    let nextPhase = endPhase;
+
+    try {
+      if (live.playable) {
+        const step = await advancePlayableMatchPhase({
+          session:playableSession,
+          homeTeam:live.homeTeam,
+          awayTeam:live.awayTeam,
+          liveState:beforeState,
+          allEvents:live.allEvents,
+          currentPhase:live.currentPhase,
+          controlledTeamId:live.userTeam.id,
+        });
+        if (step.kind === 'pending') {
+          playableSession = step.session;
+          cloudSaveCheckpoint();
+          return;
+        }
+        segEvents = step.segEvents;
+        updatedState = step.updatedState;
+        nextPhase = step.currentPhase;
+      } else {
+        const step = simulateMatchSegment(
+          live.homeTeam, live.awayTeam, beforeState, startPhase, endPhase, live.userTeam.id
+        );
+        segEvents = step.segEvents;
+        updatedState = step.updatedState;
+      }
+    } catch (error) {
+      live = { ...live, paused:true };
+      toast(`Match paused to protect your saved state: ${error.message}`, 'error', 7000);
+      console.error(error);
+      return;
+    }
+
+    live = { ...live, liveState:updatedState, currentPhase:nextPhase, allEvents:[...live.allEvents, ...segEvents] };
     const possessionTeamId = updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id;
     presentationPossession = possessionTeamId;
     presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
-    updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent, record: updatedState.actionLedger.at(-1) });
+    updateBroadcastSimulation(broadcastSimulation, {
+      phase:nextPhase,
+      possessionTeamId,
+      event:presentationEvent,
+      record:updatedState.actionLedger.at(-1),
+    });
     replaceBroadcastLineups(broadcastSimulation, {
-      homeFormation: updatedState.homeFormation, awayFormation: updatedState.awayFormation,
-      homePlayers: updatedState.hActive, awayPlayers: updatedState.aActive,
+      homeFormation:updatedState.homeFormation, awayFormation:updatedState.awayFormation,
+      homePlayers:broadcastPlayers(updatedState.hActive), awayPlayers:broadcastPlayers(updatedState.aActive),
     });
     handleNewEvents(segEvents);
-    scheduleTick();
+
+    if (live.playable && nextPhase === 60) {
+      try {
+        playableBusy = true;
+        playableSession = await checkpointPlayableMatch(playableSession, {
+          liveState:live.liveState,
+          currentPhase:live.currentPhase,
+          allEvents:live.allEvents,
+        });
+        cloudSaveCheckpoint();
+      } catch (error) {
+        live = { ...live, paused:true };
+        toast(`Half-time checkpoint failed; match paused safely: ${error.message}`, 'error', 7000);
+        return;
+      } finally {
+        playableBusy = false;
+      }
+    }
+
+    if (nextPhase >= TOTAL_PHASES) {
+      // The final authoritative phase is also allowed to finish its scene before
+      // the result screen replaces the pitch.
+      scheduleTick(PRESENTATION_RETRY_MS - WATCH_TICK_MS);
+    } else {
+      scheduleTick();
+    }
+  }
+
+  async function resolvePlayableIntent(intent = null) {
+    if (!live?.playable || playableBusy || playableSession?.status !== 'pending') return;
+    playableBusy = true;
+    const previousEventCount = live.allEvents.length;
+    try {
+      const resolved = await resolvePendingPlayableMoment({
+        session:playableSession,
+        homeTeam:live.homeTeam,
+        awayTeam:live.awayTeam,
+        controlledTeamId:live.userTeam.id,
+        intent,
+      });
+      playableSession = resolved.session;
+      playableRevealEvents = resolved.allEvents.slice(previousEventCount);
+      live = {
+        ...live,
+        liveState:resolved.liveState,
+        allEvents:resolved.allEvents,
+        currentPhase:resolved.currentPhase,
+      };
+      replaceBroadcastLineups(broadcastSimulation, {
+        homeFormation:resolved.liveState.homeFormation, awayFormation:resolved.liveState.awayFormation,
+        homePlayers:broadcastPlayers(resolved.liveState.hActive), awayPlayers:broadcastPlayers(resolved.liveState.aActive),
+      });
+      cloudSaveCheckpoint();
+    } catch (error) {
+      toast(`Could not commit this moment: ${error.message}`, 'error', 7000);
+      console.error(error);
+    } finally {
+      playableBusy = false;
+    }
+  }
+
+  async function continuePlayableMoment() {
+    if (!live?.playable || playableBusy || playableSession?.status !== 'committed') return;
+    playableBusy = true;
+    const receipt = playableSession.lastReceipt;
+    try {
+      playableSession = await acknowledgePlayableResult(playableSession);
+      const goalEvent = receipt?.resolution?.goalEvent ?? null;
+      updateBroadcastSimulation(broadcastSimulation, {
+        phase:live.currentPhase,
+        possessionTeamId:receipt?.resolution?.moment?.attackingTeamId ?? presentationPossession,
+        event:null,
+        record:receipt?.resolution?.record ?? live.liveState.actionLedger?.at?.(-1) ?? null,
+      });
+      for (const event of playableRevealEvents) {
+        if (event.type === 'goal') {
+          queuedGoalNotice = { ...event, isUser:event.teamId === live.userTeam.id };
+          continue;
+        }
+        handleNewEvents([event]);
+      }
+      if (goalEvent && !playableRevealEvents.some(event => event.type === 'goal')) {
+        queuedGoalNotice = { ...goalEvent, isUser:goalEvent.teamId === live.userTeam.id };
+      }
+      playableRevealEvents = [];
+      cloudSaveCheckpoint();
+      if (live.currentPhase >= TOTAL_PHASES) scheduleTick(PRESENTATION_RETRY_MS - WATCH_TICK_MS);
+      else scheduleTick(120);
+    } catch (error) {
+      toast(`Could not continue safely: ${error.message}`, 'error', 7000);
+      console.error(error);
+    } finally {
+      playableBusy = false;
+    }
   }
 
   function handleNewEvents(segEvents) {
     for (const ev of segEvents) {
       const isUser = ev.teamId === live.userTeam.id;
       if (ev.type === 'goal') {
+        // Queue the authoritative goal, but reveal it only when the ledger scene
+        // actually reaches GOAL. This keeps score, animation and commentary in
+        // the same order without giving presentation any result authority.
         queuedGoalNotice = { ...ev, isUser };
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
         togglePause();
@@ -509,9 +895,8 @@
       const elapsed = now - presentationAt;
       if (elapsed < 30) return;
       presentationAt = now;
-      if (!live.paused) {
-        // Substep accelerated presentation instead of losing time to the 50ms safety clamp.
-        let remaining = Math.min(elapsed, 100) * live.speedMultiplier;
+      if (!live.paused && !(live.playable && playableSession?.status !== 'active')) {
+        let remaining = Math.min(elapsed, 100);
         while (remaining > 0) {
           const step = Math.min(remaining, 50);
           broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, step);
@@ -524,43 +909,195 @@
   }
 
   function togglePause() {
-    if (!live) return;
-    live = { ...live, paused: !live.paused };
+    if (!live || (live.playable && playableSession?.status !== 'active')) return;
+    live = { ...live, paused:!live.paused };
     if (!live.paused) scheduleTick();
     else window.clearTimeout(tickTimer);
   }
 
-  function setSpeed(mult) {
-    if (!live) return;
-    live = { ...live, speedMultiplier: mult };
-    if (!live.paused) {
-      window.clearTimeout(tickTimer);
-      scheduleTick();
-    }
-  }
-
   function skipMatch() {
     if (!live || live.currentPhase >= TOTAL_PHASES) return;
+    if (live.playable) {
+      toast('Play Key Moments keeps eligible moments interactive. Use Sim Instantly before kick-off if you want the whole match resolved automatically.', 'info', 5000);
+      return;
+    }
     window.clearTimeout(tickTimer);
     const startPhase = live.currentPhase + 1;
     const beforeState = live.liveState;
     const { segEvents, updatedState } = simulateMatchSegment(
       live.homeTeam, live.awayTeam, beforeState, startPhase, TOTAL_PHASES, live.userTeam.id
     );
-    live = { ...live, liveState: updatedState, currentPhase: TOTAL_PHASES, allEvents: [...live.allEvents, ...segEvents] };
-    updateBroadcastSimulation(broadcastSimulation, { phase: TOTAL_PHASES, possessionTeamId: updatedState.hPhases > beforeState.hPhases ? live.homeTeam.id : live.awayTeam.id, event: segEvents.find(event => event.type === 'goal') ?? null });
-    handleNewEvents(segEvents);
-    finishMatch();
+    live = { ...live, liveState:updatedState, currentPhase:TOTAL_PHASES, allEvents:[...live.allEvents, ...segEvents] };
+    // Skip means presentation is deliberately skipped too; set the displayed
+    // score to the authoritative final score before opening the result screen.
+    displayHomeGoals = updatedState.hGoals ?? displayHomeGoals;
+    displayAwayGoals = updatedState.aGoals ?? displayAwayGoals;
+    void finishMatch();
   }
 
-  function finishMatch() {
+  function knockoutContextFor(regulationResult) {
+    const event = live?.matchEvent;
+    if (!event || event.type !== 'cup' || event.leaguePhase) return null;
+    return buildVersionedKnockoutContext({
+      shootoutVersion:event.shootoutVersion,
+      cupId:event.cupId,
+      roundName:event.roundName,
+      cupState:matchCtx?.save?.cups?.[event.cupId] ?? null,
+      userIsHome:live.userIsHome,
+      homeGoals:regulationResult.homeGoals,
+      awayGoals:regulationResult.awayGoals,
+    });
+  }
+
+  async function startPlayableShootout(regulationResult) {
+    const state = createVersionedShootoutState({
+      shootoutVersion:live.matchEvent.shootoutVersion,
+      seed:regulationResult.seed,
+      userTeamId:live.userTeam.id,
+      homeTeamId:live.homeTeam.id,
+      awayTeamId:live.awayTeam.id,
+      homePlayers:live.liveState.hActive,
+      awayPlayers:live.liveState.aActive,
+    });
+    if (!state) throw new Error('Versioned shootout state was unavailable');
+    const created = createCompetitionShootoutSession({
+      shootoutState:state,
+      controlledTeamId:live.userTeam.id,
+      regulationResult,
+    });
+    const persisted = await startCompetitionShootoutSessionAtomic(live.matchEvent, created);
+    shootoutSession = persisted.session;
+    result = regulationResult;
+    cloudSaveCheckpoint();
+    beat = 'shootout';
+  }
+
+  function attachAutomaticShootout(regulationResult) {
+    const resolution = resolveVersionedKnockout({
+      shootoutVersion:live.matchEvent.shootoutVersion,
+      seed:regulationResult.seed,
+      cupId:live.matchEvent.cupId,
+      roundName:live.matchEvent.roundName,
+      cupState:matchCtx?.save?.cups?.[live.matchEvent.cupId] ?? null,
+      userTeamId:live.userTeam.id,
+      homeTeamId:live.homeTeam.id,
+      awayTeamId:live.awayTeam.id,
+      userIsHome:live.userIsHome,
+      homeGoals:regulationResult.homeGoals,
+      awayGoals:regulationResult.awayGoals,
+      homePlayers:live.liveState.hActive,
+      awayPlayers:live.liveState.aActive,
+    });
+    if (!resolution?.shootout) return regulationResult;
+    return {
+      ...regulationResult,
+      penalties:true,
+      extraTime:Boolean(resolution.extraTime),
+      shootout:resolution.shootout,
+    };
+  }
+
+  async function finishMatch() {
+    if (!live || beat === 'fulltime' || beat === 'shootout') return;
+    if (broadcastSimulation && !isBroadcastReady(broadcastSimulation) && live.currentPhase >= TOTAL_PHASES) {
+      scheduleTick(PRESENTATION_RETRY_MS - WATCH_TICK_MS);
+      return;
+    }
     window.clearTimeout(tickTimer);
     window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
-    result = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
+    try {
+      let regulationResult;
+      if (live.playable) {
+        playableBusy = true;
+        const prepared = await preparePlayableMatchClose({
+          session:playableSession,
+          homeTeam:live.homeTeam,
+          awayTeam:live.awayTeam,
+          liveState:live.liveState,
+          allEvents:live.allEvents,
+        });
+        playableSession = prepared.session;
+        regulationResult = prepared.result;
+        cloudSaveCheckpoint();
+      } else {
+        regulationResult = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
+      }
+
+      const knockout = knockoutContextFor(regulationResult);
+      if (knockout?.requiresShootout) {
+        if (live.playable) {
+          await startPlayableShootout(regulationResult);
+          return;
+        }
+        result = attachAutomaticShootout(regulationResult);
+      } else {
+        result = regulationResult;
+      }
+    } catch (error) {
+      live = { ...live, paused:true };
+      toast(`Full-time checkpoint failed; result has not been closed: ${error.message}`, 'error', 8000);
+      console.error(error);
+      return;
+    } finally {
+      playableBusy = false;
+    }
     resultCommitted = false;
     vibrate([80, 40, 80]);
     beat = 'fulltime';
+  }
+
+  async function resolveShootoutIntent(intent = null) {
+    if (!shootoutSession || shootoutBusy || shootoutSession.status !== 'pending') return;
+    shootoutBusy = true;
+    const previous = shootoutSession;
+    try {
+      const resolved = resolveCompetitionShootoutSession(previous, intent);
+      const persisted = await persistCompetitionShootoutSessionAtomic(resolved.session, {
+        eventKey:playableEventKey(live.matchEvent),
+        expectedRevision:previous.revision,
+      });
+      shootoutSession = persisted.session;
+      cloudSaveCheckpoint();
+    } catch (error) {
+      toast(`Could not commit this shootout kick: ${error.message}`, 'error', 7000);
+      console.error(error);
+    } finally {
+      shootoutBusy = false;
+    }
+  }
+
+  async function continueShootout() {
+    if (!shootoutSession || shootoutBusy || shootoutSession.status !== 'committed') return;
+    shootoutBusy = true;
+    const previous = shootoutSession;
+    try {
+      const acknowledged = acknowledgeCompetitionShootoutSession(previous);
+      const persisted = await persistCompetitionShootoutSessionAtomic(acknowledged, {
+        eventKey:playableEventKey(live.matchEvent),
+        expectedRevision:previous.revision,
+      });
+      shootoutSession = persisted.session;
+      cloudSaveCheckpoint();
+      if (shootoutSession.status === 'complete') {
+        const completed = completedCompetitionShootout(shootoutSession);
+        if (!completed?.summary) throw new Error('Completed shootout summary unavailable');
+        result = {
+          ...completed.regulationResult,
+          penalties:true,
+          extraTime:true,
+          shootout:completed.summary,
+        };
+        resultCommitted = false;
+        vibrate([80, 40, 80]);
+        beat = 'fulltime';
+      }
+    } catch (error) {
+      toast(`Could not continue the shootout safely: ${error.message}`, 'error', 7000);
+      console.error(error);
+    } finally {
+      shootoutBusy = false;
+    }
   }
 
   const subsLeft = $derived.by(() => {
@@ -573,7 +1110,7 @@
     return [...bench].sort((a, b) => (b.fitness ?? 90) - (a.fitness ?? 90));
   });
 
-  const matchKits = $derived(live ? resolveMatchKits(live.homeTeam, live.awayTeam) : null);
+  const matchKits = $derived(live?.liveState ? resolveMatchKits(live.homeTeam, live.awayTeam) : null);
   const broadcastPresentation = $derived(describeBroadcastFrame(broadcastFrame, broadcastSimulation));
   const tacticsSlots = $derived(SLOT_LAYOUT[tacticsPickerFormation] ?? SLOT_LAYOUT['4-3-3']);
   const tacticsActivePlayers = $derived.by(() => {
@@ -593,10 +1130,15 @@
       return;
     }
     const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90);
-    const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, inPlayer.id, outPlayer.id, minute, live.userTeam.id);
+    const { ok, liveState:newLs, event } = applySubstitution(live.liveState, live.userIsHome, inPlayer.id, outPlayer.id, minute, live.userTeam.id);
     if (ok) {
-      live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
-      replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
+      live = { ...live, liveState:newLs, allEvents:[...live.allEvents, event] };
+      replaceBroadcastLineups(broadcastSimulation, {
+        homeFormation:newLs.homeFormation,
+        awayFormation:newLs.awayFormation,
+        homePlayers:broadcastPlayers(newLs.hActive),
+        awayPlayers:broadcastPlayers(newLs.aActive),
+      });
       toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
     }
     tacticsSubInId = null;
@@ -633,15 +1175,20 @@
   function applyTactics(formation) {
     tacticsPickerFormation = formation;
     const newLs = applyFormationChange(live.liveState, live.userIsHome, formation);
-    live = { ...live, liveState: newLs };
-    replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
+    live = { ...live, liveState:newLs };
+    replaceBroadcastLineups(broadcastSimulation, {
+      homeFormation:newLs.homeFormation,
+      awayFormation:newLs.awayFormation,
+      homePlayers:broadcastPlayers(newLs.hActive),
+      awayPlayers:broadcastPlayers(newLs.aActive),
+    });
     toast(`Formation changed to ${formation}`, 'info', 3000);
   }
   async function applyTacticsMentality(mentality) {
     if (!live || !matchCtx) return;
     const newLs = applyMentalityChange(live.liveState, live.userIsHome, mentality);
-    live = { ...live, liveState: newLs };
-    matchCtx = { ...matchCtx, save: { ...matchCtx.save, mentality } };
+    live = { ...live, liveState:newLs };
+    matchCtx = { ...matchCtx, save:{ ...matchCtx.save, mentality } };
     const currentSave = await getSave();
     if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, mentality });
     toast(`Mentality changed to ${mentality}`, 'info', 3000);
@@ -656,7 +1203,23 @@
     const currentSave = await getSave();
     if (currentSave && !currentSave._deleted) await putSave({ ...currentSave, tactics });
   }
-  function closeTacticsSheet() {
+  async function closeTacticsSheet() {
+    if (live?.playable && playableSession?.status === 'active') {
+      try {
+        playableBusy = true;
+        playableSession = await checkpointPlayableMatch(playableSession, {
+          liveState:live.liveState,
+          currentPhase:live.currentPhase,
+          allEvents:live.allEvents,
+        });
+        cloudSaveCheckpoint();
+      } catch (error) {
+        playableBusy = false;
+        toast(`Tactics checkpoint failed; changes are still on screen but the match remains paused: ${error.message}`, 'error', 7000);
+        return;
+      }
+      playableBusy = false;
+    }
     tacticsSheetOpen = false;
     tacticsSubInId = null;
     tacticsSubOutId = null;
@@ -671,14 +1234,15 @@
       } else if (!cr.eliminated && cr.opponentName) {
         const meta = CUP_META[cr.cupId];
         const lossLabel = (cr.roundName || '').includes('1st leg') ? 'Lost' : 'Out';
-        toast(`${meta?.name ?? cr.cupId} ${cr.roundName}: ${cr.userWon ? 'Won' : lossLabel} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})`,
+        const pens = cr.shootout ? ` · pens ${cr.shootout.homeScore}-${cr.shootout.awayScore}` : '';
+        toast(`${meta?.name ?? cr.cupId} ${cr.roundName}: ${cr.userWon ? 'Won' : lossLabel} vs ${cr.opponentName} (${cr.userGoals}-${cr.oppGoals})${pens}`,
           cr.userWon ? 'success' : 'error', 6000);
       }
     }
     if (res.newOffers?.length) {
       for (const o of res.newOffers) {
         toast(`${o.clubName} bid ${fmt.money(o.fee)} for ${o.playerName}`, 'info', 5000);
-        newsAIBid({ name: o.playerName, id: o.playerId }, o.fee, o.clubName, matchCtx.save).catch(() => {});
+        newsAIBid({ name:o.playerName, id:o.playerId }, o.fee, o.clubName, matchCtx.save).catch(() => {});
       }
     }
     for (const response of res.playerResponses ?? []) {
@@ -688,7 +1252,7 @@
     for (const inj of userInjEvts) {
       const wks = inj.injuryGWsLeft ?? 1;
       toast(`${inj.playerName} — ${inj.injuryName} (${injuryDurationLabel(wks)})`, 'error', 8000);
-      newsInjury({ name: inj.playerName, id: inj.playerId }, inj.injuryName, wks, matchCtx.save).catch(() => {});
+      newsInjury({ name:inj.playerName, id:inj.playerId }, inj.injuryName, wks, matchCtx.save).catch(() => {});
     }
     for (const p of res.recoveredPlayers ?? []) {
       toast(`${p.name} is fit and available again!`, 'success', 6000);
@@ -699,17 +1263,30 @@
   async function proceedToAfter() {
     if (!resultCommitted) {
       committing = true;
+      let res;
       try {
-        const res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
-        applyCommitExtras(res);
+        res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
         resultCommitted = true;
-        cloudSaveCheckpoint();
       } catch (err) {
         committing = false;
         toast('Error saving result: ' + err.message, 'error');
         console.error(err);
         return;
       }
+
+      if (live.playable && playableSession) {
+        try {
+          await clearPlayableMatchAfterClose(playableSession);
+          playableSession = null;
+          cloudSaveCheckpoint();
+        } catch (error) {
+          console.warn('Playable session cleanup will be retried on next load', error);
+          toast('Match result is saved. Key-moment cleanup will retry automatically next time.', 'info', 5000);
+        }
+      }
+      shootoutSession = null;
+      applyCommitExtras(res);
+      if (!live.playable) cloudSaveCheckpoint();
       committing = false;
     }
     await renderHome();
@@ -727,6 +1304,8 @@
     active = false;
     setMatchNavigationLocked(false);
     live = null; result = null; matchCtx = null; broadcastSimulation = null;
+    playableSession = null; playableRevealEvents = []; playableBusy = false;
+    shootoutSession = null; shootoutBusy = false;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
     beforeTable = []; afterTable = [];
     await navigateTo('home');
@@ -734,16 +1313,17 @@
 
   function userVerdict(r) {
     if (!r || !matchCtx) return '';
+    if (r.shootout?.winnerTeamId) return r.shootout.winnerTeamId === matchCtx.save.userTeamId ? 'WIN' : 'LOSS';
     const isHome = r.homeTeamId === matchCtx.save.userTeamId;
     const ug = isHome ? r.homeGoals : r.awayGoals;
     const og = isHome ? r.awayGoals : r.homeGoals;
     return ug > og ? 'WIN' : ug < og ? 'LOSS' : 'DRAW';
   }
   const MENTALITIES = [
-    { id: 'defensive', label: 'Defensive' }, { id: 'balanced', label: 'Balanced' },
-    { id: 'possession', label: 'Possession' }, { id: 'attacking', label: 'Attacking' },
+    { id:'defensive', label:'Defensive' }, { id:'balanced', label:'Balanced' },
+    { id:'possession', label:'Possession' }, { id:'attacking', label:'Attacking' },
   ];
-  const MENTALITY_ICONS = { defensive: 'suspension', balanced: 'tactics', possession: 'ball', attacking: 'spark' };
+  const MENTALITY_ICONS = { defensive:'suspension', balanced:'tactics', possession:'ball', attacking:'spark' };
   function mentalityIcon(mentality) {
     return MENTALITY_ICONS[mentality] ?? MENTALITY_ICONS.balanced;
   }
@@ -869,9 +1449,10 @@
       {/if}
     </div>
 
-    <div class="tn-actions">
+    <div class="tn-actions tn-actions-modes">
       <button class="btn-full btn-secondary" disabled={m.lineupBlocked || loading} onclick={simInstant}><Icon name="speed" size={15} />Sim Instantly</button>
-      <button class="btn-full btn-primary" disabled={m.lineupBlocked || loading} onclick={startWatch}><Icon name="eye" size={15} />Kick Off →</button>
+      <button class="btn-full btn-secondary" disabled={m.lineupBlocked || loading} onclick={startWatch}><Icon name="eye" size={15} />Watch Match</button>
+      <button class="btn-full btn-primary" disabled={m.lineupBlocked || loading} onclick={startPlayableKeyMoments}><Icon name="spark" size={15} />Play Key Moments</button>
     </div>
 
   {:else if beat === 'kickoff' && live}
@@ -882,10 +1463,10 @@
     </div>
 
   {:else if beat === 'live' && live}
-    {@const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90)}
+    {@const clock = regulationClockForPhase(live.currentPhase, { seed:live.liveState?.seed ?? 1, secondHalfStarted:broadcastFrame?.half === 2 })}
     {@const homeShare = live.currentPhase ? Math.round((live.liveState.hPhases / Math.max(1, live.liveState.hPhases + live.liveState.aPhases)) * 100) : 50}
     <div class="live-wrap">
-      <div class="broadcast-label">LIVE · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
+      <div class="broadcast-label">{live.playable ? 'PLAY KEY MOMENTS' : 'LIVE'} · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
       <div class="score-bug">
         <div class="sb-team">
           <div class="sb-crest"><Crest team={live.homeTeam} size={26} /></div>
@@ -895,8 +1476,8 @@
           <div class="sb-score">
             <span>{displayHomeGoals}</span><span class="sb-sep">–</span><span>{displayAwayGoals}</span>
           </div>
-          <div class="sb-clock">{minute}'</div>
-          <div class="sb-status">{live.paused ? 'PAUSED' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
+          <div class="sb-clock">{clock.label}'</div>
+          <div class="sb-status">{live.paused ? 'PAUSED' : playableMoment ? 'KEY MOMENT' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
         </div>
         <div class="sb-team">
           <div class="sb-crest"><Crest team={live.awayTeam} size={26} /></div>
@@ -935,13 +1516,44 @@
 
     <div class="live-controls">
       <button class="ctrl-btn" onclick={togglePause}><Icon name={live.paused ? 'play' : 'pause'} size={14} />{live.paused ? 'Resume' : 'Pause'}</button>
-      <div class="speed-wrap">
-        {#each [1, 2, 4] as s (s)}
-          <button class="speed-btn" class:active={live.speedMultiplier === s} aria-label={`Match speed ${s} times`} aria-pressed={live.speedMultiplier === s} onclick={() => setSpeed(s)}>{s}×</button>
-        {/each}
-      </div>
-      <button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>
+      {#if !live.playable}<button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>{/if}
       <button class="ctrl-btn tactics-control" onclick={openTacticsSheet}><Icon name="tactics" size={14} />Tactics <span>{subsLeft}</span></button>
+    </div>
+
+    {#if live.playable && playableMoment}
+      {#key playableSession?.pending?.momentId ?? playableSession?.lastReceipt?.momentId}
+        <PlayableMomentOverlay
+          moment={playableMoment}
+          resolution={playableResolution}
+          busy={playableBusy}
+          onsubmit={resolvePlayableIntent}
+          onsimulate={() => resolvePlayableIntent(null)}
+          oncontinue={continuePlayableMoment}
+        />
+      {/key}
+    {/if}
+
+  {:else if beat === 'shootout' && shootoutSession && live}
+    <div class="shootout-wrap">
+      <div class="shootout-kicker">PENALTY SHOOTOUT · {shootoutRoundLabel}</div>
+      <div class="shootout-score">
+        <div><Crest team={live.homeTeam} size={34} /><span>{live.homeTeam.name}</span><strong>{shootoutScore.home}</strong></div>
+        <div class="shootout-sep">PENS</div>
+        <div><Crest team={live.awayTeam} size={34} /><span>{live.awayTeam.name}</span><strong>{shootoutScore.away}</strong></div>
+      </div>
+      <div class="shootout-regulation">After {result?.homeGoals ?? 0}–{result?.awayGoals ?? 0} in the match</div>
+      {#if shootoutMoment}
+        {#key shootoutSession.pending?.kick?.kickId ?? shootoutSession.lastReceipt?.kickId}
+          <PlayableMomentOverlay
+            moment={shootoutMoment}
+            resolution={shootoutResolution}
+            busy={shootoutBusy}
+            onsubmit={resolveShootoutIntent}
+            onsimulate={() => resolveShootoutIntent(null)}
+            oncontinue={continueShootout}
+          />
+        {/key}
+      {/if}
     </div>
 
   {:else if beat === 'fulltime' && result}
@@ -965,7 +1577,10 @@
           </div>
         </div>
       </div>
-      <div class="ft-status">FULL TIME</div>
+      {#if result.shootout}
+        <div class="ft-penalties">PENALTIES · {result.shootout.homeScore}–{result.shootout.awayScore}</div>
+      {/if}
+      <div class="ft-status">{result.shootout ? 'FULL TIME · DECIDED ON PENALTIES' : 'FULL TIME'}</div>
     </div>
     <div class="ft-actions">
       <button class="btn-full btn-primary" disabled={committing} onclick={proceedToAfter}>{committing ? 'Saving…' : 'Continue →'}</button>
@@ -1018,7 +1633,7 @@
       {#if userInjuries.length}
         <div class="after-section after-section-bad">
           <div class="after-section-title"><Icon name="injury" size={14} /><span>Injuries</span></div>
-          {#each userInjuries as inj, i (i)}<div class="after-line"><strong>{inj.playerName}</strong> — {inj.injuryName} ({injuryDurationLabel(inj.injuryGWsLeft)})</div>{/each}
+          {#each userInjuries as inj, i (i)}<div class="after-line"><strong>{inj.playerName}</strong> — {inj.injuryName} ({injuryDurationLabel(inj.injuryGWsLeft)} remaining)</div>{/each}
         </div>
       {/if}
 
@@ -1027,7 +1642,7 @@
           <div class="after-section-title"><Icon name="table" size={14} /><span>League Position</span></div>
           <div class="after-table">
             {#each tableSlice as row (row.teamId)}
-              <div class="after-table-row" class:after-table-user={row.isUserTeam} animate:flip={{ duration: 400 }}>
+              <div class="after-table-row" class:after-table-user={row.isUserTeam} animate:flip={{ duration:400 }}>
                 <span class="after-table-pos">{row.displayPosition}</span>
                 <span class="after-table-crest"><Crest size={18} label={`${row.teamName} crest`} /></span>
                 <span class="after-table-name">{row.shortName ?? row.teamName}</span>
@@ -1043,87 +1658,35 @@
     </div>
   {/if}
 
-  {#if tacticsSheetOpen && live}
-    <section class="match-tactics" aria-label="Live match tactics">
-      <header class="match-tactics-header">
-        <div><span>LIVE · PAUSED</span><strong>{live.userTeam.name} Tactics</strong></div>
-        <button class="match-tactics-close" onclick={closeTacticsSheet} aria-label="Back to match">← Match</button>
-      </header>
-
-      <div class="match-tactics-formations" aria-label="Formation">
-        {#each Object.keys(SLOT_LAYOUT) as f (f)}
-          <button class:active={f === tacticsPickerFormation} onclick={() => applyTactics(f)}>{f}</button>
-        {/each}
-      </div>
-
-      <div class="match-tactics-mentalities" aria-label="Mentality">
-        {#each MENTALITIES as mentality (mentality.id)}
-          <button
-            class:active={mentality.id === (live.userIsHome ? live.liveState.homeMentality : live.liveState.awayMentality)}
-            onclick={() => applyTacticsMentality(mentality.id)}
-            aria-label={`${mentality.label} mentality`}
-          >{mentality.label}</button>
-        {/each}
-      </div>
-
-      <div class="match-tactics-scroll">
-        <TeamInstructionsPanel
-          compact
-          instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
-          players={tacticsActivePlayers}
-          rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
-          onchange={applyTacticsInstruction}
-        />
-
-        <div class="match-tactics-pitch-wrap">
-          <div class="match-tactics-pitch">
-            <div class="mtp-half"></div><div class="mtp-circle"></div>
-            <div class="mtp-box top"></div><div class="mtp-box bottom"></div>
-            {#each tacticsSlots as slot, i (i)}
-              {@const player = tacticsAssignment[i]}
-              {#if player}
-                {@const eligible = !tacticsSubIn || subOutOptions.some(option => option.id === player.id)}
-                <button
-                  class="match-tactics-slot pos-{positionGroup(player.position)}"
-                  class:selected={tacticsSubOutId === player.id}
-                  class:unavailable={!eligible}
-                  style="left:{slot.x}%;top:{slot.y}%"
-                  onclick={() => chooseTacticsStarter(player)}
-                  aria-label="Select {player.name}"
-                >
-                  <span class="mts-rating">{primaryRating(player)}</span>
-                  <span class="mts-pos">{player.position}</span>
-                  <small>{player.name.split(' ').pop()}</small>
-                </button>
-              {/if}
-            {/each}
-          </div>
-        </div>
-
-        <div class="match-tactics-bench">
-          <div class="mtb-heading">
-            <div><span>Bench</span><small>Tap two players — the change applies immediately</small></div>
-            <strong>{subsLeft} left</strong>
-          </div>
-          <div class="match-tactics-bench-row">
-            {#each benchList as player (player.id)}
-              {@const fit = Math.round(player.fitness ?? 90)}
-              <button class:selected={tacticsSubInId === player.id} onclick={() => chooseTacticsBench(player)}>
-                <span class="mtb-avatar pos-{positionGroup(player.position)}">{player.name.split(' ').map(word => word[0]).join('').slice(0, 2)}</span>
-                <span class="mtb-pos">{player.position}</span>
-                <span class="mtb-name">{player.name.split(' ').pop()}</span>
-                <span class="mtb-meta">{primaryRating(player)} · {fit}%</span>
-              </button>
-            {/each}
-          </div>
-        </div>
-      </div>
-    </section>
+  {#if tacticsSheetOpen && live?.liveState}
+    <LiveTacticsSheet
+      teamName={live.userTeam.name}
+      formation={tacticsPickerFormation}
+      formations={Object.keys(SLOT_LAYOUT)}
+      mentalities={MENTALITIES}
+      mentality={live.userIsHome ? live.liveState.homeMentality : live.liveState.awayMentality}
+      slots={tacticsSlots}
+      assignment={tacticsAssignment}
+      activePlayers={tacticsActivePlayers}
+      bench={benchList}
+      {subsLeft}
+      subInId={tacticsSubInId}
+      subOutId={tacticsSubOutId}
+      subOutOptions={subOutOptions}
+      instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
+      rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
+      onclose={closeTacticsSheet}
+      onformation={applyTactics}
+      onmentality={applyTacticsMentality}
+      oninstruction={applyTacticsInstruction}
+      onstarter={chooseTacticsStarter}
+      onbench={chooseTacticsBench}
+    />
   {/if}
 </div>
 
 <style>
-  .match-screen { height: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; font-family: var(--font-body); color: var(--color-tx); background: var(--color-ground); }
+  .match-screen { position: relative; height: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; font-family: var(--font-body); color: var(--color-tx); background: var(--color-ground); }
   .match-loading { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--color-tx-2); }
 
   .tn-wrap { flex: 1; overflow-y: auto; padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 14px; }
@@ -1183,6 +1746,8 @@
   .tn-squad-link { margin-top: 9px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-club); border-radius: 8px; background: transparent; color: var(--color-club); font: 700 11px var(--font-body); cursor: pointer; }
 
   .tn-actions, .ft-actions, .after-actions { display: flex; gap: 10px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); flex-shrink: 0; }
+  .tn-actions-modes { flex-wrap: wrap; }
+  .tn-actions-modes .btn-full { min-width: 120px; }
   .tn-actions .btn-full, .live-controls .ctrl-btn, .after-section-title, .ft-scorers div { display: flex; align-items: center; justify-content: center; gap: 5px; }
 
   .kickoff-beat { flex: 1; display: flex; align-items: center; justify-content: center; gap: 24px; cursor: pointer; animation: ko-in 0.6s ease; }
@@ -1263,21 +1828,27 @@
   .bench-row.bench-injured { opacity: 0.6; }
   .sub-on-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--color-club); background: transparent; color: var(--color-club); cursor: pointer; }
 
-  .live-controls { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .live-controls { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .live-controls::-webkit-scrollbar { display: none; }
-  .ctrl-btn { min-height: 44px; flex: 0 0 auto; white-space: nowrap; font-size: 10px; padding: 8px 9px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
+  .ctrl-btn { min-height: 44px; flex: 0 0 auto; white-space: nowrap; font-size: 10px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
   .tactics-control span { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 2px; border-radius: 50%; background: var(--color-club); color: var(--color-on-club, #fff); font: 700 9px var(--font-mono); }
-  .speed-wrap { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; }
-  .speed-lbl { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); margin-right: 2px; }
-  .speed-btn { min-height: 44px; font-size: 10px; min-width: 38px; padding: 7px 6px; border-radius: 6px; border: 1px solid var(--color-line); background: transparent; color: var(--color-tx-2); cursor: pointer; }
-  .speed-btn.active { background: var(--color-club); color: var(--color-on-club, #fff); border-color: var(--color-club); }
+
+  .shootout-wrap { flex:1; min-height:0; display:flex; flex-direction:column; padding:14px 12px calc(12px + env(safe-area-inset-bottom)); overflow:hidden; }
+  .shootout-kicker { text-align:center; color:var(--color-live); font:700 10px var(--font-mono); letter-spacing:1.2px; }
+  .shootout-score { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; margin:12px 0 4px; }
+  .shootout-score > div:not(.shootout-sep) { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:8px; min-width:0; }
+  .shootout-score span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+  .shootout-score strong { font:700 28px var(--font-display); }
+  .shootout-sep { color:var(--color-tx-3); font:700 9px var(--font-mono); }
+  .shootout-regulation { margin-bottom:8px; text-align:center; color:var(--color-tx-3); font:9px var(--font-mono); }
 
   @media (max-width: 768px) {
     .broadcast-pitch { flex: 1 1 auto; min-height: 220px; max-height: 57dvh; }
     .live-controls { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+    .tn-actions-modes { display:grid; grid-template-columns:1fr 1fr; }
+    .tn-actions-modes .btn-full:last-child { grid-column:1 / -1; }
   }
-
-  .ctrl-btn:focus-visible, .speed-btn:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
+  .ctrl-btn:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) { .broadcast-player.moving .player-legs, .goal-takeover { animation: none; } .progress-bar, .momentum i { transition: none; } }
   @media (min-width: 769px) { .live-wrap { width: min(100%, 900px); align-self: center; } .broadcast-pitch { width: min(100%, 640px); align-self: center; } }
   .ft-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
@@ -1292,6 +1863,7 @@
   .ft-scorers { font-size: 11px; color: var(--color-tx-2); margin-top: 6px; }
   .ft-score { font-family: var(--font-display); font-size: 44px; }
   .ft-sep { margin: 0 10px; opacity: 0.4; }
+  .ft-penalties { padding:5px 9px; border:1px solid var(--color-line); border-radius:999px; color:var(--color-warn); font:700 10px var(--font-mono); letter-spacing:.7px; }
   .ft-status { font-size: 10px; font-family: var(--font-mono); letter-spacing: 2px; color: var(--color-tx-3); }
 
   .after-wrap { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
@@ -1322,84 +1894,4 @@
   .btn-full:disabled { opacity: 0.6; cursor: not-allowed; }
   .btn-primary { border: none; background: var(--color-club); color: var(--color-on-club, #fff); }
   .btn-secondary { border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx-2); }
-
-  .match-tactics {
-    position: fixed; inset: 0; z-index: 1000; height: 100dvh; min-height: 0;
-    display: flex; flex-direction: column; overflow: hidden;
-    background: var(--color-ground); color: var(--color-tx); font-family: var(--font-body);
-  }
-  .match-tactics-header {
-    flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
-    padding: max(14px, env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--color-line);
-    background: var(--color-surface);
-  }
-  .match-tactics-header span { display: block; margin-bottom: 4px; color: var(--color-live); font: 700 9px var(--font-mono); letter-spacing: 1.6px; }
-  .match-tactics-header strong { display: block; font: 700 21px var(--font-display); letter-spacing: .4px; }
-  .match-tactics-close { min-width: 88px; height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); font: 700 11px var(--font-body); cursor: pointer; }
-  .match-tactics-formations {
-    flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px;
-    border-bottom: 1px solid var(--color-line); scrollbar-width: none;
-  }
-  .match-tactics-formations::-webkit-scrollbar, .match-tactics-bench-row::-webkit-scrollbar { display: none; }
-  .match-tactics-formations button {
-    flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line);
-    border-radius: 8px; background: var(--color-raised); color: var(--color-tx-2); font: 600 11px var(--font-mono); cursor: pointer;
-  }
-  .match-tactics-formations button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-mentalities { flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px; border-bottom: 1px solid var(--color-line); scrollbar-width: none; }
-  .match-tactics-mentalities::-webkit-scrollbar { display: none; }
-  .match-tactics-mentalities button { flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
-  .match-tactics-mentalities button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; display:grid; gap:14px; }
-  .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
-  .match-tactics-pitch {
-    position: relative; width: 100%; aspect-ratio: 68 / 91; overflow: hidden;
-    border: 2px solid rgba(255,255,255,.18); border-radius: 8px;
-    background: linear-gradient(180deg, #123d32, #0d3128);
-    box-shadow: inset 0 0 42px rgba(0,0,0,.3);
-  }
-  .match-tactics-pitch::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 10%, transparent 10% 20%); }
-  .mtp-half { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; border-top: 1px solid rgba(255,255,255,.24); }
-  .mtp-circle { position: absolute; z-index: 1; left: 50%; top: 50%; width: 22%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; transform: translate(-50%,-50%); }
-  .mtp-box { position: absolute; z-index: 1; left: 22%; width: 56%; height: 15%; border: 1px solid rgba(255,255,255,.24); }
-  .mtp-box.top { top: 0; border-top: 0; } .mtp-box.bottom { bottom: 0; border-bottom: 0; }
-  .match-tactics-slot {
-    position: absolute; z-index: 2; width: 48px; min-height: 58px; padding: 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    transform: translate(-50%,-50%); border: 2px solid; border-radius: 50%;
-    background: var(--color-surface); color: var(--color-tx); cursor: pointer;
-  }
-  .match-tactics-slot.pos-GK { border-color: #7c83e8; }
-  .match-tactics-slot.pos-DEF { border-color: var(--color-live); }
-  .match-tactics-slot.pos-MID { border-color: var(--color-warn); }
-  .match-tactics-slot.pos-ATT { border-color: var(--color-bad); }
-  .match-tactics-slot.selected { box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-club) 45%, transparent); border-color: var(--color-club); }
-  .match-tactics-slot.unavailable { opacity: .35; }
-  .mts-rating { font: 700 14px/1 var(--font-display); }
-  .mts-pos { color: var(--color-tx-3); font: 700 8px/1.3 var(--font-mono); }
-  .match-tactics-slot small {
-    position: absolute; top: calc(100% + 3px); max-width: 68px; overflow: hidden; text-overflow: ellipsis;
-    padding: 2px 4px; border-radius: 3px; white-space: nowrap; background: rgba(4,12,8,.82); color: white; font: 9px var(--font-body);
-  }
-  .match-tactics-bench { width: min(100%, 520px); margin: 14px auto 0; }
-  .mtb-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 8px; }
-  .mtb-heading span { display: block; font: 700 15px var(--font-display); }
-  .mtb-heading small { display: block; margin-top: 2px; color: var(--color-tx-3); font-size: 9px; }
-  .mtb-heading strong { color: var(--color-warn); font: 700 10px var(--font-mono); }
-  .match-tactics-bench-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
-  .match-tactics-bench-row button {
-    flex: 0 0 82px; min-height: 104px; display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 8px 5px; border: 1px solid var(--color-line); border-radius: 10px;
-    background: var(--color-surface); color: var(--color-tx); cursor: pointer;
-  }
-  .match-tactics-bench-row button.selected { border-color: var(--color-club); background: color-mix(in oklch, var(--color-club) 12%, var(--color-surface)); box-shadow: inset 0 0 0 1px var(--color-club); }
-  .mtb-avatar { width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid; border-radius: 50%; font: 700 10px var(--font-mono); }
-  .mtb-avatar.pos-GK { border-color: #7c83e8; }.mtb-avatar.pos-DEF { border-color: var(--color-live); }.mtb-avatar.pos-MID { border-color: var(--color-warn); }.mtb-avatar.pos-ATT { border-color: var(--color-bad); }
-  .mtb-pos { color: var(--color-tx-3); font: 700 8px var(--font-mono); }
-  .mtb-name { width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; white-space: nowrap; }
-  .mtb-meta { color: var(--color-tx-3); font: 9px var(--font-mono); }
-
-  @media (min-width: 900px) {
-    .match-tactics { left: 50%; right: auto; width: min(720px, 100vw); transform: translateX(-50%); border-left: 1px solid var(--color-line); border-right: 1px solid var(--color-line); }
-  }
 </style>

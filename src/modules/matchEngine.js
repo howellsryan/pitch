@@ -21,10 +21,12 @@ import {
   MATCH_ACTION_LEDGER_VERSION,
   MATCH_ACTION_RESOLVER_VERSION,
   MATCH_RNG_PACKET_VERSION,
+  buildPlayableMoment,
+  commitAuthoritativePhase,
   deriveStatsFromActionLedger,
   fixedPhaseRngPacket,
   packetDerivedSeed,
-  resolveAuthoritativePhase,
+  prepareAuthoritativePhase,
 } from './matchActionResolver.js';
 import { buildMatchTacticalAnalysis } from './matchTacticalAnalysis.js';
 import { validateMatchSimulationVersion } from './matchSimulationVersion.js';
@@ -47,6 +49,7 @@ export const DEF = new Set(['CB','RB','LB']);
 export const MATCH_INJURY_CHECK_INTERVAL = 6;
 export const MATCH_PHASES = 120;
 export const MAX_MATCHDAY_BENCH = 9;
+export const PLAYABLE_PHASE_CONTINUATION_VERSION = 1;
 
 function currentSimulationVersions() {
   return {
@@ -437,6 +440,10 @@ function cloneMatchPlayer(player) {
   return clone;
 }
 
+function clonePlayablePhasePlayer(player) {
+  return { ...player };
+}
+
 export function resolveTeamTacticalIdentity(team, opponent, players, requestedFormation, requestedMentality, isHome) {
   if (isUserTacticalPlan(team)) {
     const instructions = normalizeTeamInstructions(team.tacticalPlan.instructions);
@@ -609,36 +616,90 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
   });
 }
 
-export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase, controlledTeamId = null) {
+function playableContinuationSnapshot({
+  phase, minute, packet, preparedAction, isHome, cursor,
+  curHActive, curAActive, curHBench, curABench, hFitness, aFitness,
+  curHSubs, curASubs, curHGoals, curAGoals, curHPhases, curAPhases,
+  hStr, aStr, actionLedger,
+}) {
+  return {
+    version:PLAYABLE_PHASE_CONTINUATION_VERSION,
+    phase,
+    minute,
+    packet:{ ...packet },
+    preparedAction,
+    isHome,
+    rngState:cursor.state,
+    hActive:curHActive.map(clonePlayablePhasePlayer),
+    aActive:curAActive.map(clonePlayablePhasePlayer),
+    hBenchLeft:curHBench.map(clonePlayablePhasePlayer),
+    aBenchLeft:curABench.map(clonePlayablePhasePlayer),
+    hFitness:new Map(hFitness),
+    aFitness:new Map(aFitness),
+    hSubsLeft:curHSubs,
+    aSubsLeft:curASubs,
+    hGoals:curHGoals,
+    aGoals:curAGoals,
+    hPhases:curHPhases,
+    aPhases:curAPhases,
+    hStr,
+    aStr,
+    actionLedger:[...actionLedger],
+  };
+}
+
+export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, endPhase, controlledTeamId = null, playableControl = null) {
   const versionCheck = validateMatchSimulationVersion(liveState, currentSimulationVersions());
+  const continuation = playableControl?.continuation ?? null;
+  if (continuation && continuation.version !== PLAYABLE_PHASE_CONTINUATION_VERSION) {
+    throw new Error('Unsupported playable phase continuation');
+  }
+  if (playableControl && startPhase !== endPhase) {
+    throw new Error('Playable phase control requires a single authoritative phase');
+  }
+  if (continuation && (startPhase !== continuation.phase || endPhase !== continuation.phase)) {
+    throw new Error('Playable phase continuation does not match the requested phase');
+  }
+
   let state = refreshLiveMatchState(liveState);
   const attackingFitnessDrain = 0.18;
   const defendingFitnessDrain = 0.12;
-  const cursor = cursorFrom(state.rngState ?? state.seed);
-  let curHActive = [...state.hActive], curAActive = [...state.aActive];
-  let curHBench = [...state.hBenchLeft], curABench = [...state.aBenchLeft];
-  const hFitness = new Map(state.hFitness), aFitness = new Map(state.aFitness);
-  let curHSubs = state.hSubsLeft, curASubs = state.aSubsLeft;
-  let curHGoals = state.hGoals, curAGoals = state.aGoals;
-  let curHPhases = state.hPhases, curAPhases = state.aPhases;
-  let hStr = state.hStr, aStr = state.aStr;
-  const actionLedger = [...(state.actionLedger ?? [])];
+  const cursor = cursorFrom(continuation?.rngState ?? state.rngState ?? state.seed);
+  let curHActive = continuation ? continuation.hActive.map(clonePlayablePhasePlayer) : [...state.hActive];
+  let curAActive = continuation ? continuation.aActive.map(clonePlayablePhasePlayer) : [...state.aActive];
+  let curHBench = continuation ? continuation.hBenchLeft.map(clonePlayablePhasePlayer) : [...state.hBenchLeft];
+  let curABench = continuation ? continuation.aBenchLeft.map(clonePlayablePhasePlayer) : [...state.aBenchLeft];
+  const hFitness = continuation ? new Map(continuation.hFitness) : new Map(state.hFitness);
+  const aFitness = continuation ? new Map(continuation.aFitness) : new Map(state.aFitness);
+  let curHSubs = continuation?.hSubsLeft ?? state.hSubsLeft;
+  let curASubs = continuation?.aSubsLeft ?? state.aSubsLeft;
+  let curHGoals = continuation?.hGoals ?? state.hGoals;
+  let curAGoals = continuation?.aGoals ?? state.aGoals;
+  let curHPhases = continuation?.hPhases ?? state.hPhases;
+  let curAPhases = continuation?.aPhases ?? state.aPhases;
+  let hStr = continuation?.hStr ?? state.hStr;
+  let aStr = continuation?.aStr ?? state.aStr;
+  const actionLedger = continuation ? [...continuation.actionLedger] : [...(state.actionLedger ?? [])];
   const segEvents = [];
   const hBaseMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
   const aBaseMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
+  let playableResolution = null;
 
   const inferredControlled = controlledTeamId
     ?? (state.homePlanSource === 'user' && state.awayPlanSource !== 'user' ? homeTeam.id
       : state.awayPlanSource === 'user' && state.homePlanSource !== 'user' ? awayTeam.id : null);
 
   for (let phase = startPhase; phase <= endPhase; phase++) {
-    const minute = Math.ceil((phase / MATCH_PHASES) * 90);
-    const packet = fixedPhaseRngPacket(() => cursor.next());
+    const resuming = continuation?.phase === phase;
+    const minute = resuming ? continuation.minute : Math.ceil((phase / MATCH_PHASES) * 90);
+    const packet = resuming ? continuation.packet : fixedPhaseRngPacket(() => cursor.next());
     const hMods = scoreAdjustedMods(hBaseMods, state.homePlanSource, curHGoals, curAGoals, minute);
     const aMods = scoreAdjustedMods(aBaseMods, state.awayPlanSource, curAGoals, curHGoals, minute);
     const hMidShare = midfieldShare(hStr, aStr, hMods, aMods);
-    const isHome = packet.possession < hMidShare;
-    if (isHome) curHPhases++; else curAPhases++;
+    const isHome = resuming ? continuation.isHome : packet.possession < hMidShare;
+    if (!resuming) {
+      if (isHome) curHPhases++; else curAPhases++;
+    }
 
     const attActive = isHome ? curHActive : curAActive;
     const defActive = isHome ? curAActive : curHActive;
@@ -653,33 +714,56 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     const attGoals = isHome ? curHGoals : curAGoals;
     const oppGoals = isHome ? curAGoals : curHGoals;
 
-    for (const player of attActive) {
-      const next = (attFitMap.get(player.id) ?? 90) - attackingFitnessDrain * ageDrain(player.age ?? 24) * attMods.fitnessDrainMult;
-      attFitMap.set(player.id, Math.max(0, next));
-    }
-    for (const player of defActive) {
-      const next = (defFitMap.get(player.id) ?? 90) - defendingFitnessDrain * ageDrain(player.age ?? 24) * defMods.fitnessDrainMult;
-      defFitMap.set(player.id, Math.max(0, next));
+    let preparedAction = continuation?.preparedAction ?? null;
+    if (!resuming) {
+      for (const player of attActive) {
+        const next = (attFitMap.get(player.id) ?? 90) - attackingFitnessDrain * ageDrain(player.age ?? 24) * attMods.fitnessDrainMult;
+        attFitMap.set(player.id, Math.max(0, next));
+      }
+      for (const player of defActive) {
+        const next = (defFitMap.get(player.id) ?? 90) - defendingFitnessDrain * ageDrain(player.age ?? 24) * defMods.fitnessDrainMult;
+        defFitMap.set(player.id, Math.max(0, next));
+      }
+
+      const attForAction = withCurrentMatchFitness(attActive, attFitMap);
+      const defForAction = withCurrentMatchFitness(defActive, defFitMap);
+      preparedAction = prepareAuthoritativePhase({
+        phase,
+        minute,
+        teamId:attTeam.id,
+        opponentTeamId:defTeam.id,
+        attackers:attForAction,
+        defenders:defForAction,
+        rolesById:isHome ? state.homeRoles : state.awayRoles,
+        opponentRolesById:isHome ? state.awayRoles : state.homeRoles,
+        instructions:isHome ? state.homeTactics : state.awayTactics,
+        opponentInstructions:isHome ? state.awayTactics : state.homeTactics,
+        mentality:attMentality,
+        riskMode:actionRiskMode(attPlanSource, attGoals, oppGoals, minute),
+        packet,
+        isHome,
+      });
+
+      if (playableControl?.suspend && playableControl.intent === undefined) {
+        const pendingPlayableMoment = buildPlayableMoment(preparedAction, playableControl.controlledTeamId ?? inferredControlled);
+        if (pendingPlayableMoment) {
+          return {
+            segEvents:[],
+            updatedState:state,
+            pendingPlayableMoment,
+            playableContinuation:playableContinuationSnapshot({
+              phase, minute, packet, preparedAction, isHome, cursor,
+              curHActive, curAActive, curHBench, curABench, hFitness, aFitness,
+              curHSubs, curASubs, curHGoals, curAGoals, curHPhases, curAPhases,
+              hStr, aStr, actionLedger,
+            }),
+          };
+        }
+      }
     }
 
-    const attForAction = withCurrentMatchFitness(attActive, attFitMap);
-    const defForAction = withCurrentMatchFitness(defActive, defFitMap);
-    const resolvedAction = resolveAuthoritativePhase({
-      phase,
-      minute,
-      teamId:attTeam.id,
-      opponentTeamId:defTeam.id,
-      attackers:attForAction,
-      defenders:defForAction,
-      rolesById:isHome ? state.homeRoles : state.awayRoles,
-      opponentRolesById:isHome ? state.awayRoles : state.homeRoles,
-      instructions:isHome ? state.homeTactics : state.awayTactics,
-      opponentInstructions:isHome ? state.awayTactics : state.homeTactics,
-      mentality:attMentality,
-      riskMode:actionRiskMode(attPlanSource, attGoals, oppGoals, minute),
-      packet,
-      isHome,
-    });
+    const resolvedAction = commitAuthoritativePhase(preparedAction, { intent:resuming ? playableControl?.intent ?? null : null });
+    if (resuming) playableResolution = { moment:buildPlayableMoment(preparedAction, playableControl?.controlledTeamId ?? inferredControlled), ...resolvedAction };
     actionLedger.push(resolvedAction.record);
     if (resolvedAction.goalEvent) {
       if (isHome) curHGoals++; else curAGoals++;
@@ -750,6 +834,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
   const versionFields = versionCheck.legacy ? {} : versionCheck.versions;
   return {
     segEvents,
+    ...(playableResolution ? { playableResolution } : {}),
     updatedState:{
       ...state,
       ...versionFields,
@@ -760,6 +845,21 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       hStr, aStr, hMods:hBaseMods, aMods:aBaseMods, hMidShare:midfieldShare(hStr, aStr, hBaseMods, aBaseMods), rngState:cursor.state,
     },
   };
+}
+
+export function resumePlayableMatchPhase(homeTeam, awayTeam, liveState, continuation, intent, controlledTeamId = null) {
+  if (!continuation || continuation.version !== PLAYABLE_PHASE_CONTINUATION_VERSION) {
+    throw new Error('Playable phase resume requires a supported continuation');
+  }
+  return simulateMatchSegment(
+    homeTeam,
+    awayTeam,
+    liveState,
+    continuation.phase,
+    continuation.phase,
+    controlledTeamId,
+    { continuation, intent, controlledTeamId },
+  );
 }
 
 export function simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers, homeFormation, awayFormation, homeLineup, awayLineup, homeMentality, awayMentality, options = {}) {

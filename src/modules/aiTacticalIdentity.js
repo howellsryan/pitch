@@ -53,7 +53,7 @@ function squadPool(players = []) {
   return players.filter(player => player && player.inSquad !== false);
 }
 
-function slotEligible(player, slot) {
+function aiSlotEligible(player, slot) {
   if (slot === 'GK') return player?.position === 'GK';
   return player?.position !== 'GK';
 }
@@ -79,7 +79,7 @@ export function selectArchetypeEleven(players = [], formation = '4-3-3') {
     let bestScore = -Infinity;
     for (let index = 0; index < remaining.length; index += 1) {
       const player = remaining[index];
-      if (!slotEligible(player, slot)) continue;
+      if (!aiSlotEligible(player, slot)) continue;
       const score = slotCandidateScore(player, slot);
       if (score > bestScore || (score === bestScore && String(player.id).localeCompare(String(remaining[bestIndex]?.id ?? '')) < 0)) {
         bestIndex = index;

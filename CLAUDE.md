@@ -4,7 +4,7 @@
 
 ## 0) Current state — read first
 
-- **Product:** free browser-first football career simulator, 9 leagues / 186 clubs, mobile-first, no forced account. It is **simulator-only**: do not add manual/on-pitch football controls. Broadcast is a watchable presentation of simulated football, not a playable match mode.
+- **Product:** free browser-first football career simulator, 9 leagues / 186 clubs, mobile-first, no forced account. Career simulation remains core. Play Key Moments is the bounded on-pitch exception, resolving through the authoritative match engine; no continuous/manual 11v11 control or second match engine. Broadcast remains presentation-only. See AGENTS.md for the playable continuation/persistence boundaries.
 - **Live product:** `pitch-sim.com`. The app is built with Vite/Svelte 5 and deployed by **Cloudflare Workers Builds**, not GitHub Actions.
 - **R0-R7 redesign is complete.** `docs/plan/07-redesign.md` remains the historical redesign reference. R8 quality/light-mode/PWA work remains a separate parallel quality stream.
 - **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is COMPLETE (1 Sep 2026). P4 — Transfer Market and Contracts 2.0 is COMPLETE (1 Sep 2026). P5 — Scouting, Coaching, Training and Squad Planning is COMPLETE (1 Sep 2026). P6 — Manager Career and Living Manager Market is COMPLETE (2 Sep 2026). P7 — Club Identity, Finance, Board and Facilities is COMPLETE (3 Sep 2026). Next: P8 — Story Engine, Press, Fans and Rivalries.**
@@ -20,6 +20,7 @@
 - `src/game/broadcastSimulation.js` is a deterministic spatial/presentation layer. It may visualise an authoritative result/event plan but must never invent a conflicting score, scorer or result.
 - Quick Sim and Broadcast must consume the same authoritative football outcome.
 - P1 background fixtures also use the authoritative fast match engine. Never run Broadcast simulation for the background world.
+- Playable characters share `src/game/playableFootballer.js` (generated skin) and `playableFootballMotion.js` (pure contact/IK poses). Keep foot/glove targets, ground clearance and replay continuity in that shared layer; do not restore independent primitive limb rotations. `playableMomentsPocScene.js` retains legacy scalar pose fields for compatibility, while renderers consume its `joints`. See `docs/plan/playable-animation-rebuild.md` for verification limits.
 
 
 ### Match simulation versioning and T7 balance gate

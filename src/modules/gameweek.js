@@ -3,8 +3,9 @@ import { simulateMatch } from './matchEngine.js';
 import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
 import { buildPersonalStatePatches } from './playerModel.js';
 import { updateTeamMorale } from './standings.js';
-import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
+import { CUP_META, UCL_CLUBS, hasCommittedShootoutResult, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
 import { finishLeaguePhase, getCompetitionRules, getUefaKnockoutOpponentSeeds, getUefaKnockoutSeeding, isTwoLegRound, isUefaCompetition } from './competitionRules.js';
+import { COMPETITION_SHOOTOUT_VERSION, buildVersionedKnockoutContext, resolveVersionedKnockout } from './competitionShootouts.js';
 import { advanceTransferMarketWeek } from './transfers.js';
 import { advanceP5CareerDepthWeek } from './p5Runtime.js';
 import { advanceP6ManagerCareerWeek } from './p6Runtime.js';
@@ -119,6 +120,74 @@ function drawKnockoutOpponent(cupId, roundName, state, userTeamId, userLeague, a
   };
 }
 
+/**
+ * One Phase 7 knockout-decision adapter shared by Quick Sim and watched match
+ * closeout. New versioned events can either provide final-XI participants so the
+ * shootout is resolved automatically here, or provide a previously committed
+ * compact shootout summary from the playable/watch flow. Legacy events return
+ * null and continue through the historical resolver untouched.
+ */
+export function resolveManagedKnockoutDecision({
+  event,
+  cupState,
+  userTeamId,
+  userIsHome,
+  homeTeamId,
+  awayTeamId,
+  homeGoals,
+  awayGoals,
+  seed,
+  homePlayers = [],
+  awayPlayers = [],
+  committedShootout = null,
+} = {}) {
+  if (event?.shootoutVersion !== COMPETITION_SHOOTOUT_VERSION) return null;
+  const context = buildVersionedKnockoutContext({
+    shootoutVersion:event.shootoutVersion,
+    cupId:event.cupId,
+    roundName:event.roundName,
+    cupState,
+    userIsHome,
+    homeGoals,
+    awayGoals,
+  });
+  if (!context?.requiresShootout) {
+    return { ...context, penalties:false, extraTime:false, shootout:null };
+  }
+
+  if (committedShootout) {
+    if (committedShootout.status !== 'complete'
+        || committedShootout.homeTeamId !== homeTeamId
+        || committedShootout.awayTeamId !== awayTeamId
+        || (committedShootout.winnerTeamId !== homeTeamId && committedShootout.winnerTeamId !== awayTeamId)) {
+      throw new Error('COMPETITION_SHOOTOUT_COMMITTED_RESULT_INVALID');
+    }
+    return {
+      ...context,
+      userWon:committedShootout.winnerTeamId === userTeamId,
+      penalties:true,
+      extraTime:true,
+      shootout:committedShootout,
+    };
+  }
+
+  return resolveVersionedKnockout({
+    shootoutVersion:event.shootoutVersion,
+    seed,
+    cupId:event.cupId,
+    roundName:event.roundName,
+    cupState,
+    userTeamId,
+    homeTeamId,
+    awayTeamId,
+    userIsHome,
+    homeGoals,
+    awayGoals,
+    homePlayers,
+    awayPlayers,
+  });
+}
+
 export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams) {
   const events = [];
   const leagueFix = fixtures.find(f =>
@@ -177,6 +246,7 @@ export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams)
       opponentRep:draw.opponent?.rep ?? 70,
       opponentSeed:draw.opponentSeed ?? null,
       userIsHome:draw.userIsHome,
+      shootoutVersion:COMPETITION_SHOOTOUT_VERSION,
     });
   }
   return events;
@@ -270,8 +340,6 @@ async function settleWorldCompetitionGameweek(gw, save, allTeams) {
   );
   if (!advanced.state) return workingSave;
 
-  // Persist canonical cup records before projecting them. If the tab closes
-  // here, the next closeout recovers the still-pending records exactly once.
   await putSave({ ...workingSave, worldCompetitions:advanced.state });
   if (!advanced.records.length) return { ...workingSave, worldCompetitions:advanced.state };
 
@@ -286,11 +354,6 @@ export function personalStateSettlementRequiresFullWorld(fixtures) {
 }
 
 async function settleWorldPersonalState(gameweek, season, userTeamId, fixtures) {
-  // League projection has already settled every completed background club,
-  // while background competition projection settles the clubs it deferred.
-  // The final boundary therefore only needs the managed squad on an ordinary
-  // league week. A genuinely league-less/cup-only week has no global league
-  // projection, so it deliberately retains the full-world recovery path.
   const candidates = personalStateSettlementRequiresFullWorld(fixtures) || !userTeamId
     ? await getAllPlayers()
     : await getPlayersByTeam(userTeamId);
@@ -300,10 +363,6 @@ async function settleWorldPersonalState(gameweek, season, userTeamId, fixtures) 
 }
 
 async function runEndOfWorldGameweek(save, fixtures) {
-  // P3 observes the fully projected world week first. Medical recovery then
-  // advances the injury clock, P5 progresses development/scouting/planning on
-  // the same persisted week key, and only then may P4 open candidate activity.
-  // Each layer owns its own retry key, so a reload never creates a second tick.
   const personalStatePatches = await settleWorldPersonalState(
     save.currentGameweek,
     save.season,
@@ -338,9 +397,6 @@ export async function advanceOneFixture(overrideFormation) {
   let save = await getSave();
   if (save.currentGameweek > getEffectiveTotalGW(save)) return { finished:true };
 
-  // Recover any persisted AI cup records before selecting this week's squads.
-  // That prevents a reload between record-write and projection from duplicating
-  // appearances/cards/injuries when the user resumes the same world week.
   const recoveredCompetition = await applyPendingWorldCompetitionProjections(save);
   if (recoveredCompetition.results.length) {
     save = recoveredCompetition.save ?? save;
@@ -352,8 +408,6 @@ export async function advanceOneFixture(overrideFormation) {
     getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
   ]);
 
-  // Recover a canonical P1 result left pending by a tab close. The atomic
-  // projection either applies the whole batch or nothing, so this cannot double.
   const recoveredProjection = await applyPendingWorldLeagueProjections(gwFixtures);
   if (recoveredProjection.length) {
     allPlayers = await getAllPlayers();
@@ -439,8 +493,6 @@ export async function advanceOneFixture(overrideFormation) {
     if (mdResult) {
       const reportResult = {
         ...mdResult,
-        // Persisted with the result so the Home rail can place a European night
-        // on its gameweek. Quick Sim and Broadcast must store the same shape.
         gameweek:event.gw,
         opponentId:mdResult.opponentId ?? event.opponentId,
         opponentName:mdResult.opponentName ?? event.opponentName ?? event.oppName,
@@ -464,6 +516,29 @@ export async function advanceOneFixture(overrideFormation) {
       userLineup:save.lineup ?? null,
       userBench:save.bench ?? null,
     });
+    const homeTeamId = result.userIsHome ? save.userTeamId : result.opponentId;
+    const awayTeamId = result.userIsHome ? result.opponentId : save.userTeamId;
+    const homeGoals = result.userIsHome ? result.userGoals : result.oppGoals;
+    const awayGoals = result.userIsHome ? result.oppGoals : result.userGoals;
+    const versioned = resolveManagedKnockoutDecision({
+      event,
+      cupState,
+      userTeamId:save.userTeamId,
+      userIsHome:result.userIsHome,
+      homeTeamId,
+      awayTeamId,
+      homeGoals,
+      awayGoals,
+      seed:result.seed,
+      homePlayers:result.shootoutParticipants?.home ?? [],
+      awayPlayers:result.shootoutParticipants?.away ?? [],
+    });
+    const knockout = versioned ?? (() => {
+      const twoLeg = isTwoLegRound(event.cupId, event.roundName, 1) || isTwoLegRound(event.cupId, event.roundName, 2);
+      return twoLeg
+        ? { userWon:result.userGoals > result.oppGoals, penalties:false, extraTime:false }
+        : resolveSingleLegKnockout(result.userGoals, result.oppGoals, result.seed);
+    })();
     const progress = resolveCupProgress(
       event.cupId,
       event.roundName,
@@ -471,29 +546,37 @@ export async function advanceOneFixture(overrideFormation) {
       cupState,
       result.userGoals,
       result.oppGoals,
-      result.userWon,
+      knockout.userWon,
       result.userIsHome,
       result.seed,
+      versioned,
     );
+    const shootout = versioned?.shootout ?? progress.aggregate?.shootout ?? null;
+    const duplicateShootout = shootout?.shootoutId && hasCommittedShootoutResult(cupState, shootout.shootoutId);
     const resultOut = {
       ...result,
-      // Stored so the Home rail can place a cup result on its gameweek; the
-      // authoritative football outcome above is unchanged.
+      userTeamId:save.userTeamId,
       gameweek:event.gw,
       opponentSeed:event.opponentSeed ?? null,
-      ...(progress.aggregate ? { userWon:progress.aggregate.userWon, aggregate:progress.aggregate } : {}),
+      userWon:progress.aggregate ? progress.aggregate.userWon : knockout.userWon,
+      penalties:progress.aggregate?.penalties ?? knockout.penalties ?? false,
+      extraTime:progress.aggregate?.extraTime ?? knockout.extraTime ?? false,
+      ...(shootout ? { shootout } : {}),
+      ...(progress.aggregate ? { aggregate:progress.aggregate } : {}),
     };
-    updatedCups[event.cupId] = {
-      ...cupState,
-      roundIndex:progress.roundIndex,
-      status:progress.status,
-      bracketSeed:inheritBracketSeed(event.cupId, event.roundName, cupState, event.opponentSeed, progress),
-      results:[...(cupState?.results ?? []), resultOut],
-    };
+    if (!duplicateShootout) {
+      updatedCups[event.cupId] = {
+        ...cupState,
+        roundIndex:progress.roundIndex,
+        status:progress.status,
+        bracketSeed:inheritBracketSeed(event.cupId, event.roundName, cupState, event.opponentSeed, progress),
+        results:[...(cupState?.results ?? []), resultOut],
+      };
+      await applyNonLeaguePlayerResults([result]).catch(() => {});
+      await applyDevelopment([result]).catch(() => {});
+    }
     cupResults.push(resultOut);
     singleResult = buildCupMatchResult(resultOut, save.userTeamId, event, allTeams);
-    await applyNonLeaguePlayerResults([result]).catch(() => {});
-    await applyDevelopment([result]).catch(() => {});
     pending = remaining;
   }
 
@@ -614,10 +697,24 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
       singleResult = buildCupMatchResult(mdResult, save.userTeamId, event0, allTeams);
     } else {
       const cupState = save.cups?.[event0.cupId];
-      const twoLeg = isTwoLegRound(event0.cupId, event0.roundName, 1) || isTwoLegRound(event0.cupId, event0.roundName, 2);
-      const knockout = twoLeg
-        ? { userWon:userGoals > oppGoals, penalties:false, extraTime:false }
-        : resolveSingleLegKnockout(userGoals, oppGoals, matchResult.seed);
+      const versioned = resolveManagedKnockoutDecision({
+        event:event0,
+        cupState,
+        userTeamId:save.userTeamId,
+        userIsHome,
+        homeTeamId:matchResult.homeTeamId,
+        awayTeamId:matchResult.awayTeamId,
+        homeGoals:matchResult.homeGoals,
+        awayGoals:matchResult.awayGoals,
+        seed:matchResult.seed,
+        committedShootout:matchResult.shootout ?? null,
+      });
+      const knockout = versioned ?? (() => {
+        const twoLeg = isTwoLegRound(event0.cupId, event0.roundName, 1) || isTwoLegRound(event0.cupId, event0.roundName, 2);
+        return twoLeg
+          ? { userWon:userGoals > oppGoals, penalties:false, extraTime:false }
+          : resolveSingleLegKnockout(userGoals, oppGoals, matchResult.seed);
+      })();
       const progress = resolveCupProgress(
         event0.cupId,
         event0.roundName,
@@ -628,63 +725,62 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
         knockout.userWon,
         userIsHome,
         matchResult.seed,
+        versioned,
       );
       aggregate = progress.aggregate;
-      updatedCups[event0.cupId] = {
-        ...cupState,
-        roundIndex:progress.roundIndex,
-        status:progress.status,
-        bracketSeed:inheritBracketSeed(event0.cupId, event0.roundName, cupState, event0.opponentSeed, progress),
-        results:[
-          ...(cupState?.results ?? []),
-          {
-            cupId:event0.cupId,
-            // Quick Sim's row carries these; Broadcast's must too, or the same
-            // tie reads as an unnamed round in the competition history.
-            roundName:event0.roundName,
-            roundIdx:event0.roundIdx ?? 0,
-            gameweek:event0.gw,
-            userGoals, oppGoals, userWon:aggregate ? aggregate.userWon : knockout.userWon,
-            userIsHome, opponentId:event0.opponentId, opponentName:event0.opponentName,
-            opponentSeed:event0.opponentSeed ?? null,
-            penalties:aggregate?.penalties ?? knockout.penalties,
-            extraTime:aggregate?.extraTime ?? knockout.extraTime,
-            homeFormation:matchResult.homeFormation,
-            awayFormation:matchResult.awayFormation,
-            homeMentality:matchResult.homeMentality,
-            awayMentality:matchResult.awayMentality,
-            homeTactics:matchResult.homeTactics,
-            awayTactics:matchResult.awayTactics,
-            seed:matchResult.seed,
-            ...(aggregate ? { aggregate } : {}),
-          },
-        ],
+      const shootout = versioned?.shootout ?? aggregate?.shootout ?? null;
+      const duplicateShootout = shootout?.shootoutId && hasCommittedShootoutResult(cupState, shootout.shootoutId);
+      const storedResult = {
+        cupId:event0.cupId,
+        roundName:event0.roundName,
+        roundIdx:event0.roundIdx ?? 0,
+        gameweek:event0.gw,
+        userTeamId:save.userTeamId,
+        userGoals,
+        oppGoals,
+        userWon:aggregate ? aggregate.userWon : knockout.userWon,
+        userIsHome,
+        opponentId:event0.opponentId,
+        opponentName:event0.opponentName,
+        opponentSeed:event0.opponentSeed ?? null,
+        penalties:aggregate?.penalties ?? knockout.penalties ?? false,
+        extraTime:aggregate?.extraTime ?? knockout.extraTime ?? false,
+        homeFormation:matchResult.homeFormation,
+        awayFormation:matchResult.awayFormation,
+        homeMentality:matchResult.homeMentality,
+        awayMentality:matchResult.awayMentality,
+        homeTactics:matchResult.homeTactics,
+        awayTactics:matchResult.awayTactics,
+        seed:matchResult.seed,
+        ...(shootout ? { shootout } : {}),
+        ...(aggregate ? { aggregate } : {}),
       };
+      if (!duplicateShootout) {
+        updatedCups[event0.cupId] = {
+          ...cupState,
+          roundIndex:progress.roundIndex,
+          status:progress.status,
+          bracketSeed:inheritBracketSeed(event0.cupId, event0.roundName, cupState, event0.opponentSeed, progress),
+          results:[...(cupState?.results ?? []), storedResult],
+        };
+      }
       singleResult = buildCupMatchResult(
         {
-          userGoals, oppGoals, userIsHome,
-          homeScorers:matchResult.homeScorers, awayScorers:matchResult.awayScorers,
+          ...storedResult,
+          homeScorers:matchResult.homeScorers,
+          awayScorers:matchResult.awayScorers,
           scorers:(matchResult.homeScorers ?? []).concat(matchResult.awayScorers ?? []),
-          opponentId:event0.opponentId, opponentName:event0.opponentName,
-          opponentSeed:event0.opponentSeed ?? null,
-          stats:matchResult.stats, events:matchResult.events,
-          fitnessUpdates:matchResult.fitnessUpdates, aggregate,
-          penalties:aggregate?.penalties ?? knockout.penalties,
-          extraTime:aggregate?.extraTime ?? knockout.extraTime,
-          homeFormation:matchResult.homeFormation,
-          awayFormation:matchResult.awayFormation,
-          homeMentality:matchResult.homeMentality,
-          awayMentality:matchResult.awayMentality,
-          homeTactics:matchResult.homeTactics,
-          awayTactics:matchResult.awayTactics,
-          seed:matchResult.seed,
+          stats:matchResult.stats,
+          events:matchResult.events,
+          fitnessUpdates:matchResult.fitnessUpdates,
         },
         save.userTeamId, event0, allTeams,
       );
+      if (!duplicateShootout) {
+        await applyNonLeaguePlayerResults([matchResult]).catch(() => {});
+        await applyDevelopment([matchResult]).catch(() => {});
+      }
     }
-
-    await applyNonLeaguePlayerResults([matchResult]).catch(() => {});
-    await applyDevelopment([matchResult]).catch(() => {});
   }
 
   const gwDone = remaining.length === 0;
@@ -734,6 +830,7 @@ export function buildCupMatchResult(r, userTeamId, event, allTeams) {
     seed:r.seed,
     penalties:r.penalties ?? r.aggregate?.penalties ?? false,
     extraTime:r.extraTime ?? r.aggregate?.extraTime ?? false,
+    shootout:r.shootout ?? r.aggregate?.shootout ?? null,
   };
   if (event.type === 'ucl_md' || event.leaguePhase) {
     const userIsHome = r.userIsHome ?? true;
@@ -820,11 +917,6 @@ export async function updateCache(allPlayersIgnored, results) {
   await applyNonLeaguePlayerResults(results);
 }
 
-/**
- * Only players whose medical clock can advance belong in the weekly recovery
- * write set. Keeping this pure makes the no-full-world-rewrite contract easy to
- * verify independently of IndexedDB.
- */
 export function injuryRecoveryWriteSet(allPlayers) {
   return (allPlayers ?? []).filter(player => player?.injured);
 }

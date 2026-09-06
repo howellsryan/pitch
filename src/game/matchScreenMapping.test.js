@@ -12,6 +12,11 @@ function sourceOf(functionName, length = 5000) {
   return start === -1 ? '' : matchScreenSrc.slice(start, start + length);
 }
 
+function syncSourceOf(functionName, length = 5000) {
+  const start = matchScreenSrc.indexOf(`function ${functionName}`);
+  return start === -1 ? '' : matchScreenSrc.slice(start, start + length);
+}
+
 describe('MatchScreen home/away mapping', () => {
   it('keeps the user squad on the away side for non-league away matches', () => {
     const src = sourceOf('resolveMatchTeams');
@@ -19,10 +24,17 @@ describe('MatchScreen home/away mapping', () => {
     expect(src).toContain('awayPlayers = userIsHomeC ? oppPlayers : userPlayers');
   });
 
-  it('routes venue-side formation and lineup mapping through the shared P2 adapter', () => {
-    const src = sourceOf('startWatch', 3000);
-    expect(src).toContain('buildManagedMatchInputs({');
-    expect(src).toContain('userIsHome:resolved.userIsHome');
+  it('routes both Watch and Play Key Moments through the shared P2 managed-match adapter', () => {
+    const sharedInputSrc = syncSourceOf('buildInputs', 1800);
+    const startManagedSrc = sourceOf('startManagedMatch', 4200);
+    const watchSrc = sourceOf('startWatch', 500);
+    const playableSrc = sourceOf('startPlayableKeyMoments', 500);
+
+    expect(sharedInputSrc).toContain('buildManagedMatchInputs({');
+    expect(sharedInputSrc).toContain('userIsHome:resolved.userIsHome');
+    expect(startManagedSrc).toContain('const inputs = buildInputs(matchCtx, resolved)');
+    expect(watchSrc).toContain('startManagedMatch(false)');
+    expect(playableSrc).toContain('startManagedMatch(true)');
 
     const shared = {
       save:{ formation:'4-2-3-1', mentality:'balanced', lineup:['p1'] },
@@ -44,5 +56,12 @@ describe('MatchScreen home/away mapping', () => {
     expect(managedAway.awayFormation).toBe('3-4-3');
     expect(managedAway.homeLineup).toBeNull();
     expect(managedAway.awayLineup).toEqual(['p1']);
+  });
+
+  it('keeps Play Key Moments on the existing MatchScreen/gameweek lifecycle', () => {
+    expect(matchScreenSrc).toContain('Play Key Moments');
+    expect(matchScreenSrc).toContain('advancePlayableMatchPhase({');
+    expect(matchScreenSrc).toContain('advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome)');
+    expect(matchScreenSrc).toContain('clearPlayableMatchAfterClose(playableSession)');
   });
 });
