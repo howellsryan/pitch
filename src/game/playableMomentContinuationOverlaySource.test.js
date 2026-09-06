@@ -17,7 +17,8 @@ function functionSource(source, name, length = 2600) {
 describe('Phase 5 continuation overlay authority boundary', () => {
   it('lazy-loads a dedicated continuation renderer without replacing the existing shot renderer', () => {
     const mount = functionSource(overlay, 'mountRenderer', 2400);
-    expect(mount).toContain("moment?.interactionType === 'continuation'");
+    expect(overlay).toContain("moment?.interactionType === 'continuation'");
+    expect(mount).toContain('if (isContinuation)');
     expect(mount).toContain("import('../../game/playableMomentsContinuationRenderer.js')");
     expect(mount).toContain('mountThreePlayableContinuation');
     expect(mount).toContain("import('../../game/playableMomentsThreeRenderer.js')");
