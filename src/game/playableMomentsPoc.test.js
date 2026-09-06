@@ -111,7 +111,7 @@ function findPendingMoment({ mode = null, boundary = false, requireUnblocked = f
         const boundaryMatches = !boundary || phase % 10 === 0 || phase % 6 === 0;
         const blockMatches = !requireUnblocked || Number(part.playableContinuation.packet.outcome) > .3;
         const terminalShotMatches = !requireTerminalShot
-          || (part.pendingPlayableMoment.interactionType !== 'continuation' && !part.pendingPlayableMoment.setPiece);
+          || (!part.pendingPlayableMoment.interactionType && !part.pendingPlayableMoment.setPiece);
         if (modeMatches && boundaryMatches && blockMatches && terminalShotMatches) {
           return { ...fixture, stateBefore:state, phase, pending:part };
         }
@@ -250,7 +250,7 @@ describe('Playable Key Moments POC authoritative continuation', () => {
 
   it('threads an explicit goalkeeper decision through an opponent-owned chance', () => {
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      const found = findPendingMoment({ mode:'goalkeeper', requireUnblocked:true });
+      const found = findPendingMoment({ mode:'goalkeeper', requireUnblocked:true, requireTerminalShot:true });
       const resumed = resumePlayableMatchPhase(
         found.home,
         found.away,

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const overlay = readFileSync(resolve(here, '../lib/ui/PlayableMomentOverlay.svelte'), 'utf8');
+const director = readFileSync(resolve(here, 'playableMomentsSceneDirector.js'), 'utf8');
 const renderer = readFileSync(resolve(here, 'playableMomentsContinuationRenderer.js'), 'utf8');
 
 function functionSource(source, name, length = 2600) {
@@ -15,14 +16,16 @@ function functionSource(source, name, length = 2600) {
 }
 
 describe('Phase 5 continuation overlay authority boundary', () => {
-  it('lazy-loads a dedicated continuation renderer without replacing the existing shot renderer', () => {
+  it('keeps the dedicated continuation renderer lazy behind the Phase 8 scene director', () => {
     const mount = functionSource(overlay, 'mountRenderer', 2400);
+    const adapter = functionSource(director, 'mountPlayableSceneRenderer', 1800);
     expect(overlay).toContain("moment?.interactionType === 'continuation'");
-    expect(mount).toContain('if (isContinuation)');
-    expect(mount).toContain("import('../../game/playableMomentsContinuationRenderer.js')");
-    expect(mount).toContain('mountThreePlayableContinuation');
-    expect(mount).toContain("import('../../game/playableMomentsThreeRenderer.js')");
-    expect(mount).toContain('mountThreePlayablePoc');
+    expect(mount).toContain('mountPlayableSceneRenderer(canvas, moment, scenePlan)');
+    expect(adapter).toContain("plan.rendererId === 'three-continuation-legacy'");
+    expect(adapter).toContain("await import('./playableMomentsContinuationRenderer.js')");
+    expect(adapter).toContain('mountThreePlayableContinuation');
+    expect(adapter).toContain("await import('./playableMomentsThreeRenderer.js')");
+    expect(adapter).toContain('mountThreePlayablePoc');
   });
 
   it('returns only target, weight and timing for a continuation and never a receiver id', () => {

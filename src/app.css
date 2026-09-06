@@ -128,6 +128,23 @@
 }
 
 /**
+ * The authoritative live broadcast can advance several hidden choreography
+ * steps inside one 750ms match-phase budget. The DOM must never expose those
+ * internal catch-up jumps as teleporting players or a teleporting ball.
+ * MatchScreen already updates coordinates at roughly 30fps, so a short linear
+ * transition continuously retargets from the element's current rendered
+ * position to the newest authoritative presentation position. This is a
+ * display-only interpolation layer: match time, events, RNG and score remain
+ * untouched.
+ */
+.broadcast-player {
+  transition: left 180ms linear, top 180ms linear;
+}
+.broadcast-ball {
+  transition: left 90ms linear, top 90ms linear;
+}
+
+/**
  * Reduced motion, once, for everything.
  *
  * The rule that matters: reduced motion renders the FINAL state, never

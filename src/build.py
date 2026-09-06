@@ -66,11 +66,14 @@ MODULES += [
     ('modules/aiTacticalIdentity.js', 'AI TACTICAL IDENTITY'),
     ('modules/careerTacticalFit.js', 'CAREER TACTICAL FIT'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
-    # Playable-moment continuation and set-piece domains are pure action helpers
-    # consumed by the shared resolver. They must precede matchActionResolver in
-    # the legacy bundle just as their ES-module imports do in the Vite path.
+    # Playable-moment continuation, contact, set-piece and shootout domains are
+    # pure action helpers. Keep them before their consumers in the legacy bundle
+    # just as their ES-module imports do in the Vite path.
     ('modules/matchContinuationActions.js', 'MATCH CONTINUATION ACTIONS'),
+    ('modules/matchContactActions.js', 'MATCH CONTACT ACTIONS'),
+    ('modules/matchContactPhase.js', 'MATCH CONTACT PHASE'),
     ('modules/matchSetPieces.js', 'MATCH SET PIECES'),
+    ('modules/matchShootout.js', 'MATCH SHOOTOUT'),
     ('modules/matchSetPiecePhase.js', 'MATCH SET PIECE PHASE'),
     ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
     ('modules/matchTacticalAnalysis.js', 'MATCH TACTICAL ANALYSIS'),
@@ -80,6 +83,7 @@ MODULES += [
     ('modules/standings.js',        'STANDINGS'),
     ('modules/fixtures.js',         'FIXTURES'),
     ('modules/competitionRules.js', 'COMPETITION RULES'),
+    ('modules/competitionShootouts.js', 'COMPETITION SHOOTOUTS'),
     ('modules/cups.js',             'CUPS'),
     ('modules/scoutingTacticalAssessment.js', 'SCOUTING TACTICAL ASSESSMENT'),
     ('modules/scouting.js',         'SCOUTING'),

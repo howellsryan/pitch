@@ -3,6 +3,7 @@ import {
   resumePlayableMatchPhase,
   simulateMatchSegment,
 } from './matchEngine.js';
+import { preparePlayableContactContinuation } from './matchContactPhase.js';
 import {
   acknowledgePlayableMoment,
   attachPendingPlayableMoment,
@@ -84,16 +85,47 @@ export async function advancePlayableMatchPhase({
   );
 
   if (suspended.pendingPlayableMoment) {
+    const contactCandidate = suspended.pendingPlayableMoment.interactionType === 'contact'
+      ? preparePlayableContactContinuation(
+          suspended.playableContinuation,
+          controlledTeamId,
+          suspended.pendingPlayableMoment.version,
+        )
+      : null;
+    // buildPlayableMoment and this persistence seam derive the candidate from
+    // the same fixed packet. If a contact cannot be reproduced, do not persist
+    // a moment that the authoritative resume path cannot resolve.
+    if (suspended.pendingPlayableMoment.interactionType === 'contact' && !contactCandidate) {
+      const automatic = resumePlayableMatchPhase(
+        homeTeam,
+        awayTeam,
+        liveState,
+        suspended.playableContinuation,
+        null,
+        controlledTeamId,
+      );
+      return {
+        kind:'advanced',
+        selection:{ selected:false, reason:'contact_unavailable', probability:0, roll:1 },
+        session,
+        updatedState:automatic.updatedState,
+        segEvents:automatic.segEvents,
+        currentPhase:phase,
+      };
+    }
+
+    const candidateMoment = contactCandidate?.moment ?? suspended.pendingPlayableMoment;
+    const selectedContinuation = contactCandidate?.continuation ?? suspended.playableContinuation;
     const selection = evaluatePlayableMomentSelection({
-      moment:suspended.pendingPlayableMoment,
+      moment:candidateMoment,
       session,
       liveState,
     });
     if (selection.selected) {
       const base = withLiveProgress(session, { liveState, currentPhase, allEvents });
       const pending = attachPendingPlayableMoment(base, {
-        moment:suspended.pendingPlayableMoment,
-        continuation:suspended.playableContinuation,
+        moment:candidateMoment,
+        continuation:selectedContinuation,
       });
       const persisted = await persistPlayableSessionAtomic(pending, {
         expectedSessionId:session.sessionId,
@@ -107,6 +139,8 @@ export async function advancePlayableMatchPhase({
       };
     }
 
+    // A rejected Phase 6 contact must resolve through the original automatic
+    // continuation rather than its playable-only enriched prepared action.
     const automatic = resumePlayableMatchPhase(
       homeTeam,
       awayTeam,

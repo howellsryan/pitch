@@ -117,6 +117,27 @@ describe('applySubstitution', () => {
     expect(event).toMatchObject({ type: 'sub', inId: subIn.id, outId: subOut.id, minute: 60, teamId: 'h' });
   });
 
+  it('preserves the exact tactical slot on a direct out-of-position replacement', () => {
+    const ls = makeLiveState();
+    const striker = ls.hActive.find(player => player.matchPosition === 'ST');
+    const midfielder = ls.hBenchLeft.find(player => player.position === 'CM');
+    expect(striker).toBeTruthy();
+    expect(midfielder).toBeTruthy();
+    const untouchedSlots = ls.hActive
+      .filter(player => player.id !== striker.id)
+      .map(player => [player.id, player.matchPosition]);
+
+    const { ok, liveState:after } = applySubstitution(ls, true, midfielder.id, striker.id, 65, 'h');
+
+    expect(ok).toBe(true);
+    const replacement = after.hActive.find(player => player.id === midfielder.id);
+    expect(replacement.position).toBe('CM');
+    expect(replacement.matchPosition).toBe('ST');
+    expect(after.hActive
+      .filter(player => player.id !== midfielder.id)
+      .map(player => [player.id, player.matchPosition])).toEqual(untouchedSlots);
+  });
+
   it('allows three substitutions (exhausting the bench) then blocks a fourth', () => {
     let ls = makeLiveState();
     expect(ls.hBenchLeft).toHaveLength(3); // squad() gives exactly 3 outfield subs
