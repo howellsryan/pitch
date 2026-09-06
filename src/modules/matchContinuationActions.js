@@ -40,37 +40,69 @@ function continuationStableUnit(input) {
   return (hash >>> 0) / 0x100000000;
 }
 
-function continuationFamilyForRoute(route) {
-  if (route === 'pass_into_space') return 'through_ball';
-  if (route === 'direct_pass') return 'final_pass';
-  return null;
+function continuationFamilyForPrepared(prepared) {
+  if (prepared?.route === 'pass_into_space') return 'through_ball';
+  if (prepared?.route === 'direct_pass') return 'final_pass';
+  if (prepared?.route !== 'wide_delivery') return null;
+  // Wide-delivery family is fixed from stable pre-outcome phase/actor/receiver
+  // context. It never consults execution/chance/shot/finish or an auto result.
+  const variant = continuationStableUnit(`${prepared.phase}:${prepared.teamId}:${prepared.actor?.id}:${prepared.target?.id}:wide-family`);
+  return variant < .42 ? 'cutback' : 'cross';
 }
 
 function continuationTargetZone(prepared, family) {
-  const channel = continuationRound((continuationStableUnit(`${prepared.teamId}:${prepared.target?.id}:channel`) - .5) * 1.06, 3);
+  const stableChannel = continuationRound((continuationStableUnit(`${prepared.teamId}:${prepared.target?.id}:channel`) - .5) * 1.06, 3);
+  if (family === 'cutback') {
+    return {
+      x:continuationRound(stableChannel * .42, 3),
+      y:.34,
+      radius:.22,
+    };
+  }
+  if (family === 'cross') {
+    return {
+      x:continuationRound(stableChannel * .68, 3),
+      y:.66,
+      radius:.30,
+    };
+  }
   return {
-    x:channel,
+    x:stableChannel,
     y:family === 'through_ball' ? .78 : .64,
     radius:family === 'through_ball' ? .24 : .28,
   };
 }
 
 function continuationProjectedXg(prepared, family) {
-  const base = family === 'through_ball' ? .235 : .175;
+  const base = family === 'through_ball' ? .235
+    : family === 'cutback' ? .265
+      : family === 'cross' ? .145
+        : .175;
   const edge = Number(prepared.execution ?? 50) - Number(prepared.counter ?? 50) + Number(prepared.context ?? 0);
-  return continuationRound(continuationClamp(base + edge * .0018, .07, .36), 3);
+  return continuationRound(continuationClamp(base + edge * .0018, .06, .40), 3);
 }
 
 function continuationChanceProbability(prepared, family) {
-  const base = family === 'through_ball' ? .28 : .18;
+  const base = family === 'through_ball' ? .28
+    : family === 'cutback' ? .34
+      : family === 'cross' ? .22
+        : .18;
   const success = continuationClamp(Number(prepared.successChance ?? .5), .18, .85);
-  return continuationRound(continuationClamp(base * (.72 + success * .58), .06, .44), 4);
+  return continuationRound(continuationClamp(base * (.72 + success * .58), .06, .48), 4);
 }
 
-export function deriveFinalPassContinuation(prepared) {
-  if (!prepared?.packet || !prepared.actor || !prepared.target || !prepared.defender) return null;
-  const family = continuationFamilyForRoute(prepared.route);
-  if (!family) return null;
+function continuationBaselineSuccess(prepared, family) {
+  const base = continuationClamp(Number(prepared.successChance ?? .5), .18, .85);
+  const familyEdge = family === 'cutback' ? .045 : family === 'cross' ? -.025 : 0;
+  return continuationRound(continuationClamp(base + familyEdge, .16, .88), 4);
+}
+
+function continuationFailureOutcome(family) {
+  return family === 'cutback' || family === 'cross' ? 'cleared' : 'intercepted';
+}
+
+function buildContinuationAction(prepared, family) {
+  if (!family || !prepared?.packet || !prepared.actor || !prepared.target || !prepared.defender) return null;
   if (prepared.actor.id === prepared.target.id) return null;
 
   const targetZone = continuationTargetZone(prepared, family);
@@ -93,8 +125,8 @@ export function deriveFinalPassContinuation(prepared) {
     authorizedReceiverIds:[prepared.target.id],
     receiverOnsideAuthorized:true,
     targetZone,
-    baselineSuccessChance:continuationRound(continuationClamp(Number(prepared.successChance ?? .5), .18, .85), 4),
-    failureOutcome:'intercepted',
+    baselineSuccessChance:continuationBaselineSuccess(prepared, family),
+    failureOutcome:continuationFailureOutcome(family),
     downstream:{
       chanceProbability,
       projectedXg,
@@ -103,6 +135,16 @@ export function deriveFinalPassContinuation(prepared) {
       pressureDefenderId:prepared.defender.id,
     },
   };
+}
+
+export function deriveFinalPassContinuation(prepared) {
+  const family = prepared?.route === 'pass_into_space' ? 'through_ball'
+    : prepared?.route === 'direct_pass' ? 'final_pass' : null;
+  return buildContinuationAction(prepared, family);
+}
+
+export function deriveAuthoritativeContinuationAction(prepared) {
+  return buildContinuationAction(prepared, continuationFamilyForPrepared(prepared));
 }
 
 export function normalizeContinuationIntent(input = {}) {
@@ -127,6 +169,13 @@ function continuationPlayerContext(passer, receiver, defender) {
   return { passerQuality, receiverQuality, defenderQuality };
 }
 
+function preferredContinuationWeight(family) {
+  if (family === 'through_ball') return .76;
+  if (family === 'cutback') return .58;
+  if (family === 'cross') return .72;
+  return .68;
+}
+
 function continuationExecution(action, passer, receiver, defender, intent) {
   const { passerQuality, receiverQuality, defenderQuality } = continuationPlayerContext(passer, receiver, defender);
   if (!intent) {
@@ -137,7 +186,7 @@ function continuationExecution(action, passer, receiver, defender, intent) {
     return {
       successChance,
       executionQuality:continuationClamp((passerQuality * .68 + receiverQuality * .20 + (100 - defenderQuality) * .12) / 100, .08, .98),
-      target:{ ...action.targetZone, weight:.70, timing:.68 },
+      target:{ ...action.targetZone, weight:preferredContinuationWeight(action.family), timing:.68 },
     };
   }
 
@@ -146,7 +195,7 @@ function continuationExecution(action, passer, receiver, defender, intent) {
   const dy = normalized.targetY - Number(action.targetZone?.y ?? .68);
   const distance = Math.sqrt(dx * dx + dy * dy);
   const targeting = continuationClamp(1 - distance / .78, 0, 1);
-  const weightControl = continuationClamp(1 - Math.abs(normalized.weight - (action.family === 'through_ball' ? .76 : .68)) * 1.30, 0, 1);
+  const weightControl = continuationClamp(1 - Math.abs(normalized.weight - preferredContinuationWeight(action.family)) * 1.30, 0, 1);
   const canonical = continuationClamp((passerQuality * .72 + receiverQuality * .18 + (100 - defenderQuality) * .10) / 100, .05, .99);
   const executionQuality = continuationClamp(canonical * .56 + targeting * .20 + normalized.timing * .16 + weightControl * .08, .04, .99);
   const qualityEdge = (passerQuality - 75) * .0025
@@ -222,27 +271,48 @@ export function resolveContinuationAction({ action, passer, receiver, defender, 
 
 export function buildContinuationPlayableGeometry(action) {
   if (!action || action.version !== MATCH_CONTINUATION_ACTION_VERSION) return null;
-  const through = action.family === 'through_ball';
-  const channelX = continuationRound(Number(action.targetZone?.x ?? 0) * 6.2, 3);
-  const passerZ = through ? 24 : 21;
-  const receiverZ = through ? 11.5 : 13.8;
-  const receiverX = channelX;
-  const interceptorX = continuationRound(receiverX + (channelX <= 0 ? .95 : -.95), 3);
+  const family = action.family;
+  const channelSign = Number(action.targetZone?.x ?? 0) < 0 ? -1 : 1;
+  let passerX;
+  let passerZ;
+  let receiverX;
+  let receiverZ;
+
+  if (family === 'cutback') {
+    passerX = channelSign * 6.8;
+    passerZ = 5.4;
+    receiverX = Number(action.targetZone?.x ?? 0) * 3.2;
+    receiverZ = 10.2;
+  } else if (family === 'cross') {
+    passerX = channelSign * 7.2;
+    passerZ = 16.5;
+    receiverX = Number(action.targetZone?.x ?? 0) * 3.7;
+    receiverZ = 8.7;
+  } else {
+    const through = family === 'through_ball';
+    const channelX = continuationRound(Number(action.targetZone?.x ?? 0) * 6.2, 3);
+    passerX = channelX * .42;
+    passerZ = through ? 24 : 21;
+    receiverX = channelX;
+    receiverZ = through ? 11.5 : 13.8;
+  }
+
+  const interceptorX = continuationRound(receiverX + (receiverX <= 0 ? .95 : -.95), 3);
   const interceptorZ = continuationRound((passerZ + receiverZ) * .5, 3);
   return {
     coordinateSystem:'goal-facing-v1',
     staging:{
       version:1,
-      variant:action.family,
+      variant:family,
       targetZone:{ ...action.targetZone },
       receiverOnsideAuthorized:true,
     },
     legalActions:['target','weight','timing'],
     continuousLocomotion:false,
-    passer:{ id:action.passerId, name:action.passerName, x:channelX * .42, y:0, z:passerZ },
-    receiver:{ id:action.receiverId, name:action.receiverName, x:receiverX, y:0, z:receiverZ },
+    passer:{ id:action.passerId, name:action.passerName, x:continuationRound(passerX, 3), y:0, z:passerZ },
+    receiver:{ id:action.receiverId, name:action.receiverName, x:continuationRound(receiverX, 3), y:0, z:receiverZ },
     interceptor:{ id:action.interceptorId, name:action.interceptorName, x:interceptorX, y:0, z:interceptorZ },
-    ball:{ x:channelX * .42, y:.11, z:passerZ - .55 },
-    target:{ x:receiverX, y:.11, z:receiverZ + .35 },
+    ball:{ x:continuationRound(passerX, 3), y:.11, z:continuationRound(passerZ - .55, 3) },
+    target:{ x:continuationRound(receiverX, 3), y:.11, z:continuationRound(receiverZ + .35, 3) },
   };
 }
