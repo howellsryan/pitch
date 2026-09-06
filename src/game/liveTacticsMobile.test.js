@@ -7,11 +7,16 @@ const here = dirname(fileURLToPath(import.meta.url));
 const tacticsSrc = readFileSync(resolve(here, '../lib/ui/LiveTacticsSheet.svelte'), 'utf8');
 const matchScreenSrc = readFileSync(resolve(here, '../lib/ui/MatchScreen.svelte'), 'utf8');
 
-function sourceOf(functionName, length = 5000) {
-  const asyncStart = matchScreenSrc.indexOf(`async function ${functionName}`);
-  const syncStart = matchScreenSrc.indexOf(`function ${functionName}`);
-  const start = asyncStart >= 0 ? asyncStart : syncStart;
-  return start === -1 ? '' : matchScreenSrc.slice(start, start + length);
+function sourceOf(functionName) {
+  const asyncStart = matchScreenSrc.indexOf(`async function ${functionName}(`);
+  const syncStart = matchScreenSrc.indexOf(`function ${functionName}(`);
+  const starts = [asyncStart, syncStart].filter(index => index >= 0);
+  if (!starts.length) return '';
+  const start = Math.min(...starts);
+  const tail = matchScreenSrc.slice(start);
+  const nextMatch = tail.slice(1).match(/\n  (?:async )?function\s+[A-Za-z0-9_$]+\s*\(/);
+  const end = nextMatch ? start + 1 + nextMatch.index : matchScreenSrc.length;
+  return matchScreenSrc.slice(start, end);
 }
 
 describe('mobile live tactics UX contract', () => {
@@ -34,7 +39,7 @@ describe('mobile live tactics UX contract', () => {
   it('applies formation changes immediately without a separate apply button', () => {
     expect(tacticsSrc).toContain('onclick={() => onformation(item)}');
     expect(tacticsSrc).not.toContain('Apply Formation');
-    const apply = sourceOf('applyTactics', 2500);
+    const apply = sourceOf('applyTactics');
     expect(apply).toContain('applyFormationChange(live.liveState, live.userIsHome, formation)');
     expect(apply).toContain('live = { ...live, liveState:newLs }');
     expect(apply).toContain('replaceBroadcastLineups(broadcastSimulation');
@@ -48,10 +53,10 @@ describe('mobile live tactics UX contract', () => {
   });
 
   it('pauses while tactics are open and resumes only through the explicit close path', () => {
-    const open = sourceOf('openTacticsSheet', 1800);
+    const open = sourceOf('openTacticsSheet');
     expect(open).toContain('if (!live.paused) togglePause()');
     expect(open).toContain('tacticsSheetOpen = true');
-    const close = sourceOf('closeTacticsSheet', 3500);
+    const close = sourceOf('closeTacticsSheet');
     expect(close).toContain('tacticsSheetOpen = false');
     expect(close).toContain('if (!tacticsSheetWasPaused) togglePause()');
   });
