@@ -220,7 +220,7 @@ describe('Playable Key Moments POC authoritative continuation', () => {
     expect(first.updatedState.actionLedger).toHaveLength(found.stateBefore.actionLedger.length + 1);
   });
 
-  it('lets attacking shot input create a visibly different authoritative result from the same prepared chance', () => {
+  it('lets attacking shot input create a visibly different authoritative target from the same prepared chance', () => {
     const found = findPendingMoment({ mode:'attack', requireUnblocked:true, requireTerminalShot:true });
     const wide = resumePlayableMatchPhase(
       found.home,
@@ -240,9 +240,11 @@ describe('Playable Key Moments POC authoritative continuation', () => {
     );
 
     expect(wide.playableResolution.moment.mode).toBe('attack');
-    expect(wide.playableResolution.shot.finish).toBe('missed');
-    expect(central.playableResolution.shot.finish).not.toBe('missed');
-    expect(wide.updatedState.actionLedger.at(-1).finish).toBe('missed');
+    expect(wide.playableResolution.shot.presentation.target.x)
+      .toBeGreaterThan(central.playableResolution.shot.presentation.target.x);
+    expect(wide.playableResolution.shot.presentation.target)
+      .not.toEqual(central.playableResolution.shot.presentation.target);
+    expect(wide.updatedState.actionLedger.at(-1).finish).toBe(wide.playableResolution.shot.finish);
     expect(central.updatedState.actionLedger.at(-1).finish).toBe(central.playableResolution.shot.finish);
   });
 
