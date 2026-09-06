@@ -43,12 +43,16 @@ function samePercent(styleValue, expected) {
   return Math.abs(percent(styleValue, expected) - expected) < .001;
 }
 
+function isElementLike(value) {
+  return value?.nodeType === 1 && typeof value.matches === 'function' && value.style;
+}
+
 function targetSpeed(element) {
   return element.matches(BALL_SELECTOR) ? LIVE_BROADCAST_BALL_SPEED : LIVE_BROADCAST_PLAYER_SPEED;
 }
 
 function registerElement(element, states) {
-  if (!(element instanceof HTMLElement) || states.has(element)) return;
+  if (!isElementLike(element) || states.has(element)) return;
   if (!element.matches(`${PLAYER_SELECTOR}, ${BALL_SELECTOR}`)) return;
   const x = percent(element.style.left);
   const y = percent(element.style.top);
@@ -61,13 +65,14 @@ function registerElement(element, states) {
 }
 
 function registerTree(root, states) {
-  if (!(root instanceof Element || root instanceof Document)) return;
-  if (root instanceof HTMLElement) registerElement(root, states);
-  root.querySelectorAll?.(`${PLAYER_SELECTOR}, ${BALL_SELECTOR}`).forEach(element => registerElement(element, states));
+  if (!root?.querySelectorAll) return;
+  if (isElementLike(root)) registerElement(root, states);
+  root.querySelectorAll(`${PLAYER_SELECTOR}, ${BALL_SELECTOR}`).forEach(element => registerElement(element, states));
 }
 
 export function installLiveBroadcastMotionSmoother({ documentLike = globalThis.document, windowLike = globalThis.window } = {}) {
-  if (!documentLike?.documentElement || !windowLike?.requestAnimationFrame || !globalThis.MutationObserver) return () => {};
+  const Observer = globalThis.MutationObserver;
+  if (!documentLike?.documentElement || !windowLike?.requestAnimationFrame || !Observer) return () => {};
 
   const states = new WeakMap();
   const active = new Set();
@@ -82,8 +87,8 @@ export function installLiveBroadcastMotionSmoother({ documentLike = globalThis.d
 
   function registerFrom(root) {
     registerTree(root, states);
-    if (root instanceof HTMLElement && states.has(root)) active.add(root);
-    root.querySelectorAll?.(`${PLAYER_SELECTOR}, ${BALL_SELECTOR}`).forEach(element => {
+    if (isElementLike(root) && states.has(root)) active.add(root);
+    root?.querySelectorAll?.(`${PLAYER_SELECTOR}, ${BALL_SELECTOR}`).forEach(element => {
       if (states.has(element)) active.add(element);
     });
   }
@@ -102,11 +107,11 @@ export function installLiveBroadcastMotionSmoother({ documentLike = globalThis.d
     state.written = { ...state.current };
   }
 
-  const observer = new MutationObserver(records => {
+  const observer = new Observer(records => {
     for (const record of records) {
       if (record.type === 'childList') {
         record.addedNodes.forEach(node => registerFrom(node));
-      } else if (record.type === 'attributes' && record.target instanceof HTMLElement) {
+      } else if (record.type === 'attributes' && isElementLike(record.target)) {
         register(record.target);
         captureTarget(record.target);
       }
