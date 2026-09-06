@@ -84,7 +84,7 @@ describe('T4 shot-selection authority and RNG compatibility', () => {
   });
 
   it('versions resolver behaviour without widening the fixed phase RNG packet', () => {
-    expect(MATCH_ACTION_RESOLVER_VERSION).toBe(2);
+    expect(MATCH_ACTION_RESOLVER_VERSION).toBe(4);
     expect(MATCH_RNG_PACKET_VERSION).toBe(1);
     expect(MATCH_RNG_PACKET_FIELDS).toHaveLength(14);
   });

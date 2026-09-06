@@ -4,7 +4,7 @@
 
 ## 0) Current state — read first
 
-- **Product:** free browser-first football career simulator, 9 leagues / 186 clubs, mobile-first, no forced account. It is **simulator-only**: do not add manual/on-pitch football controls. Broadcast is a watchable presentation of simulated football, not a playable match mode.
+- **Product:** free browser-first football career simulator, 9 leagues / 186 clubs, mobile-first, no forced account. Career simulation remains core. Do **not** add continuous/manual 11v11 control or a second match engine. **Play Key Moments** is the only bounded on-pitch interaction programme and must resolve through the authoritative match engine; Broadcast remains presentation-only.
 - **Live product:** `pitch-sim.com`. The app is built with Vite/Svelte 5 and deployed by **Cloudflare Workers Builds**, not GitHub Actions.
 - **R0-R7 redesign is complete.** `docs/plan/07-redesign.md` remains the historical redesign reference. R8 quality/light-mode/PWA work remains a separate parallel quality stream.
 - **Post-R7 programme:** `docs/plan/post-r7-career-depth-roadmap.md` is authoritative. **P0 — Football authenticity and career foundation is COMPLETE (30 Aug 2026). P1 — The Living Football World is COMPLETE (31 Aug 2026). P2 — Match Engine 2.0, Tactics and Manager DNA is COMPLETE (31 Aug 2026). P3 — Player Model 2.0 is COMPLETE (1 Sep 2026). P4 — Transfer Market and Contracts 2.0 is COMPLETE (1 Sep 2026). P5 — Scouting, Coaching, Training and Squad Planning is COMPLETE (1 Sep 2026). P6 — Manager Career and Club Movement is NEXT.**
@@ -21,6 +21,13 @@
 - Quick Sim and Broadcast must consume the same authoritative football outcome.
 - P1 background fixtures also use the authoritative fast match engine. Never run Broadcast simulation for the background world.
 
+### Play Key Moments — bounded authoritative continuation
+
+- `docs/plan/playable-key-moments-roadmap.md` is authoritative for the Play Key Moments programme. Phase 1 proves the prepare/resolve seam and 3D presentation; Phase 2 is limited to career-integrated open-play finishing and goalkeeper decisions.
+- `src/modules/playableMomentsCareer.js` owns the versioned persisted session, pre-finish eligibility/pacing, JSON-safe continuation shape and compact receipts. `src/modules/playableMomentsPersistence.js` owns compare-and-swap writes to the **existing active save row**. `src/modules/playableMomentsRuntime.js` coordinates prepare, durable commit, acknowledgement and ready-to-close state. Do not create a parallel database, fixture queue or match lifecycle.
+- A pending moment must be persisted before input is accepted. The renderer returns normalized intent only; `matchEngine.js` remains authoritative for the resulting football. A committed result stays durable until acknowledged so refresh cannot reroll or skip the reveal.
+- `MatchScreen.svelte` owns orchestration and still finalises through `advanceOneFixtureWithResult()`. The playable session is cleared only after that existing fixture/world closeout succeeds. Quick Sim and Watch Match remain independent automatic paths.
+- Renderer/asset failure must fall back to automatic resolution of the **same saved pending moment**, never start a new seed or reinterpret an already-started simulation version.
 
 ### Match simulation versioning and T7 balance gate
 

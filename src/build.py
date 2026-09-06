@@ -66,6 +66,12 @@ MODULES += [
     ('modules/aiTacticalIdentity.js', 'AI TACTICAL IDENTITY'),
     ('modules/careerTacticalFit.js', 'CAREER TACTICAL FIT'),
     ('modules/managerTactics.js',   'MANAGER TACTICS'),
+    # Playable-moment continuation and set-piece domains are pure action helpers
+    # consumed by the shared resolver. They must precede matchActionResolver in
+    # the legacy bundle just as their ES-module imports do in the Vite path.
+    ('modules/matchContinuationActions.js', 'MATCH CONTINUATION ACTIONS'),
+    ('modules/matchSetPieces.js', 'MATCH SET PIECES'),
+    ('modules/matchSetPiecePhase.js', 'MATCH SET PIECE PHASE'),
     ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
     ('modules/matchTacticalAnalysis.js', 'MATCH TACTICAL ANALYSIS'),
     ('modules/matchSimulationVersion.js', 'MATCH SIMULATION VERSION'),
