@@ -1,3 +1,5 @@
+import { sampleFootballStrike, sampleFootballKeeper, sampleFootballStance } from './playableFootballMotion.js';
+
 export const PLAYABLE_POC_SCENE_VERSION = 2;
 
 export const PLAYABLE_POC_RENDERERS = Object.freeze({
@@ -399,7 +401,7 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
   const incomingProgress = isContact && outcome ? easeInOut(phaseProgress(progress, .04, strikeAt)) : 0;
   const outgoingStart = isContact ? strikeAt : .43;
   const outgoingEnd = .82;
-  const flight = outcome ? easeInOut(phaseProgress(progress, outgoingStart, outgoingEnd)) : 0;
+  const flight = outcome ? phaseProgress(progress, outgoingStart, outgoingEnd) : 0;
   let ballX = world.ball.x;
   let ballY = world.ball.y;
   let ballZ = world.ball.z;
@@ -414,7 +416,7 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
     ballZ = lerp(world.ball.z, world.contact.z, incomingProgress);
     ballMotionProgress = incomingProgress * .5;
   } else if (outcome === 'saved') {
-    const saveFlight = easeInOut(phaseProgress(progress, outgoingStart, .70));
+    const saveFlight = phaseProgress(progress, outgoingStart, .70);
     const saveContactX = keeperTargetX;
     const saveContactY = isSmother
       ? .20
@@ -426,8 +428,9 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
     if (isCatch || isSmother) {
       const controlProgress = easeInOut(phaseProgress(progress, .70, .86));
       controlled = controlProgress > 0;
-      const holdX = isSmother ? keeperTargetX * .35 : saveContactX;
-      const holdY = isSmother ? .18 : saveContactY;
+      const holdX = saveContactX;
+      const wideCatch = Math.abs(saveContactX - world.keeper.x) > .91;
+      const holdY = isSmother ? .18 : wideCatch ? lerp(saveContactY, .30, easeInOut(phaseProgress(progress, .74, .93))) : saveContactY;
       const holdZ = isSmother ? world.keeper.z + .46 : saveContactZ + .04;
       if (controlProgress > 0) {
         ballX = lerp(saveContactX, holdX, controlProgress);
@@ -459,7 +462,7 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
       ballMotionProgress += parryProgress;
     }
   } else if (outcome) {
-    const terminalZ = outcome === 'blocked' ? world.defender.z + .08 : -.28;
+    const terminalZ = outcome === 'blocked' ? world.defender.z + .08 : outcome === 'goal' ? -1.58 : -3.2;
     const terminalX = outcome === 'blocked' ? world.defender.x : targetX;
     const terminalY = outcome === 'blocked' ? .62 : targetY;
     const shotArc = outcome !== 'blocked'
@@ -471,6 +474,14 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
     ballMotionProgress = (isContact ? .5 : 0) + flight;
   }
 
+  shooterPose.joints = sampleFootballStrike(world, progress, isContact ? shooterPose.contactType : null);
+  const handContact = {
+    x:keeperTargetX,
+    y:isSmother ? .20 : isSpread ? clamp(keeperTargetY * .68, .22, .68) : clamp(keeperTargetY, .32, world.goalHeight * .96),
+    z:world.keeper.z + (isSmother ? .42 : isSpread ? .26 : .18),
+  };
+  keeperPose.joints = sampleFootballKeeper(world, progress, handContact, intervention, outcome === 'saved', { x:ballX, y:ballY, z:ballZ });
+
   return {
     progress:clamp(progress, 0, 1),
     outcome,
@@ -481,6 +492,7 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
       y:0,
       z:lerp(world.defender.z, world.defender.z + .45, defenderLunge),
       lunge:defenderLunge,
+      joints:sampleFootballStance(world.defender, 0, defenderLunge),
       recovery:defenderRecovery,
     },
     ball:{

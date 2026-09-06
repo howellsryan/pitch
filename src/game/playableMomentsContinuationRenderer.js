@@ -1,3 +1,5 @@
+import { createPlayableFootballer } from './playableFootballer.js';
+import { sampleFootballStance, sampleFootballStrike } from './playableFootballMotion.js';
 import { PLAYABLE_POC_RENDERERS } from './playableMomentsPocScene.js';
 
 const CANDIDATE = PLAYABLE_POC_RENDERERS.three;
@@ -55,6 +57,9 @@ export async function mountThreePlayableContinuation(canvas, initialMoment) {
     passer:new THREE.MeshStandardMaterial({ color:0xd7eef9, roughness:.72 }),
     receiver:new THREE.MeshStandardMaterial({ color:0x65d391, roughness:.72 }),
     defender:new THREE.MeshStandardMaterial({ color:0xf25b4b, roughness:.72 }),
+    shorts:new THREE.MeshStandardMaterial({ color:0x172936, roughness:.85 }),
+    boots:new THREE.MeshStandardMaterial({ color:0x141b22, roughness:.7 }),
+    hair:new THREE.MeshStandardMaterial({ color:0x241914, roughness:.9 }),
     skin:new THREE.MeshStandardMaterial({ color:0xb98262, roughness:.88 }),
     ball:new THREE.MeshStandardMaterial({ color:0xffffff, roughness:.58 }),
     target:new THREE.MeshBasicMaterial({ color:0x77e7ff, transparent:true, opacity:.26, depthWrite:false }),
@@ -69,23 +74,10 @@ export async function mountThreePlayableContinuation(canvas, initialMoment) {
   }
 
   function makePlayer(material) {
-    const root = new THREE.Group();
-    const body = mesh(new THREE.CylinderGeometry(.24, .20, .62, 10), material);
-    body.position.y = 1.20;
-    root.add(body);
-    const head = mesh(new THREE.SphereGeometry(.15, 12, 9), materials.skin);
-    head.position.y = 1.65;
-    root.add(head);
-    for (const side of [-1, 1]) {
-      const leg = mesh(new THREE.CylinderGeometry(.065, .075, .70, 8), material);
-      leg.position.set(side * .105, .52, 0);
-      root.add(leg);
-      const arm = mesh(new THREE.CylinderGeometry(.052, .060, .56, 8), materials.skin);
-      arm.position.set(side * .31, 1.16, 0);
-      arm.rotation.z = side * .08;
-      root.add(arm);
-    }
-    return root;
+    return createPlayableFootballer(THREE, {
+      shirt:material, shorts:materials.shorts, skin:materials.skin,
+      boots:materials.boots, hair:materials.hair,
+    });
   }
 
   const pitch = mesh(new THREE.PlaneGeometry(18, 44), materials.grass, false);
@@ -110,7 +102,7 @@ export async function mountThreePlayableContinuation(canvas, initialMoment) {
   const targetRing = mesh(new THREE.TorusGeometry(.82, .045, 8, 28), materials.targetRing, false);
   targetRing.rotation.x = Math.PI / 2;
   targetRing.renderOrder = 5;
-  scene.add(passer, receiver, interceptor, ball, targetDisc, targetRing);
+  scene.add(passer.root, receiver.root, interceptor.root, ball, targetDisc, targetRing);
 
   let currentMoment = initialMoment;
   let lastWidth = 0;
@@ -133,12 +125,9 @@ export async function mountThreePlayableContinuation(canvas, initialMoment) {
     const passerPose = geometry.passer ?? { x:0, y:0, z:22 };
     const receiverPose = geometry.receiver ?? { x:0, y:0, z:12 };
     const defenderPose = geometry.interceptor ?? { x:1, y:0, z:17 };
-    passer.position.set(passerPose.x, passerPose.y, passerPose.z);
-    receiver.position.set(receiverPose.x, receiverPose.y, receiverPose.z);
-    interceptor.position.set(defenderPose.x, defenderPose.y, defenderPose.z);
-    passer.rotation.y = Math.PI;
-    receiver.rotation.y = Math.PI;
-    interceptor.rotation.y = Math.PI;
+    passer.pose(sampleFootballStance(passerPose));
+    receiver.pose(sampleFootballStance(receiverPose));
+    interceptor.pose(sampleFootballStance(defenderPose));
 
     const defaultTarget = continuationTargetWorld(moment);
     targetDisc.position.set(defaultTarget.x, .018, defaultTarget.z);
@@ -167,7 +156,13 @@ export async function mountThreePlayableContinuation(canvas, initialMoment) {
         : geometry.interceptor
           ? { x:geometry.interceptor.x, y:.30, z:geometry.interceptor.z }
           : authoritativeTarget;
-      const flight = clamp(Number(progress) / .72, 0, 1);
+      const flight = clamp((Number(progress) - .30) / .42, 0, 1);
+      passer.pose(sampleFootballStrike({ ball:start }, Math.min(1, Number(progress) * .43 / .30)));
+      const actor = continuation.success ? receiver : interceptor;
+      const actorStart = continuation.success ? geometry.receiver : geometry.interceptor;
+      if (actorStart) actor.pose(sampleFootballStance({
+        x:lerp(actorStart.x,end.x,flight), y:0, z:lerp(actorStart.z,end.z,flight),
+      }, flight));
       ball.position.set(
         lerp(Number(start.x ?? 0), Number(end.x ?? 0), flight),
         .11 + Math.sin(Math.PI * flight) * (currentMoment?.continuationType === 'cross' ? 2.2 : .55),
@@ -194,6 +189,7 @@ export async function mountThreePlayableContinuation(canvas, initialMoment) {
   }
 
   function dispose() {
+    [passer,receiver,interceptor].forEach(model=>model.dispose());
     scene.traverse(object => object.geometry?.dispose?.());
     for (const material of Object.values(materials)) disposeMaterial(material);
     renderer.dispose();

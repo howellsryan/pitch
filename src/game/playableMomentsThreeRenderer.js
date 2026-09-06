@@ -1,5 +1,9 @@
 import { PLAYABLE_POC_RENDERERS, samplePlayablePocMotion, sceneWorldFromMoment } from './playableMomentsPocScene.js';
 
+import { createPlayableFootballer } from './playableFootballer.js';
+import { sampleFootballStance } from './playableFootballMotion.js';
+import { createPlayableFootballStage, framePlayableCamera } from './playableFootballStage.js';
+
 const CANDIDATE = PLAYABLE_POC_RENDERERS.three;
 const MAX_SET_PIECE_WALL_PLAYERS = 5;
 
@@ -11,27 +15,36 @@ function disposeMaterial(material) {
   material.dispose?.();
 }
 
-export async function mountThreePlayablePoc(canvas, initialMoment) {
+export async function mountThreePlayablePoc(canvas, initialMoment, options = {}) {
   const loadStarted = window.performance.now();
   const THREE = await import(/* @vite-ignore */ CANDIDATE.moduleUrl);
   const moduleReady = window.performance.now();
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false, powerPreference:'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:options.quality?.antialias ?? true, alpha:false, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, options.quality?.maxPixelRatio ?? 1.5));
   if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = options.quality?.shadows ?? true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x08170f);
-  scene.fog = new THREE.Fog(0x08170f, 18, 42);
+  scene.background = new THREE.Color(0x718d96);
+  scene.fog = new THREE.Fog(0x718d96, 38, 95);
   const camera = new THREE.PerspectiveCamera(46, 1, .1, 80);
   const raycaster = new THREE.Raycaster();
   const goalPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
-  const hemi = new THREE.HemisphereLight(0xcfe9ff, 0x142a1d, 2.3);
+  const hemi = new THREE.HemisphereLight(0xd9edff, 0x455139, 1.5);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 2.6);
+  const sun = new THREE.DirectionalLight(0xffedce, 2.5);
   sun.position.set(-6, 12, 10);
   sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left:-13, right:13, top:22, bottom:-12, far:55 });
+  sun.shadow.normalBias = .025;
+  sun.shadow.bias = -.00015;
+  sun.target.position.set(0,0,7);
+  scene.add(sun.target);
   scene.add(sun);
 
   const materials = {
@@ -68,118 +81,11 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
   }
 
   function makeHumanoid(kitMaterial, skinMaterial, { keeper = false, shortsMaterial = materials.shorts } = {}) {
-    const root = new THREE.Group();
-
-    // Proportions are deliberately close to an ~1.84 m adult rather than the
-    // original POC's ~2.4 m block figure. Every primitive remains generated in
-    // code so the Phase 1 asset/provenance boundary stays unchanged.
-    const torso = mesh(new THREE.CylinderGeometry(.265, .205, .52, 12), kitMaterial);
-    torso.position.y = 1.34;
-    torso.scale.z = .66;
-    root.add(torso);
-
-    const shorts = mesh(new THREE.CylinderGeometry(.21, .235, .22, 10), shortsMaterial);
-    shorts.position.y = 1.00;
-    shorts.scale.z = .72;
-    root.add(shorts);
-
-    const neck = mesh(new THREE.CylinderGeometry(.07, .075, .10, 8), skinMaterial);
-    neck.position.y = 1.63;
-    root.add(neck);
-
-    const head = mesh(new THREE.SphereGeometry(.15, 16, 12), skinMaterial);
-    head.position.y = 1.78;
-    head.scale.set(.92, 1.06, .96);
-    root.add(head);
-
-    const hair = mesh(new THREE.SphereGeometry(.153, 14, 8, 0, Math.PI * 2, 0, Math.PI * .52), materials.hair);
-    hair.position.y = 1.80;
-    hair.scale.set(.93, 1.02, .97);
-    root.add(hair);
-
-    const leftEye = mesh(new THREE.SphereGeometry(.014, 6, 4), materials.eyes, false);
-    const rightEye = mesh(new THREE.SphereGeometry(.014, 6, 4), materials.eyes, false);
-    leftEye.position.set(-.045, 1.80, .142);
-    rightEye.position.set(.045, 1.80, .142);
-    root.add(leftEye, rightEye);
-
-    const nose = mesh(new THREE.SphereGeometry(.022, 6, 4), skinMaterial, false);
-    nose.position.set(0, 1.765, .151);
-    nose.scale.set(.75, 1, 1.15);
-    root.add(nose);
-
-    function leg(x) {
-      const hip = new THREE.Group();
-      hip.position.set(x, .92, 0);
-
-      const thigh = mesh(new THREE.CylinderGeometry(.078, .095, .40, 9), skinMaterial);
-      thigh.position.y = -.20;
-      hip.add(thigh);
-
-      const knee = new THREE.Group();
-      knee.position.y = -.40;
-      hip.add(knee);
-
-      const kneeCap = mesh(new THREE.SphereGeometry(.082, 9, 7), skinMaterial);
-      kneeCap.scale.y = .76;
-      knee.add(kneeCap);
-
-      const sock = mesh(new THREE.CylinderGeometry(.055, .068, .36, 9), kitMaterial);
-      sock.position.y = -.19;
-      knee.add(sock);
-
-      const ankle = mesh(new THREE.CylinderGeometry(.047, .052, .12, 8), skinMaterial);
-      ankle.position.y = -.42;
-      knee.add(ankle);
-
-      const boot = mesh(new THREE.BoxGeometry(.15, .09, .29), materials.boots);
-      boot.position.set(0, -.49, -.055);
-      boot.rotation.x = -.04;
-      knee.add(boot);
-
-      root.add(hip);
-      return { hip, knee };
-    }
-
-    function arm(x) {
-      const shoulder = new THREE.Group();
-      shoulder.position.set(x, 1.49, 0);
-
-      const sleeve = mesh(new THREE.CylinderGeometry(.082, .075, .17, 9), kitMaterial);
-      sleeve.position.y = -.075;
-      shoulder.add(sleeve);
-
-      const upper = mesh(new THREE.CylinderGeometry(.062, .070, .22, 9), skinMaterial);
-      upper.position.y = -.25;
-      shoulder.add(upper);
-
-      const elbow = new THREE.Group();
-      elbow.position.y = -.36;
-      shoulder.add(elbow);
-
-      const elbowJoint = mesh(new THREE.SphereGeometry(.066, 8, 6), skinMaterial);
-      elbowJoint.scale.y = .78;
-      elbow.add(elbowJoint);
-
-      const lower = mesh(new THREE.CylinderGeometry(.052, .062, .31, 8), skinMaterial);
-      lower.position.y = -.16;
-      elbow.add(lower);
-
-      const handMaterial = keeper ? materials.gloves : skinMaterial;
-      const hand = mesh(new THREE.SphereGeometry(keeper ? .072 : .060, 8, 6), handMaterial);
-      hand.position.y = -.33;
-      hand.scale.set(keeper ? 1.18 : .9, 1, .72);
-      elbow.add(hand);
-
-      root.add(shoulder);
-      return { shoulder, elbow };
-    }
-
-    const leftLeg = leg(-.115);
-    const rightLeg = leg(.115);
-    const leftArm = arm(-.30);
-    const rightArm = arm(.30);
-    return { root, torso, head, leftLeg, rightLeg, leftArm, rightArm, keeper };
+    return createPlayableFootballer(THREE, {
+      shirt:kitMaterial, shorts:shortsMaterial, skin:skinMaterial,
+      boots:materials.boots, gloves:keeper ? materials.gloves : null,
+      hair:materials.hair, number:keeper ? 1 : kitMaterial === materials.home ? 9 : 4,
+    });
   }
 
   const shooter = makeHumanoid(materials.home, materials.skinHome);
@@ -189,15 +95,33 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     makeHumanoid(materials.away, materials.skinAway, { shortsMaterial:materials.awayShorts })
   ));
   roots.add(shooter.root, keeper.root, defender.root, ...wallModels.map(model => model.root));
-  shooter.root.rotation.y = Math.PI;
-  defender.root.rotation.y = Math.PI;
-  keeper.root.rotation.y = 0;
+
   for (const model of wallModels) {
-    model.root.rotation.y = Math.PI;
     model.root.visible = false;
   }
 
   const ball = mesh(new THREE.SphereGeometry(.11, 20, 14), materials.ball);
+  const panelMaterial = new THREE.MeshStandardMaterial({ color:0x182b34, roughness:.65 });
+  materials.ballPanels = panelMaterial;
+  const ico = new THREE.IcosahedronGeometry(1, 0);
+  const panelDirections = new Map();
+  for (let i = 0; i < ico.attributes.position.count; i++) {
+    const normal = new THREE.Vector3().fromBufferAttribute(ico.attributes.position, i).normalize();
+    panelDirections.set(normal.toArray().map(n => n.toFixed(3)).join(','), normal);
+  }
+  for (const normal of panelDirections.values()) {
+    const patch = new THREE.CircleGeometry(.032, 5);
+    for (let i = 0; i < patch.attributes.position.count; i++) {
+      const vertex = new THREE.Vector3().fromBufferAttribute(patch.attributes.position, i);
+      vertex.z = .11; vertex.normalize().multiplyScalar(.111);
+      patch.attributes.position.setXYZ(i, vertex.x, vertex.y, vertex.z);
+    }
+    patch.computeVertexNormals();
+    const panel = mesh(patch, panelMaterial, false);
+    panel.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), normal);
+    ball.add(panel);
+  }
+  ico.dispose();
   roots.add(ball);
 
   const worldRoot = new THREE.Group();
@@ -225,54 +149,14 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
   const specialRight = specialMarker();
 
   let currentWorld = null;
-  let pitch = null;
-  let goalLine = null;
-  let goalGroup = null;
-
-  function disposeWorldObject(object) {
-    if (!object) return;
-    object.traverse?.(child => child.geometry?.dispose?.());
-    object.geometry?.dispose?.();
-    worldRoot.remove(object);
-  }
+  let stage = null;
 
   function rebuildWorld(moment) {
     const world = sceneWorldFromMoment(moment);
     if (currentWorld && JSON.stringify(currentWorld) === JSON.stringify(world)) return world;
     currentWorld = world;
-    disposeWorldObject(pitch);
-    disposeWorldObject(goalLine);
-    disposeWorldObject(goalGroup);
-    pitch = null;
-    goalLine = null;
-    goalGroup = null;
-
-    const pitchLength = Math.max(24, world.distance + 14);
-    pitch = mesh(new THREE.PlaneGeometry(18, pitchLength), materials.grass, false);
-    pitch.rotation.x = -Math.PI / 2;
-    pitch.position.z = pitchLength / 2 - 4;
-    pitch.receiveShadow = true;
-    worldRoot.add(pitch);
-
-    goalLine = mesh(new THREE.BoxGeometry(world.goalWidth + 4, .018, .045), materials.line, false);
-    goalLine.position.set(0, .012, 0);
-    worldRoot.add(goalLine);
-
-    goalGroup = new THREE.Group();
-    const post = new THREE.CylinderGeometry(.052, .052, world.goalHeight, 10);
-    const bar = new THREE.CylinderGeometry(.052, .052, world.goalWidth + .105, 10);
-    const left = mesh(post, materials.goal);
-    left.position.set(-world.goalWidth / 2, world.goalHeight / 2, 0);
-    const right = mesh(post.clone(), materials.goal);
-    right.position.set(world.goalWidth / 2, world.goalHeight / 2, 0);
-    const crossbar = mesh(bar, materials.goal);
-    crossbar.rotation.z = Math.PI / 2;
-    crossbar.position.set(0, world.goalHeight, 0);
-    goalGroup.add(left, right, crossbar);
-    worldRoot.add(goalGroup);
-
-    camera.position.set(0, 3.65, world.distance + 10.5);
-    camera.lookAt(0, 1.05, Math.max(1, world.distance * .18));
+    stage?.dispose();
+    stage = createPlayableFootballStage(THREE, worldRoot, world, materials);
     return world;
   }
 
@@ -294,62 +178,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
   }
 
   function applyHuman(model, pose, kind) {
-    model.root.position.set(pose.x, pose.y, pose.z);
-    model.root.rotation.x = kind === 'shooter' ? pose.lean : 0;
-    model.root.rotation.z = kind === 'keeper' ? -pose.roll : 0;
-
-    // Reset a natural base stance before applying the frame pose so repeated
-    // moments cannot accumulate rotations from the previous animation.
-    model.torso.rotation.set(0, 0, 0);
-    model.head.rotation.set(0, 0, 0);
-    model.leftLeg.hip.rotation.set(0, 0, -.035);
-    model.rightLeg.hip.rotation.set(0, 0, .035);
-    model.leftLeg.knee.rotation.set(.05, 0, 0);
-    model.rightLeg.knee.rotation.set(.05, 0, 0);
-    model.leftArm.shoulder.rotation.set(.03, 0, -.12);
-    model.rightArm.shoulder.rotation.set(.03, 0, .12);
-    model.leftArm.elbow.rotation.set(0, 0, -.06);
-    model.rightArm.elbow.rotation.set(0, 0, .06);
-
-    if (kind === 'shooter') {
-      const plantBend = Number(pose.plantBend ?? 0);
-      model.rightLeg.hip.rotation.x = -pose.kick;
-      model.rightLeg.knee.rotation.x = .08 + Math.max(0, pose.kick) * .64 + Number(pose.backswing ?? 0) * .16;
-      model.leftLeg.hip.rotation.x = pose.plant;
-      model.leftLeg.knee.rotation.x = .05 + plantBend;
-      model.leftArm.shoulder.rotation.z = -.14 - pose.arms;
-      model.rightArm.shoulder.rotation.z = .14 + pose.arms;
-      model.leftArm.shoulder.rotation.x = -.08 - Number(pose.followThrough ?? 0) * .10;
-      model.rightArm.shoulder.rotation.x = .06 + Number(pose.followThrough ?? 0) * .08;
-      model.torso.rotation.z = pose.arms * .08;
-      model.torso.rotation.y = Number(pose.torsoTwist ?? 0);
-      model.head.rotation.x = Number(pose.headDip ?? 0);
-    } else if (kind === 'keeper') {
-      const crouch = Number(pose.crouch ?? 0);
-      const landing = Number(pose.landing ?? 0);
-      const push = Number(pose.push ?? 0);
-      const side = Math.sign(Number(pose.roll ?? 0)) || 1;
-      model.leftArm.shoulder.rotation.z = -.48 - pose.arms * .62;
-      model.rightArm.shoulder.rotation.z = .48 + pose.arms * .62;
-      model.leftArm.shoulder.rotation.x = -.10 - pose.dive * .24;
-      model.rightArm.shoulder.rotation.x = -.10 - pose.dive * .24;
-      model.leftArm.elbow.rotation.z = -.14 - pose.dive * .08;
-      model.rightArm.elbow.rotation.z = .14 + pose.dive * .08;
-      model.leftLeg.hip.rotation.z = -.12 + pose.roll * .20;
-      model.rightLeg.hip.rotation.z = .12 + pose.roll * .20;
-      model.leftLeg.hip.rotation.x = crouch * .16 + (side > 0 ? push * .10 : 0);
-      model.rightLeg.hip.rotation.x = crouch * .16 + (side < 0 ? push * .10 : 0);
-      model.leftLeg.knee.rotation.x = .15 + crouch * .48 + landing * .14;
-      model.rightLeg.knee.rotation.x = .15 + crouch * .48 + landing * .14;
-      model.torso.rotation.x = -.08 - crouch * .12 + landing * .08;
-      model.head.rotation.x = crouch * .04;
-    } else {
-      model.root.rotation.z = pose.lunge * .20;
-      model.leftLeg.hip.rotation.x = -pose.lunge * .34;
-      model.rightLeg.hip.rotation.x = pose.lunge * .22;
-      model.leftArm.shoulder.rotation.z = -.20 - pose.lunge * .18;
-      model.rightArm.shoulder.rotation.z = .20 + pose.lunge * .18;
-    }
+    model.pose(pose.joints ?? sampleFootballStance(pose, 0, kind === 'defender' ? pose.lunge : 0));
   }
 
   function updateAuthoritativeDefenders(moment, resolution, progress, frame) {
@@ -386,12 +215,12 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
   function resize() {
     const width = Math.max(1, canvas.clientWidth || canvas.width || 1);
     const height = Math.max(1, canvas.clientHeight || canvas.height || 1);
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, options.quality?.maxPixelRatio ?? 1.5);
     const targetWidth = Math.floor(width * pixelRatio);
     const targetHeight = Math.floor(height * pixelRatio);
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) renderer.setSize(width, height, false);
     camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+    framePlayableCamera(camera, currentWorld, width / height);
   }
 
   function goalIntentFromClientPoint(clientX, clientY) {
@@ -420,7 +249,8 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     applyHuman(shooter, frame.shooter, 'shooter');
     applyHuman(keeper, frame.keeper, 'keeper');
     updateAuthoritativeDefenders(moment, resolution, progress, frame);
-    ball.position.set(frame.ball.x, frame.ball.y, frame.ball.z);
+    ball.position.set(frame.ball.x, Math.max(.11, frame.ball.y), frame.ball.z);
+    stage.update(frame);
     ball.rotation.x = Number(frame.ball.spinX ?? 0);
     ball.rotation.z = Number(frame.ball.spinZ ?? 0);
     resize();
@@ -440,6 +270,8 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     resize,
     goalIntentFromClientPoint,
     dispose() {
+      stage?.dispose();
+      [shooter, keeper, defender, ...wallModels].forEach(model => model.dispose());
       scene.traverse(object => object.geometry?.dispose?.());
       Object.values(materials).forEach(disposeMaterial);
       renderer.dispose();

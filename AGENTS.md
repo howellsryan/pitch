@@ -28,6 +28,7 @@
 - A pending moment must be persisted before input is accepted. The renderer returns normalized intent only; `matchEngine.js` remains authoritative for the resulting football. A committed result stays durable until acknowledged so refresh cannot reroll or skip the reveal.
 - `MatchScreen.svelte` owns orchestration and still finalises through `advanceOneFixtureWithResult()`. The playable session is cleared only after that existing fixture/world closeout succeeds. Quick Sim and Watch Match remain independent automatic paths.
 - Renderer/asset failure must fall back to automatic resolution of the **same saved pending moment**, never start a new seed or reinterpret an already-started simulation version.
+- Playable characters share `src/game/playableFootballer.js` (generated skin) and `playableFootballMotion.js` (pure contact/IK poses). Keep foot/glove targets, ground clearance and replay continuity in that shared layer; do not restore independent primitive limb rotations. `playableMomentsPocScene.js` retains legacy scalar pose fields for compatibility, while renderers consume its `joints`. See `docs/plan/playable-animation-rebuild.md` for verification limits.
 
 ### Match simulation versioning and T7 balance gate
 
