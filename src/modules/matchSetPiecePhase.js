@@ -6,7 +6,7 @@ import {
   resolvePenaltyOutcome,
 } from './matchSetPieces.js';
 
-function round(value, digits = 3) {
+function setPiecePhaseRound(value, digits = 3) {
   const factor = 10 ** digits;
   return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
 }
@@ -68,9 +68,23 @@ export function commitAuthoritativeSetPiecePhase(prepared, { intent = null, ledg
   const shooter = prepared?.shooter;
   if (!setPiece || !shooter) throw new Error('Set-piece commit requires a prepared authoritative set piece');
 
-  const shot = setPiece.kind === 'penalty'
+  const resolvedShot = setPiece.kind === 'penalty'
     ? resolvePenaltyOutcome({ setPiece, shooter, defenders:prepared.defenders, packet:prepared.packet, intent })
     : resolveDirectFreeKickOutcome({ setPiece, shooter, defenders:prepared.defenders, packet:prepared.packet, intent });
+
+  // The playable scene uses the first authoritative wall member as the compact
+  // contact proxy for a blocked direct free kick. Keep the committed blocker id
+  // aligned with that domain-owned geometry so ball contact, wall animation and
+  // receipt all describe the same player. The renderer never chooses a blocker.
+  const contactBlockerId = resolvedShot.finish === 'blocked'
+    ? setPiece.wall?.members?.[0]?.id ?? resolvedShot.presentation?.blockerId ?? null
+    : resolvedShot.presentation?.blockerId ?? null;
+  const shot = contactBlockerId === resolvedShot.presentation?.blockerId
+    ? resolvedShot
+    : {
+        ...resolvedShot,
+        presentation:{ ...resolvedShot.presentation, blockerId:contactBlockerId },
+      };
 
   const record = {
     version:ledgerVersion,
@@ -83,10 +97,10 @@ export function commitAuthoritativeSetPiecePhase(prepared, { intent = null, ledg
     actorId:prepared.actor?.id ?? null,
     targetId:prepared.target?.id ?? null,
     defenderId:prepared.defender?.id ?? null,
-    execution:round(prepared.execution),
-    counter:round(prepared.counter),
-    contextEdge:round(prepared.context),
-    successChance:round(prepared.successChance),
+    execution:setPiecePhaseRound(prepared.execution),
+    counter:setPiecePhaseRound(prepared.counter),
+    contextEdge:setPiecePhaseRound(prepared.context),
+    successChance:setPiecePhaseRound(prepared.successChance),
     mentality:prepared.mentality,
     riskMode:prepared.riskMode,
     outcome:'foul_won',
