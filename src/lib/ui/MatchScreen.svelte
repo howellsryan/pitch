@@ -35,7 +35,7 @@
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
-  import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import { advanceBroadcastSimulation, createBroadcastSimulation, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, setMatchNavigationLocked, toast } from '../../ui/helpers.js';
@@ -65,7 +65,11 @@
    */
 
   const WATCH_PHASES_PER_TICK = 1;
-  const WATCH_TICK_MS         = 1000;
+  // 120 authoritative phases represent 90 regulation minutes. Advancing one
+  // phase every 750 ms gives a fixed 90-second uninterrupted live match while
+  // leaving every football probability/stat/result exactly on the 120-phase
+  // engine. Pause/tactics/pending playable moments deliberately stop this clock.
+  const WATCH_TICK_MS         = 750;
   const TOTAL_PHASES          = 120;
 
   let active  = $state(false);
@@ -296,7 +300,7 @@
       oppPlayers:resolved.userIsHome ? inputs.awayPlayers : inputs.homePlayers,
       userIsHome:resolved.userIsHome,
       matchEvent:resolved.patchedEvent,
-      currentPhase, paused:false, speedMultiplier:1, playable,
+      currentPhase, paused:false, playable,
     };
     setMatchNavigationLocked(true);
     displayHomeGoals = liveState.hGoals ?? 0;
@@ -581,15 +585,13 @@
   function scheduleTick(extraDelay = 0) {
     if (!live || live.paused) return;
     if (live.playable && playableSession?.status !== 'active') return;
-    const delay = Math.round(WATCH_TICK_MS / (live.speedMultiplier || 1));
     window.clearTimeout(tickTimer);
-    tickTimer = window.setTimeout(() => { void runTick(); }, delay + extraDelay);
+    tickTimer = window.setTimeout(() => { void runTick(); }, WATCH_TICK_MS + extraDelay);
   }
 
   async function runTick() {
     if (!live || live.paused || playableBusy) return;
     if (live.playable && playableSession?.status !== 'active') return;
-    if (!isBroadcastReady(broadcastSimulation)) { scheduleTick(); return; }
     if (live.currentPhase >= TOTAL_PHASES) { await finishMatch(); return; }
     const startPhase = live.currentPhase + 1;
     const endPhase = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
@@ -738,7 +740,11 @@
     for (const ev of segEvents) {
       const isUser = ev.teamId === live.userTeam.id;
       if (ev.type === 'goal') {
+        // Regulation time no longer waits for presentation scenes. Reveal the
+        // authoritative goal immediately so a busy visual scene can never drop
+        // or delay the scoreboard while routine presentation catches up.
         queuedGoalNotice = { ...ev, isUser };
+        revealGoalNotice();
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
         togglePause();
         toast(`${ev.playerName} is injured! ${ev.injuryName || ''}`, 'error', 6000);
@@ -768,7 +774,7 @@
       if (elapsed < 30) return;
       presentationAt = now;
       if (!live.paused && !(live.playable && playableSession?.status !== 'active')) {
-        let remaining = Math.min(elapsed, 100) * live.speedMultiplier;
+        let remaining = Math.min(elapsed, 100);
         while (remaining > 0) {
           const step = Math.min(remaining, 50);
           broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, step);
@@ -785,15 +791,6 @@
     live = { ...live, paused:!live.paused };
     if (!live.paused) scheduleTick();
     else window.clearTimeout(tickTimer);
-  }
-
-  function setSpeed(mult) {
-    if (!live) return;
-    live = { ...live, speedMultiplier:mult };
-    if (!live.paused) {
-      window.clearTimeout(tickTimer);
-      scheduleTick();
-    }
   }
 
   function skipMatch() {
@@ -1250,11 +1247,6 @@
 
     <div class="live-controls">
       <button class="ctrl-btn" onclick={togglePause}><Icon name={live.paused ? 'play' : 'pause'} size={14} />{live.paused ? 'Resume' : 'Pause'}</button>
-      <div class="speed-wrap">
-        {#each [1, 2, 4] as s (s)}
-          <button class="speed-btn" class:active={live.speedMultiplier === s} aria-label={`Match speed ${s} times`} aria-pressed={live.speedMultiplier === s} onclick={() => setSpeed(s)}>{s}×</button>
-        {/each}
-      </div>
       {#if !live.playable}<button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>{/if}
       <button class="ctrl-btn tactics-control" onclick={openTacticsSheet}><Icon name="tactics" size={14} />Tactics <span>{subsLeft}</span></button>
     </div>
@@ -1346,7 +1338,7 @@
       {#if userInjuries.length}
         <div class="after-section after-section-bad">
           <div class="after-section-title"><Icon name="injury" size={14} /><span>Injuries</span></div>
-          {#each userInjuries as inj, i (i)}<div class="after-line"><strong>{inj.playerName}</strong> — {inj.injuryName} ({injuryDurationLabel(inj.injuryGWsLeft)})</div>{/each}
+          {#each userInjuries as inj, i (i)}<div class="after-line"><strong>{inj.playerName}</strong> — {inj.injuryName} ({injuryDurationLabel(inj.injuryGWsLeft)} remaining)</div>{/each}
         </div>
       {/if}
 
@@ -1593,14 +1585,10 @@
   .bench-row.bench-injured { opacity: 0.6; }
   .sub-on-btn { font-size: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--color-club); background: transparent; color: var(--color-club); cursor: pointer; }
 
-  .live-controls { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .live-controls { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right)); border-top: 1px solid var(--color-line); background: var(--color-ground); flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .live-controls::-webkit-scrollbar { display: none; }
-  .ctrl-btn { min-height: 44px; flex: 0 0 auto; white-space: nowrap; font-size: 10px; padding: 8px 9px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
+  .ctrl-btn { min-height: 44px; flex: 0 0 auto; white-space: nowrap; font-size: 10px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); cursor: pointer; }
   .tactics-control span { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 2px; border-radius: 50%; background: var(--color-club); color: var(--color-on-club, #fff); font: 700 9px var(--font-mono); }
-  .speed-wrap { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; }
-  .speed-lbl { font-size: 9px; font-family: var(--font-mono); color: var(--color-tx-3); margin-right: 2px; }
-  .speed-btn { min-height: 44px; font-size: 10px; min-width: 38px; padding: 7px 6px; border-radius: 6px; border: 1px solid var(--color-line); background: transparent; color: var(--color-tx-2); cursor: pointer; }
-  .speed-btn.active { background: var(--color-club); color: var(--color-on-club, #fff); border-color: var(--color-club); }
 
   @media (max-width: 768px) {
     .broadcast-pitch { flex: 1 1 auto; min-height: 220px; max-height: 57dvh; }
@@ -1609,7 +1597,7 @@
     .tn-actions-modes .btn-full:last-child { grid-column:1 / -1; }
   }
 
-  .ctrl-btn:focus-visible, .speed-btn:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
+  .ctrl-btn:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) { .broadcast-player.moving .player-legs, .goal-takeover { animation: none; } .progress-bar, .momentum i { transition: none; } }
   @media (min-width: 769px) { .live-wrap { width: min(100%, 900px); align-self: center; } .broadcast-pitch { width: min(100%, 640px); align-self: center; } }
   .ft-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
