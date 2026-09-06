@@ -27,7 +27,8 @@
   let presentationPreferences = $state.raw(readPlayablePresentationPreferences());
   let systemReducedMotion = $state(false);
   let replayCount = $state(0);
-  let controller = null;
+  let replayActive = $state(false);
+  let controller = $state.raw(null);
   let pointerStart = null;
   let animationFrame = null;
   let animationStarted = null;
@@ -184,6 +185,7 @@
     rendererError = '';
     controller?.dispose?.();
     controller = null;
+    replayActive = false;
     loadStartedAt = window.performance.now();
     diagnostic('load_start');
     try {
@@ -213,6 +215,7 @@
       lastResolution = resolution;
       animationStarted = now;
       animationProgress = reducedMotion ? 1 : 0;
+      replayActive = false;
       diagnostic('result_presented');
       if (scenePlan.audio.enabled) {
         playCommittedPlayablePresentationAudio(moment, resolution, {
@@ -226,9 +229,13 @@
       animationStarted = null;
       animationProgress = 0;
       replayCount = 0;
+      replayActive = false;
     } else if (animationStarted != null && !reducedMotion) {
       animationProgress = Math.min(1, (now - animationStarted) / 2050);
-      if (animationProgress >= 1) animationStarted = null;
+      if (animationProgress >= 1) {
+        animationStarted = null;
+        replayActive = false;
+      }
     }
 
     const interval = animationFrameInterval();
@@ -252,8 +259,16 @@
   }
 
   function replayPresentation() {
+    if (replayActive) {
+      animationProgress = 1;
+      animationStarted = null;
+      replayActive = false;
+      controller?.render?.({ moment, resolution, progress:1 });
+      return;
+    }
     if (!resolution || !controller || !scenePlan.replay.enabled || replayCount >= scenePlan.replay.maxReplays) return;
     replayCount += 1;
+    replayActive = true;
     animationProgress = 0;
     animationStarted = window.performance.now();
     lastRenderAt = 0;
@@ -430,8 +445,10 @@
 
   <footer class="pm-actions">
     {#if hasResolution}
-      {#if scenePlan.replay.enabled && replayCount < scenePlan.replay.maxReplays && controller}
-        <button type="button" disabled={busy} onclick={replayPresentation}>Replay {replayCount ? `(${replayCount}/${scenePlan.replay.maxReplays})` : ''}</button>
+      {#if scenePlan.replay.enabled && controller && (replayActive || replayCount < scenePlan.replay.maxReplays)}
+        <button type="button" disabled={busy} onclick={replayPresentation}>
+          {replayActive ? 'Skip Replay' : replayCount ? `Replay (${replayCount}/${scenePlan.replay.maxReplays})` : 'Replay'}
+        </button>
       {/if}
       <button type="button" class="primary" disabled={busy} onclick={() => oncontinue()}>{busy ? 'Saving…' : 'Continue Match'}</button>
     {:else}
