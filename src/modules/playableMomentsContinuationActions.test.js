@@ -112,11 +112,11 @@ describe('Phase 5 continuation authority', () => {
     expect(first.downstream.chanceProbability).toBeGreaterThan(0);
   });
 
-  it('maps progression routes into final-pass families and keeps carry out of the continuation seam', () => {
+  it('maps supported routes into continuation families and keeps carry out of the seam', () => {
     expect(deriveAuthoritativeContinuationAction(prepared({ route:'pass_into_space' }))?.family).toBe('through_ball');
     expect(deriveAuthoritativeContinuationAction(prepared({ route:'direct_pass' }))?.family).toBe('final_pass');
     expect(deriveAuthoritativeContinuationAction(prepared({ route:'carry' }))).toBeNull();
-    expect(deriveFinalPassContinuation(prepared({ route:'wide_delivery' }))).toBeNull();
+    expect(['cutback','cross']).toContain(deriveFinalPassContinuation(prepared({ route:'wide_delivery' }))?.family);
   });
 
   it('derives wide delivery as a cutback or cross without consulting terminal shot outcomes', () => {
@@ -157,28 +157,14 @@ describe('Phase 5 continuation authority', () => {
       continuation:{ targetX:4, targetY:-2, weight:1.8, timing:-1, receiverId:'invented-player' },
     });
 
-    expect(intent).toEqual({
-      version:1,
-      targetX:1,
-      targetY:0,
-      weight:1,
-      timing:0,
-    });
+    expect(intent).toEqual({ version:1, targetX:1, targetY:0, weight:1, timing:0 });
     expect(intent.receiverId).toBeUndefined();
   });
 
   it('resolves automatic failure without manufacturing a downstream chance', () => {
     const context = prepared({ packet:packet({ execution:.99, chance:.01 }) });
     const action = deriveAuthoritativeContinuationAction(context);
-    const result = resolveContinuationAction({
-      action,
-      passer:context.actor,
-      receiver:context.target,
-      defender:context.defender,
-      packet:context.packet,
-      intent:null,
-    });
-
+    const result = resolveContinuationAction({ action, passer:context.actor, receiver:context.target, defender:context.defender, packet:context.packet, intent:null });
     expect(result.success).toBe(false);
     expect(result.outcome).toBe('intercepted');
     expect(result.downstreamChance).toBeNull();
@@ -189,22 +175,10 @@ describe('Phase 5 continuation authority', () => {
   it('can authorize exactly one downstream shot after a successful continuation', () => {
     const context = prepared({ packet:packet({ execution:.01, chance:.01 }) });
     const action = deriveAuthoritativeContinuationAction(context);
-    const result = resolveContinuationAction({
-      action,
-      passer:context.actor,
-      receiver:context.target,
-      defender:context.defender,
-      packet:context.packet,
-      intent:null,
-    });
-
+    const result = resolveContinuationAction({ action, passer:context.actor, receiver:context.target, defender:context.defender, packet:context.packet, intent:null });
     expect(result.success).toBe(true);
     expect(result.outcome).toBe('chance_created');
-    expect(result.downstreamChance).toMatchObject({
-      shooterId:'receiver',
-      assistId:'passer',
-      pressureDefenderId:'interceptor',
-    });
+    expect(result.downstreamChance).toMatchObject({ shooterId:'receiver', assistId:'passer', pressureDefenderId:'interceptor' });
     expect(result.downstreamChance.xg).toBeGreaterThan(0);
     expect(result.finish).toBeUndefined();
   });
@@ -215,10 +189,8 @@ describe('Phase 5 continuation authority', () => {
     const weakAction = deriveAuthoritativeContinuationAction(weak);
     const strongAction = deriveAuthoritativeContinuationAction(strong);
     const goodIntent = { continuation:{ targetX:0, targetY:.72, weight:.72, timing:.94 } };
-
     const weakResult = resolveContinuationAction({ action:weakAction, passer:weak.actor, receiver:weak.target, defender:weak.defender, packet:packet({ execution:.45, chance:.10 }), intent:goodIntent });
     const strongResult = resolveContinuationAction({ action:strongAction, passer:strong.actor, receiver:strong.target, defender:strong.defender, packet:packet({ execution:.45, chance:.10 }), intent:goodIntent });
-
     expect(strongResult.successChance).toBeGreaterThan(weakResult.successChance);
     expect(strongResult.executionQuality).toBeGreaterThan(weakResult.executionQuality);
   });
