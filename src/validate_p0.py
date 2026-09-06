@@ -180,6 +180,14 @@ SUPERSEDED_LEGACY_CHECKS = {
     'AI auto-promotes talented youth',
     'Youth promotion (AI) sets a 3-year contract',
     'youthCohort seeded in startNewGame',
+
+    # Playable Key Moments Phase 7 retires variable 1x/2x/4x watched-match
+    # speeds. Regulation now advances all 120 authoritative phases on one fixed
+    # 750 ms cadence (90 real seconds total when uninterrupted), while pause,
+    # tactics and pending playable moments freeze that clock. The replacement
+    # source contract below asserts both the new cadence and that the old speed
+    # controls/multiplier cannot silently return.
+    'Speed control 1x/2x/4x',
 }
 
 P0_TEST_FILES = [
@@ -207,6 +215,8 @@ P0_TEST_FILES = [
     'src/modules/academyPathways.test.js',
     'src/modules/playerDevelopmentP9.test.js',
     'src/modules/youthAcademyP9.test.js',
+    # Playable Key Moments Phase 7 replacement for variable live speed.
+    'src/game/matchScreenLiveTiming.test.js',
 ]
 
 
