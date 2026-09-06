@@ -83,6 +83,7 @@ MODULES += [
     ('modules/standings.js',        'STANDINGS'),
     ('modules/fixtures.js',         'FIXTURES'),
     ('modules/competitionRules.js', 'COMPETITION RULES'),
+    ('modules/competitionShootouts.js', 'COMPETITION SHOOTOUTS'),
     ('modules/cups.js',             'CUPS'),
     ('modules/scoutingTacticalAssessment.js', 'SCOUTING TACTICAL ASSESSMENT'),
     ('modules/scouting.js',         'SCOUTING'),
