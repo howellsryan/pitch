@@ -205,9 +205,8 @@
   }
 
   function animationFrameInterval() {
-    if (scenePlan.quality.tier === 'low') return 1000 / 30;
-    if (scenePlan.quality.tier === 'medium') return 1000 / 45;
-    return 0;
+    const targetFps = Number(scenePlan.quality.targetFps ?? 60);
+    return targetFps >= 60 ? 0 : 1000 / Math.max(1, targetFps);
   }
 
   function animationLoop(now) {
@@ -231,7 +230,8 @@
       replayCount = 0;
       replayActive = false;
     } else if (animationStarted != null && !reducedMotion) {
-      animationProgress = Math.min(1, (now - animationStarted) / 2050);
+      const durationMs = replayActive ? scenePlan.replay.durationMs : 2050;
+      animationProgress = Math.min(1, (now - animationStarted) / durationMs);
       if (animationProgress >= 1) {
         animationStarted = null;
         replayActive = false;
@@ -375,7 +375,14 @@
   });
 </script>
 
-<section class="playable-moment" aria-label="Play Key Moment" data-presentation-version={scenePlan.version} data-quality={scenePlan.quality.tier}>
+<section
+  class="playable-moment"
+  class:replaying={replayActive}
+  aria-label="Play Key Moment"
+  data-presentation-version={scenePlan.version}
+  data-quality={scenePlan.quality.tier}
+  data-replay-variant={scenePlan.replay.variant}
+>
   <header class="pm-header">
     <div>
       <span>PLAY KEY MOMENT · {moment?.minute ?? 0}'</span>
@@ -401,6 +408,9 @@
     onpointercancel={() => { pointerStart = null; }}
   >
     <canvas bind:this={canvas} aria-label="Playable football 3D scene"></canvas>
+    {#if replayActive}
+      <div class="pm-replay-badge">REPLAY · {scenePlan.replay.variant === 'dramatic' ? 'BIG MOMENT' : 'MATCH VIEW'}</div>
+    {/if}
     {#if rendererLoading && !rendererError}
       <div class="pm-overlay-note">Loading moment…</div>
     {/if}
@@ -468,6 +478,8 @@
   .pm-tool { min-height:30px; padding:0 8px; border-radius:999px; font-size:9px; white-space:nowrap; }
   .pm-stage { position:relative; flex:1; min-height:300px; background:#08170f; touch-action:none; user-select:none; overflow:hidden; }
   .pm-stage canvas { display:block; width:100%; height:100%; min-height:300px; }
+  .replaying .pm-stage::after { content:''; pointer-events:none; position:absolute; inset:0; box-shadow:inset 0 0 90px rgba(0,0,0,.45); }
+  .pm-replay-badge { position:absolute; z-index:3; top:12px; left:12px; padding:5px 8px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(5,15,10,.82); color:#d8eee2; font:800 9px var(--font-mono, monospace); letter-spacing:.08em; }
   .pm-overlay-note { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); max-width:82%; padding:10px 12px; border-radius:8px; background:rgba(3,12,7,.9); text-align:center; font-size:12px; font-weight:700; }
   .pm-warning { color:#ffd6a3; border:1px solid rgba(255,190,108,.35); }
   .pm-result { position:absolute; top:18px; left:50%; transform:translateX(-50%); padding:8px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.2); background:rgba(8,19,13,.9); font-family:var(--font-display, inherit); font-weight:900; letter-spacing:.14em; font-size:18px; }
