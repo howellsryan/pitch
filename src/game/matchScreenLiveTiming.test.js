@@ -6,11 +6,16 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const matchScreenSrc = readFileSync(resolve(here, '../lib/ui/MatchScreen.svelte'), 'utf8');
 
-function sourceOf(functionName, length = 9000) {
-  const asyncStart = matchScreenSrc.indexOf(`async function ${functionName}`);
-  const syncStart = matchScreenSrc.indexOf(`function ${functionName}`);
-  const start = asyncStart >= 0 ? asyncStart : syncStart;
-  return start === -1 ? '' : matchScreenSrc.slice(start, start + length);
+function sourceOf(functionName) {
+  const asyncStart = matchScreenSrc.indexOf(`async function ${functionName}(`);
+  const syncStart = matchScreenSrc.indexOf(`function ${functionName}(`);
+  const starts = [asyncStart, syncStart].filter(index => index >= 0);
+  if (!starts.length) return '';
+  const start = Math.min(...starts);
+  const tail = matchScreenSrc.slice(start);
+  const nextMatch = tail.slice(1).match(/\n  (?:async )?function\s+[A-Za-z0-9_$]+\s*\(/);
+  const end = nextMatch ? start + 1 + nextMatch.index : matchScreenSrc.length;
+  return matchScreenSrc.slice(start, end);
 }
 
 describe('MatchScreen live timing and presentation authority', () => {
@@ -35,19 +40,19 @@ describe('MatchScreen live timing and presentation authority', () => {
   });
 
   it('stops ticking for pauses and unresolved playable moments', () => {
-    const scheduleTick = sourceOf('scheduleTick', 2000);
+    const scheduleTick = sourceOf('scheduleTick');
     expect(scheduleTick).toContain('if (!live || live.paused) return');
     expect(scheduleTick).toContain("playableSession?.status !== 'active'");
     expect(scheduleTick).toContain('Math.max(PRESENTATION_RETRY_MS, WATCH_TICK_MS + extraDelay)');
   });
 
   it('queues authoritative goals and reveals them only when the visible scene reaches GOAL', () => {
-    const events = sourceOf('handleNewEvents', 2500);
+    const events = sourceOf('handleNewEvents');
     expect(events).toContain("if (ev.type === 'goal')");
     expect(events).toContain('queuedGoalNotice = { ...ev, isUser }');
     expect(events).not.toContain('revealGoalNotice();');
 
-    const presentation = sourceOf('startPresentation', 3500);
+    const presentation = sourceOf('startPresentation');
     expect(presentation).toContain("if (broadcastFrame.action === 'GOAL') revealGoalNotice()");
   });
 
