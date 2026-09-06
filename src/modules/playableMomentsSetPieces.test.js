@@ -173,7 +173,7 @@ describe('Phase 4 authoritative set-piece domain', () => {
       setPiece,
       shooter:player('fk-taker', 'CAM', 94),
       defenders:[player('gk', 'GK', 70), ...prepared().defenders.slice(1)],
-      packet:packet({ chance:.07, assist:.99, shot:.70, finish:.01 }),
+      packet:packet({ chance:.07, assist:.99, shot:.20, finish:.01 }),
     });
 
     expect(blocked.finish).toBe('blocked');
