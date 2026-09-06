@@ -40,6 +40,6 @@ describe('Phase 8 automatic-mode and event-policy independence', () => {
   });
 
   it('does not broaden playable selection to continuation/contact events', () => {
-    expect(eventPolicy).toContain("if (interactionType === 'continuation' || interactionType === 'contact') return null");
+    expect(eventPolicy).toContain("if (moment.interactionType === 'continuation' || moment.interactionType === 'contact') return null");
   });
 });
