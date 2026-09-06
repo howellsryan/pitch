@@ -61,7 +61,16 @@ export function applySubstitution(liveState, userIsHome, subInId, subOutId, minu
   const fitMap = liveState[k.fitness];
   fitMap.set(subIn.id, Math.min(100, subIn.fitness ?? 90));
 
-  const newActive = liveState[k.active].map(p => (p.id === subOutId ? subIn : p));
+  // A user substitution is a direct shirt-for-shirt change. The incoming
+  // player's natural position must not make the engine or broadcast silently
+  // reshuffle the rest of the XI. Preserve the exact tactical slot occupied by
+  // the outgoing player; a separate formation change remains the only action
+  // that is allowed to reorganise the shape.
+  const replacement = {
+    ...subIn,
+    matchPosition:subOut.matchPosition ?? subOut.position ?? subIn.matchPosition ?? subIn.position,
+  };
+  const newActive = liveState[k.active].map(p => (p.id === subOutId ? replacement : p));
   const newBench  = liveState[k.bench].filter(p => p.id !== subInId);
   const newStr    = teamStrength(newActive);
 
