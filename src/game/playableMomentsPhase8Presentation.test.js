@@ -7,6 +7,8 @@ import {
 } from './playableMomentsPresentationPreferences.js';
 import { buildPlayableScenePlan, playablePresentationScenario } from './playableMomentsSceneDirector.js';
 
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+
 function moment(overrides = {}) {
   return {
     version:3,
@@ -63,9 +65,9 @@ describe('Phase 8 pure scene director', () => {
   it('builds a presentation plan without mutating the authoritative moment or preferences', () => {
     const authoritativeMoment = moment({ setPiece:{ kind:'penalty' }, geometry:{ goal:{ width:7.32, height:2.44 }, distance:11 } });
     const preferences = { quality:'low', motion:'reduced', audioEnabled:false, scenarios:{ penalty:true } };
-    const beforeMoment = structuredClone(authoritativeMoment);
-    const beforePreferences = structuredClone(preferences);
-    const plan = buildPlayableScenePlan({ authoritativeMoment, moment:authoritativeMoment, preferences, capabilities:{ webgl:true } });
+    const beforeMoment = clone(authoritativeMoment);
+    const beforePreferences = clone(preferences);
+    const plan = buildPlayableScenePlan({ moment:authoritativeMoment, preferences, capabilities:{ webgl:true } });
 
     expect(plan).toMatchObject({
       version:1,
