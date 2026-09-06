@@ -1,0 +1,49 @@
+export const PLAYABLE_PRESENTATION_HISTORY_LIMIT = 24;
+export const PLAYABLE_PRESENTATION_METADATA_BUDGET_BYTES = 4096;
+
+function text(value, max = 40) {
+  return typeof value === 'string' ? value.slice(0, max) : null;
+}
+
+function integer(value, min, max) {
+  const number = Math.trunc(Number(value));
+  return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : null;
+}
+
+export function compactPlayablePresentationReceipt(receipt = {}) {
+  return {
+    version:integer(receipt.version, 1, 99) ?? 1,
+    scenario:text(receipt.scenario, 32) ?? 'open_play',
+    renderer:text(receipt.renderer, 32) ?? null,
+    quality:text(receipt.quality, 16) ?? 'medium',
+    fallback:Boolean(receipt.fallback),
+    replayCount:integer(receipt.replayCount, 0, 3) ?? 0,
+  };
+}
+
+export function compactPlayablePresentationHistory(history = []) {
+  return history
+    .slice(-PLAYABLE_PRESENTATION_HISTORY_LIMIT)
+    .map(compactPlayablePresentationReceipt);
+}
+
+export function playablePresentationMetadataBytes(value) {
+  try { return new TextEncoder().encode(JSON.stringify(value ?? null)).byteLength; }
+  catch { return Number.POSITIVE_INFINITY; }
+}
+
+export function presentationHistoryWithinBudget(history = []) {
+  const compact = compactPlayablePresentationHistory(history);
+  return {
+    compact,
+    bytes:playablePresentationMetadataBytes(compact),
+    budgetBytes:PLAYABLE_PRESENTATION_METADATA_BUDGET_BYTES,
+    withinBudget:playablePresentationMetadataBytes(compact) <= PLAYABLE_PRESENTATION_METADATA_BUDGET_BYTES,
+  };
+}
+
+export function stripNonDurablePresentationState(value = {}) {
+  const { scene, frames, replayFrames, audioState, rendererState, ...durable } = value ?? {};
+  void scene; void frames; void replayFrames; void audioState; void rendererState;
+  return durable;
+}
