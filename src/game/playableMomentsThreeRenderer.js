@@ -1,6 +1,7 @@
 import { PLAYABLE_POC_RENDERERS, samplePlayablePocMotion, sceneWorldFromMoment } from './playableMomentsPocScene.js';
 
 const CANDIDATE = PLAYABLE_POC_RENDERERS.three;
+const MAX_SET_PIECE_WALL_PLAYERS = 5;
 
 function disposeMaterial(material) {
   if (!material) return;
@@ -184,10 +185,17 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
   const shooter = makeHumanoid(materials.home, materials.skinHome);
   const keeper = makeHumanoid(materials.keeper, materials.skinKeeper, { keeper:true, shortsMaterial:materials.keeperShorts });
   const defender = makeHumanoid(materials.away, materials.skinAway, { shortsMaterial:materials.awayShorts });
-  roots.add(shooter.root, keeper.root, defender.root);
+  const wallModels = Array.from({ length:MAX_SET_PIECE_WALL_PLAYERS }, () => (
+    makeHumanoid(materials.away, materials.skinAway, { shortsMaterial:materials.awayShorts })
+  ));
+  roots.add(shooter.root, keeper.root, defender.root, ...wallModels.map(model => model.root));
   shooter.root.rotation.y = Math.PI;
   defender.root.rotation.y = Math.PI;
   keeper.root.rotation.y = 0;
+  for (const model of wallModels) {
+    model.root.rotation.y = Math.PI;
+    model.root.visible = false;
+  }
 
   const ball = mesh(new THREE.SphereGeometry(.11, 20, 14), materials.ball);
   roots.add(ball);
@@ -344,6 +352,37 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     }
   }
 
+  function updateAuthoritativeDefenders(moment, resolution, progress, frame) {
+    const wallMembers = Array.isArray(moment?.geometry?.wall?.members) ? moment.geometry.wall.members : [];
+    const hasWall = wallMembers.length > 0;
+    const hasExplicitDefender = moment?.geometry && Object.prototype.hasOwnProperty.call(moment.geometry, 'defender')
+      ? moment.geometry.defender != null
+      : true;
+    defender.root.visible = !hasWall && hasExplicitDefender;
+    if (defender.root.visible) applyHuman(defender, frame.defender, 'defender');
+
+    const shot = resolution?.shot ?? resolution ?? null;
+    const blockerId = shot?.presentation?.blockerId ?? null;
+    const blocked = shot?.finish === 'blocked';
+    const wallFlight = Math.max(0, Math.min(1, (Number(progress) - .27) / .38));
+    const wallJump = Math.sin(wallFlight * Math.PI) * .18;
+    const blockPulse = Math.sin(Math.max(0, Math.min(1, (Number(progress) - .37) / .30)) * Math.PI);
+
+    for (let index = 0; index < wallModels.length; index += 1) {
+      const model = wallModels[index];
+      const member = wallMembers[index] ?? null;
+      model.root.visible = Boolean(member);
+      if (!member) continue;
+      const isBlocker = blocked && blockerId === member.id;
+      applyHuman(model, {
+        x:Number(member.x ?? 0),
+        y:wallJump + (isBlocker ? blockPulse * .04 : 0),
+        z:Number(member.z ?? 0),
+        lunge:isBlocker ? blockPulse * .30 : 0,
+      }, 'defender');
+    }
+  }
+
   function resize() {
     const width = Math.max(1, canvas.clientWidth || canvas.width || 1);
     const height = Math.max(1, canvas.clientHeight || canvas.height || 1);
@@ -380,7 +419,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment) {
     const frame = samplePlayablePocMotion(moment, resolution, progress);
     applyHuman(shooter, frame.shooter, 'shooter');
     applyHuman(keeper, frame.keeper, 'keeper');
-    applyHuman(defender, frame.defender, 'defender');
+    updateAuthoritativeDefenders(moment, resolution, progress, frame);
     ball.position.set(frame.ball.x, frame.ball.y, frame.ball.z);
     ball.rotation.x = Number(frame.ball.spinX ?? 0);
     ball.rotation.z = Number(frame.ball.spinZ ?? 0);
