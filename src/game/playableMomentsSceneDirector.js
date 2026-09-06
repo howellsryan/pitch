@@ -12,7 +12,13 @@ export const PLAYABLE_PRESENTATION_VERSION = 1;
 export function playablePresentationScenario(moment = {}) {
   if (moment?.interactionType === 'continuation') return 'legacy_continuation';
   if (moment?.interactionType === 'contact') return 'legacy_contact';
-  if (moment?.kickId || moment?.shootoutId || moment?.route === 'competition_shootout') return 'shootout';
+  if (
+    moment?.interactionType === 'shootout'
+    || moment?.kickId
+    || moment?.shootoutId
+    || moment?.route === 'competition_shootout'
+    || moment?.route === 'penalty_shootout'
+  ) return 'shootout';
   if (moment?.setPiece?.kind === 'direct_free_kick') return 'direct_free_kick';
   if (moment?.setPiece?.kind === 'penalty') return 'penalty';
   return 'open_play';
@@ -30,6 +36,19 @@ function interactionFamily(moment, scenario) {
   if (scenario === 'legacy_contact') return 'contact';
   if (moment?.mode === 'goalkeeper') return 'goalkeeper';
   return 'attack';
+}
+
+function replayRecipe(moment, scenario, enabled) {
+  const minute = Number(moment?.minute ?? 0);
+  const highDrama = scenario === 'shootout' || scenario === 'penalty' || minute >= 80;
+  return {
+    enabled,
+    maxReplays:3,
+    variant:highDrama ? 'dramatic' : 'standard',
+    durationMs:highDrama ? 2350 : 1850,
+    resultHoldMs:highDrama ? 520 : 280,
+    camera:highDrama ? 'tight-result' : 'repeat-primary',
+  };
 }
 
 export function buildPlayableScenePlan({
@@ -59,13 +78,13 @@ export function buildPlayableScenePlan({
     quality,
     reducedMotion,
     audio:{ enabled:normalizedPreferences.audioEnabled, volume:normalizedPreferences.audioVolume },
-    replay:{ enabled:normalizedPreferences.replayEnabled && !reducedMotion, maxReplays:3 },
+    replay:replayRecipe(moment, scenario, normalizedPreferences.replayEnabled && !reducedMotion),
   };
 }
 
 export async function mountPlayableSceneRenderer(canvas, moment, plan) {
   if (!plan?.enabled) throw new Error('PLAYABLE_PRESENTATION_DISABLED');
-  const options = { quality:plan.quality, presentationVersion:plan.version, scenario:plan.scenario };
+  const options = { quality:plan.quality, presentationVersion:plan.version, scenario:plan.scenario, camera:plan.camera };
   if (plan.rendererId === 'three-continuation-legacy') {
     const module = await import('./playableMomentsContinuationRenderer.js');
     return module.mountThreePlayableContinuation(canvas, moment, options);
