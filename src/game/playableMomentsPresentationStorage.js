@@ -27,18 +27,28 @@ export function compactPlayablePresentationHistory(history = []) {
     .map(compactPlayablePresentationReceipt);
 }
 
+function utf8Bytes(value) {
+  let bytes = 0;
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    bytes += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+  }
+  return bytes;
+}
+
 export function playablePresentationMetadataBytes(value) {
-  try { return new TextEncoder().encode(JSON.stringify(value ?? null)).byteLength; }
+  try { return utf8Bytes(JSON.stringify(value ?? null)); }
   catch { return Number.POSITIVE_INFINITY; }
 }
 
 export function presentationHistoryWithinBudget(history = []) {
   const compact = compactPlayablePresentationHistory(history);
+  const bytes = playablePresentationMetadataBytes(compact);
   return {
     compact,
-    bytes:playablePresentationMetadataBytes(compact),
+    bytes,
     budgetBytes:PLAYABLE_PRESENTATION_METADATA_BUDGET_BYTES,
-    withinBudget:playablePresentationMetadataBytes(compact) <= PLAYABLE_PRESENTATION_METADATA_BUDGET_BYTES,
+    withinBudget:bytes <= PLAYABLE_PRESENTATION_METADATA_BUDGET_BYTES,
   };
 }
 
