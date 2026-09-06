@@ -19,6 +19,15 @@ import {
   resolveContinuationAction,
 } from './matchContinuationActions.js';
 import {
+  MATCH_CONTACT_ACTION_VERSION,
+  classifyAutomaticSavedShot,
+  classifyGoalkeeperIntervention,
+} from './matchContactActions.js';
+import {
+  commitPlayableContactPhase,
+  previewPlayableContact,
+} from './matchContactPhase.js';
+import {
   MATCH_SET_PIECE_VERSION,
   deriveAuthoritativeSetPiece,
   resolveDirectFreeKickOutcome,
@@ -39,14 +48,14 @@ import {
  * randomness itself, which keeps whole-match and segmented simulation aligned.
  */
 
-export const MATCH_ACTION_RESOLVER_VERSION = 4;
+export const MATCH_ACTION_RESOLVER_VERSION = 5;
 export const MATCH_ACTION_LEDGER_VERSION = 1;
 export const MATCH_RNG_PACKET_VERSION = 1;
-export const PLAYABLE_MOMENT_VERSION = 2;
+export const PLAYABLE_MOMENT_VERSION = 3;
 export const PLAYABLE_INTENT_VERSION = 2;
 export const PLAYABLE_STAGING_VERSION = 1;
 export { MATCH_SET_PIECE_VERSION, deriveAuthoritativeSetPiece, resolveDirectFreeKickOutcome, resolvePenaltyOutcome };
-export { MATCH_CONTINUATION_ACTION_VERSION };
+export { MATCH_CONTINUATION_ACTION_VERSION, MATCH_CONTACT_ACTION_VERSION };
 
 export const MATCH_RNG_PACKET_FIELDS = Object.freeze([
   'possession',
@@ -374,6 +383,7 @@ export function resolveShotOutcome({ shooter, defender, defenders = [], xg, pack
   // football-like envelope while preserving the same shot volume and xG model.
   const goalGivenTarget = actionClamp(xg * 2.65 * shootingModifier * keeperModifier, .06, .74);
   const goal = actionClamp(packet.finish, 0, .999999) < goalGivenTarget;
+  const savedContext = goal ? null : classifyAutomaticSavedShot({ packet, xg, shooting, goalkeeping:keeping });
   return {
     finish:goal ? 'goal' : 'saved',
     onTarget:true,
@@ -382,6 +392,7 @@ export function resolveShotOutcome({ shooter, defender, defenders = [], xg, pack
     pressure:actionRound(pressure),
     goalkeeping:actionRound(keeping),
     goalChance:actionRound(goalGivenTarget),
+    ...(savedContext?.action ? { goalkeeperIntervention:savedContext.action } : {}),
   };
 }
 
@@ -483,19 +494,36 @@ export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [
   const distance = Math.sqrt(dx * dx + dy * dy);
   const powerPenalty = actionClamp((attack.power - .72) * .16, -.04, .05);
   const save = distance <= actionClamp(reach - powerPenalty, .18, .62);
+  const finish = save ? 'saved' : 'goal';
+  const goalkeeperIntervention = classifyGoalkeeperIntervention({
+    finish,
+    target,
+    power:attack.power,
+    xg,
+    goalkeeping:keeping,
+    keeper:keeperIntent,
+  });
 
   return {
-    finish:save ? 'saved' : 'goal',
+    finish,
     onTarget:true,
     goal:!save,
     shooting:actionRound(shooting),
     pressure:actionRound(pressure),
     goalkeeping:actionRound(keeping),
+    ...(goalkeeperIntervention ? { goalkeeperIntervention } : {}),
     presentation:{
       target,
       blockerId:null,
-      keeper:{ x:actionRound(keeperIntent.x, 4), y:actionRound(keeperIntent.y, 4), timing:actionRound(keeperIntent.timing, 4), reach:actionRound(reach, 4) },
+      keeper:{
+        x:actionRound(keeperIntent.x, 4),
+        y:actionRound(keeperIntent.y, 4),
+        timing:actionRound(keeperIntent.timing, 4),
+        reach:actionRound(reach, 4),
+        intervention:goalkeeperIntervention,
+      },
       contact:save ? 'save' : 'goal',
+      ...(goalkeeperIntervention ? { goalkeeperIntervention } : {}),
     },
   };
 }
@@ -738,6 +766,8 @@ function buildContinuationPlayableMoment(prepared, controlledTeamId) {
 export function buildPlayableMoment(prepared, controlledTeamId) {
   const setPieceMoment = buildSetPiecePlayableMoment(prepared, controlledTeamId, PLAYABLE_MOMENT_VERSION);
   if (setPieceMoment) return setPieceMoment;
+  const contactMoment = previewPlayableContact(prepared, controlledTeamId, PLAYABLE_MOMENT_VERSION)?.moment ?? null;
+  if (contactMoment) return contactMoment;
   const continuationMoment = buildContinuationPlayableMoment(prepared, controlledTeamId);
   if (continuationMoment) return continuationMoment;
   if (!prepared?.chance || !prepared?.shooter || !controlledTeamId) return null;
@@ -887,6 +917,7 @@ function commitContinuationPhase(prepared, intent) {
     ...(shooter ? { shotId:shooter.id } : {}),
     ...(assistId ? { assistId } : {}),
     ...(shot ? { finish:shot.finish, onTarget:shot.onTarget } : {}),
+    ...(shot?.goalkeeperIntervention ? { goalkeeperIntervention:shot.goalkeeperIntervention } : {}),
     ...(cornerWon ? { cornerWon:true } : {}),
   };
 
@@ -907,6 +938,7 @@ function commitContinuationPhase(prepared, intent) {
 
 export function commitAuthoritativePhase(prepared, { intent = null } = {}) {
   if (!prepared || prepared.version !== 1) throw new Error('Action commit requires a prepared authoritative phase');
+  if (prepared.contactAction) return commitPlayableContactPhase(prepared, intent, MATCH_ACTION_LEDGER_VERSION);
   if (prepared.continuationAction) {
     if (intent == null) return commitAuthoritativePhase(prepareAutomaticContinuationPhase(prepared), { intent:null });
     return commitContinuationPhase(prepared, intent);
@@ -952,6 +984,7 @@ export function commitAuthoritativePhase(prepared, { intent = null } = {}) {
     ...(shooter ? { shotId:shooter.id } : {}),
     ...(assistId ? { assistId } : {}),
     ...(shot ? { finish:shot.finish, onTarget:shot.onTarget } : {}),
+    ...(shot?.goalkeeperIntervention ? { goalkeeperIntervention:shot.goalkeeperIntervention } : {}),
     ...(cornerWon ? { cornerWon:true } : {}),
   };
 
