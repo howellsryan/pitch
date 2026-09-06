@@ -17,26 +17,26 @@ export const GOALKEEPER_INTERVENTIONS = Object.freeze([
   'spread',
 ]);
 
-function clamp(value, min, max) {
+function contactClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function round(value, digits = 3) {
+function contactRound(value, digits = 3) {
   const factor = 10 ** digits;
   return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
 }
 
-function numeric(value, fallback = 0) {
+function contactNumeric(value, fallback = 0) {
   const next = Number(value);
   return Number.isFinite(next) ? next : fallback;
 }
 
-function detailed(player, attribute) {
+function contactDetailed(player, attribute) {
   const value = Number(effectiveDetailedAttribute(player, attribute));
   return Number.isFinite(value) ? value : 50;
 }
 
-function weighted(player, weights = {}) {
+function contactWeighted(player, weights = {}) {
   if (!player) return 50;
   let total = 0;
   let sum = 0;
@@ -44,12 +44,12 @@ function weighted(player, weights = {}) {
     const amount = Number(weight);
     if (!(amount > 0)) continue;
     total += amount;
-    sum += detailed(player, attribute) * amount;
+    sum += contactDetailed(player, attribute) * amount;
   }
-  return clamp(total ? sum / total : 50, 1, 99);
+  return contactClamp(total ? sum / total : 50, 1, 99);
 }
 
-function stableUnit(input) {
+function contactStableUnit(input) {
   let hash = 2166136261;
   for (const character of String(input ?? '')) {
     hash ^= character.charCodeAt(0);
@@ -58,10 +58,10 @@ function stableUnit(input) {
   return (hash >>> 0) / 0x100000000;
 }
 
-function contactTypeFor(prepared, continuation) {
+function deriveContactType(prepared, continuation) {
   const family = prepared?.continuationAction?.family ?? continuation?.family ?? null;
   if (!family || !continuation?.success || !continuation?.downstreamChance) return null;
-  const roll = stableUnit(`${prepared.phase}:${prepared.teamId}:${continuation.receiverId}:${family}:contact-v1`);
+  const roll = contactStableUnit(`${prepared.phase}:${prepared.teamId}:${continuation.receiverId}:${family}:contact-v1`);
   if (family === 'cross') return roll < .56 ? 'standing_header' : 'running_header';
   if (family === 'cutback') return roll < .52 ? 'half_volley' : 'volley';
   if (family === 'final_pass') return roll < .32 ? 'volley' : roll < .56 ? 'half_volley' : null;
@@ -69,7 +69,7 @@ function contactTypeFor(prepared, continuation) {
   return null;
 }
 
-function contactDefinition(type) {
+function contactDefinitionFor(type) {
   switch (type) {
     case 'standing_header':
       return { contactHeight:1.72, approach:'set', preferredPower:.60, xgMultiplier:.92, spreadBase:.39 };
@@ -85,15 +85,15 @@ function contactDefinition(type) {
 }
 
 export function derivePlayableContactAction(prepared, continuation) {
-  const type = contactTypeFor(prepared, continuation);
-  const definition = contactDefinition(type);
+  const type = deriveContactType(prepared, continuation);
+  const definition = contactDefinitionFor(type);
   const downstream = continuation?.downstreamChance;
   if (!type || !definition || !downstream) return null;
   const shooter = prepared?.attackers?.find?.(player => player.id === downstream.shooterId) ?? prepared?.target ?? null;
   const defender = prepared?.defenders?.find?.(player => player.id === downstream.pressureDefenderId) ?? prepared?.defender ?? null;
   if (!shooter || !defender) return null;
 
-  const sourceXg = clamp(numeric(downstream.xg, .12), .045, .48);
+  const sourceXg = contactClamp(contactNumeric(downstream.xg, .12), .045, .48);
   return {
     version:MATCH_CONTACT_ACTION_VERSION,
     type,
@@ -107,7 +107,7 @@ export function derivePlayableContactAction(prepared, continuation) {
     shooterName:shooter.name,
     pressureDefenderId:defender.id,
     pressureDefenderName:defender.name,
-    xg:round(clamp(sourceXg * definition.xgMultiplier, .04, .48), 3),
+    xg:contactRound(contactClamp(sourceXg * definition.xgMultiplier, .04, .48), 3),
     contactHeight:definition.contactHeight,
     approach:definition.approach,
     preferredPower:definition.preferredPower,
@@ -121,61 +121,61 @@ export function normalizeContactIntent(input = {}) {
   return {
     version:PLAYABLE_CONTACT_INTENT_VERSION,
     attack:rawAttack ? {
-      aimX:clamp(numeric(rawAttack.aimX, 0), -1.25, 1.25),
-      aimY:clamp(numeric(rawAttack.aimY, .48), -.2, 1.2),
-      power:clamp(numeric(rawAttack.power, .68), 0, 1),
-      timing:clamp(numeric(rawAttack.timing, .65), 0, 1),
+      aimX:contactClamp(contactNumeric(rawAttack.aimX, 0), -1.25, 1.25),
+      aimY:contactClamp(contactNumeric(rawAttack.aimY, .48), -.2, 1.2),
+      power:contactClamp(contactNumeric(rawAttack.power, .68), 0, 1),
+      timing:contactClamp(contactNumeric(rawAttack.timing, .65), 0, 1),
     } : null,
     goalkeeper:rawKeeper ? {
-      x:clamp(numeric(rawKeeper.x, 0), -1, 1),
-      y:clamp(numeric(rawKeeper.y, .45), 0, 1),
-      timing:clamp(numeric(rawKeeper.timing, .65), 0, 1),
+      x:contactClamp(contactNumeric(rawKeeper.x, 0), -1, 1),
+      y:contactClamp(contactNumeric(rawKeeper.y, .45), 0, 1),
+      timing:contactClamp(contactNumeric(rawKeeper.timing, .65), 0, 1),
     } : null,
   };
 }
 
-function contactAbility(type, shooter) {
-  if (type === 'standing_header') return weighted(shooter, { shooting:.42, physical:.46, pace:.12 });
-  if (type === 'running_header') return weighted(shooter, { shooting:.40, physical:.34, pace:.26 });
-  if (type === 'volley') return weighted(shooter, { shooting:.70, physical:.17, pace:.13 });
-  return weighted(shooter, { shooting:.62, physical:.18, pace:.20 });
+function contactAbilityScore(type, shooter) {
+  if (type === 'standing_header') return contactWeighted(shooter, { shooting:.42, physical:.46, pace:.12 });
+  if (type === 'running_header') return contactWeighted(shooter, { shooting:.40, physical:.34, pace:.26 });
+  if (type === 'volley') return contactWeighted(shooter, { shooting:.70, physical:.17, pace:.13 });
+  return contactWeighted(shooter, { shooting:.62, physical:.18, pace:.20 });
 }
 
-function pressureAbility(defender) {
-  return weighted(defender, { defending:.60, physical:.25, pace:.15 });
+function contactPressureAbility(defender) {
+  return contactWeighted(defender, { defending:.60, physical:.25, pace:.15 });
 }
 
-function automaticAttack(action, packet, ability) {
-  const execution = clamp((ability - 42) / 57, 0, 1);
+function contactAutomaticAttack(action, packet, ability) {
+  const execution = contactClamp((ability - 42) / 57, 0, 1);
   return {
-    aimX:clamp((numeric(packet?.shot, .5) - .5) * (1.58 - execution * .52), -.98, .98),
-    aimY:clamp(.18 + numeric(packet?.finish, .5) * .66, .08, .92),
-    power:clamp(action.preferredPower + (execution - .5) * .12, .42, .92),
-    timing:clamp(.42 + execution * .48, .30, .94),
+    aimX:contactClamp((contactNumeric(packet?.shot, .5) - .5) * (1.58 - execution * .52), -.98, .98),
+    aimY:contactClamp(.18 + contactNumeric(packet?.finish, .5) * .66, .08, .92),
+    power:contactClamp(action.preferredPower + (execution - .5) * .12, .42, .92),
+    timing:contactClamp(.42 + execution * .48, .30, .94),
   };
 }
 
-function trajectory({ action, attack, packet, ability, pressure }) {
+function contactTrajectory({ action, attack, packet, ability, pressure }) {
   const powerControl = 1 - Math.abs(attack.power - action.preferredPower) * 1.05;
-  const canonical = clamp(ability / 100, .05, .99);
-  const executionQuality = clamp(canonical * .62 + attack.timing * .25 + clamp(powerControl, 0, 1) * .13, .04, .99);
-  const pressurePenalty = clamp((pressure - 58) / 110, 0, .30);
-  const spread = clamp(action.spreadBase - executionQuality * .27 + pressurePenalty, .04, .46);
+  const canonical = contactClamp(ability / 100, .05, .99);
+  const executionQuality = contactClamp(canonical * .62 + attack.timing * .25 + contactClamp(powerControl, 0, 1) * .13, .04, .99);
+  const pressurePenalty = contactClamp((pressure - 58) / 110, 0, .30);
+  const spread = contactClamp(action.spreadBase - executionQuality * .27 + pressurePenalty, .04, .46);
   return {
-    x:round(attack.aimX + (numeric(packet?.finish, .5) - .5) * 2 * spread, 4),
-    y:round(attack.aimY + (numeric(packet?.shot, .5) - .5) * 2 * spread * .62, 4),
-    power:round(attack.power, 4),
-    executionQuality:round(executionQuality, 4),
+    x:contactRound(attack.aimX + (contactNumeric(packet?.finish, .5) - .5) * 2 * spread, 4),
+    y:contactRound(attack.aimY + (contactNumeric(packet?.shot, .5) - .5) * 2 * spread * .62, 4),
+    power:contactRound(attack.power, 4),
+    executionQuality:contactRound(executionQuality, 4),
   };
 }
 
-function automaticKeeper(target, packet, goalkeeping) {
-  const ability = clamp((goalkeeping - 35) / 64, 0, 1);
+function contactAutomaticKeeper(target, packet, goalkeeping) {
+  const ability = contactClamp((goalkeeping - 35) / 64, 0, 1);
   const error = .64 - ability * .47;
   return {
-    x:clamp(target.x + (numeric(packet?.finish, .5) - .5) * 2 * error, -1, 1),
-    y:clamp(target.y + (numeric(packet?.shot, .5) - .5) * error * .70, 0, 1),
-    timing:clamp(.46 + ability * .44, .38, .94),
+    x:contactClamp(target.x + (contactNumeric(packet?.finish, .5) - .5) * 2 * error, -1, 1),
+    y:contactClamp(target.y + (contactNumeric(packet?.shot, .5) - .5) * error * .70, 0, 1),
+    timing:contactClamp(.46 + ability * .44, .38, .94),
   };
 }
 
@@ -189,12 +189,12 @@ export function classifyGoalkeeperIntervention({
   contactType = null,
 } = {}) {
   if (finish !== 'saved') return null;
-  const lateral = Math.abs(clamp(numeric(target.x, 0), -1.25, 1.25));
-  const height = clamp(numeric(target.y, .45), 0, 1.2);
-  const shotPower = clamp(numeric(power, .7), 0, 1);
-  const chance = clamp(numeric(xg, .15), 0, .6);
-  const keeping = clamp(numeric(goalkeeping, 70), 1, 99);
-  const keeperX = Math.abs(clamp(numeric(keeper?.x, 0), -1, 1));
+  const lateral = Math.abs(contactClamp(contactNumeric(target.x, 0), -1.25, 1.25));
+  const height = contactClamp(contactNumeric(target.y, .45), 0, 1.2);
+  const shotPower = contactClamp(contactNumeric(power, .7), 0, 1);
+  const chance = contactClamp(contactNumeric(xg, .15), 0, .6);
+  const keeping = contactClamp(contactNumeric(goalkeeping, 70), 1, 99);
+  const keeperX = Math.abs(contactClamp(contactNumeric(keeper?.x, 0), -1, 1));
 
   // Close, low chances are saved with body/feet rather than transformed into a
   // catch simply because the goalkeeper has a high rating.
@@ -211,12 +211,12 @@ export function classifyGoalkeeperIntervention({
 
 export function classifyAutomaticSavedShot({ packet, xg, shooting, goalkeeping } = {}) {
   const target = {
-    x:clamp((numeric(packet?.finish, .5) - .5) * 1.70, -.95, .95),
-    y:clamp(.16 + numeric(packet?.shot, .5) * .72, .10, .92),
+    x:contactClamp((contactNumeric(packet?.finish, .5) - .5) * 1.70, -.95, .95),
+    y:contactClamp(.16 + contactNumeric(packet?.shot, .5) * .72, .10, .92),
   };
-  const power = clamp(.52 + clamp(numeric(xg, .12), 0, .5) * .62 + (numeric(shooting, 70) - 70) * .003, .44, .90);
+  const power = contactClamp(.52 + contactClamp(contactNumeric(xg, .12), 0, .5) * .62 + (contactNumeric(shooting, 70) - 70) * .003, .44, .90);
   const action = classifyGoalkeeperIntervention({ finish:'saved', target, power, xg, goalkeeping });
-  return { action, target:{ x:round(target.x, 4), y:round(target.y, 4) }, power:round(power, 4) };
+  return { action, target:{ x:contactRound(target.x, 4), y:contactRound(target.y, 4) }, power:contactRound(power, 4) };
 }
 
 export function resolveContactShotOutcome({ action, shooter, defender, defenders = [], packet, intent = null } = {}) {
@@ -230,17 +230,17 @@ export function resolveContactShotOutcome({ action, shooter, defender, defenders
 
   const goalkeeper = (defenders ?? []).find(player => (player?.matchPosition ?? player?.position) === 'GK') ?? null;
   const goalkeeping = Number(effectiveAttribute(goalkeeper, 'goalkeeping') ?? goalkeeper?.goalkeeping ?? 50);
-  const ability = contactAbility(action.type, shooter);
-  const pressure = pressureAbility(defender);
+  const ability = contactAbilityScore(action.type, shooter);
+  const pressure = contactPressureAbility(defender);
   const normalized = normalizeContactIntent(intent ?? {});
-  const attack = normalized.attack ?? automaticAttack(action, packet, ability);
-  const target = trajectory({ action, attack, packet, ability, pressure });
-  const blockChance = clamp(.055 + (pressure - 68) * .0032 - action.xg * .055 - attack.power * .018, .02, .23);
+  const attack = normalized.attack ?? contactAutomaticAttack(action, packet, ability);
+  const target = contactTrajectory({ action, attack, packet, ability, pressure });
+  const blockChance = contactClamp(.055 + (pressure - 68) * .0032 - action.xg * .055 - attack.power * .018, .02, .23);
 
-  if (numeric(packet.outcome, .5) < blockChance) {
+  if (contactNumeric(packet.outcome, .5) < blockChance) {
     return {
       finish:'blocked', onTarget:false, goal:false,
-      contactType:action.type, contactAbility:round(ability), pressure:round(pressure), goalkeeping:round(goalkeeping),
+      contactType:action.type, contactAbility:contactRound(ability), pressure:contactRound(pressure), goalkeeping:contactRound(goalkeeping),
       goalkeeperIntervention:null,
       presentation:{ target, blockerId:defender?.id ?? null, keeper:null, contact:'block', contactType:action.type },
     };
@@ -250,20 +250,20 @@ export function resolveContactShotOutcome({ action, shooter, defender, defenders
   if (!insideGoal) {
     return {
       finish:'missed', onTarget:false, goal:false,
-      contactType:action.type, contactAbility:round(ability), pressure:round(pressure), goalkeeping:round(goalkeeping),
+      contactType:action.type, contactAbility:contactRound(ability), pressure:contactRound(pressure), goalkeeping:contactRound(goalkeeping),
       goalkeeperIntervention:null,
       presentation:{ target, blockerId:null, keeper:null, contact:'miss', contactType:action.type },
     };
   }
 
-  const keeperIntent = normalized.goalkeeper ?? automaticKeeper(target, packet, goalkeeping);
-  const keeperAbility = clamp((goalkeeping - 35) / 64, 0, 1);
-  const reach = clamp(.21 + keeperAbility * .245 + keeperIntent.timing * .12 - Math.max(0, action.xg - .20) * .12, .18, .58);
+  const keeperIntent = normalized.goalkeeper ?? contactAutomaticKeeper(target, packet, goalkeeping);
+  const keeperAbility = contactClamp((goalkeeping - 35) / 64, 0, 1);
+  const reach = contactClamp(.21 + keeperAbility * .245 + keeperIntent.timing * .12 - Math.max(0, action.xg - .20) * .12, .18, .58);
   const dx = target.x - keeperIntent.x;
   const dy = (target.y - keeperIntent.y) * 1.18;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  const powerPenalty = clamp((attack.power - action.preferredPower) * .15, -.035, .055);
-  const saved = distance <= clamp(reach - powerPenalty, .16, .61);
+  const powerPenalty = contactClamp((attack.power - action.preferredPower) * .15, -.035, .055);
+  const saved = distance <= contactClamp(reach - powerPenalty, .16, .61);
   const finish = saved ? 'saved' : 'goal';
   const goalkeeperIntervention = classifyGoalkeeperIntervention({
     finish,
@@ -280,15 +280,15 @@ export function resolveContactShotOutcome({ action, shooter, defender, defenders
     onTarget:true,
     goal:!saved,
     contactType:action.type,
-    contactAbility:round(ability),
-    pressure:round(pressure),
-    goalkeeping:round(goalkeeping),
+    contactAbility:contactRound(ability),
+    pressure:contactRound(pressure),
+    goalkeeping:contactRound(goalkeeping),
     goalkeeperIntervention,
     presentation:{
       target,
       blockerId:null,
       keeper:{
-        x:round(keeperIntent.x, 4), y:round(keeperIntent.y, 4), timing:round(keeperIntent.timing, 4), reach:round(reach, 4),
+        x:contactRound(keeperIntent.x, 4), y:contactRound(keeperIntent.y, 4), timing:contactRound(keeperIntent.timing, 4), reach:contactRound(reach, 4),
         intervention:goalkeeperIntervention,
       },
       contact:saved ? 'save' : 'goal',
@@ -301,14 +301,14 @@ export function resolveContactShotOutcome({ action, shooter, defender, defenders
 export function buildContactPlayableGeometry(action) {
   if (!action || action.version !== MATCH_CONTACT_ACTION_VERSION) return null;
   const family = action.sourceContinuationFamily;
-  const channelRoll = stableUnit(`${action.attackingTeamId}:${action.shooterId}:${family}:contact-channel`);
-  const channel = round((channelRoll - .5) * 1.16, 3);
-  const x = round(channel * 3.0, 3);
+  const channelRoll = contactStableUnit(`${action.attackingTeamId}:${action.shooterId}:${family}:contact-channel`);
+  const channel = contactRound((channelRoll - .5) * 1.16, 3);
+  const x = contactRound(channel * 3.0, 3);
   const distance = family === 'cross' ? 8.7 : family === 'cutback' ? 10.1 : family === 'through_ball' ? 11.0 : 12.4;
   const running = action.type === 'running_header';
-  const defenderX = round(x + (x <= 0 ? .82 : -.82), 3);
-  const defenderZ = round(Math.max(3.2, distance * .62), 3);
-  const ballZ = round(distance + (action.type.includes('header') ? 1.15 : .65), 3);
+  const defenderX = contactRound(x + (x <= 0 ? .82 : -.82), 3);
+  const defenderZ = contactRound(Math.max(3.2, distance * .62), 3);
+  const ballZ = contactRound(distance + (action.type.includes('header') ? 1.15 : .65), 3);
   return {
     coordinateSystem:'goal-facing-v1',
     goal:{ width:7.32, height:2.44 },
@@ -324,7 +324,7 @@ export function buildContactPlayableGeometry(action) {
     },
     legalActions:{ attack:['aim','power','timing'], goalkeeper:['position','timing'] },
     continuousLocomotion:false,
-    shooter:{ x, y:0, z:round(distance + (running ? 1.25 : 0), 3) },
+    shooter:{ x, y:0, z:contactRound(distance + (running ? 1.25 : 0), 3) },
     goalkeeper:{ x:0, y:0, z:action.xg >= .30 ? 1.25 : .48 },
     defender:{ x:defenderX, y:0, z:defenderZ },
     ball:{ x, y:action.contactHeight, z:ballZ },
