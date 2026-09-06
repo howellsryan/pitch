@@ -10,22 +10,22 @@ import {
   resolveContactShotOutcome,
 } from './matchContactActions.js';
 
-function round(value, digits = 3) {
+function contactPhaseRound(value, digits = 3) {
   const factor = 10 ** digits;
   return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
 }
 
-function chanceBucket(xg) {
+function contactChanceBucket(xg) {
   if (xg >= .28) return 'high_quality_chance';
   if (xg >= .14) return 'medium_quality_chance';
   return 'low_quality_chance';
 }
 
-function goalkeeper(players = []) {
+function findContactGoalkeeper(players = []) {
   return players.find(player => (player?.matchPosition ?? player?.position) === 'GK') ?? null;
 }
 
-function continuationPayload(result) {
+function contactContinuationPayload(result) {
   return {
     version:result.version,
     family:result.family,
@@ -57,7 +57,7 @@ export function previewPlayableContact(prepared, controlledTeamId, momentVersion
     ? 'attack'
     : prepared.opponentTeamId === controlledTeamId ? 'goalkeeper' : null;
   if (!mode) return null;
-  const keeper = goalkeeper(prepared.defenders);
+  const keeper = findContactGoalkeeper(prepared.defenders);
   if (!keeper) return null;
   const geometry = buildContactPlayableGeometry(action);
   if (!geometry) return null;
@@ -147,17 +147,17 @@ export function commitPlayableContactPhase(prepared, intent, ledgerVersion = 1) 
     actorId:prepared.actor?.id ?? null,
     targetId:prepared.target?.id ?? null,
     defenderId:prepared.defender?.id ?? null,
-    execution:round(prepared.execution),
-    counter:round(prepared.counter),
-    contextEdge:round(prepared.context),
-    successChance:round(prepared.successChance),
+    execution:contactPhaseRound(prepared.execution),
+    counter:contactPhaseRound(prepared.counter),
+    contextEdge:contactPhaseRound(prepared.context),
+    successChance:contactPhaseRound(prepared.successChance),
     mentality:prepared.mentality,
     riskMode:prepared.riskMode,
     outcome:'chance_created',
     continuationType:prepared.continuationAction.family,
     continuationVersion:MATCH_CONTINUATION_ACTION_VERSION,
-    continuation:continuationPayload(continuation),
-    chance:chanceBucket(xg),
+    continuation:contactContinuationPayload(continuation),
+    chance:contactChanceBucket(xg),
     xg,
     shotId:shooter.id,
     ...(assistId ? { assistId } : {}),
