@@ -28,9 +28,26 @@
     && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
   const finish = $derived(resolution?.shot?.finish ?? resolution?.finish ?? null);
-  const instruction = $derived(moment?.mode === 'goalkeeper'
-    ? 'Choose where to commit the goalkeeper. Reading the chance matters, but goalkeeper quality still controls reach.'
-    : 'Place the shot. Your input matters, but the player’s shooting quality and the defensive pressure still control execution.');
+  const setPieceKind = $derived(moment?.setPiece?.kind ?? null);
+  const headline = $derived(setPieceKind === 'penalty'
+    ? moment?.mode === 'goalkeeper' ? 'FACE THE PENALTY' : 'TAKE THE PENALTY'
+    : setPieceKind === 'direct_free_kick'
+      ? moment?.mode === 'goalkeeper' ? 'DEFEND THE FREE KICK' : 'TAKE THE FREE KICK'
+      : moment?.mode === 'goalkeeper' ? 'DEFEND THE CHANCE' : 'TAKE THE CHANCE');
+  const instruction = $derived(setPieceKind === 'penalty'
+    ? moment?.mode === 'goalkeeper'
+      ? 'Choose where to commit. Your read and timing matter, while goalkeeper quality still controls the available reach.'
+      : 'Pick your placement, power and timing. The taker’s shooting quality still controls execution, so a perfect gesture does not erase player ability.'
+    : setPieceKind === 'direct_free_kick'
+      ? moment?.mode === 'goalkeeper'
+        ? 'Read the direct free kick and choose your commitment. The wall, taker quality and goalkeeper reach are already part of the authoritative situation.'
+        : 'Aim around or over the authoritative wall using placement, power and timing. There is no hidden curl control; player shooting and passing quality still govern execution.'
+      : moment?.mode === 'goalkeeper'
+        ? 'Choose where to commit the goalkeeper. Reading the chance matters, but goalkeeper quality still controls reach.'
+        : 'Place the shot. Your input matters, but the player’s shooting quality and the defensive pressure still control execution.');
+  const primaryAction = $derived(moment?.mode === 'goalkeeper'
+    ? 'Dive'
+    : setPieceKind === 'penalty' ? 'Take Penalty' : setPieceKind === 'direct_free_kick' ? 'Take Free Kick' : 'Shoot');
 
   function resultLabel(value) {
     if (value === 'goal') return 'GOAL';
@@ -38,6 +55,13 @@
     if (value === 'blocked') return 'BLOCKED';
     if (value === 'missed') return 'MISSED';
     return value ? String(value).toUpperCase() : '';
+  }
+
+  function resultCopy(value) {
+    if (value === 'goal') return setPieceKind === 'penalty' ? 'Penalty converted.' : setPieceKind === 'direct_free_kick' ? 'Direct free kick converted.' : 'Chance converted.';
+    if (value === 'saved') return 'The goalkeeper makes the save.';
+    if (value === 'blocked') return setPieceKind === 'direct_free_kick' ? 'The wall gets the block.' : 'The defender gets the block.';
+    return setPieceKind ? 'The set piece goes begging.' : 'The chance goes begging.';
   }
 
   async function automaticFallback() {
@@ -131,7 +155,7 @@
   <header class="pm-header">
     <div>
       <span>PLAY KEY MOMENT · {moment?.minute ?? 0}'</span>
-      <strong>{moment?.mode === 'goalkeeper' ? 'DEFEND THE CHANCE' : 'TAKE THE CHANCE'}</strong>
+      <strong>{headline}</strong>
     </div>
     <small>xG {Number(moment?.xg ?? 0).toFixed(2)}</small>
   </header>
@@ -158,7 +182,7 @@
 
   <div class="pm-copy">
     {#if finish}
-      <strong>{finish === 'goal' ? 'Chance converted.' : finish === 'saved' ? 'The goalkeeper makes the save.' : finish === 'blocked' ? 'The defender gets the block.' : 'The chance goes begging.'}</strong>
+      <strong>{resultCopy(finish)}</strong>
       <span>The result above is already committed to the authoritative match state.</span>
     {:else}
       <strong>{moment?.shooterName ?? 'Attacker'} vs {moment?.goalkeeperName ?? 'Goalkeeper'}</strong>
@@ -185,7 +209,7 @@
     {#if finish}
       <button type="button" class="primary" disabled={busy} onclick={() => oncontinue()}>{busy ? 'Saving…' : 'Continue Match'}</button>
     {:else}
-      <button type="button" class="primary" disabled={busy || rendererLoading} onclick={accessibleIntent}>{busy ? 'Saving…' : moment?.mode === 'goalkeeper' ? 'Dive' : 'Shoot'}</button>
+      <button type="button" class="primary" disabled={busy || rendererLoading} onclick={accessibleIntent}>{busy ? 'Saving…' : primaryAction}</button>
       <button type="button" disabled={busy} onclick={() => onsimulate()}>{busy ? 'Saving…' : 'Simulate'}</button>
     {/if}
   </footer>
