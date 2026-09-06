@@ -3,6 +3,7 @@ import { SLOT_LAYOUT, SLOT_POS_MAP } from './formationLayout.js';
 const FORWARDS = new Set(['ST', 'CF', 'RW', 'LW', 'CAM']);
 const DEFENDERS = new Set(['CB', 'RB', 'LB']);
 const WIDE = new Set(['RB', 'LB', 'RW', 'LW', 'RM', 'LM']);
+export const LEDGER_PRESENTATION_TIME_SCALE = 16;
 
 function clamp(value, min = 3, max = 97) { return Math.max(min, Math.min(max, value)); }
 function hash(value) { let h = 2166136261; for (const c of String(value)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -606,7 +607,7 @@ function separate(sim, dt) {
   }
 }
 
-export function advanceBroadcastSimulation(sim, elapsedMs) {
+function advanceBroadcastSimulationStep(sim, elapsedMs) {
   const safeElapsed = clamp(elapsedMs, 0, 50); const dt = safeElapsed / 1000; sim.clock += safeElapsed;
   if (sim.possessionLockTeamId && sim.clock >= sim.possessionLockUntil) {
     sim.possessionLockTeamId = null;
@@ -635,6 +636,30 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
   for (const player of sim.players) { player.x = clamp(player.x + player.vx * dt); player.y = clamp(player.y + player.vy * dt); }
   advanceBall(sim, safeElapsed);
   return snapshotBroadcastSimulation(sim);
+}
+
+export function advanceBroadcastSimulation(sim, elapsedMs) {
+  const realElapsed = clamp(elapsedMs, 0, 50);
+  if (!sim?.ledgerDriven || realElapsed <= 0) return advanceBroadcastSimulationStep(sim, realElapsed);
+
+  // The authoritative engine budgets 750ms of wall-clock time to each ledger
+  // phase (120 phases = 90 seconds = one real second per match minute). The
+  // broadcast choreography deliberately contains longer internal waits so a
+  // goal, save, restart or half-time sequence looks coherent. Advance only the
+  // presentation clock faster, in stable 50ms physics steps, so those visual
+  // beats fit inside the fixed phase budget rather than extending the match.
+  // Stop at each action transition so every meaningful beat still gets at
+  // least one rendered frame and goal/half-time notices cannot be skipped.
+  let remainingPresentationMs = realElapsed * LEDGER_PRESENTATION_TIME_SCALE;
+  let frame = snapshotBroadcastSimulation(sim);
+  const startingAction = frame.action;
+  while (remainingPresentationMs > 0) {
+    const step = Math.min(remainingPresentationMs, 50);
+    frame = advanceBroadcastSimulationStep(sim, step);
+    remainingPresentationMs -= step;
+    if (frame.action !== startingAction) break;
+  }
+  return frame;
 }
 
 export function snapshotBroadcastSimulation(sim) {
