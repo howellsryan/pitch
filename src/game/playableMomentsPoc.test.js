@@ -110,7 +110,8 @@ function findPendingMoment({ mode = null, boundary = false, requireUnblocked = f
         const modeMatches = mode == null || part.pendingPlayableMoment.mode === mode;
         const boundaryMatches = !boundary || phase % 10 === 0 || phase % 6 === 0;
         const blockMatches = !requireUnblocked || Number(part.playableContinuation.packet.outcome) > .3;
-        const terminalShotMatches = !requireTerminalShot || part.pendingPlayableMoment.interactionType !== 'continuation';
+        const terminalShotMatches = !requireTerminalShot
+          || (part.pendingPlayableMoment.interactionType !== 'continuation' && !part.pendingPlayableMoment.setPiece);
         if (modeMatches && boundaryMatches && blockMatches && terminalShotMatches) {
           return { ...fixture, stateBefore:state, phase, pending:part };
         }
