@@ -14,7 +14,7 @@ function sourceOf(functionName) {
   if (!starts.length) return '';
   const start = Math.min(...starts);
   const tail = matchScreenSrc.slice(start);
-  const nextMatch = tail.slice(1).match(/\n  (?:async )?function\s+[A-Za-z0-9_$]+\s*\(/);
+  const nextMatch = tail.slice(1).match(/\n {2}(?:async )?function\s+[A-Za-z0-9_$]+\s*\(/);
   const end = nextMatch ? start + 1 + nextMatch.index : matchScreenSrc.length;
   return matchScreenSrc.slice(start, end);
 }
