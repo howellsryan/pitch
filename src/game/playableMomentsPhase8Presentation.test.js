@@ -41,8 +41,8 @@ describe('Phase 8 presentation preferences', () => {
     expect(resolvePresentationQuality({ quality:'auto' }, { deviceMemory:2, hardwareConcurrency:8, devicePixelRatio:1, webgl:true })).toBe('low');
     expect(resolvePresentationQuality({ quality:'auto' }, { deviceMemory:8, hardwareConcurrency:8, devicePixelRatio:2, webgl:true })).toBe('high');
     expect(resolvePresentationQuality({ quality:'auto' }, { deviceMemory:4, hardwareConcurrency:4, devicePixelRatio:3, webgl:true })).toBe('medium');
-    expect(presentationQualityProfile('low')).toMatchObject({ maxPixelRatio:1, shadows:false });
-    expect(presentationQualityProfile('high').maxPixelRatio).toBeLessThanOrEqual(1.5);
+    expect(presentationQualityProfile('low')).toMatchObject({ targetFps:30, maxPixelRatio:1, shadows:false });
+    expect(presentationQualityProfile('high')).toMatchObject({ targetFps:60, maxPixelRatio:1.5, shadows:true });
   });
 
   it('honours explicit motion preference ahead of the system setting', () => {
@@ -58,6 +58,7 @@ describe('Phase 8 pure scene director', () => {
     expect(playablePresentationScenario(moment({ setPiece:{ kind:'direct_free_kick' } }))).toBe('direct_free_kick');
     expect(playablePresentationScenario(moment({ setPiece:{ kind:'penalty' } }))).toBe('penalty');
     expect(playablePresentationScenario(moment({ kickId:'shootout:kick:1', setPiece:{ kind:'penalty' } }))).toBe('shootout');
+    expect(playablePresentationScenario(moment({ interactionType:'shootout', route:'penalty_shootout', setPiece:{ kind:'penalty' } }))).toBe('shootout');
     expect(playablePresentationScenario(moment({ interactionType:'continuation' }))).toBe('legacy_continuation');
     expect(playablePresentationScenario(moment({ interactionType:'contact' }))).toBe('legacy_contact');
   });
@@ -73,9 +74,10 @@ describe('Phase 8 pure scene director', () => {
       version:1,
       scenario:'penalty',
       rendererId:'three-shot',
-      quality:{ tier:'low', shadows:false },
+      quality:{ tier:'low', targetFps:30, shadows:false },
       reducedMotion:true,
       audio:{ enabled:false },
+      replay:{ enabled:false, maxReplays:3 },
     });
     expect(authoritativeMoment).toEqual(beforeMoment);
     expect(preferences).toEqual(beforePreferences);
@@ -91,6 +93,15 @@ describe('Phase 8 pure scene director', () => {
     expect(plan.scenario).toBe('direct_free_kick');
     expect(plan.enabled).toBe(false);
     expect(authoritativeMoment.setPiece.kind).toBe('direct_free_kick');
+  });
+
+  it('gives late shots and shootouts bounded dramatic replay recipes without changing scenario data', () => {
+    const late = buildPlayableScenePlan({ moment:moment({ minute:88 }), preferences:{ replayEnabled:true }, capabilities:{ webgl:true } });
+    const shootout = buildPlayableScenePlan({ moment:moment({ interactionType:'shootout', route:'penalty_shootout' }), preferences:{ replayEnabled:true }, capabilities:{ webgl:true } });
+    const normal = buildPlayableScenePlan({ moment:moment({ minute:20 }), preferences:{ replayEnabled:true }, capabilities:{ webgl:true } });
+    expect(late.replay).toMatchObject({ variant:'dramatic', maxReplays:3, durationMs:2350 });
+    expect(shootout.replay.variant).toBe('dramatic');
+    expect(normal.replay).toMatchObject({ variant:'standard', durationMs:1850 });
   });
 
   it('keeps old continuation scenes compatibility-readable without reclassifying them as current rollout families', () => {
