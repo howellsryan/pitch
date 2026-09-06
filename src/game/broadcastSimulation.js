@@ -3,7 +3,7 @@ import { SLOT_LAYOUT, SLOT_POS_MAP } from './formationLayout.js';
 const FORWARDS = new Set(['ST', 'CF', 'RW', 'LW', 'CAM']);
 const DEFENDERS = new Set(['CB', 'RB', 'LB']);
 const WIDE = new Set(['RB', 'LB', 'RW', 'LW', 'RM', 'LM']);
-export const LEDGER_PRESENTATION_TIME_SCALE = 16;
+export const LEDGER_PRESENTATION_TIME_SCALE = 64;
 
 function clamp(value, min = 3, max = 97) { return Math.max(min, Math.min(max, value)); }
 function hash(value) { let h = 2166136261; for (const c of String(value)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
