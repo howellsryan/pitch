@@ -11,7 +11,7 @@
   } from '../../modules/gameweek.js';
   import {
     buildLiveMatchState, finaliseLiveMatch,
-    positionGroup, primaryRating, selectEleven, simulateMatchSegment,
+    selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
   import {
     buildVersionedKnockoutContext,
@@ -446,7 +446,7 @@
     if (!save || save._deleted) { active = false; loading = true; return; }
     let storedPlayable = save.playableMatchSession ?? null;
     const event = await getNextMatchEvent();
-    let storedShootout = null;
+    let storedShootout;
     try {
       storedShootout = restoredCompetitionShootoutSession(event);
     } catch (error) {
