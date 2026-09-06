@@ -20,6 +20,7 @@ import './p5.css';
 import './touchline-ledger-polish.css';
 
 import { mount } from 'svelte';
+import { installLiveBroadcastMotionSmoother } from './game/liveBroadcastMotionSmoother.js';
 import { navigateTo } from './ui/helpers.js';
 import EntryScreen from './lib/ui/EntryScreenClean.svelte';
 import CareerMenu from './lib/ui/CareerMenu.svelte';
@@ -46,6 +47,13 @@ import './ui/renderers.js';
 import './ui/squad_tactics_offers.js';
 import './ui/inbox.js';
 import './ui/accessibilityEnhancements.js';
+
+// The authoritative broadcast model may retarget coordinates aggressively to
+// keep its fixed 90-second regulation cadence. Keep those hidden catch-up
+// targets separate from what the manager actually sees: this DOM-level motion
+// integrator caps real frame-to-frame travel for players and the ball instead
+// of allowing a large simulation target change to become a visible teleport.
+installLiveBroadcastMotionSmoother();
 
 // src/shell.html has two inline onclick="navigateTo(...)" handlers, which
 // resolve against the global scope rather than this module's. Everything else

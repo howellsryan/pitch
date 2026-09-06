@@ -1,6 +1,14 @@
 <script>
   import { onMount } from 'svelte';
   import { gestureToPlayableIntent } from '../../game/playableMomentsPocScene.js';
+  import {
+    browserPresentationCapabilities,
+    readPlayablePresentationPreferences,
+    writePlayablePresentationPreferences,
+  } from '../../game/playableMomentsPresentationPreferences.js';
+  import { buildPlayableScenePlan, mountPlayableSceneRenderer } from '../../game/playableMomentsSceneDirector.js';
+  import { playCommittedPlayablePresentationAudio, unlockPlayablePresentationAudio } from '../../game/playableMomentsPresentationAudio.js';
+  import { recordPlayablePresentationDiagnostic } from '../../game/playableMomentsPresentationDiagnostics.js';
 
   let {
     moment,
@@ -16,16 +24,27 @@
   let rendererError = $state('');
   let selectedLane = $state(0);
   let selectedHeight = $state(.55);
-  let controller = null;
+  let presentationPreferences = $state.raw(readPlayablePresentationPreferences());
+  let systemReducedMotion = $state(false);
+  let replayCount = $state(0);
+  let replayActive = $state(false);
+  let controller = $state.raw(null);
   let pointerStart = null;
   let animationFrame = null;
   let animationStarted = null;
   let animationProgress = 0;
   let lastResolution = null;
   let fallbackTriggered = false;
+  let lastRenderAt = 0;
+  let loadStartedAt = 0;
 
-  const reducedMotion = typeof window !== 'undefined'
-    && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const scenePlan = $derived.by(() => buildPlayableScenePlan({
+    moment,
+    preferences:presentationPreferences,
+    capabilities:browserPresentationCapabilities(),
+    systemReducedMotion,
+  }));
+  const reducedMotion = $derived(scenePlan.reducedMotion);
 
   const isContinuation = $derived(moment?.interactionType === 'continuation');
   const isContact = $derived(moment?.interactionType === 'contact');
@@ -41,6 +60,17 @@
       ?? resolution?.shot?.presentation?.keeper?.intervention
       ?? null,
   );
+
+  function diagnostic(type, extra = {}) {
+    recordPlayablePresentationDiagnostic({
+      type,
+      version:scenePlan.version,
+      scenario:scenePlan.scenario,
+      quality:scenePlan.quality.tier,
+      replayCount,
+      ...extra,
+    });
+  }
 
   function contactName(type) {
     if (type === 'standing_header') return 'header';
@@ -141,6 +171,7 @@
   async function automaticFallback() {
     if (fallbackTriggered || resolution) return;
     fallbackTriggered = true;
+    diagnostic('renderer_fallback', { fallback:true, durationMs:window.performance.now() - loadStartedAt });
     try {
       await onsimulate();
     } catch (error) {
@@ -152,21 +183,30 @@
     if (!canvas) return;
     rendererLoading = true;
     rendererError = '';
+    controller?.dispose?.();
+    controller = null;
+    replayActive = false;
+    loadStartedAt = window.performance.now();
+    diagnostic('load_start');
     try {
-      if (isContinuation) {
-        const module = await import('../../game/playableMomentsContinuationRenderer.js');
-        controller = await module.mountThreePlayableContinuation(canvas, moment);
-      } else {
-        const module = await import('../../game/playableMomentsThreeRenderer.js');
-        controller = await module.mountThreePlayablePoc(canvas, moment);
-      }
+      controller = await mountPlayableSceneRenderer(canvas, moment, scenePlan);
       controller.render({ moment, resolution, progress:resolution ? 1 : 0 });
+      diagnostic('renderer_ready', { durationMs:window.performance.now() - loadStartedAt });
     } catch (error) {
-      rendererError = `3D presentation unavailable — resolving this same saved moment automatically. ${error?.message ?? error}`;
+      const disabled = error?.message === 'PLAYABLE_PRESENTATION_DISABLED';
+      rendererError = disabled
+        ? 'Interactive presentation is disabled for this scenario — resolving this same saved moment automatically.'
+        : `3D presentation unavailable — ${resolution ? 'showing the already-committed result without re-resolving it.' : 'resolving this same saved moment automatically.'} ${error?.message ?? error}`;
+      if (resolution) diagnostic('renderer_fallback', { fallback:true, durationMs:window.performance.now() - loadStartedAt });
       await automaticFallback();
     } finally {
       rendererLoading = false;
     }
+  }
+
+  function animationFrameInterval() {
+    const targetFps = Number(scenePlan.quality.targetFps ?? 60);
+    return targetFps >= 60 ? 0 : 1000 / Math.max(1, targetFps);
   }
 
   function animationLoop(now) {
@@ -174,23 +214,92 @@
       lastResolution = resolution;
       animationStarted = now;
       animationProgress = reducedMotion ? 1 : 0;
+      replayActive = false;
+      diagnostic('result_presented');
+      if (scenePlan.audio.enabled) {
+        playCommittedPlayablePresentationAudio(moment, resolution, {
+          enabled:true,
+          volume:scenePlan.audio.volume,
+        });
+      }
     }
     if (!resolution) {
       lastResolution = null;
       animationStarted = null;
       animationProgress = 0;
+      replayCount = 0;
+      replayActive = false;
     } else if (animationStarted != null && !reducedMotion) {
-      animationProgress = Math.min(1, (now - animationStarted) / 2050);
-      if (animationProgress >= 1) animationStarted = null;
+      const durationMs = replayActive ? scenePlan.replay.durationMs : 2050;
+      animationProgress = Math.min(1, (now - animationStarted) / durationMs);
+      if (animationProgress >= 1) {
+        animationStarted = null;
+        replayActive = false;
+      }
     }
-    controller?.render?.({ moment, resolution, progress:animationProgress });
+
+    const interval = animationFrameInterval();
+    if (!interval || now - lastRenderAt >= interval || animationProgress === 1) {
+      controller?.render?.({ moment, resolution, progress:animationProgress });
+      lastRenderAt = now;
+    }
     animationFrame = window.requestAnimationFrame(animationLoop);
+  }
+
+  async function submitIntent(intent) {
+    if (!intent || resolution || busy || rendererLoading) return;
+    if (scenePlan.audio.enabled) await unlockPlayablePresentationAudio();
+    await onsubmit(intent);
+  }
+
+  async function simulateSavedMoment() {
+    if (busy) return;
+    if (scenePlan.audio.enabled) await unlockPlayablePresentationAudio();
+    await onsimulate();
+  }
+
+  function replayPresentation() {
+    if (replayActive) {
+      animationProgress = 1;
+      animationStarted = null;
+      replayActive = false;
+      controller?.render?.({ moment, resolution, progress:1 });
+      return;
+    }
+    if (!resolution || !controller || !scenePlan.replay.enabled || replayCount >= scenePlan.replay.maxReplays) return;
+    replayCount += 1;
+    replayActive = true;
+    animationProgress = 0;
+    animationStarted = window.performance.now();
+    lastRenderAt = 0;
+    diagnostic('replay');
+    if (scenePlan.audio.enabled) {
+      void unlockPlayablePresentationAudio().then(() => {
+        playCommittedPlayablePresentationAudio(moment, resolution, { enabled:true, volume:scenePlan.audio.volume });
+      });
+    }
+  }
+
+  function persistPreferences(next) {
+    presentationPreferences = writePlayablePresentationPreferences(next);
+  }
+
+  function toggleAudio() {
+    persistPreferences({ ...presentationPreferences, audioEnabled:!presentationPreferences.audioEnabled });
+    if (presentationPreferences.audioEnabled) void unlockPlayablePresentationAudio();
+  }
+
+  async function cycleQuality() {
+    const values = ['auto', 'low', 'medium', 'high'];
+    const next = values[(values.indexOf(presentationPreferences.quality) + 1) % values.length];
+    persistPreferences({ ...presentationPreferences, quality:next });
+    await mountRenderer();
   }
 
   function accessibleIntent() {
     if (resolution || busy || rendererLoading) return;
     if (isContinuation) {
-      void onsubmit({
+      void submitIntent({
         continuation:{
           targetX:selectedLane * .72,
           targetY:selectedHeight,
@@ -201,10 +310,10 @@
       return;
     }
     if (moment?.mode === 'goalkeeper') {
-      void onsubmit({ goalkeeper:{ x:selectedLane * .78, y:selectedHeight, timing:.82 } });
+      void submitIntent({ goalkeeper:{ x:selectedLane * .78, y:selectedHeight, timing:.82 } });
       return;
     }
-    void onsubmit({ attack:{ aimX:selectedLane * .78, aimY:selectedHeight, power:.74, timing:.82 } });
+    void submitIntent({ attack:{ aimX:selectedLane * .78, aimY:selectedHeight, power:.74, timing:.82 } });
   }
 
   function pointerDown(event) {
@@ -224,7 +333,7 @@
       if (target) {
         const distance = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
         const diagonal = Math.max(1, Math.hypot(bounds.width, bounds.height));
-        void onsubmit({
+        void submitIntent({
           continuation:{
             targetX:target.targetX,
             targetY:target.targetY,
@@ -247,13 +356,18 @@
       goalTarget,
     });
     pointerStart = null;
-    if (intent) void onsubmit(intent);
+    if (intent) void submitIntent(intent);
   }
 
   onMount(() => {
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    systemReducedMotion = Boolean(media?.matches);
+    const onMotionChange = event => { systemReducedMotion = Boolean(event.matches); };
+    media?.addEventListener?.('change', onMotionChange);
     void mountRenderer();
     animationFrame = window.requestAnimationFrame(animationLoop);
     return () => {
+      media?.removeEventListener?.('change', onMotionChange);
       if (animationFrame != null) window.cancelAnimationFrame(animationFrame);
       controller?.dispose?.();
       controller = null;
@@ -261,13 +375,28 @@
   });
 </script>
 
-<section class="playable-moment" aria-label="Play Key Moment">
+<section
+  class="playable-moment"
+  class:replaying={replayActive}
+  aria-label="Play Key Moment"
+  data-presentation-version={scenePlan.version}
+  data-quality={scenePlan.quality.tier}
+  data-replay-variant={scenePlan.replay.variant}
+>
   <header class="pm-header">
     <div>
       <span>PLAY KEY MOMENT · {moment?.minute ?? 0}'</span>
       <strong>{headline}</strong>
     </div>
-    <small>{isContinuation ? 'projected ' : ''}xG {Number(moment?.xg ?? 0).toFixed(2)}</small>
+    <div class="pm-header-tools">
+      <small>{isContinuation ? 'projected ' : ''}xG {Number(moment?.xg ?? 0).toFixed(2)}</small>
+      <button type="button" class="pm-tool" onclick={toggleAudio} aria-label={presentationPreferences.audioEnabled ? 'Mute playable moment sound' : 'Enable playable moment sound'}>
+        {presentationPreferences.audioEnabled ? 'Sound on' : 'Muted'}
+      </button>
+      <button type="button" class="pm-tool" onclick={() => { void cycleQuality(); }} aria-label="Change playable moment visual quality">
+        {presentationPreferences.quality === 'auto' ? `Auto · ${scenePlan.quality.tier}` : scenePlan.quality.tier}
+      </button>
+    </div>
   </header>
 
   <div
@@ -279,6 +408,9 @@
     onpointercancel={() => { pointerStart = null; }}
   >
     <canvas bind:this={canvas} aria-label="Playable football 3D scene"></canvas>
+    {#if replayActive}
+      <div class="pm-replay-badge">REPLAY · {scenePlan.replay.variant === 'dramatic' ? 'BIG MOMENT' : 'MATCH VIEW'}</div>
+    {/if}
     {#if rendererLoading && !rendererError}
       <div class="pm-overlay-note">Loading moment…</div>
     {/if}
@@ -294,6 +426,9 @@
     {#if hasResolution}
       <strong>{resultCopy(finish)}</strong>
       <span>The result above is already committed to the authoritative match state.</span>
+      {#if reducedMotion}
+        <span class="pm-pref-note">Reduced motion is active — the committed result is shown without replay animation.</span>
+      {/if}
     {:else if isContinuation}
       <strong>{moment?.actorName ?? 'Passer'} → {moment?.receiverName ?? 'Authorized receiver'}</strong>
       <span>{instruction}</span>
@@ -320,10 +455,15 @@
 
   <footer class="pm-actions">
     {#if hasResolution}
+      {#if scenePlan.replay.enabled && controller && (replayActive || replayCount < scenePlan.replay.maxReplays)}
+        <button type="button" disabled={busy} onclick={replayPresentation}>
+          {replayActive ? 'Skip Replay' : replayCount ? `Replay (${replayCount}/${scenePlan.replay.maxReplays})` : 'Replay'}
+        </button>
+      {/if}
       <button type="button" class="primary" disabled={busy} onclick={() => oncontinue()}>{busy ? 'Saving…' : 'Continue Match'}</button>
     {:else}
       <button type="button" class="primary" disabled={busy || rendererLoading} onclick={accessibleIntent}>{busy ? 'Saving…' : primaryAction}</button>
-      <button type="button" disabled={busy} onclick={() => onsimulate()}>{busy ? 'Saving…' : 'Simulate'}</button>
+      <button type="button" disabled={busy} onclick={() => { void simulateSavedMoment(); }}>{busy ? 'Saving…' : 'Simulate'}</button>
     {/if}
   </footer>
 </section>
@@ -331,11 +471,15 @@
 <style>
   .playable-moment { position:absolute; inset:0; z-index:120; display:flex; flex-direction:column; background:#07110c; color:#f5f8f6; font-family:var(--font-body, Inter, system-ui, sans-serif); }
   .pm-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:12px 14px; background:#0d1d14; border-bottom:1px solid rgba(255,255,255,.1); }
-  .pm-header div { display:flex; flex-direction:column; gap:2px; }
+  .pm-header > div:first-child { display:flex; flex-direction:column; gap:2px; min-width:0; }
   .pm-header span, .pm-header small { font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:.08em; color:#8fb29f; }
   .pm-header strong { font-family:var(--font-display, inherit); font-size:16px; letter-spacing:.04em; }
+  .pm-header-tools { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:5px; max-width:52%; }
+  .pm-tool { min-height:30px; padding:0 8px; border-radius:999px; font-size:9px; white-space:nowrap; }
   .pm-stage { position:relative; flex:1; min-height:300px; background:#08170f; touch-action:none; user-select:none; overflow:hidden; }
   .pm-stage canvas { display:block; width:100%; height:100%; min-height:300px; }
+  .replaying .pm-stage::after { content:''; pointer-events:none; position:absolute; inset:0; box-shadow:inset 0 0 90px rgba(0,0,0,.45); }
+  .pm-replay-badge { position:absolute; z-index:3; top:12px; left:12px; padding:5px 8px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(5,15,10,.82); color:#d8eee2; font:800 9px var(--font-mono, monospace); letter-spacing:.08em; }
   .pm-overlay-note { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); max-width:82%; padding:10px 12px; border-radius:8px; background:rgba(3,12,7,.9); text-align:center; font-size:12px; font-weight:700; }
   .pm-warning { color:#ffd6a3; border:1px solid rgba(255,190,108,.35); }
   .pm-result { position:absolute; top:18px; left:50%; transform:translateX(-50%); padding:8px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.2); background:rgba(8,19,13,.9); font-family:var(--font-display, inherit); font-weight:900; letter-spacing:.14em; font-size:18px; }
@@ -343,17 +487,24 @@
   .pm-copy { display:flex; flex-direction:column; gap:3px; padding:10px 14px; background:#0d1d14; border-top:1px solid rgba(255,255,255,.08); }
   .pm-copy strong { font-size:13px; }
   .pm-copy span { color:#a9bbb0; font-size:11px; line-height:1.35; }
+  .pm-copy .pm-pref-note { color:#8fb29f; font-size:10px; }
   .pm-accessible { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:0 14px 10px; background:#0d1d14; }
   .pm-choice { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
   button { min-height:44px; border:1px solid rgba(255,255,255,.14); border-radius:9px; background:#14271c; color:#f1f7f3; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
   button.active { border-color:#6ad998; background:#1d5f3c; }
   button:disabled { opacity:.48; cursor:default; }
-  .pm-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:10px 14px max(10px, env(safe-area-inset-bottom)); background:#08130d; border-top:1px solid rgba(255,255,255,.1); }
+  .pm-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:10px 14px max(10px, env(safe-area-inset-bottom)); background:#08130d; border-top:1px solid rgba(255,255,255,.1); }
   .pm-actions .primary:only-child { grid-column:1 / -1; }
   button.primary { background:#1f7548; border-color:#66d898; }
   @media (max-width:520px) {
-    .pm-accessible { grid-template-columns:1fr; }
+    .pm-header { gap:8px; padding:10px; }
+    .pm-header-tools { max-width:58%; }
+    .pm-header strong { font-size:14px; }
+    .pm-header-tools small { width:100%; text-align:right; }
+    .pm-accessible { grid-template-columns:1fr; padding-inline:10px; }
     .pm-stage { min-height:42vh; }
+    button { min-height:46px; }
+    .pm-actions { padding-inline:10px; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { animation:none !important; transition:none !important; }
