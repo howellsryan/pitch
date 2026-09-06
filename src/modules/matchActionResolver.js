@@ -11,6 +11,17 @@ import {
   tacticalContextEdge,
 } from './tacticalProjection.js';
 import { normalizeTeamInstructions, resolvePlayerRole, stableStringHash } from './tactics.js';
+import {
+  MATCH_SET_PIECE_VERSION,
+  deriveAuthoritativeSetPiece,
+  resolveDirectFreeKickOutcome,
+  resolvePenaltyOutcome,
+} from './matchSetPieces.js';
+import {
+  attachAuthoritativeSetPiece,
+  buildSetPiecePlayableMoment,
+  commitAuthoritativeSetPiecePhase,
+} from './matchSetPiecePhase.js';
 
 /**
  * T3/T4 pure action resolver.
@@ -21,12 +32,13 @@ import { normalizeTeamInstructions, resolvePlayerRole, stableStringHash } from '
  * randomness itself, which keeps whole-match and segmented simulation aligned.
  */
 
-export const MATCH_ACTION_RESOLVER_VERSION = 2;
+export const MATCH_ACTION_RESOLVER_VERSION = 3;
 export const MATCH_ACTION_LEDGER_VERSION = 1;
 export const MATCH_RNG_PACKET_VERSION = 1;
 export const PLAYABLE_MOMENT_VERSION = 1;
 export const PLAYABLE_INTENT_VERSION = 1;
 export const PLAYABLE_STAGING_VERSION = 1;
+export { MATCH_SET_PIECE_VERSION, deriveAuthoritativeSetPiece, resolveDirectFreeKickOutcome, resolvePenaltyOutcome };
 
 export const MATCH_RNG_PACKET_FIELDS = Object.freeze([
   'possession',
@@ -543,7 +555,7 @@ export function prepareAuthoritativePhase({
     }
   }
 
-  return {
+  return attachAuthoritativeSetPiece({
     version:1,
     phase,
     minute,
@@ -568,11 +580,11 @@ export function prepareAuthoritativePhase({
     shooter,
     assistId,
     pressureDefender,
-  };
+  });
 }
 
 export function derivePlayableMomentStaging(prepared) {
-  if (!prepared?.packet || !prepared?.chance || !prepared?.shooter) return null;
+  if (!prepared?.packet || !prepared?.chance || !prepared?.shooter || prepared.setPiece) return null;
 
   // Phase 3 staging is a projection of pre-finish football context only. It may
   // use route/chance quality, the already-selected pressure defender and packet
@@ -620,6 +632,8 @@ export function derivePlayableMomentStaging(prepared) {
 }
 
 export function buildPlayableMoment(prepared, controlledTeamId) {
+  const setPieceMoment = buildSetPiecePlayableMoment(prepared, controlledTeamId, PLAYABLE_MOMENT_VERSION);
+  if (setPieceMoment) return setPieceMoment;
   if (!prepared?.chance || !prepared?.shooter || !controlledTeamId) return null;
   const mode = prepared.teamId === controlledTeamId
     ? 'attack'
@@ -670,6 +684,12 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
 
 export function commitAuthoritativePhase(prepared, { intent = null } = {}) {
   if (!prepared || prepared.version !== 1) throw new Error('Action commit requires a prepared authoritative phase');
+  if (prepared.setPiece) {
+    return commitAuthoritativeSetPiecePhase(prepared, {
+      intent:intent == null ? null : normalizePlayableIntent(intent),
+      ledgerVersion:MATCH_ACTION_LEDGER_VERSION,
+    });
+  }
   const {
     phase, minute, teamId, opponentTeamId, attackers, defenders, packet,
     route, actor, target, defender, execution, counter, context, successChance,
