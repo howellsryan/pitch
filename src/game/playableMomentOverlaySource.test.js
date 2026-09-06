@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(resolve(here, '../lib/ui/PlayableMomentOverlay.svelte'), 'utf8');
+const rendererSource = readFileSync(resolve(here, 'playableMomentsThreeRenderer.js'), 'utf8');
 
 function functionSource(name, length = 1800) {
   const start = source.indexOf(`function ${name}`);
@@ -34,5 +35,29 @@ describe('PlayableMomentOverlay lifecycle contracts', () => {
     expect(source).toContain('min-height:44px');
     expect(source).toContain("prefers-reduced-motion: reduce");
     expect(source).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)')");
+  });
+
+  it('names penalties and direct free kicks without inventing a curl control', () => {
+    expect(source).toContain('TAKE THE PENALTY');
+    expect(source).toContain('FACE THE PENALTY');
+    expect(source).toContain('TAKE THE FREE KICK');
+    expect(source).toContain('DEFEND THE FREE KICK');
+    expect(source).toContain('There is no hidden curl control');
+    expect(source).not.toContain("curl:");
+  });
+});
+
+describe('Phase 4 Three.js set-piece authority boundary', () => {
+  it('renders only domain-provided wall members and hides the lone defender when the moment explicitly has none', () => {
+    expect(rendererSource).toContain('moment?.geometry?.wall?.members');
+    expect(rendererSource).toContain('wallMembers[index] ?? null');
+    expect(rendererSource).toContain("Object.prototype.hasOwnProperty.call(moment.geometry, 'defender')");
+    expect(rendererSource).toContain('defender.root.visible = !hasWall && hasExplicitDefender');
+  });
+
+  it('uses the committed blocker id to animate the authoritative wall member rather than choosing a presentation blocker', () => {
+    expect(rendererSource).toContain('const blockerId = shot?.presentation?.blockerId ?? null');
+    expect(rendererSource).toContain('blockerId === member.id');
+    expect(rendererSource).not.toContain('nearestWall');
   });
 });
