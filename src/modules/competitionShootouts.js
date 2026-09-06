@@ -1,3 +1,4 @@
+import { isTwoLegRound } from './competitionRules.js';
 import {
   SHOOTOUT_STATE_VERSION,
   createShootoutState,
@@ -30,9 +31,85 @@ function userScoreForVenue({ userIsHome, homeGoals, awayGoals }) {
   };
 }
 
-function completedShootoutVerdict({ seed, userTeamId, homeTeamId, awayTeamId, homePlayers, awayPlayers }) {
-  const initial = createShootoutState({
+function previousTwoLegResult(cupState) {
+  const results = cupState?.results ?? [];
+  return results.length ? results[results.length - 1] : null;
+}
+
+/**
+ * Compute the pre-shootout knockout context without resolving a kick.
+ *
+ * This is shared by Quick Sim, Watch Match and Play Key Moments so every route
+ * agrees on whether a completed tie actually needs penalties. A level first
+ * leg deliberately stays unresolved. Newly-versioned ties never use away goals.
+ */
+export function buildVersionedKnockoutContext({
+  shootoutVersion,
+  cupId,
+  roundName,
+  cupState = null,
+  userIsHome,
+  homeGoals,
+  awayGoals,
+} = {}) {
+  if (shootoutVersion !== COMPETITION_SHOOTOUT_VERSION) return null;
+  const current = userScoreForVenue({ userIsHome:Boolean(userIsHome), homeGoals, awayGoals });
+  const firstLeg = isTwoLegRound(cupId, roundName, 1);
+  const secondLeg = isTwoLegRound(cupId, roundName, 2);
+
+  if (firstLeg) {
+    return {
+      version:COMPETITION_SHOOTOUT_VERSION,
+      firstLeg:true,
+      secondLeg:false,
+      tieComplete:false,
+      requiresShootout:false,
+      userWon:current.userGoals > current.oppGoals,
+      userAgg:current.userGoals,
+      oppAgg:current.oppGoals,
+      previousLeg:null,
+    };
+  }
+
+  const previousLeg = secondLeg ? previousTwoLegResult(cupState) : null;
+  const priorUser = previousLeg ? competitionShootoutNumber(previousLeg.userGoals) : 0;
+  const priorOpp = previousLeg ? competitionShootoutNumber(previousLeg.oppGoals) : 0;
+  const userAgg = priorUser + current.userGoals;
+  const oppAgg = priorOpp + current.oppGoals;
+
+  return {
+    version:COMPETITION_SHOOTOUT_VERSION,
+    firstLeg:false,
+    secondLeg,
+    tieComplete:true,
+    requiresShootout:userAgg === oppAgg,
+    userWon:userAgg > oppAgg,
+    userAgg,
+    oppAgg,
+    previousLeg,
+  };
+}
+
+export function createVersionedShootoutState({
+  shootoutVersion,
+  seed,
+  userTeamId,
+  homeTeamId,
+  awayTeamId,
+  homePlayers = [],
+  awayPlayers = [],
+} = {}) {
+  if (shootoutVersion !== COMPETITION_SHOOTOUT_VERSION) return null;
+  if (!userTeamId || !homeTeamId || !awayTeamId) throw new Error('COMPETITION_SHOOTOUT_TEAMS_REQUIRED');
+  if (userTeamId !== homeTeamId && userTeamId !== awayTeamId) throw new Error('COMPETITION_SHOOTOUT_USER_TEAM_INVALID');
+  return createShootoutState({ seed, homeTeamId, awayTeamId, homePlayers, awayPlayers });
+}
+
+function completedShootoutVerdict({ shootoutVersion, seed, userTeamId, homeTeamId, awayTeamId, homePlayers, awayPlayers }) {
+  const initial = createVersionedShootoutState({
+    shootoutVersion,
     seed,
+    userTeamId,
     homeTeamId,
     awayTeamId,
     homePlayers,
@@ -52,15 +129,19 @@ function completedShootoutVerdict({ seed, userTeamId, homeTeamId, awayTeamId, ho
 }
 
 /**
- * Resolve a newly-versioned knockout result.
+ * Resolve a newly-versioned knockout result automatically.
  *
- * `previousLeg` is user-oriented (`userGoals` / `oppGoals`). When omitted this
- * is a single-leg tie. `isFirstLeg` deliberately prevents penalties because a
- * level first leg is not a completed tie.
+ * Callers that need interactive kicks use buildVersionedKnockoutContext() and
+ * createVersionedShootoutState() instead, then persist/resolve the same state
+ * kick-by-kick. Old/unversioned pending events return null and retain the legacy
+ * competition resolver so existing saves remain readable.
  */
 export function resolveVersionedKnockout({
   shootoutVersion,
   seed,
+  cupId,
+  roundName,
+  cupState = null,
   userTeamId,
   homeTeamId,
   awayTeamId,
@@ -69,64 +150,87 @@ export function resolveVersionedKnockout({
   awayGoals,
   homePlayers = [],
   awayPlayers = [],
-  previousLeg = null,
-  isFirstLeg = false,
+  // Compatibility inputs retained for the initial 7B adapter tests. New callers
+  // should pass cupId/roundName/cupState so first/second-leg ownership is shared.
+  previousLeg = undefined,
+  isFirstLeg = undefined,
 } = {}) {
   if (shootoutVersion !== COMPETITION_SHOOTOUT_VERSION) return null;
   if (!userTeamId || !homeTeamId || !awayTeamId) throw new Error('COMPETITION_SHOOTOUT_TEAMS_REQUIRED');
   if (userTeamId !== homeTeamId && userTeamId !== awayTeamId) throw new Error('COMPETITION_SHOOTOUT_USER_TEAM_INVALID');
 
-  const current = userScoreForVenue({ userIsHome:Boolean(userIsHome), homeGoals, awayGoals });
+  let context;
+  if (isFirstLeg !== undefined || previousLeg !== undefined) {
+    const current = userScoreForVenue({ userIsHome:Boolean(userIsHome), homeGoals, awayGoals });
+    if (isFirstLeg) {
+      context = {
+        version:COMPETITION_SHOOTOUT_VERSION,
+        firstLeg:true,
+        secondLeg:false,
+        tieComplete:false,
+        requiresShootout:false,
+        userWon:current.userGoals > current.oppGoals,
+        userAgg:current.userGoals,
+        oppAgg:current.oppGoals,
+        previousLeg:null,
+      };
+    } else {
+      const priorUser = previousLeg ? competitionShootoutNumber(previousLeg.userGoals) : 0;
+      const priorOpp = previousLeg ? competitionShootoutNumber(previousLeg.oppGoals) : 0;
+      const userAgg = priorUser + current.userGoals;
+      const oppAgg = priorOpp + current.oppGoals;
+      context = {
+        version:COMPETITION_SHOOTOUT_VERSION,
+        firstLeg:false,
+        secondLeg:Boolean(previousLeg),
+        tieComplete:true,
+        requiresShootout:userAgg === oppAgg,
+        userWon:userAgg > oppAgg,
+        userAgg,
+        oppAgg,
+        previousLeg:previousLeg ?? null,
+      };
+    }
+  } else {
+    context = buildVersionedKnockoutContext({
+      shootoutVersion,
+      cupId,
+      roundName,
+      cupState,
+      userIsHome,
+      homeGoals,
+      awayGoals,
+    });
+  }
 
-  if (isFirstLeg) {
+  if (!context.tieComplete) {
     return {
-      version:COMPETITION_SHOOTOUT_VERSION,
-      userWon:current.userGoals > current.oppGoals,
+      ...context,
       penalties:false,
       extraTime:false,
-      tieComplete:false,
-      userAgg:current.userGoals,
-      oppAgg:current.oppGoals,
       shootout:null,
     };
   }
-
-  const priorUser = previousLeg ? competitionShootoutNumber(previousLeg.userGoals) : 0;
-  const priorOpp = previousLeg ? competitionShootoutNumber(previousLeg.oppGoals) : 0;
-  const userAgg = priorUser + current.userGoals;
-  const oppAgg = priorOpp + current.oppGoals;
-
-  if (userAgg > oppAgg) {
+  if (!context.requiresShootout) {
     return {
-      version:COMPETITION_SHOOTOUT_VERSION,
-      userWon:true,
+      ...context,
       penalties:false,
       extraTime:false,
-      tieComplete:true,
-      userAgg,
-      oppAgg,
-      shootout:null,
-    };
-  }
-  if (oppAgg > userAgg) {
-    return {
-      version:COMPETITION_SHOOTOUT_VERSION,
-      userWon:false,
-      penalties:false,
-      extraTime:false,
-      tieComplete:true,
-      userAgg,
-      oppAgg,
       shootout:null,
     };
   }
 
   return {
-    version:COMPETITION_SHOOTOUT_VERSION,
-    ...completedShootoutVerdict({ seed, userTeamId, homeTeamId, awayTeamId, homePlayers, awayPlayers }),
-    tieComplete:true,
-    userAgg,
-    oppAgg,
+    ...context,
+    ...completedShootoutVerdict({
+      shootoutVersion,
+      seed,
+      userTeamId,
+      homeTeamId,
+      awayTeamId,
+      homePlayers,
+      awayPlayers,
+    }),
   };
 }
 
