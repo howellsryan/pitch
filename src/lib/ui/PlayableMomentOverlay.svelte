@@ -29,7 +29,7 @@
 
   const isContinuation = $derived(moment?.interactionType === 'continuation');
   const continuationType = $derived(moment?.continuationType ?? null);
-  const finish = $derived(resolution?.shot?.finish ?? resolution?.finish ?? null);
+  const finish = $derived(isContinuation ? null : resolution?.shot?.finish ?? resolution?.finish ?? null);
   const continuationResult = $derived(resolution?.continuation ?? null);
   const hasResolution = $derived(Boolean(resolution));
   const setPieceKind = $derived(moment?.setPiece?.kind ?? null);
@@ -89,13 +89,11 @@
 
   function resultCopy(value) {
     if (isContinuation) {
-      if (finish === 'goal') return 'The continuation creates a goal.';
-      if (finish === 'saved') return 'The continuation creates a chance, but the goalkeeper saves.';
-      if (finish === 'blocked') return 'The continuation creates a chance that is blocked.';
-      if (finish === 'missed') return 'The continuation creates a chance that goes wide.';
+      if (continuationResult?.success && continuationResult?.outcome === 'chance_created') return 'The continuation creates an authoritative downstream chance.';
       if (continuationResult?.success) return 'The authorized continuation succeeds.';
       if (continuationResult?.outcome === 'cleared') return 'The defence clears the delivery.';
       if (continuationResult?.outcome === 'intercepted') return 'The defender reads and intercepts the pass.';
+      if (continuationResult?.outcome === 'foul_won') return 'The continuation wins a foul.';
       return 'The defence wins the continuation.';
     }
     if (value === 'goal') return setPieceKind === 'penalty' ? 'Penalty converted.' : setPieceKind === 'direct_free_kick' ? 'Direct free kick converted.' : 'Chance converted.';
@@ -277,9 +275,9 @@
         <button type="button" class:active={selectedLane === 1} onclick={() => { selectedLane = 1; }}>Right</button>
       </div>
       <div class="pm-choice" aria-label="Vertical target">
-        <button type="button" class:active={selectedHeight === .30} onclick={() => { selectedHeight = .30; }}>Short</button>
+        <button type="button" class:active={selectedHeight === .30} onclick={() => { selectedHeight = .30; }}>{isContinuation ? 'Short' : 'Low'}</button>
         <button type="button" class:active={selectedHeight === .55} onclick={() => { selectedHeight = .55; }}>Mid</button>
-        <button type="button" class:active={selectedHeight === .80} onclick={() => { selectedHeight = .80; }}>Long</button>
+        <button type="button" class:active={selectedHeight === .80} onclick={() => { selectedHeight = .80; }}>{isContinuation ? 'Long' : 'High'}</button>
       </div>
     </div>
   {/if}
