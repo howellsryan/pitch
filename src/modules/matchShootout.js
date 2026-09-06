@@ -182,15 +182,20 @@ function evaluateShootout(kicks, homeTeamId, awayTeamId) {
   const awayNormal = countTeamKicks(kicks, awayTeamId, kick => kick.phase === 'normal');
   const homeRemaining = Math.max(0, SHOOTOUT_NORMAL_KICKS_PER_TEAM - homeNormal);
   const awayRemaining = Math.max(0, SHOOTOUT_NORMAL_KICKS_PER_TEAM - awayNormal);
+  const normalIncomplete = homeNormal < SHOOTOUT_NORMAL_KICKS_PER_TEAM
+    || awayNormal < SHOOTOUT_NORMAL_KICKS_PER_TEAM;
 
-  if (homeScore > awayScore + awayRemaining) {
-    return { status:'complete', phase:'complete', winnerTeamId:homeTeamId, loserTeamId:awayTeamId };
-  }
-  if (awayScore > homeScore + homeRemaining) {
-    return { status:'complete', phase:'complete', winnerTeamId:awayTeamId, loserTeamId:homeTeamId };
-  }
-
-  if (homeNormal < SHOOTOUT_NORMAL_KICKS_PER_TEAM || awayNormal < SHOOTOUT_NORMAL_KICKS_PER_TEAM) {
+  // Mathematical early conclusion applies only while the normal five-kick
+  // phase still has kicks remaining. Once both teams have taken five, a lead
+  // after the first sudden-death kick can never end the shootout until the
+  // opponent has taken the matching kick in that pair.
+  if (normalIncomplete) {
+    if (homeScore > awayScore + awayRemaining) {
+      return { status:'complete', phase:'complete', winnerTeamId:homeTeamId, loserTeamId:awayTeamId };
+    }
+    if (awayScore > homeScore + homeRemaining) {
+      return { status:'complete', phase:'complete', winnerTeamId:awayTeamId, loserTeamId:homeTeamId };
+    }
     return { status:'active', phase:'normal', winnerTeamId:null, loserTeamId:null };
   }
 
