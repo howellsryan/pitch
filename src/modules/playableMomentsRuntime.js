@@ -27,6 +27,41 @@ function withLiveProgress(session, { liveState, currentPhase, allEvents }) {
   };
 }
 
+function automaticContinuationReveal(resolution, continuation) {
+  const prepared = continuation?.preparedAction;
+  const action = prepared?.continuationAction;
+  if (!action || resolution?.continuation) return resolution;
+
+  const record = resolution?.record ?? {};
+  const success = Number(prepared.packet?.execution ?? 1) < Number(prepared.successChance ?? 0);
+  const outcome = success && record.shotId ? 'chance_created' : record.outcome ?? (success ? 'progress' : action.failureOutcome);
+  const targetZone = action.targetZone ?? { x:0, y:.68 };
+  const weight = action.family === 'through_ball' ? .76 : action.family === 'cross' ? .72 : action.family === 'cutback' ? .58 : .68;
+
+  return {
+    ...resolution,
+    continuation:{
+      version:action.version,
+      family:action.family,
+      success,
+      outcome,
+      passerId:action.passerId,
+      receiverId:action.receiverId,
+      interceptorId:action.interceptorId,
+      successChance:Number(prepared.successChance ?? action.baselineSuccessChance ?? 0),
+      executionQuality:null,
+      target:{ x:Number(targetZone.x ?? 0), y:Number(targetZone.y ?? .68), weight, timing:.68 },
+      downstreamChance:record.shotId ? {
+        shooterId:record.shotId,
+        assistId:record.assistId ?? null,
+        pressureDefenderId:record.defenderId ?? null,
+        xg:Number(record.xg ?? 0),
+      } : null,
+      presentationOnly:true,
+    },
+  };
+}
+
 export async function advancePlayableMatchPhase({
   session,
   homeTeam,
@@ -111,10 +146,13 @@ export async function resolvePendingPlayableMoment({ session, homeTeam, awayTeam
     intent,
     controlledTeamId,
   );
+  const resolution = intent == null
+    ? automaticContinuationReveal(authoritative.playableResolution, runtime.pending.continuation)
+    : authoritative.playableResolution;
   const committed = commitPlayableMomentToSession(session, {
     momentId:session.pending.momentId,
     intent,
-    resolution:authoritative.playableResolution,
+    resolution,
     updatedState:authoritative.updatedState,
     segEvents:authoritative.segEvents,
   });

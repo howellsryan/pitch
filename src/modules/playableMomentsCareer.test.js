@@ -163,7 +163,7 @@ describe('Phase 2 playable career session', () => {
     expect(committed.session.status).toBe('committed');
     expect(committed.session.pending).toBeNull();
     expect(committed.session.currentPhase).toBe(61);
-    expect(committed.session.lastReceipt.intent.version).toBe(1);
+    expect(committed.session.lastReceipt.intent.version).toBe(2);
     expect(committed.session.lastReceipt.resolution.shot.finish).toBe('goal');
     expect(committed.session.history.at(-1).finish).toBe('goal');
 
