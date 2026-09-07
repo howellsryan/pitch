@@ -61,9 +61,10 @@ installLiveBroadcastMotionSmoother();
 window.navigateTo = navigateTo;
 
 // Svelte islands (Phase 3) — mounted straight into the legacy shell's markup.
-// All but the entry island sit inside #app, which boot() (ui/renderers.js)
-// shows only once a save exists, so they stay inert until then exactly like
-// the rest of the legacy screens do.
+// Most game islands sit inside #app, which boot() hides until a save exists.
+// Hidden components can still run reactive effects once mounted, though, so
+// the DB-owning MatchScreen is deliberately mounted lazily below only when its
+// route actually becomes active.
 
 const entryMount = document.getElementById('entry-mount');
 if (entryMount) mount(EntryScreen, { target:entryMount });
@@ -103,7 +104,31 @@ if (transfersMount) {
 }
 
 const matchMount = document.getElementById('screen-match');
-if (matchMount) mount(MatchScreen, { target:matchMount });
+if (matchMount) {
+  let matchMounted = false;
+  let matchObserver = null;
+
+  const mountMatchScreen = () => {
+    if (matchMounted) return;
+    matchMounted = true;
+    matchObserver?.disconnect();
+    matchObserver = null;
+    mount(MatchScreen, { target:matchMount });
+  };
+
+  if (matchMount.classList.contains('active')) {
+    mountMatchScreen();
+  } else {
+    // MatchScreen's loader opens the active career IndexedDB. Mounting it behind
+    // the entry route makes its no-save retry lifecycle race the fresh-career
+    // slot reset/writes. Navigation adds `.active` only when Match is entered,
+    // after which the component stays mounted for Squad → Match refreshes.
+    matchObserver = new MutationObserver(() => {
+      if (matchMount.classList.contains('active')) mountMatchScreen();
+    });
+    matchObserver.observe(matchMount, { attributes:true, attributeFilter:['class'] });
+  }
+}
 
 const inboxMount = document.getElementById('screen-inbox');
 if (inboxMount) mount(InboxScreen, { target:inboxMount });
