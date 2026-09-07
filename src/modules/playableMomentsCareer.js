@@ -17,7 +17,7 @@ export const PLAYABLE_SCENE_VERSION = 1;
 export const PLAYABLE_KEY_MOMENTS_FLAGS = Object.freeze({
   enabled:true,
   attack:true,
-  goalkeeper:true,
+  goalkeeper:false,
 });
 
 export const PLAYABLE_MOMENT_SOFT_CAP = 5;
@@ -167,19 +167,17 @@ export function isPlayableScenarioEnabled(mode) {
 /**
  * Product policy for career Play Key Moments.
  *
- * The authoritative match engine can still resolve continuation passes,
- * deliveries and contact/defending actions, but those actions no longer pause a
- * managed match for user input. Playable interruptions are deliberately limited
- * to attempts on goal: open-play shots, direct free kicks, penalties and
- * shootout penalties. "Goal" and "save" are terminal results of those same
- * pre-finish shot moments, not separate eligibility types.
+ * The authoritative engine still resolves every defensive action, but a managed
+ * match only pauses for the user's own attempt on goal: open-play shots, direct
+ * free kicks, penalties and shootout penalties. Goalkeeper/defending moments,
+ * continuation passes and contact actions never become user interruptions.
  */
 export function playableKeyEventType(moment) {
-  if (!moment || typeof moment !== 'object') return null;
+  if (!moment || typeof moment !== 'object' || moment.mode !== 'attack') return null;
   if (moment.interactionType === 'continuation' || moment.interactionType === 'contact') return null;
-  if (moment.interactionType === 'shootout') return 'shot';
+  if (moment.interactionType === 'shootout') return 'penalty';
   if (moment.setPiece?.kind === 'direct_free_kick') return 'free_kick';
-  if (moment.setPiece?.kind === 'penalty') return 'shot';
+  if (moment.setPiece?.kind === 'penalty') return 'penalty';
   if (moment.shooterId && moment.goalkeeperId) return 'shot';
   return null;
 }
@@ -203,7 +201,11 @@ export function playableMatchImportance(event = {}) {
 
 export function evaluatePlayableMomentSelection({ moment, session, liveState = null } = {}) {
   assertSupportedPlayableSession(session);
-  if (!moment || !isPlayableScenarioEnabled(moment.mode)) return { selected:false, reason:'scenario_disabled', probability:0, roll:1 };
+  if (!moment) return { selected:false, reason:'scenario_disabled', probability:0, roll:1 };
+  if (moment.attackingTeamId !== session.userTeamId || moment.mode !== 'attack') {
+    return { selected:false, reason:'not_user_attack', probability:0, roll:1 };
+  }
+  if (!isPlayableScenarioEnabled(moment.mode)) return { selected:false, reason:'scenario_disabled', probability:0, roll:1 };
   if (!isPlayableKeyEventMoment(moment)) return { selected:false, reason:'event_type_disabled', probability:0, roll:1 };
   if (session.status !== 'active' || session.pending) return { selected:false, reason:'session_busy', probability:0, roll:1 };
   if (session.momentsOffered >= PLAYABLE_MOMENT_SOFT_CAP) return { selected:false, reason:'soft_cap', probability:0, roll:1 };
@@ -233,7 +235,6 @@ export function evaluatePlayableMomentSelection({ moment, session, liveState = n
   if (xg >= .28) probability += .10;
   if (minute >= 70 && scoreGap <= 1) probability += .12;
   if (minute >= 82 && scoreGap === 0) probability += .06;
-  if (moment.mode === 'goalkeeper') probability += .025;
   probability += playableMatchImportance(session.event);
   if (repeatedMode) probability -= .08;
   if (repeatedVariant) probability -= .06;
@@ -304,10 +305,6 @@ export function commitPlayableMomentToSession(session, { momentId, intent = null
   return {
     session:{
       ...session,
-      // The official result is already durable at this point, but presentation
-      // has not necessarily been observed. Keeping this explicit state means a
-      // refresh after commit reopens the stored receipt rather than rerolling or
-      // silently skipping the result reveal.
       status:'committed',
       revision:nextRevision,
       currentPhase:Math.max(session.currentPhase, Math.trunc(numeric(receipt.phase))),
@@ -364,6 +361,8 @@ export function samePlayableIntent(left, right) {
   return JSON.stringify(leftNormalized) === JSON.stringify(rightNormalized);
 }
 
+// Goalkeeper calibration vectors remain for old deterministic receipts/tests,
+// but goalkeeper mode is disabled by policy and can no longer be selected.
 export const PLAYABLE_CALIBRATION_POLICIES = Object.freeze({
   poor:Object.freeze({
     attack:Object.freeze({ attack:Object.freeze({ aimX:1.18, aimY:1.05, power:.45, timing:.30 }) }),
