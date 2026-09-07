@@ -18,6 +18,7 @@ import './r7.css';
 import './r7-mobile-fixes.css';
 import './p5.css';
 import './touchline-ledger-polish.css';
+import './live-broadcast-tactical.css';
 
 import { mount } from 'svelte';
 import { installLiveBroadcastMotionSmoother } from './game/liveBroadcastMotionSmoother.js';
@@ -50,9 +51,9 @@ import './ui/accessibilityEnhancements.js';
 
 // The authoritative broadcast model may retarget coordinates aggressively to
 // keep its fixed 90-second regulation cadence. Keep those hidden catch-up
-// targets separate from what the manager actually sees: this DOM-level motion
-// integrator caps real frame-to-frame travel for players and the ball instead
-// of allowing a large simulation target change to become a visible teleport.
+// targets separate from what the manager actually sees: this presentation
+// adapter preserves tactical shape and uses a deliberate scene cut when two
+// authoritative snapshots cannot be joined honestly as one football action.
 installLiveBroadcastMotionSmoother();
 
 // src/shell.html has two inline onclick="navigateTo(...)" handlers, which
