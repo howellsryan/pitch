@@ -38,14 +38,14 @@ function side(prefix, rating = 80) {
 const HOME = side('h', 84).map(playerRow => ({ ...playerRow, teamId:'home' }));
 const AWAY = side('a', 78).map(playerRow => ({ ...playerRow, teamId:'away' }));
 
-function state(seed = 12345) {
+function state(seed = 12345, firstTeamId = 'home') {
   return createShootoutState({
     seed,
     homeTeamId:'home',
     awayTeamId:'away',
     homePlayers:HOME,
     awayPlayers:AWAY,
-    firstTeamId:'home',
+    firstTeamId,
   });
 }
 
@@ -56,8 +56,8 @@ function regulationResult() {
   };
 }
 
-describe('Phase 7 playable competition shootout session', () => {
-  it('persists the exact deterministic next kick and packet before presentation', () => {
+describe('attacking-only playable competition shootout session', () => {
+  it('persists the exact user penalty and never exposes goalkeeper mode', () => {
     const initial = state();
     const nextKick = getNextShootoutKick(initial);
     const session = createCompetitionShootoutSession({
@@ -69,18 +69,42 @@ describe('Phase 7 playable competition shootout session', () => {
     expect(session.pending.kick).toEqual(nextKick);
     expect(session.pending.moment.kickId).toBe(nextKick.kickId);
     expect(session.pending.moment.mode).toBe('attack');
+    expect(session.pending.moment.attackingTeamId).toBe('home');
   });
 
-  it('uses goalkeeper mode when the opponent takes the next kick', () => {
-    let session = createCompetitionShootoutSession({ shootoutState:state(), controlledTeamId:'home', regulationResult:regulationResult() });
-    session = resolveCompetitionShootoutSession(session, null).session;
-    session = acknowledgeCompetitionShootoutSession(session);
-    expect(session.status).toBe('pending');
-    expect(session.pending.kick.teamId).toBe('away');
-    expect(session.pending.moment.mode).toBe('goalkeeper');
+  it('automatically resolves an opponent-first kick before exposing the user penalty', () => {
+    const initial = state(12345, 'away');
+    const firstKick = getNextShootoutKick(initial);
+    expect(firstKick.teamId).toBe('away');
+
+    const session = createCompetitionShootoutSession({
+      shootoutState:initial,
+      controlledTeamId:'home',
+      regulationResult:regulationResult(),
+    });
+
+    expect(session.state.kicks).toHaveLength(1);
+    expect(session.state.kicks[0].kickId).toBe(firstKick.kickId);
+    expect(session.pending?.kick.teamId).toBe('home');
+    expect(session.pending?.moment.mode).toBe('attack');
   });
 
-  it('commits one exact kick and keeps its presentation durable until acknowledgement', () => {
+  it('auto-resolves the opponent response when a committed user penalty is acknowledged', () => {
+    const first = createCompetitionShootoutSession({ shootoutState:state(), controlledTeamId:'home', regulationResult:regulationResult() });
+    const committed = resolveCompetitionShootoutSession(first, null).session;
+    expect(committed.state.kicks).toHaveLength(1);
+
+    const next = acknowledgeCompetitionShootoutSession(committed);
+    expect(next.revision).toBe(committed.revision + 1);
+    expect(next.state.kicks.length).toBeGreaterThan(committed.state.kicks.length);
+    expect(next.state.kicks[1]?.teamId).toBe('away');
+    if (next.status === 'pending') {
+      expect(next.pending.kick.teamId).toBe('home');
+      expect(next.pending.moment.mode).toBe('attack');
+    }
+  });
+
+  it('commits one exact user kick and keeps its presentation durable until acknowledgement', () => {
     const initial = createCompetitionShootoutSession({ shootoutState:state(), controlledTeamId:'home', regulationResult:regulationResult() });
     const intent = { attack:{ aimX:.62, aimY:.78, power:.75, timing:.84 } };
     const resolved = resolveCompetitionShootoutSession(initial, intent).session;
@@ -88,6 +112,7 @@ describe('Phase 7 playable competition shootout session', () => {
     expect(resolved.state.kicks).toHaveLength(1);
     expect(resolved.lastReceipt.kickId).toBe(initial.pending.kick.kickId);
     expect(resolved.lastMoment).toEqual(initial.pending.moment);
+    expect(resolved.lastMoment.mode).toBe('attack');
 
     const restored = structuredClone(resolved);
     assertSupportedCompetitionShootoutSession(restored);
@@ -96,7 +121,7 @@ describe('Phase 7 playable competition shootout session', () => {
     expect(presentation.resolution.shot.finish).toBe(resolved.lastShot.finish);
   });
 
-  it('Simulate resolves the same saved pending kick rather than drawing another packet', () => {
+  it('Simulate resolves the same saved user penalty rather than drawing another packet', () => {
     const first = createCompetitionShootoutSession({ shootoutState:state(9191), controlledTeamId:'home', regulationResult:regulationResult() });
     const restored = structuredClone(first);
     const a = resolveCompetitionShootoutSession(first, null).session;
@@ -105,16 +130,7 @@ describe('Phase 7 playable competition shootout session', () => {
     expect(a.state).toEqual(b.state);
   });
 
-  it('acknowledging a committed kick changes presentation state only and prepares the deterministic next kick', () => {
-    const first = createCompetitionShootoutSession({ shootoutState:state(), controlledTeamId:'home', regulationResult:regulationResult() });
-    const committed = resolveCompetitionShootoutSession(first, null).session;
-    const next = acknowledgeCompetitionShootoutSession(committed);
-    expect(next.revision).toBe(committed.revision + 1);
-    expect(next.state).toEqual(committed.state);
-    expect(next.pending.kick).toEqual(getNextShootoutKick(committed.state));
-  });
-
-  it('can progress kick by kick to the same deterministic winner as the automatic domain', () => {
+  it('can progress user kicks with automatic opponent kicks to the same deterministic winner', () => {
     const initialState = state(4444);
     const automatic = runAutomaticShootout(initialState);
     let session = createCompetitionShootoutSession({ shootoutState:initialState, controlledTeamId:'home', regulationResult:regulationResult() });
@@ -131,7 +147,7 @@ describe('Phase 7 playable competition shootout session', () => {
     expect(completed.regulationResult.homeGoals).toBe(1);
   });
 
-  it('does not expose the next kick until the committed result is acknowledged', () => {
+  it('does not expose the next user kick until the committed result is acknowledged', () => {
     const pending = createCompetitionShootoutSession({ shootoutState:state(), controlledTeamId:'home', regulationResult:regulationResult() });
     const committed = resolveCompetitionShootoutSession(pending, null).session;
     expect(committed.pending).toBeNull();
