@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T19:17:44.336Z",
+  "generatedAt": "2026-09-07T10:22:18.148Z",
   "referenceDate": "2026-09-01",
   "sourceOfTruth": {
     "clubs": "EA SPORTS FC 27",
@@ -10,7 +10,7 @@
   "sources": {
     "eaFc27": {
       "url": "https://www.ea.com/games/ea-sports-fc/ratings",
-      "lastModified": "Fri, 04 Sep 2026 19:13:46 GMT"
+      "lastModified": "Mon, 07 Sep 2026 10:18:37 GMT"
     }
   },
   "baseline": {
@@ -32,7 +32,898 @@
     "fc27RatedPlayersImported": 5092,
     "ratingsFallback": 0,
     "ageFallbacks": 5092,
-    "nationalityFallbacks": 0
+    "nationalityFallbacks": 0,
+    "detailedAttributes": {
+      "requiredNonGoalkeepers": 4547,
+      "completeNonGoalkeepers": 4547,
+      "missingNonGoalkeepers": 0,
+      "byLeague": {
+        "bundesliga": {
+          "players": 546,
+          "complete": 546,
+          "attributes": {
+            "pace": {
+              "count": 546,
+              "min": 34,
+              "max": 95,
+              "mean": 71.27
+            },
+            "shooting": {
+              "count": 546,
+              "min": 23,
+              "max": 94,
+              "mean": 59.21
+            },
+            "passing": {
+              "count": 546,
+              "min": 39,
+              "max": 90,
+              "mean": 64.12
+            },
+            "dribbling": {
+              "count": 546,
+              "min": 37,
+              "max": 91,
+              "mean": 69.53
+            },
+            "defending": {
+              "count": 546,
+              "min": 18,
+              "max": 87,
+              "mean": 54.73
+            },
+            "physical": {
+              "count": 546,
+              "min": 37,
+              "max": 88,
+              "mean": 68.51
+            }
+          }
+        },
+        "championship": {
+          "players": 702,
+          "complete": 702,
+          "attributes": {
+            "pace": {
+              "count": 702,
+              "min": 30,
+              "max": 94,
+              "mean": 69.35
+            },
+            "shooting": {
+              "count": 702,
+              "min": 23,
+              "max": 81,
+              "mean": 56.07
+            },
+            "passing": {
+              "count": 702,
+              "min": 34,
+              "max": 82,
+              "mean": 60.46
+            },
+            "dribbling": {
+              "count": 702,
+              "min": 36,
+              "max": 82,
+              "mean": 65.48
+            },
+            "defending": {
+              "count": 702,
+              "min": 16,
+              "max": 78,
+              "mean": 52.14
+            },
+            "physical": {
+              "count": 702,
+              "min": 34,
+              "max": 85,
+              "mean": 66.6
+            }
+          }
+        },
+        "eredivisie": {
+          "players": 412,
+          "complete": 412,
+          "attributes": {
+            "pace": {
+              "count": 412,
+              "min": 34,
+              "max": 94,
+              "mean": 68.54
+            },
+            "shooting": {
+              "count": 412,
+              "min": 24,
+              "max": 82,
+              "mean": 55.99
+            },
+            "passing": {
+              "count": 412,
+              "min": 33,
+              "max": 85,
+              "mean": 61.17
+            },
+            "dribbling": {
+              "count": 412,
+              "min": 39,
+              "max": 84,
+              "mean": 66.04
+            },
+            "defending": {
+              "count": 412,
+              "min": 19,
+              "max": 81,
+              "mean": 50.72
+            },
+            "physical": {
+              "count": 412,
+              "min": 36,
+              "max": 85,
+              "mean": 65.68
+            }
+          }
+        },
+        "la_liga": {
+          "players": 556,
+          "complete": 556,
+          "attributes": {
+            "pace": {
+              "count": 556,
+              "min": 37,
+              "max": 96,
+              "mean": 71.14
+            },
+            "shooting": {
+              "count": 556,
+              "min": 23,
+              "max": 91,
+              "mean": 61.11
+            },
+            "passing": {
+              "count": 556,
+              "min": 39,
+              "max": 89,
+              "mean": 66.46
+            },
+            "dribbling": {
+              "count": 556,
+              "min": 45,
+              "max": 93,
+              "mean": 70.45
+            },
+            "defending": {
+              "count": 556,
+              "min": 15,
+              "max": 86,
+              "mean": 56.96
+            },
+            "physical": {
+              "count": 556,
+              "min": 38,
+              "max": 90,
+              "mean": 69.13
+            }
+          }
+        },
+        "league_one": {
+          "players": 608,
+          "complete": 608,
+          "attributes": {
+            "pace": {
+              "count": 608,
+              "min": 30,
+              "max": 92,
+              "mean": 68.15
+            },
+            "shooting": {
+              "count": 608,
+              "min": 23,
+              "max": 72,
+              "mean": 52.54
+            },
+            "passing": {
+              "count": 608,
+              "min": 30,
+              "max": 75,
+              "mean": 56.01
+            },
+            "dribbling": {
+              "count": 608,
+              "min": 39,
+              "max": 74,
+              "mean": 61.05
+            },
+            "defending": {
+              "count": 608,
+              "min": 16,
+              "max": 74,
+              "mean": 50.16
+            },
+            "physical": {
+              "count": 608,
+              "min": 39,
+              "max": 86,
+              "mean": 65.27
+            }
+          }
+        },
+        "league_two": {
+          "players": 533,
+          "complete": 533,
+          "attributes": {
+            "pace": {
+              "count": 533,
+              "min": 31,
+              "max": 90,
+              "mean": 67
+            },
+            "shooting": {
+              "count": 533,
+              "min": 21,
+              "max": 67,
+              "mean": 48.77
+            },
+            "passing": {
+              "count": 533,
+              "min": 32,
+              "max": 69,
+              "mean": 52.21
+            },
+            "dribbling": {
+              "count": 533,
+              "min": 37,
+              "max": 69,
+              "mean": 57.53
+            },
+            "defending": {
+              "count": 533,
+              "min": 17,
+              "max": 65,
+              "mean": 48.23
+            },
+            "physical": {
+              "count": 533,
+              "min": 38,
+              "max": 83,
+              "mean": 63.76
+            }
+          }
+        },
+        "ligue_1": {
+          "players": 504,
+          "complete": 504,
+          "attributes": {
+            "pace": {
+              "count": 504,
+              "min": 32,
+              "max": 94,
+              "mean": 70.38
+            },
+            "shooting": {
+              "count": 504,
+              "min": 23,
+              "max": 89,
+              "mean": 57.39
+            },
+            "passing": {
+              "count": 504,
+              "min": 39,
+              "max": 88,
+              "mean": 63.33
+            },
+            "dribbling": {
+              "count": 504,
+              "min": 43,
+              "max": 93,
+              "mean": 69.32
+            },
+            "defending": {
+              "count": 504,
+              "min": 19,
+              "max": 90,
+              "mean": 54.2
+            },
+            "physical": {
+              "count": 504,
+              "min": 38,
+              "max": 86,
+              "mean": 66.81
+            }
+          }
+        },
+        "prem": {
+          "players": 622,
+          "complete": 622,
+          "attributes": {
+            "pace": {
+              "count": 622,
+              "min": 35,
+              "max": 94,
+              "mean": 71.99
+            },
+            "shooting": {
+              "count": 622,
+              "min": 23,
+              "max": 92,
+              "mean": 62.91
+            },
+            "passing": {
+              "count": 622,
+              "min": 37,
+              "max": 92,
+              "mean": 68.53
+            },
+            "dribbling": {
+              "count": 622,
+              "min": 43,
+              "max": 91,
+              "mean": 72.55
+            },
+            "defending": {
+              "count": 622,
+              "min": 18,
+              "max": 91,
+              "mean": 58.52
+            },
+            "physical": {
+              "count": 622,
+              "min": 41,
+              "max": 90,
+              "mean": 69.96
+            }
+          }
+        },
+        "serie_a": {
+          "players": 609,
+          "complete": 609,
+          "attributes": {
+            "pace": {
+              "count": 609,
+              "min": 30,
+              "max": 93,
+              "mean": 69.01
+            },
+            "shooting": {
+              "count": 609,
+              "min": 25,
+              "max": 88,
+              "mean": 60.61
+            },
+            "passing": {
+              "count": 609,
+              "min": 39,
+              "max": 89,
+              "mean": 64.71
+            },
+            "dribbling": {
+              "count": 609,
+              "min": 43,
+              "max": 89,
+              "mean": 69.66
+            },
+            "defending": {
+              "count": 609,
+              "min": 19,
+              "max": 87,
+              "mean": 56.82
+            },
+            "physical": {
+              "count": 609,
+              "min": 42,
+              "max": 90,
+              "mean": 67.99
+            }
+          }
+        }
+      },
+      "byPosition": {
+        "CAM": {
+          "players": 327,
+          "complete": 327,
+          "attributes": {
+            "pace": {
+              "count": 327,
+              "min": 49,
+              "max": 88,
+              "mean": 71.22
+            },
+            "shooting": {
+              "count": 327,
+              "min": 42,
+              "max": 86,
+              "mean": 65.8
+            },
+            "passing": {
+              "count": 327,
+              "min": 49,
+              "max": 92,
+              "mean": 67.95
+            },
+            "dribbling": {
+              "count": 327,
+              "min": 56,
+              "max": 90,
+              "mean": 72.34
+            },
+            "defending": {
+              "count": 327,
+              "min": 19,
+              "max": 79,
+              "mean": 49.09
+            },
+            "physical": {
+              "count": 327,
+              "min": 38,
+              "max": 85,
+              "mean": 60.34
+            }
+          }
+        },
+        "CB": {
+          "players": 978,
+          "complete": 978,
+          "attributes": {
+            "pace": {
+              "count": 978,
+              "min": 30,
+              "max": 90,
+              "mean": 62.22
+            },
+            "shooting": {
+              "count": 978,
+              "min": 21,
+              "max": 76,
+              "mean": 38.4
+            },
+            "passing": {
+              "count": 978,
+              "min": 32,
+              "max": 82,
+              "mean": 54.07
+            },
+            "dribbling": {
+              "count": 978,
+              "min": 36,
+              "max": 78,
+              "mean": 57.58
+            },
+            "defending": {
+              "count": 978,
+              "min": 50,
+              "max": 91,
+              "mean": 69.49
+            },
+            "physical": {
+              "count": 978,
+              "min": 51,
+              "max": 90,
+              "mean": 73.67
+            }
+          }
+        },
+        "CDM": {
+          "players": 428,
+          "complete": 428,
+          "attributes": {
+            "pace": {
+              "count": 428,
+              "min": 30,
+              "max": 81,
+              "mean": 62.47
+            },
+            "shooting": {
+              "count": 428,
+              "min": 32,
+              "max": 81,
+              "mean": 56.46
+            },
+            "passing": {
+              "count": 428,
+              "min": 46,
+              "max": 90,
+              "mean": 65.78
+            },
+            "dribbling": {
+              "count": 428,
+              "min": 46,
+              "max": 84,
+              "mean": 67.84
+            },
+            "defending": {
+              "count": 428,
+              "min": 50,
+              "max": 85,
+              "mean": 67.44
+            },
+            "physical": {
+              "count": 428,
+              "min": 47,
+              "max": 85,
+              "mean": 70.37
+            }
+          }
+        },
+        "CM": {
+          "players": 593,
+          "complete": 593,
+          "attributes": {
+            "pace": {
+              "count": 593,
+              "min": 33,
+              "max": 90,
+              "mean": 66.27
+            },
+            "shooting": {
+              "count": 593,
+              "min": 40,
+              "max": 84,
+              "mean": 61.85
+            },
+            "passing": {
+              "count": 593,
+              "min": 49,
+              "max": 89,
+              "mean": 67.25
+            },
+            "dribbling": {
+              "count": 593,
+              "min": 51,
+              "max": 91,
+              "mean": 69.75
+            },
+            "defending": {
+              "count": 593,
+              "min": 40,
+              "max": 86,
+              "mean": 62.48
+            },
+            "physical": {
+              "count": 593,
+              "min": 37,
+              "max": 90,
+              "mean": 66.44
+            }
+          }
+        },
+        "GK": {
+          "players": 545,
+          "complete": 545,
+          "attributes": {
+            "pace": {
+              "count": 545,
+              "min": 50,
+              "max": 90,
+              "mean": 68.09
+            },
+            "shooting": {
+              "count": 545,
+              "min": 49,
+              "max": 90,
+              "mean": 66.14
+            },
+            "passing": {
+              "count": 545,
+              "min": 46,
+              "max": 89,
+              "mean": 65.45
+            },
+            "dribbling": {
+              "count": 545,
+              "min": 47,
+              "max": 90,
+              "mean": 68.98
+            },
+            "defending": {
+              "count": 545,
+              "min": 15,
+              "max": 64,
+              "mean": 37.66
+            },
+            "physical": {
+              "count": 545,
+              "min": 48,
+              "max": 90,
+              "mean": 66.68
+            }
+          }
+        },
+        "LB": {
+          "players": 360,
+          "complete": 360,
+          "attributes": {
+            "pace": {
+              "count": 360,
+              "min": 38,
+              "max": 94,
+              "mean": 74.8
+            },
+            "shooting": {
+              "count": 360,
+              "min": 26,
+              "max": 78,
+              "mean": 51.06
+            },
+            "passing": {
+              "count": 360,
+              "min": 38,
+              "max": 85,
+              "mean": 63.68
+            },
+            "dribbling": {
+              "count": 360,
+              "min": 48,
+              "max": 86,
+              "mean": 67.64
+            },
+            "defending": {
+              "count": 360,
+              "min": 47,
+              "max": 84,
+              "mean": 65.47
+            },
+            "physical": {
+              "count": 360,
+              "min": 47,
+              "max": 84,
+              "mean": 67.11
+            }
+          }
+        },
+        "LM": {
+          "players": 280,
+          "complete": 280,
+          "attributes": {
+            "pace": {
+              "count": 280,
+              "min": 54,
+              "max": 94,
+              "mean": 79.29
+            },
+            "shooting": {
+              "count": 280,
+              "min": 44,
+              "max": 86,
+              "mean": 63.68
+            },
+            "passing": {
+              "count": 280,
+              "min": 45,
+              "max": 87,
+              "mean": 63.54
+            },
+            "dribbling": {
+              "count": 280,
+              "min": 56,
+              "max": 87,
+              "mean": 70.98
+            },
+            "defending": {
+              "count": 280,
+              "min": 19,
+              "max": 72,
+              "mean": 40.96
+            },
+            "physical": {
+              "count": 280,
+              "min": 36,
+              "max": 80,
+              "mean": 58.67
+            }
+          }
+        },
+        "LW": {
+          "players": 101,
+          "complete": 101,
+          "attributes": {
+            "pace": {
+              "count": 101,
+              "min": 64,
+              "max": 93,
+              "mean": 81.44
+            },
+            "shooting": {
+              "count": 101,
+              "min": 51,
+              "max": 86,
+              "mean": 68.08
+            },
+            "passing": {
+              "count": 101,
+              "min": 52,
+              "max": 85,
+              "mean": 67.18
+            },
+            "dribbling": {
+              "count": 101,
+              "min": 62,
+              "max": 91,
+              "mean": 75.45
+            },
+            "defending": {
+              "count": 101,
+              "min": 18,
+              "max": 68,
+              "mean": 38.29
+            },
+            "physical": {
+              "count": 101,
+              "min": 38,
+              "max": 81,
+              "mean": 60.37
+            }
+          }
+        },
+        "RB": {
+          "players": 377,
+          "complete": 377,
+          "attributes": {
+            "pace": {
+              "count": 377,
+              "min": 34,
+              "max": 94,
+              "mean": 74.91
+            },
+            "shooting": {
+              "count": 377,
+              "min": 26,
+              "max": 79,
+              "mean": 50.05
+            },
+            "passing": {
+              "count": 377,
+              "min": 41,
+              "max": 89,
+              "mean": 62.5
+            },
+            "dribbling": {
+              "count": 377,
+              "min": 48,
+              "max": 84,
+              "mean": 66.82
+            },
+            "defending": {
+              "count": 377,
+              "min": 49,
+              "max": 83,
+              "mean": 65.68
+            },
+            "physical": {
+              "count": 377,
+              "min": 44,
+              "max": 87,
+              "mean": 68.33
+            }
+          }
+        },
+        "RM": {
+          "players": 291,
+          "complete": 291,
+          "attributes": {
+            "pace": {
+              "count": 291,
+              "min": 57,
+              "max": 95,
+              "mean": 78.92
+            },
+            "shooting": {
+              "count": 291,
+              "min": 39,
+              "max": 83,
+              "mean": 63.56
+            },
+            "passing": {
+              "count": 291,
+              "min": 45,
+              "max": 89,
+              "mean": 63.93
+            },
+            "dribbling": {
+              "count": 291,
+              "min": 55,
+              "max": 91,
+              "mean": 70.8
+            },
+            "defending": {
+              "count": 291,
+              "min": 18,
+              "max": 78,
+              "mean": 42.76
+            },
+            "physical": {
+              "count": 291,
+              "min": 34,
+              "max": 84,
+              "mean": 59.01
+            }
+          }
+        },
+        "RW": {
+          "players": 92,
+          "complete": 92,
+          "attributes": {
+            "pace": {
+              "count": 92,
+              "min": 59,
+              "max": 94,
+              "mean": 78.4
+            },
+            "shooting": {
+              "count": 92,
+              "min": 47,
+              "max": 85,
+              "mean": 68.49
+            },
+            "passing": {
+              "count": 92,
+              "min": 41,
+              "max": 87,
+              "mean": 68.21
+            },
+            "dribbling": {
+              "count": 92,
+              "min": 54,
+              "max": 93,
+              "mean": 74.7
+            },
+            "defending": {
+              "count": 92,
+              "min": 19,
+              "max": 67,
+              "mean": 39.46
+            },
+            "physical": {
+              "count": 92,
+              "min": 38,
+              "max": 83,
+              "mean": 59.52
+            }
+          }
+        },
+        "ST": {
+          "players": 720,
+          "complete": 720,
+          "attributes": {
+            "pace": {
+              "count": 720,
+              "min": 31,
+              "max": 96,
+              "mean": 71.88
+            },
+            "shooting": {
+              "count": 720,
+              "min": 50,
+              "max": 94,
+              "mean": 67.95
+            },
+            "passing": {
+              "count": 720,
+              "min": 30,
+              "max": 83,
+              "mean": 56.51
+            },
+            "dribbling": {
+              "count": 720,
+              "min": 46,
+              "max": 93,
+              "mean": 66.82
+            },
+            "defending": {
+              "count": 720,
+              "min": 17,
+              "max": 64,
+              "mean": 32.47
+            },
+            "physical": {
+              "count": 720,
+              "min": 39,
+              "max": 89,
+              "mean": 68.32
+            }
+          }
+        }
+      }
+    }
   },
   "teamResolution": {
     "clubs": [
@@ -3829,7 +4720,15 @@
       "attack": 80,
       "midfield": 80,
       "defence": 81,
-      "goalkeeping": 10
+      "goalkeeping": 10,
+      "attributes": {
+        "pace": 84,
+        "shooting": 59,
+        "passing": 75,
+        "dribbling": 78,
+        "defending": 76,
+        "physical": 79
+      }
     },
     "Antony": {
       "teamId": "real_betis",
@@ -3838,7 +4737,15 @@
       "attack": 81,
       "midfield": 80,
       "defence": 61,
-      "goalkeeping": 10
+      "goalkeeping": 10,
+      "attributes": {
+        "pace": 85,
+        "shooting": 81,
+        "passing": 79,
+        "dribbling": 82,
+        "defending": 48,
+        "physical": 71
+      }
     }
   }
 }

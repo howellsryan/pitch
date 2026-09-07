@@ -1,413 +1,413 @@
-team_id,player_id,name,nationality,position,age,attack,midfield,defence,goalkeeping,value_millions,wage_thousands,potential,is_wonderkid
-ajax,bar_ter_stegen,Marc-André ter Stegen,German,GK,33,14,16,20,82,58,195,88,false
-ajax,bvb_brandt,Julian Brandt,German,CAM,29,82,81,61,10,28,72,84,false
-psv,hee_veerman,Joey Veerman,Holland,CM,26,81,82,75,10,15,38,82,false
-psv,psv_perisic,Ivan Perišić,Croatian,LW,24,81,81,74,10,25,56,86,false
-psv,psv_junior,Mauro Júnior,Brazilian,LB,24,78,81,80,10,25,56,86,false
-psv,psv_schouten,Jerdy Schouten,Holland,CB,24,75,77,80,10,21.7,49,85,false
-nec,nec_tadic,Dušan Tadić,Serbian,CAM,24,79,79,59,10,18.9,44,84,false
-psv,psv_dest,Sergiño Dest,United States,RB,25,79,79,78,10,20,55,80,false
-psv,psv_til,Guus Til,Holland,CAM,27,78,77,72,10,20,55,78,false
-az,az_parrott,Troy Parrott,Irish,ST,24,78,76,60,10,16.4,39,83,false
-feyenoord,feyenoord_watanabe,Tsuyoshi Watanabe,Japanese,CB,24,67,65,78,10,16.4,39,83,false
-psv,psv_pepi,Ricardo Pepi,United States,ST,22,78,75,62,10,28,45,86,true
-feyenoord,fey_ueda,Ayase Ueda,Japanese,ST,26,78,75,53,10,18,42,82,false
-ajax,ajax_godts,Mika Godts,Belgian,LW,24,78,77,57,10,16.4,39,83,false
-ajax,ajax_baas,Youri Baas,Holland,CB,24,72,74,78,10,16.4,39,83,false
-ajax,ajax_leonardo,Marcos Leonardo,Brazilian,ST,24,78,74,50,10,16.4,39,83,false
-feyenoord,feyenoord_moussa,Anis Hadj Moussa,Algerian,RW,24,77,75,49,10,14.2,34,82,false
-az,az_clasie,Jordy Clasie,Holland,CDM,33,74,77,74,10,6,35,78,false
-psv,psv_plea,Alassane Pléa,French,ST,24,77,77,54,10,14.2,34,82,false
-twente,twente_weghorst,Wout Weghorst,Holland,ST,24,77,76,73,10,14.2,34,82,false
-ajax,ajax_dolberg,Kasper Dolberg,Danish,ST,24,77,74,51,10,14.2,34,82,false
-ajax,mon_caio_henrique,Caio Henrique,Brazilian,LB,28,75,77,75,10,18,42,78,false
-psv,psv_man,Dennis Man,Romanian,RW,24,77,76,59,10,14.2,34,82,false
-psv,psv_kovar,Matěj Kovář,Czech,GK,24,10,11,13,77,14.2,34,82,false
-feyenoord,twe_hilal,Sem Steijn,Holland,CAM,23,77,75,58,10,14,35,82,true
-psv,spa_abels,Sven Mijnans,Holland,CAM,26,76,77,71,10,8,20,80,false
-feyenoord,feyenoord_valente,Luciano Valente,Holland,CM,24,77,77,70,10,14.2,34,82,false
-az,az_goes,Wouter Goes,Holland,CB,24,68,67,77,10,14.2,34,82,false
-ajax,ajax_gloukh,Oscar Gloukh,Israeli,CAM,24,77,75,51,10,14.2,34,82,false
-nec,nec_sano,Kodai Sano,Japanese,CM,24,76,77,74,10,14.2,34,82,false
-psv,psv_yarek,Yarek,Spanish,CB,24,71,70,77,10,14.2,34,82,false
-twente,twe_unnerstall,Lars Unnerstall,German,GK,33,10,10,12,76,5,32,78,false
-ajax,ajx_berghuis,Steven Berghuis,Holland,RW,33,75,76,56,10,12,65,79,false
-ajax,ajax_klaassen,Davy Klaassen,Holland,CM,24,73,74,76,10,12.3,31,81,false
-ajax,ajax_itakura,Ko Itakura,Japanese,CB,24,72,71,76,10,12.3,31,81,false
-az,fey_stengs,Calvin Stengs,Holland,CAM,26,76,76,63,10,18,48,83,false
-nec,nec_schuurs,Perr Schuurs,Holland,CB,24,70,71,76,10,12.3,31,81,false
-ajax,ajx_sutalo,Josip Šutalo,Croatian,CB,24,70,70,76,10,18,42,84,true
-feyenoord,feyenoord_bos,Jordan Bos,Australian,LB,24,76,74,75,10,12.3,31,81,false
-twente,twe_bijen,Bart van Rooij,Holland,RB,27,76,74,76,10,8,25,77,false
-nec,nec_nejasmic,Darko Nejašmić,Croatian,CDM,24,68,71,76,10,12.3,31,81,false
-feyenoord,feyenoord_targhalline,Oussama Targhalline,Moroccan,CDM,24,74,75,76,10,12.3,31,81,false
-psv,psv_wanner,Paul Wanner,Austrian,CAM,24,76,76,67,10,12.3,31,81,false
-psv,psv_flamingo,Ryan Flamingo,Holland,CB,21,72,71,76,10,18,38,88,true
-feyenoord,feyenoord_read,Givairo Read,Holland,RB,24,75,75,76,10,12.3,31,81,false
-az,az_smit2,Kees Smit,Holland,CM,24,73,75,70,10,10.7,27,80,false
-ajax,ajx_blind,Daley Blind,Holland,CB,35,70,75,72,10,8,45,75,false
-nec,nec_chery,Tjaronn Chery,Surinamese,CAM,24,75,73,50,10,10.7,27,80,false
-psv,spa_hilbers,Nick Olij,Holland,GK,30,10,10,12,75,5,22,76,false
-feyenoord,feyenoord_ahmedhodzic,Anel Ahmedhodžić,Bosnian,CB,24,67,65,75,10,10.7,27,80,false
-utrecht,utrecht_barkas,Vasilios Barkas,Greek,GK,24,10,11,13,75,10.7,27,80,false
-feyenoord,nice_vanhoutte,Charles Vanhoutte,Belgian,CDM,26,72,74,75,10,10,23,78,false
-ajax,ajax_arokodare,Tolu Arokodare,Nigerian,ST,24,75,72,55,10,10.7,27,80,false
-utrecht,utrecht_cathline,Yoann Cathline,French,LW,24,75,74,58,10,10.7,27,80,false
-feyenoord,feyenoord_marmol,Mika Mármol,Spanish,CB,24,72,71,75,10,10.7,27,80,false
-nec,nec_ouaissa,Sami Ouaissa,Holland,RM,24,74,71,56,10,9.3,24,79,false
-nec,nec_linssen,Bryan Linssen,Holland,ST,24,74,74,60,10,9.3,24,79,false
-feyenoord,feyenoord_juste,Jeremiah St. Juste,Holland,CB,24,70,69,74,10,9.3,24,79,false
-psv,psv_drommel,Joël Drommel,Holland,GK,28,10,10,12,74,8,30,78,false
-utrecht,utrecht_wit,Dani de Wit,Holland,CM,24,72,73,74,10,9.3,24,79,false
-go_ahead,go_ahead_meulensteen,Melle Meulensteen,Holland,CDM,24,71,71,74,10,9.3,24,79,false
-feyenoord,feyenoord_moder,Jakub Moder,Polish,CM,24,73,74,72,10,9.3,24,79,false
-psv,psv_obispo,Armando Obispo,Curaçaoan,CB,24,68,67,74,10,9.3,24,79,false
-fortuna,fortuna_ihattaren,Mohamed Ihattaren,Moroccan,CAM,24,74,74,56,10,9.3,24,79,false
-twente,twente_zerrouki,Ramiz Zerrouki,Algerian,CDM,24,73,74,74,10,9.3,24,79,false
-nec,nec_crettaz,Gonzalo Crettaz,Argentine,GK,24,10,11,13,74,9.3,24,79,false
-az,az_koopmeiners,Peer Koopmeiners,Holland,CDM,24,68,71,74,10,9.3,24,79,false
-ajax,ajax_kaplan,Ahmetcan Kaplan,Turkish,CB,24,66,65,74,10,9.3,24,79,false
-az,az_meerdink,Mexx Meerdink,Holland,ST,24,74,73,54,10,9.3,24,79,false
-psv,psv_bajraktarevic,Esmir Bajraktarević,Bosnian,RW,24,74,74,57,10,9.3,24,79,false
-psv,psv_bommel,Ruben van Bommel,Holland,LW,24,74,72,46,10,9.3,24,79,false
-feyenoord,feyenoord_zechiel,Gjivai Zechiël,Holland,CM,24,74,74,73,10,9.3,24,79,false
-ajax,ajax_carrizo,Maher Carrizo,Argentine,RW,24,74,74,56,10,9.3,24,79,false
-utrecht,utrecht_overeem,Joris van Overeem,Holland,CDM,24,71,73,72,10,8.1,21,79,false
-go_ahead,nec_bokila,Joris Kramer,Holland,CB,28,65,63,73,10,5,18,73,false
-nec,nec_sandler,Philippe Sandler,Holland,CB,24,70,71,73,10,8.1,21,79,false
-feyenoord,fey_lotomba,Jordan Lotomba,Swiss,RB,27,69,70,73,10,10,35,74,false
-az,az_busser,Jari De Busser,Belgian,GK,24,10,11,13,73,8.1,21,79,false
-feyenoord,feyenoord_smal,Gijs Smal,Holland,LB,24,72,73,71,10,8.1,21,79,false
-heerenveen,heerenveen_trenskow,Jacob Trenskow,Danish,RW,24,73,71,57,10,8.1,21,79,false
-twente,twe_steijn,Daan Rots,Holland,RW,25,73,72,54,10,10,28,76,false
-feyenoord,feyenoord_beelen,Thomas Beelen,Holland,CB,24,69,68,73,10,8.1,21,79,false
-az,az_penetra,Alexandre Penetra,Portuguese,CB,24,65,64,73,10,8.1,21,79,false
-heerenveen,heerenveen_meerveld,Ringo Meerveld,Holland,CAM,24,73,72,61,10,8.1,21,79,false
-ajax,ajax_regeer,Youri Regeer,Holland,CDM,24,71,72,73,10,8.1,21,79,false
-az,az_kasius,Denso Kasius,Holland,RB,24,73,72,72,10,8.1,21,79,false
-twente,twente_ter,Sondre Ørjasæter,Norwegian,LW,24,72,72,50,10,7,19,78,false
-az,az_daal,Ro-Zangelo Daal,Holland,LW,24,72,72,52,10,7,19,78,false
-telstar,telstar_jr,Ronald Koeman Jr.,Holland,GK,24,10,11,13,72,7,19,78,false
-az,az_patati,Patati,Brazilian,RW,24,72,71,49,10,7,19,78,false
-az,az_sin,Matěj Šín,Czech,CAM,24,71,72,60,10,7,19,78,false
-twente,twente_propper,Robin Pröpper,Holland,CB,24,65,65,72,10,7,19,78,false
-feyenoord,feyenoord_nieuwkoop,Bart Nieuwkoop,Holland,RB,24,71,71,72,10,7,19,78,false
-nec,nec_mor,Emre Mor,Turkish,CAM,24,72,70,52,10,7,19,78,false
-twente,twe_lammers,Sam Lammers,Holland,ST,28,72,72,52,10,14,40,77,false
-ajax,ajax_edvardsen,Oliver Edvardsen,Norwegian,LW,24,72,72,64,10,7,19,78,false
-utrecht,utrecht_paredes,Kevin Paredes,United States,LM,24,72,72,64,10,7,19,78,false
-feyenoord,feyenoord_tengstedt,Casper Tengstedt,Danish,ST,24,72,70,52,10,7,19,78,false
-psv,exc_linthorst,Couhaib Driouech,Moroccan,LW,23,72,71,46,10,6,15,76,true
-psv,scf_sildillia,Kiliann Sildillia,French,RB,23,65,65,72,10,14,25,84,false
-groningen,groningen_blokzijl,Thijmen Blokzijl,Holland,CB,24,64,64,72,10,7,19,78,false
-feyenoord,feyenoord_deijl,Mats Deijl,Holland,RB,24,70,68,72,10,7,19,78,false
-feyenoord,feyenoord_ernst,Tjark Ernst,German,GK,24,10,11,13,72,7,19,78,false
-az,az_jensen,Isak Jensen,Danish,LW,24,71,72,52,10,7,19,78,false
-az,az_maikuma,Seiya Maikuma,Japanese,RB,24,72,71,72,10,7,19,78,false
-nec,nec_lebreton,Noé Lebreton,French,CAM,24,72,72,71,10,7,19,78,false
-ajax,ajax_rosa,Lucas Rosa,Brazilian,RB,24,68,68,72,10,7,19,78,false
-groningen,groningen_resink,Stije Resink,Holland,CDM,24,70,71,72,10,7,19,78,false
-ajax,ajax_mokio,Jorthy Mokio,Congo DR,CDM,24,66,68,71,10,6.1,17,77,false
-go_ahead,go_ahead_suray,Mathis Suray,Belgian,LM,24,71,70,58,10,6.1,17,77,false
-twente,ajx_pasveer,Remko Pasveer,Holland,GK,41,10,10,14,71,3,30,79,false
-pec_zwolle,pec_zwolle_viergever,Nick Viergever,Holland,CB,24,68,68,71,10,6.1,17,77,false
-fortuna,fortuna_branderhorst,Mattijs Branderhorst,Holland,GK,24,10,11,13,71,6.1,17,77,false
-go_ahead,toulouse_haug,Kjetil Haug,Norwegian,GK,27,10,11,13,71,7,18,75,false
-pec_zwolle,pec_zwolle_namli,Younes Namli,Danish,RM,24,71,71,56,10,6.1,17,77,false
-ajax,utr_warmerdam,Maarten Paes,Indonesia,GK,27,10,10,12,71,8,32,82,false
-ajax,ajax_wijndal,Owen Wijndal,Holland,LB,24,71,71,71,10,6.1,17,77,false
-az,az_sadiq,Ibrahim Sadiq,Ghanaian,RW,24,71,69,49,10,6.1,17,77,false
-pec_zwolle,pec_miedema,Jasper Schendelaar,Holland,GK,25,10,10,12,71,3,15,76,true
-twente,pec_kezbere,Thomas van den Belt,Holland,CM,24,70,71,69,10,6,16,74,true
-groningen,gro_de_heus,Etienne Vaessen,Surinamese,GK,30,10,10,12,71,3,18,74,false
-feyenoord,feyenoord_ivanusec,Luka Ivanušec,Croatian,CAM,24,71,71,63,10,6.1,17,77,false
-twente,twente_hilgers,Mees Hilgers,Indonesia,CB,24,64,62,71,10,6.1,17,77,false
-utrecht,utrecht_engwanda,Alonzo Engwanda,Belgian,CDM,24,66,66,71,10,6.1,17,77,false
-feyenoord,feyenoord_borges,Gonçalo Borges,Portuguese,RW,24,71,71,49,10,6.1,17,77,false
-ajax,ajax_gaaei,Anton Gaaei,Danish,RB,24,71,68,68,10,6.1,17,77,false
-utrecht,utrecht_eerdhuijzen,Mike Eerdhuijzen,Holland,CB,24,61,59,71,10,6.1,17,77,false
-excelsior,excelsior_gassel,Stijn van Gassel,Holland,GK,24,10,11,13,71,6.1,17,77,false
-utrecht,utrecht_alarcon,Alarcón,Spanish,RW,24,71,69,46,10,6.1,17,77,false
-ajax,ajax_janse,Dies Janse,Holland,CB,24,66,65,70,10,5.3,15,76,false
-sparta,sparta_young,Marvin Young,Holland,CB,24,65,65,70,10,5.3,15,76,false
-az,az_dijkstra,Elijah Dijkstra,Holland,RB,24,70,70,69,10,5.3,15,76,false
-twente,twente_nijstad,Ruud Nijstad,Holland,CB,24,66,65,70,10,5.3,15,76,false
-az,az_chavez,Mateo Chávez,Mexican,LB,24,68,69,70,10,5.3,15,76,false
-feyenoord,feyenoord_diarra,Gaoussou Diarra,Malian,LW,24,70,67,45,10,5.3,15,76,false
-telstar,telstar_hardeveld,Jeff Hardeveld,Holland,LB,24,70,70,69,10,5.3,15,76,false
-twente,twente_pjaca,Marko Pjaca,Croatian,LW,24,70,69,51,10,5.3,15,76,false
-sparta,sparta_bergen,Mitchell van Bergen,Holland,RM,24,70,67,47,10,5.3,15,76,false
-nec,nec_ogawa,Koki Ogawa,Japanese,ST,24,70,68,50,10,5.3,15,76,false
-utrecht,exc_ippel,Siebe Horemans,Belgian,CB,24,66,65,70,10,4,12,72,true
-heerenveen,heerenveen_zagaritis,Vasilios Zagaritis,Greek,LB,24,68,67,70,10,5.3,15,76,false
-excelsior,excelsior_widell,Casper Widell,Swedish,CB,24,61,58,70,10,5.3,15,76,false
-twente,twente_l,Mathias Kjølø,Norwegian,CDM,24,68,70,69,10,5.3,15,76,false
-go_ahead,go_ahead_edvardsen,Victor Edvardsen,Swedish,ST,24,70,70,48,10,5.3,15,76,false
-heerenveen,nec_smits,Dirk Proper,Holland,CDM,26,68,70,69,10,15,35,78,false
-az,az_wit,Mees de Wit,Holland,LB,24,70,69,68,10,5.3,15,76,false
-utrecht,utrecht_didden,Matisse Didden,Belgian,CB,24,64,63,70,10,5.3,15,76,false
-feyenoord,frankfurt_ferri,Nacho Ferri,Spanish,ST,21,70,69,50,10,10.5,19,84,false
-az,az_oduro,Rome-Jayden Owusu-Oduro,Holland,GK,24,10,11,13,70,5.3,15,76,false
-twente,twente_lemkin,Stav Lemkin,Israeli,CB,24,62,59,70,10,5.3,15,76,false
-heerenveen,heerenveen_linday,Marcus Linday,Swedish,CDM,24,67,67,69,10,4.6,13,75,false
-sparta,sparta_quintero,Teo Quintero,Venezuelan,CB,24,63,61,69,10,4.6,13,75,false
-ajax,ajax_bounida,Rayane Bounida,Moroccan,RW,24,68,69,48,10,4.6,13,75,false
-nec,nec_fonville,Deveron Fonville,Curaçaoan,CB,24,60,58,69,10,4.6,13,75,false
-go_ahead,go_ahead_nauber,Gerrit Nauber,German,CB,24,59,57,69,10,4.6,13,75,false
-telstar,telstar_peersman,Marvin Peersman,Belgian,CB,24,67,64,69,10,4.6,13,75,false
-sparta,gae_hendriks,Bas Kuipers,Holland,LB,29,67,67,69,10,3,12,69,false
-fortuna,fortuna_marquez,Iván Márquez,Spanish,CB,24,61,59,69,10,4.6,13,75,false
-nec,nec_mattheus,Thomas Ouwejan,Holland,LM,27,68,69,67,10,8,22,70,false
-nec,nec_monteiro,Jamiro Monteiro,Cape Verde Islands,CM,24,68,69,61,10,4.6,13,75,false
-nec,nec_sierhuis,Kaj Sierhuis,Holland,ST,24,69,67,49,10,4.6,13,75,false
-utrecht,utrecht_jensen,Victor Jensen,Danish,CM,24,69,68,61,10,4.6,13,75,false
-az,az_hornkamp,Jizz Hornkamp,Holland,ST,24,69,66,61,10,4.6,13,75,false
-psv,psv_nagalo,Adamo Nagalo,Burkinabe,CB,24,63,61,69,10,4.6,13,75,false
-excelsior,excelsior_meissen,Rick Meissen,Holland,CB,24,60,56,69,10,4.6,13,75,false
-go_ahead,go_ahead_james,Dean James,Indonesia,LB,24,69,69,69,10,4.6,13,75,false
-twente,ajx_baas,Kristian Hlynsson,Icelandic,CAM,22,69,68,55,10,3,22,76,false
-heerenveen,heerenveen_braude,Oliver Braude,Norwegian,RB,24,69,69,68,10,4.6,13,75,false
-sparta,sparta_mito,Shunsuke Mito,Japanese,LM,24,69,66,48,10,4.6,13,75,false
-go_ahead,go_ahead_arson,Stefán Ingi Sigurðarson,Icelandic,ST,24,68,66,47,10,4,12,74,false
-utrecht,utrecht_stepanov,Artem Stepanov,Ukrainian,ST,24,68,66,48,10,4,12,74,false
-ajax,ajax_bouwman,Aaron Bouwman,Holland,CB,24,63,62,68,10,4,12,74,false
-heerenveen,heerenveen_willemsen,Maas Willemsen,Holland,CB,24,61,59,68,10,4,12,74,false
-fortuna,fortuna_brittijn,Philip Brittijn,Holland,CDM,24,67,67,68,10,4,12,74,false
-az,az_zoet,Jeroen Zoet,Holland,GK,24,10,11,13,68,4,12,74,false
-nec,nec_proper,Bram Nuytinck,Holland,CB,35,60,58,68,10,2,12,72,false
-fortuna,fortuna_pinto,Ivo Pinto,Portuguese,RB,24,68,66,68,10,4,12,74,false
-sparta,sparta_indi,Bruno Martins Indi,Holland,CB,24,62,63,68,10,4,12,74,false
-utrecht,utrecht_brouwer,Michael Brouwer,Holland,GK,24,10,11,13,68,4,12,74,false
-twente,spa_goudmijn,Arno Verschueren,Belgian,CAM,26,67,67,68,10,5,18,72,false
-go_ahead,go_ahead_sampsted,Alfons Sampsted,Icelandic,RB,24,68,66,68,10,4,12,74,false
-nec,nec_crooij,Vito van Crooij,Holland,CAM,24,68,67,54,10,4,12,74,false
-pec_zwolle,pec_zwolle_graves,Simon Graves,Danish,CB,24,64,63,68,10,4,12,74,false
-go_ahead,go_ahead_linthorst,Evert Linthorst,Holland,CDM,24,65,66,68,10,4,12,74,false
-utrecht,utrecht_zagre,Arthur Zagré,Burkinabe,LM,24,68,68,67,10,4,12,74,false
-twente,twente_unuvar,Naci Ünüvar,Turkish,LM,24,68,67,49,10,4,12,74,false
-pec_zwolle,pec_zwolle_sommer,Tobias Sommer,Danish,CDM,24,63,64,68,10,4,12,74,false
-twente,twente_booth,Taylor Booth,United States,RW,24,68,67,58,10,4,12,74,false
-groningen,groningen_rente,Marco Rente,German,RB,24,62,58,68,10,4,12,74,false
-utrecht,utrecht_min,David Min,Holland,ST,24,68,65,47,10,4,12,74,false
-twente,twe_sadiki,Max Bruns,Holland,CB,24,64,64,68,10,8,25,74,false
-fortuna,fortuna_michut,Édouard Michut,French,CDM,24,67,68,65,10,4,12,74,false
-feyenoord,feyenoord_kasanwirjo,Neraysho Kasanwirjo,Holland,CB,24,62,59,68,10,4,12,74,false
-heerenveen,heerenveen_brouwers,Luuk Brouwers,Holland,CDM,24,68,68,66,10,4,12,74,false
-nec,nec_willumsson,Willum Þór Willumsson,Icelandic,CAM,24,68,68,60,10,4,12,74,false
-groningen,groningen_bergen,Thom van Bergen,Holland,ST,24,68,68,58,10,4,12,74,false
-groningen,groningen_schreuders,Jorg Schreuders,Holland,LM,24,68,67,66,10,4,12,74,false
-heerenveen,heerenveen_klaverboer,Bernt Klaverboer,Holland,GK,24,10,11,13,68,4,12,74,false
-groningen,groningen_land,Tygo Land,Holland,CM,24,67,68,58,10,4,12,74,false
-twente,twente_taha,Younes Taha,Moroccan,CAM,24,68,66,50,10,4,12,74,false
-excelsior,excelsior_yegoian,Irakli Yegoian,Georgian,CAM,24,68,67,57,10,4,12,74,false
-az,az_kwakman,Dave Kwakman,Holland,CM,24,67,68,66,10,4,12,74,false
-heerenveen,heerenveen_smans,Levi Smans,Holland,CAM,24,67,65,54,10,3.4,10,73,false
-feyenoord,feyenoord_sliti,Aymen Sliti,Holland,LW,24,67,65,43,10,3.4,10,73,false
-sparta,sparta_verschuren,Nick Verschuren,Holland,CB,24,59,56,67,10,3.4,10,73,false
-feyenoord,feyenoord_kraaijeveld,Thijs Kraaijeveld,Holland,CDM,24,62,63,67,10,3.4,10,73,false
-utrecht,utrecht_offerhaus,Guus Offerhaus,Holland,CB,24,59,57,67,10,3.4,10,73,false
-psv,psv_fernandez,Noah Fernandez,Belgian,CAM,24,67,67,60,10,3.4,10,73,false
-sparta,sparta_martes,Lushendry Martes,Holland,RB,24,64,63,67,10,3.4,10,73,false
-az,az_ichihara,Rion Ichihara,Japanese,CB,24,63,63,67,10,3.4,10,73,false
-excelsior,excelsior_timas,Ilano Silva Timas,Cape Verde Islands,LW,24,67,65,44,10,3.4,10,73,false
-sparta,utr_van_der_maarel,Jens Toornstra,Holland,CM,34,65,67,63,10,5,32,72,false
-fortuna,fortuna_peterson,Kristoffer Peterson,Swedish,LM,24,67,65,49,10,3.4,10,73,false
-heerenveen,hee_hammarby,Andries Noppert,Holland,GK,30,10,10,12,67,3,18,76,true
-pec_zwolle,pec_lam,Ryan Thomas,New Zealander,CM,30,66,67,63,10,2,10,70,false
-groningen,groningen_clement,Pelle Clement,Holland,CM,24,66,67,62,10,3.4,10,73,false
-heerenveen,heerenveen_vente,Dylan Vente,Surinamese,ST,24,67,64,44,10,3.4,10,73,false
-pec_zwolle,pec_zwolle_mbayo,Dylan Mbayo,Belgian,RM,24,67,64,46,10,3.4,10,73,false
-go_ahead,go_ahead_tengstedt,Søren Tengstedt,Danish,RM,24,67,65,44,10,3.4,10,73,false
-fortuna,fortuna_oukili,Yassin Oukili,Moroccan,CM,24,67,67,65,10,3.4,10,73,false
-heerenveen,heerenveen_rivera,Maxence Rivera,French,LW,24,67,66,49,10,3.4,10,73,false
-az,az_lahdo,Mayckel Lahdo,Swedish,RW,24,67,66,44,10,3.4,10,73,false
-excelsior,excelsior_biai,Celton Biai,Bissau-Guinean,GK,24,10,11,13,67,3.4,10,73,false
-utrecht,utrecht_berg,Davy van den Berg,Holland,CM,24,67,67,65,10,3.4,10,73,false
-fortuna,gae_koopman,Ole Romeny,Indonesia,CAM,25,67,65,48,10,2,10,67,false
-utrecht,utrecht_ohio,Noah Ohio,Holland,ST,24,67,65,44,10,3.4,10,73,false
-fortuna,fortuna_ottele,Syb van Ottele,Holland,CB,24,61,58,67,10,3.4,10,73,false
-groningen,groningen_willumsson,Brynjólfur Willumsson,Icelandic,ST,24,67,66,54,10,3.4,10,73,false
-groningen,groningen_jonge,Tika de Jonge,Holland,CM,24,66,67,65,10,3.4,10,73,false
-excelsior,excelsior_hartjes,Lennard Hartjes,Holland,CDM,24,66,67,67,10,3.4,10,73,false
-utrecht,utrecht_iqbal,Zidane Iqbal,Iraqi,CM,24,65,67,62,10,3.4,10,73,false
-excelsior,excelsior_regt,Gyan de Regt,Holland,LW,24,67,66,45,10,3.4,10,73,false
-telstar,telstar_rossen,Nils Rossen,Holland,CM,24,66,67,65,10,3.4,10,73,false
-az,az_dekker,Maxim Dekker,Holland,CB,24,59,59,67,10,3.4,10,73,false
-pec_zwolle,pec_zwolle_cissoko,Ibrahim Cissoko,Guinean,LM,24,67,65,48,10,3.4,10,73,false
-sparta,sparta_baas,Julian Baas,Holland,CDM,24,65,67,64,10,3.4,10,73,false
-twente,twente_ltaief,Sayfallah Ltaief,Tunisian,LM,24,67,64,50,10,3.4,10,73,false
-twente,twente_adelgaard,Aske Adelgaard,Danish,LB,24,64,64,67,10,3.4,10,73,false
-excelsior,excelsior_naujoks,Noah Naujoks,Holland,CM,24,67,66,67,10,3.4,10,73,false
-az,az_duijl,Billy van Duijl,Holland,CB,24,60,59,67,10,3.4,10,73,false
-utrecht,utrecht_blake,Adrian Blake,English,LW,24,67,64,41,10,3.4,10,73,false
-groningen,groningen_jeng,Malcolm Jeng,Swedish,CB,24,61,60,67,10,3.4,10,73,false
-psv,psv_babadi,Isaac Babadi,Holland,CAM,24,67,67,56,10,3.4,10,73,false
-nec,nec_bischoff,Clement Bischoff,Danish,LM,24,67,66,59,10,3.4,10,73,false
-pec_zwolle,pec_zwolle_graaff,Tom de Graaff,Holland,GK,24,10,11,13,67,3.4,10,73,false
-pec_zwolle,pec_zwolle_kostons,Koen Kostons,Holland,ST,24,67,67,48,10,3.4,10,73,false
-fortuna,fortuna_zand,Shiloh 't Zand,Holland,CAM,24,66,65,57,10,3,9,73,false
-az,az_oufkir,Ayoub Oufkir,Holland,RW,24,66,65,48,10,3,9,73,false
-excelsior,excelsior_plug,Jan Plug,Holland,CB,24,62,61,66,10,3,9,73,false
-groningen,groningen_werff,David van der Werff,Holland,RM,24,66,66,56,10,3,9,73,false
-heerenveen,heerenveen_petrov,Hristiyan Petrov,Bulgarian,CB,24,56,54,66,10,3,9,73,false
-telstar,telstar_alders,Gerald Alders,Holland,RB,24,65,64,66,10,3,9,73,false
-feyenoord,feyenoord_carrillo,Stéphano Carrillo,Mexican,ST,24,66,66,52,10,3,9,73,false
-feyenoord,feyenoord_elshout,Tobias van den Elshout,Holland,LW,24,64,66,55,10,3,9,73,false
-telstar,telstar_owusu,Tyrone Owusu,Holland,CM,24,64,65,66,10,3,9,73,false
-utrecht,utrecht_nwankwo,Neville Ogidi Nwankwo,Holland,CB,24,58,54,66,10,3,9,73,false
-go_ahead,go_ahead_flataker,Erik Flataker,Norwegian,ST,24,66,63,41,10,3,9,73,false
-sparta,sparta_santos,Ayoni Santos,Cape Verde Islands,CAM,24,66,66,63,10,3,9,73,false
-ajax,ajax_heerkens,Joeri Heerkens,Holland,GK,24,10,11,13,66,3,9,73,false
-sparta,sparta_cruijsen,Robin van Cruijsen,Holland,CAM,24,66,64,49,10,3,9,73,false
-ajax,ajax_ouazane,Abdellah Ouazane,Moroccan,CAM,24,66,64,52,10,3,9,73,false
-nec,nec_tahaui,Adam Tahaui,Moroccan,RM,24,66,65,55,10,3,9,73,false
-groningen,groningen_brandis,Nikolas Brandis,Slovak,LB,24,64,63,66,10,3,9,73,false
-fortuna,fortuna_koopmans,Luuk Koopmans,Holland,GK,24,10,11,13,66,3,9,73,false
-sparta,sparta_bednarek,Filip Bednarek,Polish,GK,24,10,11,13,66,3,9,73,false
-groningen,groningen_zawada,Oskar Zawada,Polish,ST,24,66,64,53,10,3,9,73,false
-pec_zwolle,pec_zwolle_velanas,Odysseus Velanas,Holland,LM,24,66,65,54,10,3,9,73,false
-pec_zwolle,pec_zwolle_rensen,Elias Sørensen,Danish,LM,24,66,63,46,10,3,9,73,false
-go_ahead,go_ahead_margaret,Richonell Margaret,Surinamese,RM,24,66,64,47,10,3,9,73,false
-utrecht,utrecht_vesterlund,Niklas Vesterlund,Danish,RM,24,64,64,66,10,3,9,73,false
-heerenveen,heerenveen_kersten,Sam Kersten,Holland,CB,24,61,56,66,10,3,9,73,false
-heerenveen,heerenveen_oyen,Luca Oyen,Belgian,LW,24,66,65,49,10,3,9,73,false
-sparta,sparta_terho,Casper Terho,Finnish,RM,24,66,64,50,10,3,9,73,false
-fortuna,fortuna_dahlhaus,Jasper Dahlhaus,Holland,LB,24,66,66,64,10,3,9,73,false
-ajax,ajax_dongen,Amourricho van Axel Dongen,Holland,LW,24,66,65,44,10,3,9,73,false
-nec,nec_pereira,Brayann Pereira,French,CB,24,63,62,66,10,3,9,73,false
-utrecht,utrecht_jonathans,Miliano Jonathans,Indonesia,RW,24,66,65,42,10,3,9,73,false
-go_ahead,go_ahead_twigt,Calvin Twigt,Holland,CDM,24,65,66,64,10,3,9,73,false
-go_ahead,go_ahead_dirksen,Julius Dirksen,Holland,CB,24,58,58,66,10,3,9,73,false
-telstar,telstar_brouwer,Patrick Brouwer,Holland,CAM,24,66,64,59,10,3,9,73,false
-excelsior,excelsior_tielemans,Mathijs Tielemans,Holland,CM,24,66,66,62,10,3,9,73,false
-excelsior,excelsior_bos,Kasey Bos,Australian,LB,24,60,60,65,10,2.6,8,72,false
-sparta,sparta_y,Alwande Roaldsøy,Norwegian,CDM,24,63,63,65,10,2.6,8,72,false
-ajax,ajax_reverson,Paul Reverson,Ghanaian,GK,24,10,11,13,65,2.6,8,72,false
-az,az_duijn,Sem van Duijn,Holland,ST,24,65,65,46,10,2.6,8,72,false
-heerenveen,heerenveen_machine,Lanroy Machine,French,ST,24,65,63,43,10,2.6,8,72,false
-telstar,telstar_hetli,Soufiane Hetli,Holland,ST,24,65,64,41,10,2.6,8,72,false
-sparta,sparta_zonneveld,Milan Zonneveld,Holland,ST,24,65,63,51,10,2.6,8,72,false
-psv,psv_berg,Joël van den Berg,Holland,CM,24,65,65,64,10,2.6,8,72,false
-feyenoord,feyenoord_persie,Shaqueel van Persie,Holland,ST,24,65,63,40,10,2.6,8,72,false
-az,az_grand,Sam de Grand,Holland,LB,24,65,65,65,10,2.6,8,72,false
-excelsior,excelsior_vianen,Daniel van Vianen,Holland,CDM,24,62,64,65,10,2.6,8,72,false
-excelsior,excelsior_finey,Yacqub Finey,Swedish,CAM,24,65,63,51,10,2.6,8,72,false
-az,az_verhulst,Hobie Verhulst,Holland,GK,24,10,11,13,65,2.6,8,72,false
-go_ahead,go_ahead_marsman,Nick Marsman,Holland,GK,24,10,11,13,65,2.6,8,72,false
-feyenoord,feyenoord_bossin,Liam Bossin,Irish,GK,24,10,11,13,65,2.6,8,72,false
-pec_zwolle,pec_zwolle_floranus,Sherel Floranus,Curaçaoan,LB,24,65,62,65,10,2.6,8,72,false
-sparta,sparta_reith,Boyd Reith,Holland,RB,24,62,62,65,10,2.6,8,72,false
-fortuna,fortuna_descotte,Anthony Descotte,Belgian,ST,24,65,62,42,10,2.6,8,72,false
-pec_zwolle,pec_zwolle_oosting,Thijs Oosting,Holland,CM,24,65,65,61,10,2.6,8,72,false
-fortuna,fortuna_hubner,Justin Hubner,Indonesia,CB,24,61,59,65,10,2.6,8,72,false
-pec_zwolle,pec_zwolle_velthuis,Tijs Velthuis,Holland,CB,24,55,52,65,10,2.6,8,72,false
-heerenveen,heerenveen_hopland,Nikolai Hopland,Norwegian,CB,24,59,57,65,10,2.6,8,72,false
-fortuna,fortuna_zeefuik,Lequincio Zeefuik,Holland,ST,24,65,63,45,10,2.6,8,72,false
-telstar,telstar_mendes,Rui Mendes,Portuguese,RM,24,65,61,44,10,2.6,8,72,false
-pec_zwolle,pec_zwolle_aertssen,Olivier Aertssen,Holland,RB,24,61,60,65,10,2.6,8,72,false
-az,az_schouten,Lewis Schouten,Holland,CB,24,63,62,65,10,2.6,8,72,false
-telstar,telstar_tejan,Kay Tejan,Holland,ST,24,65,65,49,10,2.6,8,72,false
-sparta,sparta_orisson,Nökkvi Þórisson,Icelandic,ST,24,65,63,46,10,2.6,8,72,false
-twente,twente_besselink,Gijs Besselink,Holland,CDM,24,61,62,65,10,2.6,8,72,false
-twente,twente_weidmann,Daouda Weidmann,French,CM,24,64,65,60,10,2.6,8,72,false
-ajax,ajax_gooijer,Tristan Gooijer,Holland,RB,24,62,60,65,10,2.6,8,72,false
-go_ahead,go_ahead_galvez,Tomas Galvez,Finnish,LB,24,62,62,65,10,2.6,8,72,false
-groningen,tel_van_hooijdonk,Wouter Prins,Holland,LB,26,59,59,64,10,2,8,66,false
-ajax,ajax_konadu,Don-Angelo Konadu,Holland,ST,24,64,62,44,10,2.2,7,71,false
-groningen,groningen_mercera,Tyrique Mercera,Curaçaoan,RB,24,63,62,64,10,2.2,7,71,false
-az,az_kovacs,Bendegúz Kovács,Hungarian,ST,24,64,62,48,10,2.2,7,71,false
-fortuna,fortuna_groot,Nick de Groot,Holland,LB,24,62,61,64,10,2.2,7,71,false
-fortuna,fortuna_simons,Sven Simons,Holland,CM,24,63,64,61,10,2.2,7,71,false
-psv,psv_bouhamdi,Amir Bouhamdi,Moroccan,LW,24,64,64,45,10,2.2,7,71,false
-excelsior,excelsior_janssen,Simon Janssen,Holland,LB,24,64,64,63,10,2.2,7,71,false
-go_ahead,go_ahead_baeten,Thibo Baeten,Belgian,ST,24,64,61,50,10,2.2,7,71,false
-sparta,sparta_ideho,Joel Ideho,Holland,LM,24,64,63,50,10,2.2,7,71,false
-pec_zwolle,pec_zwolle_haar,Damian van der Haar,Holland,LB,24,59,58,64,10,2.2,7,71,false
-nec,nec_storm,Tobias Storm,Danish,CB,24,61,59,64,10,2.2,7,71,false
-pec_zwolle,pec_zwolle_fichtinger,Nick Fichtinger,Holland,CDM,24,60,62,64,10,2.2,7,71,false
-twente,twente_kuster,Harrie Kuster,Holland,CAM,24,63,62,58,10,1.9,6,70,false
-groningen,groningen_eggens,Nils Eggens,Holland,ST,24,63,60,44,10,1.9,6,70,false
-ajax,ajax_faberski,Jan Faberski,Polish,RW,24,63,61,40,10,1.9,6,70,false
-az,az_bouziane,Wassim Bouziane,Holland,LW,24,63,63,46,10,1.9,6,70,false
-telstar,telstar_demircan,Emirhan Demircan,Turkish,LM,24,63,61,47,10,1.9,6,70,false
-go_ahead,go_ahead_rahmouni,Yassir Rahmouni,Holland,CDM,24,61,63,61,10,1.9,6,70,false
-telstar,telstar_nwankwo,Nigel Ogidi Nwankwo,Holland,LB,24,63,61,63,10,1.9,6,70,false
-excelsior,excelsior_henderikx,Stan Henderikx,Holland,CB,24,55,53,63,10,1.9,6,70,false
-az,az_bergraaf,Jerolldino Bergraaf,Holland,ST,24,63,60,46,10,1.9,6,70,false
-ajax,ajax_nash,Pharell Nash,Holland,LW,24,63,61,41,10,1.9,6,70,false
-psv,psv_merien,Fabian Merién,Holland,CB,24,59,58,63,10,1.9,6,70,false
-twente,twente_maach,Issam El Maach,Moroccan,GK,24,10,11,13,63,1.9,6,70,false
-go_ahead,go_ahead_sivertsen,Oskar Sivertsen,Norwegian,LM,24,63,60,42,10,1.9,6,70,false
-telstar,telstar_reiziger,Daan Reiziger,Holland,GK,24,10,11,13,63,1.9,6,70,false
-fortuna,fortuna_wylin,Siebe Wylin,Belgian,RB,24,61,61,63,10,1.9,6,70,false
-nec,bremen_hansenaaren,Isak Hansen-Aarøen,Norwegian,CAM,20,63,63,54,10,4.3,9,79,false
-groningen,groningen_hernes,Travis Hernes,Norwegian,CM,24,63,62,59,10,1.9,6,70,false
-go_ahead,go_ahead_zwam,Giovanni van Zwam,Holland,CB,24,55,52,63,10,1.9,6,70,false
-psv,psv_smolenaars,Tijn Smolenaars,Holland,GK,24,10,11,13,62,1.7,6,69,false
-az,az_oerip,Julian Oerip,Holland,CAM,24,61,62,53,10,1.7,6,69,false
-pec_zwolle,pec_zwolle_reiziger,Gabriël Reiziger,Holland,CAM,24,62,60,50,10,1.7,6,69,false
-twente,twente_peixoto,Guilherme Peixoto,Portuguese,RB,24,59,59,62,10,1.7,6,69,false
-excelsior,excelsior_martens,Nolan Martens,Belgian,RB,24,56,56,62,10,1.7,6,69,false
-nec,nec_moslih,Yassin Moslih,Holland,CB,24,54,52,62,10,1.7,6,69,false
-telstar,telstar_seedorf,Jelani Seedorf,Holland,ST,24,62,60,42,10,1.7,6,69,false
-ajax,ajax_johnson,Jinairo Johnson,Holland,CB,24,61,58,62,10,1.7,6,69,false
-utrecht,utrecht_agougil,Oualid Agougil,Moroccan,CM,24,61,62,61,10,1.7,6,69,false
-utrecht,utrecht_adiele,Emeka Adiele,English,LM,24,62,61,61,10,1.7,6,69,false
-utrecht,utrecht_kloosterboer,Per Kloosterboer,Holland,CB,24,55,54,62,10,1.7,6,69,false
-telstar,telstar_soualhia,Abdelnour Soualhia,French,CB,24,53,47,62,10,1.7,6,69,false
-telstar,telstar_rust,Fabiano Rust,Holland,CAM,24,62,61,52,10,1.7,6,69,false
-psv,psv_bassey,Essiën Bassey,Holland,RB,24,62,59,62,10,1.7,6,69,false
-utrecht,utrecht_gadellaa,Kevin Gadellaa,Holland,GK,24,10,11,13,62,1.7,6,69,false
-telstar,telstar_aning,Prince Aning,Holland,LB,24,62,62,61,10,1.7,6,69,false
-groningen,groningen_stubljar,Lovro Štubljar,Slovenian,GK,24,10,11,13,62,1.7,6,69,false
-twente,twente_kurowski,Krzysztof Kurowski,Polish,LB,24,62,62,61,10,1.7,6,69,false
-twente,twente_hess,Lucas Vennegoor of Hess.,Holland,ST,24,61,59,44,10,1.5,5,68,false
-groningen,groningen_bouland,Sven Bouland,Holland,CB,24,57,55,61,10,1.5,5,68,false
-ajax,ajax_pugno,Diego Pugno,Italian,ST,24,61,59,39,10,1.5,5,68,false
-excelsior,excelsior_sulzbacher,Valentin Sulzbacher,Austrian,CM,24,58,58,61,10,1.5,5,68,false
-go_ahead,go_ahead_waayers,Eus Waayers,Holland,RB,24,58,57,61,10,1.5,5,68,false
-sparta,sparta_vianello,Giannino Vianello,Holland,LB,24,59,58,61,10,1.5,5,68,false
-excelsior,excelsior_wetering,Marlon van de Wetering,Jamaican,RB,24,56,56,61,10,1.5,5,68,false
-excelsior,excelsior_turay,Osman Turay,German,LB,24,61,59,58,10,1.5,5,68,false
-psv,psv_cornecion,Shuryjano Cornecion,Curaçaoan,CAM,24,61,60,52,10,1.5,5,68,false
-groningen,groningen_emeran,Noam Emeran,Rwanda,LM,24,61,59,44,10,1.5,5,68,false
-heerenveen,heerenveen_egbring,Mats Egbring,Holland,RB,24,59,59,61,10,1.5,5,68,false
-az,leverkusen_natali,Andrea Natali,Italian,CB,17,55,55,60,10,8.2,13,81,false
-nec,nec_sbai,Yousri Sbai,Holland,CB,24,57,56,60,10,1.3,5,67,false
-pec_zwolle,pec_zwolle_rahajaan,Givaro Rahajaän,Holland,CAM,24,60,60,49,10,1.3,5,67,false
-utrecht,utrecht_owen,Emmanuel Chigozie Owen,German,RM,24,60,58,48,10,1.3,5,67,false
-utrecht,utrecht_schuldes,Jamie Schuldes,German,CB,24,54,53,60,10,1.3,5,67,false
-excelsior,excelsior_garden,David Garden,Holland,ST,24,60,57,40,10,1.3,5,67,false
-go_ahead,go_ahead_weijenberg,Robbin Weijenberg,Holland,CDM,24,59,60,56,10,1.3,5,67,false
-heerenveen,heerenveen_bladi,Darling Bladi,French,LB,24,57,58,60,10,1.3,5,67,false
-telstar,telstar_ahmed,Isaiah Ahmed,Curaçaoan,CDM,24,55,56,59,10,1.1,4,66,false
-excelsior,excelsior_groen,Nesto Groen,Holland,ST,24,59,56,45,10,1.1,4,66,false
-nec,nec_laat,Sam de Laat,Holland,CM,24,58,59,54,10,1.1,4,66,false
-telstar,telstar_oudsten,Rojendro Oudsten,Surinamese,CDM,24,58,59,57,10,1.1,4,66,false
-utrecht,utrecht_eppink,Mees Eppink,Holland,GK,24,10,11,13,59,1.1,4,66,false
-utrecht,utrecht_pohl,Ferdinand Pohl,German,CB,24,52,51,59,10,1.1,4,66,false
-sparta,sparta_meftahi,Younes Jaber El Meftahi,Holland,LM,24,59,58,45,10,1.1,4,66,false
-nec,nec_kers,Kevin Kers,Holland,LM,24,59,57,46,10,1.1,4,66,false
-pec_zwolle,pec_zwolle_wal,Gilles van der Wal,Holland,CAM,24,59,59,49,10,1.1,4,66,false
-groningen,groningen_janse,Rijk Janse,Holland,GK,24,10,11,13,59,1.1,4,66,false
-sparta,sparta_kuiper,Pascal Kuiper,Holland,GK,24,10,11,13,59,1.1,4,66,false
-groningen,groningen_laan,Elvis van der Laan,Swedish,CB,24,51,50,58,10,1,4,66,false
-excelsior,excelsior_holla,Tijmen Holla,Holland,GK,24,10,11,13,58,1,4,66,false
-fortuna,fortuna_gbemou,Moussa Gbemou,Belgian,CAM,24,58,57,47,10,1,4,66,false
-excelsior,excelsior_cairo,Guilliano Cairo,Holland,CB,24,50,48,58,10,1,4,66,false
-nec,nec_entius,Freek Entius,Holland,GK,24,10,11,13,58,1,4,66,false
-nec,nec_wiel,Merijn van de Wiel,Holland,CB,24,55,55,58,10,1,4,66,false
-telstar,telstar_shenkman,Noach Shenkman,Holland,CDM,24,54,54,58,10,1,4,66,false
-heerenveen,heerenveen_courtens,Nolhan Courtens,Congo DR,CAM,24,58,58,47,10,1,4,66,false
-go_ahead,go_ahead_boakye,Ofosu Boakye,Ghanaian,ST,24,57,55,43,10,0.8,3,65,false
-twente,twente_gerritsen,Yannick Gerritsen,Holland,GK,24,10,11,13,57,0.8,3,65,false
-heerenveen,heerenveen_schaken,Kirayno Schaken,Holland,RW,24,57,56,38,10,0.8,3,65,false
-groningen,groningen_metu,Ryan Metu,Holland,LM,24,57,55,39,10,0.8,3,65,false
-heerenveen,heerenveen_bonevacia,Clayton Bonevacia,Holland,LW,24,57,56,38,10,0.8,3,65,false
-sparta,sparta_suur,Rik Suur,Holland,GK,24,10,11,13,57,0.8,3,65,false
-go_ahead,go_ahead_verdoni,Nando Verdoni,Holland,GK,24,10,11,13,57,0.8,3,65,false
-go_ahead,go_ahead_saathof,Pim Saathof,Holland,CB,24,55,56,57,10,0.8,3,65,false
-pec_zwolle,pec_zwolle_verduin,Duke Verduin,Holland,GK,24,10,11,13,57,0.8,3,65,false
-sparta,sparta_ligt,Max de Ligt,Holland,CB,24,48,46,57,10,0.8,3,65,false
-telstar,telstar_mulder,Finn Mulder,Holland,GK,24,10,11,13,55,0.6,2,63,false
-nec,nec_geneste,Joep Geneste,Holland,GK,24,10,11,13,55,0.6,2,63,false
+team_id,player_id,name,nationality,position,age,attack,midfield,defence,goalkeeping,pace,shooting,passing,dribbling,defending,physical,value_millions,wage_thousands,potential,is_wonderkid
+ajax,bar_ter_stegen,Marc-André ter Stegen,German,GK,33,14,16,20,82,81,82,85,82,44,81,58,195,88,false
+ajax,bvb_brandt,Julian Brandt,German,CAM,29,82,81,61,10,69,77,83,84,45,69,28,72,84,false
+psv,hee_veerman,Joey Veerman,Holland,CM,26,81,82,75,10,48,74,84,77,66,71,15,38,82,false
+psv,psv_perisic,Ivan Perišić,Croatian,LW,24,81,81,74,10,74,80,81,79,68,77,25,56,86,false
+psv,psv_junior,Mauro Júnior,Brazilian,LB,24,78,81,80,10,83,66,76,82,76,60,25,56,86,false
+psv,psv_schouten,Jerdy Schouten,Holland,CB,24,75,77,80,10,57,59,74,78,81,74,21.7,49,85,false
+nec,nec_tadic,Dušan Tadić,Serbian,CAM,24,79,79,59,10,56,75,84,80,43,74,18.9,44,84,false
+psv,psv_dest,Sergiño Dest,United States,RB,25,79,79,78,10,87,60,75,83,72,75,20,55,80,false
+psv,psv_til,Guus Til,Holland,CAM,27,78,77,72,10,79,77,74,74,65,76,20,55,78,false
+az,az_parrott,Troy Parrott,Irish,ST,24,78,76,60,10,74,78,66,77,45,74,16.4,39,83,false
+feyenoord,feyenoord_watanabe,Tsuyoshi Watanabe,Japanese,CB,24,67,65,78,10,74,39,53,61,79,78,16.4,39,83,false
+psv,psv_pepi,Ricardo Pepi,United States,ST,22,78,75,62,10,71,80,61,73,46,73,28,45,86,true
+feyenoord,fey_ueda,Ayase Ueda,Japanese,ST,26,78,75,53,10,74,78,62,73,30,73,18,42,82,false
+ajax,ajax_godts,Mika Godts,Belgian,LW,24,78,77,57,10,83,72,71,84,42,65,16.4,39,83,false
+ajax,ajax_baas,Youri Baas,Holland,CB,24,72,74,78,10,73,41,72,74,79,73,16.4,39,83,false
+ajax,ajax_leonardo,Marcos Leonardo,Brazilian,ST,24,78,74,50,10,77,77,60,73,27,66,16.4,39,83,false
+feyenoord,feyenoord_moussa,Anis Hadj Moussa,Algerian,RW,24,77,75,49,10,79,74,69,84,31,61,14.2,34,82,false
+az,az_clasie,Jordy Clasie,Holland,CDM,33,74,77,74,10,43,63,79,75,70,67,6,35,78,false
+psv,psv_plea,Alassane Pléa,French,ST,24,77,77,54,10,73,78,80,79,38,69,14.2,34,82,false
+twente,twente_weghorst,Wout Weghorst,Holland,ST,24,77,76,73,10,54,78,61,62,57,85,14.2,34,82,false
+ajax,ajax_dolberg,Kasper Dolberg,Danish,ST,24,77,74,51,10,68,78,66,75,30,67,14.2,34,82,false
+ajax,mon_caio_henrique,Caio Henrique,Brazilian,LB,28,75,77,75,10,77,58,77,77,72,66,18,42,78,false
+psv,psv_man,Dennis Man,Romanian,RW,24,77,76,59,10,88,74,71,78,45,72,14.2,34,82,false
+psv,psv_kovar,Matěj Kovář,Czech,GK,24,10,11,13,77,76,76,78,77,30,77,14.2,34,82,false
+feyenoord,twe_hilal,Sem Steijn,Holland,CAM,23,77,75,58,10,67,82,74,76,43,70,14,35,82,true
+psv,spa_abels,Sven Mijnans,Holland,CAM,26,76,77,71,10,52,71,77,77,65,73,8,20,80,false
+feyenoord,feyenoord_valente,Luciano Valente,Holland,CM,24,77,77,70,10,71,67,78,79,62,75,14.2,34,82,false
+az,az_goes,Wouter Goes,Holland,CB,24,68,67,77,10,60,31,58,67,77,81,14.2,34,82,false
+ajax,ajax_gloukh,Oscar Gloukh,Israeli,CAM,24,77,75,51,10,72,74,73,82,34,49,14.2,34,82,false
+nec,nec_sano,Kodai Sano,Japanese,CM,24,76,77,74,10,67,62,75,81,70,68,14.2,34,82,false
+psv,psv_yarek,Yarek,Spanish,CB,24,71,70,77,10,70,52,65,68,77,76,14.2,34,82,false
+twente,twe_unnerstall,Lars Unnerstall,German,GK,33,10,10,12,76,76,75,65,79,32,76,5,32,78,false
+ajax,ajx_berghuis,Steven Berghuis,Holland,RW,33,75,76,56,10,62,75,84,76,42,66,12,65,79,false
+ajax,ajax_klaassen,Davy Klaassen,Holland,CM,24,73,74,76,10,41,77,72,70,74,75,12.3,31,81,false
+ajax,ajax_itakura,Ko Itakura,Japanese,CB,24,72,71,76,10,65,56,62,73,76,75,12.3,31,81,false
+az,fey_stengs,Calvin Stengs,Holland,CAM,26,76,76,63,10,64,68,77,77,50,67,18,48,83,false
+nec,nec_schuurs,Perr Schuurs,Holland,CB,24,70,71,76,10,68,64,71,66,78,68,12.3,31,81,false
+ajax,ajx_sutalo,Josip Šutalo,Croatian,CB,24,70,70,76,10,72,32,63,71,75,78,18,42,84,true
+feyenoord,feyenoord_bos,Jordan Bos,Australian,LB,24,76,74,75,10,90,65,68,75,69,80,12.3,31,81,false
+twente,twe_bijen,Bart van Rooij,Holland,RB,27,76,74,76,10,87,51,68,71,69,77,8,25,77,false
+nec,nec_nejasmic,Darko Nejašmić,Croatian,CDM,24,68,71,76,10,60,49,65,69,71,78,12.3,31,81,false
+feyenoord,feyenoord_targhalline,Oussama Targhalline,Moroccan,CDM,24,74,75,76,10,64,64,72,76,74,68,12.3,31,81,false
+psv,psv_wanner,Paul Wanner,Austrian,CAM,24,76,76,67,10,72,66,74,77,57,66,12.3,31,81,false
+psv,psv_flamingo,Ryan Flamingo,Holland,CB,21,72,71,76,10,61,63,66,67,75,78,18,38,88,true
+feyenoord,feyenoord_read,Givairo Read,Holland,RB,24,75,75,76,10,79,56,70,73,71,75,12.3,31,81,false
+az,az_smit2,Kees Smit,Holland,CM,24,73,75,70,10,59,63,74,79,65,69,10.7,27,80,false
+ajax,ajx_blind,Daley Blind,Holland,CB,35,70,75,72,10,34,62,82,75,77,68,8,45,75,false
+nec,nec_chery,Tjaronn Chery,Surinamese,CAM,24,75,73,50,10,62,79,75,75,29,71,10.7,27,80,false
+psv,spa_hilbers,Nick Olij,Holland,GK,30,10,10,12,75,78,74,60,78,50,73,5,22,76,false
+feyenoord,feyenoord_ahmedhodzic,Anel Ahmedhodžić,Bosnian,CB,24,67,65,75,10,69,41,59,60,75,80,10.7,27,80,false
+utrecht,utrecht_barkas,Vasilios Barkas,Greek,GK,24,10,11,13,75,75,73,71,78,42,73,10.7,27,80,false
+feyenoord,nice_vanhoutte,Charles Vanhoutte,Belgian,CDM,26,72,74,75,10,52,65,73,71,72,78,10,23,78,false
+ajax,ajax_arokodare,Tolu Arokodare,Nigerian,ST,24,75,72,55,10,76,74,56,65,31,82,10.7,27,80,false
+utrecht,utrecht_cathline,Yoann Cathline,French,LW,24,75,74,58,10,83,70,67,78,45,66,10.7,27,80,false
+feyenoord,feyenoord_marmol,Mika Mármol,Spanish,CB,24,72,71,75,10,85,55,66,73,74,79,10.7,27,80,false
+nec,nec_ouaissa,Sami Ouaissa,Holland,RM,24,74,71,56,10,83,66,66,77,40,68,9.3,24,79,false
+nec,nec_linssen,Bryan Linssen,Holland,ST,24,74,74,60,10,60,74,71,73,46,69,9.3,24,79,false
+feyenoord,feyenoord_juste,Jeremiah St. Juste,Holland,CB,24,70,69,74,10,89,57,65,71,74,74,9.3,24,79,false
+psv,psv_drommel,Joël Drommel,Holland,GK,28,10,10,12,74,74,72,75,76,51,74,8,30,78,false
+utrecht,utrecht_wit,Dani de Wit,Holland,CM,24,72,73,74,10,48,75,69,70,71,80,9.3,24,79,false
+go_ahead,go_ahead_meulensteen,Melle Meulensteen,Holland,CDM,24,71,71,74,10,65,67,68,71,72,76,9.3,24,79,false
+feyenoord,feyenoord_moder,Jakub Moder,Polish,CM,24,73,74,72,10,55,70,74,72,67,77,9.3,24,79,false
+psv,psv_obispo,Armando Obispo,Curaçaoan,CB,24,68,67,74,10,65,43,60,66,73,73,9.3,24,79,false
+fortuna,fortuna_ihattaren,Mohamed Ihattaren,Moroccan,CAM,24,74,74,56,10,64,71,75,76,41,70,9.3,24,79,false
+twente,twente_zerrouki,Ramiz Zerrouki,Algerian,CDM,24,73,74,74,10,56,66,71,73,68,79,9.3,24,79,false
+nec,nec_crettaz,Gonzalo Crettaz,Argentine,GK,24,10,11,13,74,72,72,73,76,57,73,9.3,24,79,false
+az,az_koopmeiners,Peer Koopmeiners,Holland,CDM,24,68,71,74,10,60,54,73,65,72,75,9.3,24,79,false
+ajax,ajax_kaplan,Ahmetcan Kaplan,Turkish,CB,24,66,65,74,10,62,30,58,59,74,78,9.3,24,79,false
+az,az_meerdink,Mexx Meerdink,Holland,ST,24,74,73,54,10,69,72,58,73,32,78,9.3,24,79,false
+psv,psv_bajraktarevic,Esmir Bajraktarević,Bosnian,RW,24,74,74,57,10,78,66,69,79,44,61,9.3,24,79,false
+psv,psv_bommel,Ruben van Bommel,Holland,LW,24,74,72,46,10,86,70,65,76,25,68,9.3,24,79,false
+feyenoord,feyenoord_zechiel,Gjivai Zechiël,Holland,CM,24,74,74,73,10,75,67,68,75,69,71,9.3,24,79,false
+ajax,ajax_carrizo,Maher Carrizo,Argentine,RW,24,74,74,56,10,86,69,66,78,42,71,9.3,24,79,false
+utrecht,utrecht_overeem,Joris van Overeem,Holland,CDM,24,71,73,72,10,64,58,70,75,69,64,8.1,21,79,false
+go_ahead,nec_bokila,Joris Kramer,Holland,CB,28,65,63,73,10,59,36,57,56,74,76,5,18,73,false
+nec,nec_sandler,Philippe Sandler,Holland,CB,24,70,71,73,10,68,44,70,69,72,77,8.1,21,79,false
+feyenoord,fey_lotomba,Jordan Lotomba,Swiss,RB,27,69,70,73,10,71,48,65,71,72,69,10,35,74,false
+az,az_busser,Jari De Busser,Belgian,GK,24,10,11,13,73,75,70,65,76,24,71,8.1,21,79,false
+feyenoord,feyenoord_smal,Gijs Smal,Holland,LB,24,72,73,71,10,68,61,75,70,69,70,8.1,21,79,false
+heerenveen,heerenveen_trenskow,Jacob Trenskow,Danish,RW,24,73,71,57,10,75,70,69,75,48,51,8.1,21,79,false
+twente,twe_steijn,Daan Rots,Holland,RW,25,73,72,54,10,78,69,69,75,40,64,10,28,76,false
+feyenoord,feyenoord_beelen,Thomas Beelen,Holland,CB,24,69,68,73,10,77,43,63,68,72,78,8.1,21,79,false
+az,az_penetra,Alexandre Penetra,Portuguese,CB,24,65,64,73,10,66,36,59,59,74,76,8.1,21,79,false
+heerenveen,heerenveen_meerveld,Ringo Meerveld,Holland,CAM,24,73,72,61,10,80,67,69,77,51,64,8.1,21,79,false
+ajax,ajax_regeer,Youri Regeer,Holland,CDM,24,71,72,73,10,69,57,71,72,71,69,8.1,21,79,false
+az,az_kasius,Denso Kasius,Holland,RB,24,73,72,72,10,90,58,68,71,65,73,8.1,21,79,false
+twente,twente_ter,Sondre Ørjasæter,Norwegian,LW,24,72,72,50,10,79,62,66,77,31,62,7,19,78,false
+az,az_daal,Ro-Zangelo Daal,Holland,LW,24,72,72,52,10,78,62,66,77,36,57,7,19,78,false
+telstar,telstar_jr,Ronald Koeman Jr.,Holland,GK,24,10,11,13,72,70,71,80,72,29,70,7,19,78,false
+az,az_patati,Patati,Brazilian,RW,24,72,71,49,10,87,68,64,73,31,64,7,19,78,false
+az,az_sin,Matěj Šín,Czech,CAM,24,71,72,60,10,61,64,71,75,50,64,7,19,78,false
+twente,twente_propper,Robin Pröpper,Holland,CB,24,65,65,72,10,47,51,60,55,74,74,7,19,78,false
+feyenoord,feyenoord_nieuwkoop,Bart Nieuwkoop,Holland,RB,24,71,71,72,10,70,62,71,70,70,73,7,19,78,false
+nec,nec_mor,Emre Mor,Turkish,CAM,24,72,70,52,10,85,65,65,82,38,56,7,19,78,false
+twente,twe_lammers,Sam Lammers,Holland,ST,28,72,72,52,10,63,70,67,76,36,68,14,40,77,false
+ajax,ajax_edvardsen,Oliver Edvardsen,Norwegian,LW,24,72,72,64,10,80,67,64,74,56,72,7,19,78,false
+utrecht,utrecht_paredes,Kevin Paredes,United States,LM,24,72,72,64,10,78,61,65,76,58,47,7,19,78,false
+feyenoord,feyenoord_tengstedt,Casper Tengstedt,Danish,ST,24,72,70,52,10,72,72,63,69,36,61,7,19,78,false
+psv,exc_linthorst,Couhaib Driouech,Moroccan,LW,23,72,71,46,10,92,65,61,75,26,63,6,15,76,true
+psv,scf_sildillia,Kiliann Sildillia,French,RB,23,65,65,72,10,64,30,61,67,73,73,14,25,84,false
+groningen,groningen_blokzijl,Thijmen Blokzijl,Holland,CB,24,64,64,72,10,61,32,57,59,72,73,7,19,78,false
+feyenoord,feyenoord_deijl,Mats Deijl,Holland,RB,24,70,68,72,10,68,58,62,66,70,76,7,19,78,false
+feyenoord,feyenoord_ernst,Tjark Ernst,German,GK,24,10,11,13,72,77,73,62,76,31,69,7,19,78,false
+az,az_jensen,Isak Jensen,Danish,LW,24,71,72,52,10,77,67,67,75,35,75,7,19,78,false
+az,az_maikuma,Seiya Maikuma,Japanese,RB,24,72,71,72,10,72,61,67,71,68,72,7,19,78,false
+nec,nec_lebreton,Noé Lebreton,French,CAM,24,72,72,71,10,73,64,68,73,66,77,7,19,78,false
+ajax,ajax_rosa,Lucas Rosa,Brazilian,RB,24,68,68,72,10,78,42,62,67,69,70,7,19,78,false
+groningen,groningen_resink,Stije Resink,Holland,CDM,24,70,71,72,10,66,59,68,69,67,75,7,19,78,false
+ajax,ajax_mokio,Jorthy Mokio,Congo DR,CDM,24,66,68,71,10,67,50,64,72,69,70,6.1,17,77,false
+go_ahead,go_ahead_suray,Mathis Suray,Belgian,LM,24,71,70,58,10,64,70,68,72,47,63,6.1,17,77,false
+twente,ajx_pasveer,Remko Pasveer,Holland,GK,41,10,10,14,71,66,76,78,62,33,78,3,30,79,false
+pec_zwolle,pec_zwolle_viergever,Nick Viergever,Holland,CB,24,68,68,71,10,57,53,63,65,70,75,6.1,17,77,false
+fortuna,fortuna_branderhorst,Mattijs Branderhorst,Holland,GK,24,10,11,13,71,72,69,66,72,40,70,6.1,17,77,false
+go_ahead,toulouse_haug,Kjetil Haug,Norwegian,GK,27,10,11,13,71,71,68,68,73,45,71,7,18,75,false
+pec_zwolle,pec_zwolle_namli,Younes Namli,Danish,RM,24,71,71,56,10,62,64,71,74,44,59,6.1,17,77,false
+ajax,utr_warmerdam,Maarten Paes,Indonesia,GK,27,10,10,12,71,72,68,66,72,31,72,8,32,82,false
+ajax,ajax_wijndal,Owen Wijndal,Holland,LB,24,71,71,71,10,78,54,69,69,65,71,6.1,17,77,false
+az,az_sadiq,Ibrahim Sadiq,Ghanaian,RW,24,71,69,49,10,83,65,59,74,34,59,6.1,17,77,false
+pec_zwolle,pec_miedema,Jasper Schendelaar,Holland,GK,25,10,10,12,71,72,69,66,74,25,69,3,15,76,true
+twente,pec_kezbere,Thomas van den Belt,Holland,CM,24,70,71,69,10,56,67,69,68,65,68,6,16,74,true
+groningen,gro_de_heus,Etienne Vaessen,Surinamese,GK,30,10,10,12,71,71,69,70,74,63,70,3,18,74,false
+feyenoord,feyenoord_ivanusec,Luka Ivanušec,Croatian,CAM,24,71,71,63,10,58,69,70,77,57,71,6.1,17,77,false
+twente,twente_hilgers,Mees Hilgers,Indonesia,CB,24,64,62,71,10,72,43,54,60,71,73,6.1,17,77,false
+utrecht,utrecht_engwanda,Alonzo Engwanda,Belgian,CDM,24,66,66,71,10,75,52,61,69,69,75,6.1,17,77,false
+feyenoord,feyenoord_borges,Gonçalo Borges,Portuguese,RW,24,71,71,49,10,83,58,62,74,29,58,6.1,17,77,false
+ajax,ajax_gaaei,Anton Gaaei,Danish,RB,24,71,68,68,10,86,66,63,65,62,75,6.1,17,77,false
+utrecht,utrecht_eerdhuijzen,Mike Eerdhuijzen,Holland,CB,24,61,59,71,10,49,25,54,46,71,78,6.1,17,77,false
+excelsior,excelsior_gassel,Stijn van Gassel,Holland,GK,24,10,11,13,71,72,70,66,72,44,68,6.1,17,77,false
+utrecht,utrecht_alarcon,Alarcón,Spanish,RW,24,71,69,46,10,85,68,60,73,28,61,6.1,17,77,false
+ajax,ajax_janse,Dies Janse,Holland,CB,24,66,65,70,10,63,36,61,63,68,79,5.3,15,76,false
+sparta,sparta_young,Marvin Young,Holland,CB,24,65,65,70,10,75,33,63,68,70,72,5.3,15,76,false
+az,az_dijkstra,Elijah Dijkstra,Holland,RB,24,70,70,69,10,83,53,64,70,61,66,5.3,15,76,false
+twente,twente_nijstad,Ruud Nijstad,Holland,CB,24,66,65,70,10,67,49,57,67,70,72,5.3,15,76,false
+az,az_chavez,Mateo Chávez,Mexican,LB,24,68,69,70,10,77,45,63,70,65,65,5.3,15,76,false
+feyenoord,feyenoord_diarra,Gaoussou Diarra,Malian,LW,24,70,67,45,10,83,69,62,72,29,58,5.3,15,76,false
+telstar,telstar_hardeveld,Jeff Hardeveld,Holland,LB,24,70,70,69,10,60,62,73,66,67,74,5.3,15,76,false
+twente,twente_pjaca,Marko Pjaca,Croatian,LW,24,70,69,51,10,64,69,67,74,39,61,5.3,15,76,false
+sparta,sparta_bergen,Mitchell van Bergen,Holland,RM,24,70,67,47,10,94,60,61,70,27,53,5.3,15,76,false
+nec,nec_ogawa,Koki Ogawa,Japanese,ST,24,70,68,50,10,50,71,57,67,29,68,5.3,15,76,false
+utrecht,exc_ippel,Siebe Horemans,Belgian,CB,24,66,65,70,10,70,40,62,65,68,77,4,12,72,true
+heerenveen,heerenveen_zagaritis,Vasilios Zagaritis,Greek,LB,24,68,67,70,10,83,46,61,67,64,68,5.3,15,76,false
+excelsior,excelsior_widell,Casper Widell,Swedish,CB,24,61,58,70,10,58,29,52,46,70,80,5.3,15,76,false
+twente,twente_l,Mathias Kjølø,Norwegian,CDM,24,68,70,69,10,46,56,68,68,65,62,5.3,15,76,false
+go_ahead,go_ahead_edvardsen,Victor Edvardsen,Swedish,ST,24,70,70,48,10,83,69,65,68,28,78,5.3,15,76,false
+heerenveen,nec_smits,Dirk Proper,Holland,CDM,26,68,70,69,10,54,56,65,74,66,60,15,35,78,false
+az,az_wit,Mees de Wit,Holland,LB,24,70,69,68,10,75,54,69,71,63,73,5.3,15,76,false
+utrecht,utrecht_didden,Matisse Didden,Belgian,CB,24,64,63,70,10,56,37,58,56,69,80,5.3,15,76,false
+feyenoord,frankfurt_ferri,Nacho Ferri,Spanish,ST,21,70,69,50,10,68,70,54,68,29,78,10.5,19,84,false
+az,az_oduro,Rome-Jayden Owusu-Oduro,Holland,GK,24,10,11,13,70,68,65,66,73,40,69,5.3,15,76,false
+twente,twente_lemkin,Stav Lemkin,Israeli,CB,24,62,59,70,10,69,37,53,50,69,77,5.3,15,76,false
+heerenveen,heerenveen_linday,Marcus Linday,Swedish,CDM,24,67,67,69,10,60,59,62,67,64,77,4.6,13,75,false
+sparta,sparta_quintero,Teo Quintero,Venezuelan,CB,24,63,61,69,10,67,31,57,53,67,78,4.6,13,75,false
+ajax,ajax_bounida,Rayane Bounida,Moroccan,RW,24,68,69,48,10,66,62,72,74,33,55,4.6,13,75,false
+nec,nec_fonville,Deveron Fonville,Curaçaoan,CB,24,60,58,69,10,73,34,47,59,69,67,4.6,13,75,false
+go_ahead,go_ahead_nauber,Gerrit Nauber,German,CB,24,59,57,69,10,44,35,45,48,70,73,4.6,13,75,false
+telstar,telstar_peersman,Marvin Peersman,Belgian,CB,24,67,64,69,10,70,48,58,62,67,80,4.6,13,75,false
+sparta,gae_hendriks,Bas Kuipers,Holland,LB,29,67,67,69,10,67,44,64,67,66,75,3,12,69,false
+fortuna,fortuna_marquez,Iván Márquez,Spanish,CB,24,61,59,69,10,47,43,50,49,69,76,4.6,13,75,false
+nec,nec_mattheus,Thomas Ouwejan,Holland,LM,27,68,69,67,10,68,62,71,69,64,70,8,22,70,false
+nec,nec_monteiro,Jamiro Monteiro,Cape Verde Islands,CM,24,68,69,61,10,71,59,70,72,54,68,4.6,13,75,false
+nec,nec_sierhuis,Kaj Sierhuis,Holland,ST,24,69,67,49,10,54,72,56,66,29,70,4.6,13,75,false
+utrecht,utrecht_jensen,Victor Jensen,Danish,CM,24,69,68,61,10,69,67,65,72,55,64,4.6,13,75,false
+az,az_hornkamp,Jizz Hornkamp,Holland,ST,24,69,66,61,10,65,74,56,64,55,69,4.6,13,75,false
+psv,psv_nagalo,Adamo Nagalo,Burkinabe,CB,24,63,61,69,10,70,29,53,61,68,78,4.6,13,75,false
+excelsior,excelsior_meissen,Rick Meissen,Holland,CB,24,60,56,69,10,59,34,44,48,67,76,4.6,13,75,false
+go_ahead,go_ahead_james,Dean James,Indonesia,LB,24,69,69,69,10,80,56,65,65,63,65,4.6,13,75,false
+twente,ajx_baas,Kristian Hlynsson,Icelandic,CAM,22,69,68,55,10,62,63,64,72,41,61,3,22,76,false
+heerenveen,heerenveen_braude,Oliver Braude,Norwegian,RB,24,69,69,68,10,79,46,66,68,61,70,4.6,13,75,false
+sparta,sparta_mito,Shunsuke Mito,Japanese,LM,24,69,66,48,10,85,62,60,73,32,52,4.6,13,75,false
+go_ahead,go_ahead_arson,Stefán Ingi Sigurðarson,Icelandic,ST,24,68,66,47,10,55,68,53,61,23,71,4,12,74,false
+utrecht,utrecht_stepanov,Artem Stepanov,Ukrainian,ST,24,68,66,48,10,69,67,51,64,26,71,4,12,74,false
+ajax,ajax_bouwman,Aaron Bouwman,Holland,CB,24,63,62,68,10,57,51,56,61,68,70,4,12,74,false
+heerenveen,heerenveen_willemsen,Maas Willemsen,Holland,CB,24,61,59,68,10,59,34,51,57,68,75,4,12,74,false
+fortuna,fortuna_brittijn,Philip Brittijn,Holland,CDM,24,67,67,68,10,70,61,64,66,65,67,4,12,74,false
+az,az_zoet,Jeroen Zoet,Holland,GK,24,10,11,13,68,66,70,69,66,51,69,4,12,74,false
+nec,nec_proper,Bram Nuytinck,Holland,CB,35,60,58,68,10,39,40,51,47,69,72,2,12,72,false
+fortuna,fortuna_pinto,Ivo Pinto,Portuguese,RB,24,68,66,68,10,76,46,63,64,62,74,4,12,74,false
+sparta,sparta_indi,Bruno Martins Indi,Holland,CB,24,62,63,68,10,35,42,57,55,68,70,4,12,74,false
+utrecht,utrecht_brouwer,Michael Brouwer,Holland,GK,24,10,11,13,68,71,67,65,67,26,64,4,12,74,false
+twente,spa_goudmijn,Arno Verschueren,Belgian,CAM,26,67,67,68,10,68,66,63,66,66,66,5,18,72,false
+go_ahead,go_ahead_sampsted,Alfons Sampsted,Icelandic,RB,24,68,66,68,10,73,47,60,66,63,72,4,12,74,false
+nec,nec_crooij,Vito van Crooij,Holland,CAM,24,68,67,54,10,69,66,68,67,42,70,4,12,74,false
+pec_zwolle,pec_zwolle_graves,Simon Graves,Danish,CB,24,64,63,68,10,57,47,59,62,68,74,4,12,74,false
+go_ahead,go_ahead_linthorst,Evert Linthorst,Holland,CDM,24,65,66,68,10,62,60,61,66,65,74,4,12,74,false
+utrecht,utrecht_zagre,Arthur Zagré,Burkinabe,LM,24,68,68,67,10,80,52,60,73,61,58,4,12,74,false
+twente,twente_unuvar,Naci Ünüvar,Turkish,LM,24,68,67,49,10,65,61,69,73,38,41,4,12,74,false
+pec_zwolle,pec_zwolle_sommer,Tobias Sommer,Danish,CDM,24,63,64,68,10,65,47,60,65,65,71,4,12,74,false
+twente,twente_booth,Taylor Booth,United States,RW,24,68,67,58,10,75,62,65,70,53,54,4,12,74,false
+groningen,groningen_rente,Marco Rente,German,RB,24,62,58,68,10,83,31,53,53,67,79,4,12,74,false
+utrecht,utrecht_min,David Min,Holland,ST,24,68,65,47,10,76,66,53,60,28,65,4,12,74,false
+twente,twe_sadiki,Max Bruns,Holland,CB,24,64,64,68,10,62,43,61,62,68,71,8,25,74,false
+fortuna,fortuna_michut,Édouard Michut,French,CDM,24,67,68,65,10,66,57,68,73,61,65,4,12,74,false
+feyenoord,feyenoord_kasanwirjo,Neraysho Kasanwirjo,Holland,CB,24,62,59,68,10,75,42,54,58,69,74,4,12,74,false
+heerenveen,heerenveen_brouwers,Luuk Brouwers,Holland,CDM,24,68,68,66,10,63,65,66,67,62,75,4,12,74,false
+nec,nec_willumsson,Willum Þór Willumsson,Icelandic,CAM,24,68,68,60,10,54,67,69,69,52,74,4,12,74,false
+groningen,groningen_bergen,Thom van Bergen,Holland,ST,24,68,68,58,10,77,63,56,70,46,74,4,12,74,false
+groningen,groningen_schreuders,Jorg Schreuders,Holland,LM,24,68,67,66,10,72,63,62,67,60,69,4,12,74,false
+heerenveen,heerenveen_klaverboer,Bernt Klaverboer,Holland,GK,24,10,11,13,68,69,63,67,69,29,67,4,12,74,false
+groningen,groningen_land,Tygo Land,Holland,CM,24,67,68,58,10,69,53,71,75,53,44,4,12,74,false
+twente,twente_taha,Younes Taha,Moroccan,CAM,24,68,66,50,10,79,70,65,71,37,62,4,12,74,false
+excelsior,excelsior_yegoian,Irakli Yegoian,Georgian,CAM,24,68,67,57,10,65,64,64,72,49,59,4,12,74,false
+az,az_kwakman,Dave Kwakman,Holland,CM,24,67,68,66,10,67,57,66,69,61,66,4,12,74,false
+heerenveen,heerenveen_smans,Levi Smans,Holland,CAM,24,67,65,54,10,69,62,63,69,43,57,3.4,10,73,false
+feyenoord,feyenoord_sliti,Aymen Sliti,Holland,LW,24,67,65,43,10,87,58,59,71,27,48,3.4,10,73,false
+sparta,sparta_verschuren,Nick Verschuren,Holland,CB,24,59,56,67,10,64,29,46,53,67,75,3.4,10,73,false
+feyenoord,feyenoord_kraaijeveld,Thijs Kraaijeveld,Holland,CDM,24,62,63,67,10,59,52,61,65,69,59,3.4,10,73,false
+utrecht,utrecht_offerhaus,Guus Offerhaus,Holland,CB,24,59,57,67,10,63,37,52,47,67,72,3.4,10,73,false
+psv,psv_fernandez,Noah Fernandez,Belgian,CAM,24,67,67,60,10,71,57,67,71,53,61,3.4,10,73,false
+sparta,sparta_martes,Lushendry Martes,Holland,RB,24,64,63,67,10,82,34,56,63,62,65,3.4,10,73,false
+az,az_ichihara,Rion Ichihara,Japanese,CB,24,63,63,67,10,76,35,64,59,66,68,3.4,10,73,false
+excelsior,excelsior_timas,Ilano Silva Timas,Cape Verde Islands,LW,24,67,65,44,10,73,65,63,68,29,54,3.4,10,73,false
+sparta,utr_van_der_maarel,Jens Toornstra,Holland,CM,34,65,67,63,10,37,68,71,65,61,65,5,32,72,false
+fortuna,fortuna_peterson,Kristoffer Peterson,Swedish,LM,24,67,65,49,10,77,68,63,68,34,64,3.4,10,73,false
+heerenveen,hee_hammarby,Andries Noppert,Holland,GK,30,10,10,12,67,68,64,65,66,35,67,3,18,76,true
+pec_zwolle,pec_lam,Ryan Thomas,New Zealander,CM,30,66,67,63,10,55,57,68,69,57,68,2,10,70,false
+groningen,groningen_clement,Pelle Clement,Holland,CM,24,66,67,62,10,65,61,70,67,59,62,3.4,10,73,false
+heerenveen,heerenveen_vente,Dylan Vente,Surinamese,ST,24,67,64,44,10,73,67,54,64,26,57,3.4,10,73,false
+pec_zwolle,pec_zwolle_mbayo,Dylan Mbayo,Belgian,RM,24,67,64,46,10,86,59,58,71,29,51,3.4,10,73,false
+go_ahead,go_ahead_tengstedt,Søren Tengstedt,Danish,RM,24,67,65,44,10,65,64,63,69,24,65,3.4,10,73,false
+fortuna,fortuna_oukili,Yassin Oukili,Moroccan,CM,24,67,67,65,10,58,67,64,64,59,77,3.4,10,73,false
+heerenveen,heerenveen_rivera,Maxence Rivera,French,LW,24,67,66,49,10,83,61,61,69,37,56,3.4,10,73,false
+az,az_lahdo,Mayckel Lahdo,Swedish,RW,24,67,66,44,10,79,63,59,71,27,57,3.4,10,73,false
+excelsior,excelsior_biai,Celton Biai,Bissau-Guinean,GK,24,10,11,13,67,69,64,65,68,22,64,3.4,10,73,false
+utrecht,utrecht_berg,Davy van den Berg,Holland,CM,24,67,67,65,10,62,66,66,66,60,73,3.4,10,73,false
+fortuna,gae_koopman,Ole Romeny,Indonesia,CAM,25,67,65,48,10,68,69,62,68,31,67,2,10,67,false
+utrecht,utrecht_ohio,Noah Ohio,Holland,ST,24,67,65,44,10,89,65,51,67,25,69,3.4,10,73,false
+fortuna,fortuna_ottele,Syb van Ottele,Holland,CB,24,61,58,67,10,56,56,51,49,68,71,3.4,10,73,false
+groningen,groningen_willumsson,Brynjólfur Willumsson,Icelandic,ST,24,67,66,54,10,55,69,56,65,38,72,3.4,10,73,false
+groningen,groningen_jonge,Tika de Jonge,Holland,CM,24,66,67,65,10,60,58,67,68,63,63,3.4,10,73,false
+excelsior,excelsior_hartjes,Lennard Hartjes,Holland,CDM,24,66,67,67,10,78,47,63,71,62,64,3.4,10,73,false
+utrecht,utrecht_iqbal,Zidane Iqbal,Iraqi,CM,24,65,67,62,10,61,51,69,71,59,60,3.4,10,73,false
+excelsior,excelsior_regt,Gyan de Regt,Holland,LW,24,67,66,45,10,88,63,59,69,28,66,3.4,10,73,false
+telstar,telstar_rossen,Nils Rossen,Holland,CM,24,66,67,65,10,67,57,64,66,60,62,3.4,10,73,false
+az,az_dekker,Maxim Dekker,Holland,CB,24,59,59,67,10,49,36,55,51,67,65,3.4,10,73,false
+pec_zwolle,pec_zwolle_cissoko,Ibrahim Cissoko,Guinean,LM,24,67,65,48,10,79,60,61,71,32,54,3.4,10,73,false
+sparta,sparta_baas,Julian Baas,Holland,CDM,24,65,67,64,10,49,58,69,66,60,70,3.4,10,73,false
+twente,twente_ltaief,Sayfallah Ltaief,Tunisian,LM,24,67,64,50,10,84,59,61,70,35,63,3.4,10,73,false
+twente,twente_adelgaard,Aske Adelgaard,Danish,LB,24,64,64,67,10,72,35,55,65,63,65,3.4,10,73,false
+excelsior,excelsior_naujoks,Noah Naujoks,Holland,CM,24,67,66,67,10,75,62,62,64,62,75,3.4,10,73,false
+az,az_duijl,Billy van Duijl,Holland,CB,24,60,59,67,10,54,34,53,55,68,71,3.4,10,73,false
+utrecht,utrecht_blake,Adrian Blake,English,LW,24,67,64,41,10,77,64,59,70,25,50,3.4,10,73,false
+groningen,groningen_jeng,Malcolm Jeng,Swedish,CB,24,61,60,67,10,68,32,54,60,67,70,3.4,10,73,false
+psv,psv_babadi,Isaac Babadi,Holland,CAM,24,67,67,56,10,71,53,60,73,43,59,3.4,10,73,false
+nec,nec_bischoff,Clement Bischoff,Danish,LM,24,67,66,59,10,76,62,63,69,52,62,3.4,10,73,false
+pec_zwolle,pec_zwolle_graaff,Tom de Graaff,Holland,GK,24,10,11,13,67,67,67,66,71,32,63,3.4,10,73,false
+pec_zwolle,pec_zwolle_kostons,Koen Kostons,Holland,ST,24,67,67,48,10,73,63,61,66,29,70,3.4,10,73,false
+fortuna,fortuna_zand,Shiloh 't Zand,Holland,CAM,24,66,65,57,10,63,67,63,70,51,65,3,9,73,false
+az,az_oufkir,Ayoub Oufkir,Holland,RW,24,66,65,48,10,82,60,63,68,38,47,3,9,73,false
+excelsior,excelsior_plug,Jan Plug,Holland,CB,24,62,61,66,10,72,48,59,57,65,68,3,9,73,false
+groningen,groningen_werff,David van der Werff,Holland,RM,24,66,66,56,10,61,58,68,67,46,62,3,9,73,false
+heerenveen,heerenveen_petrov,Hristiyan Petrov,Bulgarian,CB,24,56,54,66,10,63,34,49,45,69,65,3,9,73,false
+telstar,telstar_alders,Gerald Alders,Holland,RB,24,65,64,66,10,85,34,55,69,59,62,3,9,73,false
+feyenoord,feyenoord_carrillo,Stéphano Carrillo,Mexican,ST,24,66,66,52,10,68,64,59,62,35,76,3,9,73,false
+feyenoord,feyenoord_elshout,Tobias van den Elshout,Holland,LW,24,64,66,55,10,67,60,64,69,47,64,3,9,73,false
+telstar,telstar_owusu,Tyrone Owusu,Holland,CM,24,64,65,66,10,69,53,64,66,64,71,3,9,73,false
+utrecht,utrecht_nwankwo,Neville Ogidi Nwankwo,Holland,CB,24,58,54,66,10,73,36,47,46,65,76,3,9,73,false
+go_ahead,go_ahead_flataker,Erik Flataker,Norwegian,ST,24,66,63,41,10,76,65,52,63,19,66,3,9,73,false
+sparta,sparta_santos,Ayoni Santos,Cape Verde Islands,CAM,24,66,66,63,10,74,56,64,67,59,64,3,9,73,false
+ajax,ajax_heerkens,Joeri Heerkens,Holland,GK,24,10,11,13,66,67,63,67,69,22,68,3,9,73,false
+sparta,sparta_cruijsen,Robin van Cruijsen,Holland,CAM,24,66,64,49,10,73,63,68,66,39,52,3,9,73,false
+ajax,ajax_ouazane,Abdellah Ouazane,Moroccan,CAM,24,66,64,52,10,76,61,64,71,42,63,3,9,73,false
+nec,nec_tahaui,Adam Tahaui,Moroccan,RM,24,66,65,55,10,74,60,65,66,44,62,3,9,73,false
+groningen,groningen_brandis,Nikolas Brandis,Slovak,LB,24,64,63,66,10,70,47,56,65,63,65,3,9,73,false
+fortuna,fortuna_koopmans,Luuk Koopmans,Holland,GK,24,10,11,13,66,66,65,64,66,34,65,3,9,73,false
+sparta,sparta_bednarek,Filip Bednarek,Polish,GK,24,10,11,13,66,65,64,65,65,44,66,3,9,73,false
+groningen,groningen_zawada,Oskar Zawada,Polish,ST,24,66,64,53,10,63,65,55,58,38,69,3,9,73,false
+pec_zwolle,pec_zwolle_velanas,Odysseus Velanas,Holland,LM,24,66,65,54,10,70,65,65,65,43,61,3,9,73,false
+pec_zwolle,pec_zwolle_rensen,Elias Sørensen,Danish,LM,24,66,63,46,10,76,65,62,63,27,69,3,9,73,false
+go_ahead,go_ahead_margaret,Richonell Margaret,Surinamese,RM,24,66,64,47,10,77,61,59,67,28,61,3,9,73,false
+utrecht,utrecht_vesterlund,Niklas Vesterlund,Danish,RM,24,64,64,66,10,75,54,60,65,62,75,3,9,73,false
+heerenveen,heerenveen_kersten,Sam Kersten,Holland,CB,24,61,56,66,10,76,45,48,47,63,77,3,9,73,false
+heerenveen,heerenveen_oyen,Luca Oyen,Belgian,LW,24,66,65,49,10,75,60,64,70,39,51,3,9,73,false
+sparta,sparta_terho,Casper Terho,Finnish,RM,24,66,64,50,10,70,62,62,67,36,59,3,9,73,false
+fortuna,fortuna_dahlhaus,Jasper Dahlhaus,Holland,LB,24,66,66,64,10,75,59,60,68,59,61,3,9,73,false
+ajax,ajax_dongen,Amourricho van Axel Dongen,Holland,LW,24,66,65,44,10,79,59,59,70,29,55,3,9,73,false
+nec,nec_pereira,Brayann Pereira,French,CB,24,63,62,66,10,82,41,58,67,65,69,3,9,73,false
+utrecht,utrecht_jonathans,Miliano Jonathans,Indonesia,RW,24,66,65,42,10,75,61,62,68,23,54,3,9,73,false
+go_ahead,go_ahead_twigt,Calvin Twigt,Holland,CDM,24,65,66,64,10,54,59,67,65,60,68,3,9,73,false
+go_ahead,go_ahead_dirksen,Julius Dirksen,Holland,CB,24,58,58,66,10,64,30,52,57,67,64,3,9,73,false
+telstar,telstar_brouwer,Patrick Brouwer,Holland,CAM,24,66,64,59,10,78,66,61,65,52,67,3,9,73,false
+excelsior,excelsior_tielemans,Mathijs Tielemans,Holland,CM,24,66,66,62,10,66,61,64,67,59,56,3,9,73,false
+excelsior,excelsior_bos,Kasey Bos,Australian,LB,24,60,60,65,10,72,46,54,60,64,54,2.6,8,72,false
+sparta,sparta_y,Alwande Roaldsøy,Norwegian,CDM,24,63,63,65,10,60,60,59,61,61,70,2.6,8,72,false
+ajax,ajax_reverson,Paul Reverson,Ghanaian,GK,24,10,11,13,65,66,62,65,70,30,64,2.6,8,72,false
+az,az_duijn,Sem van Duijn,Holland,ST,24,65,65,46,10,72,62,59,67,30,66,2.6,8,72,false
+heerenveen,heerenveen_machine,Lanroy Machine,French,ST,24,65,63,43,10,73,64,49,66,25,66,2.6,8,72,false
+telstar,telstar_hetli,Soufiane Hetli,Holland,ST,24,65,64,41,10,78,63,56,68,23,64,2.6,8,72,false
+sparta,sparta_zonneveld,Milan Zonneveld,Holland,ST,24,65,63,51,10,58,64,46,55,30,70,2.6,8,72,false
+psv,psv_berg,Joël van den Berg,Holland,CM,24,65,65,64,10,67,60,65,67,60,70,2.6,8,72,false
+feyenoord,feyenoord_persie,Shaqueel van Persie,Holland,ST,24,65,63,40,10,69,65,53,68,23,56,2.6,8,72,false
+az,az_grand,Sam de Grand,Holland,LB,24,65,65,65,10,74,42,61,64,59,63,2.6,8,72,false
+excelsior,excelsior_vianen,Daniel van Vianen,Holland,CDM,24,62,64,65,10,63,50,64,59,61,69,2.6,8,72,false
+excelsior,excelsior_finey,Yacqub Finey,Swedish,CAM,24,65,63,51,10,66,62,60,67,39,56,2.6,8,72,false
+az,az_verhulst,Hobie Verhulst,Holland,GK,24,10,11,13,65,64,63,70,65,43,65,2.6,8,72,false
+go_ahead,go_ahead_marsman,Nick Marsman,Holland,GK,24,10,11,13,65,65,61,66,65,37,66,2.6,8,72,false
+feyenoord,feyenoord_bossin,Liam Bossin,Irish,GK,24,10,11,13,65,66,63,61,65,46,62,2.6,8,72,false
+pec_zwolle,pec_zwolle_floranus,Sherel Floranus,Curaçaoan,LB,24,65,62,65,10,77,42,54,66,60,74,2.6,8,72,false
+sparta,sparta_reith,Boyd Reith,Holland,RB,24,62,62,65,10,66,37,59,59,62,64,2.6,8,72,false
+fortuna,fortuna_descotte,Anthony Descotte,Belgian,ST,24,65,62,42,10,76,68,55,70,29,61,2.6,8,72,false
+pec_zwolle,pec_zwolle_oosting,Thijs Oosting,Holland,CM,24,65,65,61,10,64,66,65,66,58,65,2.6,8,72,false
+fortuna,fortuna_hubner,Justin Hubner,Indonesia,CB,24,61,59,65,10,60,40,54,56,64,73,2.6,8,72,false
+pec_zwolle,pec_zwolle_velthuis,Tijs Velthuis,Holland,CB,24,55,52,65,10,62,30,46,40,65,72,2.6,8,72,false
+heerenveen,heerenveen_hopland,Nikolai Hopland,Norwegian,CB,24,59,57,65,10,63,42,50,57,65,70,2.6,8,72,false
+fortuna,fortuna_zeefuik,Lequincio Zeefuik,Holland,ST,24,65,63,45,10,80,64,49,63,26,75,2.6,8,72,false
+telstar,telstar_mendes,Rui Mendes,Portuguese,RM,24,65,61,44,10,75,66,56,67,29,55,2.6,8,72,false
+pec_zwolle,pec_zwolle_aertssen,Olivier Aertssen,Holland,RB,24,61,60,65,10,67,38,56,60,65,69,2.6,8,72,false
+az,az_schouten,Lewis Schouten,Holland,CB,24,63,62,65,10,55,47,59,60,63,70,2.6,8,72,false
+telstar,telstar_tejan,Kay Tejan,Holland,ST,24,65,65,49,10,76,61,57,65,32,75,2.6,8,72,false
+sparta,sparta_orisson,Nökkvi Þórisson,Icelandic,ST,24,65,63,46,10,68,65,56,62,29,61,2.6,8,72,false
+twente,twente_besselink,Gijs Besselink,Holland,CDM,24,61,62,65,10,52,51,58,61,62,66,2.6,8,72,false
+twente,twente_weidmann,Daouda Weidmann,French,CM,24,64,65,60,10,70,57,65,67,58,53,2.6,8,72,false
+ajax,ajax_gooijer,Tristan Gooijer,Holland,RB,24,62,60,65,10,71,38,52,64,62,72,2.6,8,72,false
+go_ahead,go_ahead_galvez,Tomas Galvez,Finnish,LB,24,62,62,65,10,79,39,58,60,60,59,2.6,8,72,false
+groningen,tel_van_hooijdonk,Wouter Prins,Holland,LB,26,59,59,64,10,70,29,52,61,61,61,2,8,66,false
+ajax,ajax_konadu,Don-Angelo Konadu,Holland,ST,24,64,62,44,10,68,60,49,62,25,64,2.2,7,71,false
+groningen,groningen_mercera,Tyrique Mercera,Curaçaoan,RB,24,63,62,64,10,83,44,55,62,58,63,2.2,7,71,false
+az,az_kovacs,Bendegúz Kovács,Hungarian,ST,24,64,62,48,10,64,64,46,58,29,69,2.2,7,71,false
+fortuna,fortuna_groot,Nick de Groot,Holland,LB,24,62,61,64,10,67,54,55,60,62,65,2.2,7,71,false
+fortuna,fortuna_simons,Sven Simons,Holland,CM,24,63,64,61,10,66,61,66,61,58,63,2.2,7,71,false
+psv,psv_bouhamdi,Amir Bouhamdi,Moroccan,LW,24,64,64,45,10,75,55,59,72,33,43,2.2,7,71,false
+excelsior,excelsior_janssen,Simon Janssen,Holland,LB,24,64,64,63,10,69,53,63,64,58,60,2.2,7,71,false
+go_ahead,go_ahead_baeten,Thibo Baeten,Belgian,ST,24,64,61,50,10,78,62,45,67,40,62,2.2,7,71,false
+sparta,sparta_ideho,Joel Ideho,Holland,LM,24,64,63,50,10,76,55,60,66,36,55,2.2,7,71,false
+pec_zwolle,pec_zwolle_haar,Damian van der Haar,Holland,LB,24,59,58,64,10,63,32,51,58,63,64,2.2,7,71,false
+nec,nec_storm,Tobias Storm,Danish,CB,24,61,59,64,10,77,45,58,60,63,72,2.2,7,71,false
+pec_zwolle,pec_zwolle_fichtinger,Nick Fichtinger,Holland,CDM,24,60,62,64,10,56,50,58,62,63,61,2.2,7,71,false
+twente,twente_kuster,Harrie Kuster,Holland,CAM,24,63,62,58,10,62,64,60,63,53,62,1.9,6,70,false
+groningen,groningen_eggens,Nils Eggens,Holland,ST,24,63,60,44,10,68,63,50,57,25,66,1.9,6,70,false
+ajax,ajax_faberski,Jan Faberski,Polish,RW,24,63,61,40,10,81,52,53,71,26,39,1.9,6,70,false
+az,az_bouziane,Wassim Bouziane,Holland,LW,24,63,63,46,10,76,55,58,69,33,56,1.9,6,70,false
+telstar,telstar_demircan,Emirhan Demircan,Turkish,LM,24,63,61,47,10,79,53,57,65,30,56,1.9,6,70,false
+go_ahead,go_ahead_rahmouni,Yassir Rahmouni,Holland,CDM,24,61,63,61,10,51,47,60,68,57,61,1.9,6,70,false
+telstar,telstar_nwankwo,Nigel Ogidi Nwankwo,Holland,LB,24,63,61,63,10,76,44,54,62,57,71,1.9,6,70,false
+excelsior,excelsior_henderikx,Stan Henderikx,Holland,CB,24,55,53,63,10,55,30,43,51,63,67,1.9,6,70,false
+az,az_bergraaf,Jerolldino Bergraaf,Holland,ST,24,63,60,46,10,73,60,40,59,27,69,1.9,6,70,false
+ajax,ajax_nash,Pharell Nash,Holland,LW,24,63,61,41,10,86,57,56,65,26,55,1.9,6,70,false
+psv,psv_merien,Fabian Merién,Holland,CB,24,59,58,63,10,76,35,54,60,62,63,1.9,6,70,false
+twente,twente_maach,Issam El Maach,Moroccan,GK,24,10,11,13,63,64,60,64,65,41,62,1.9,6,70,false
+go_ahead,go_ahead_sivertsen,Oskar Sivertsen,Norwegian,LM,24,63,60,42,10,78,58,57,65,28,40,1.9,6,70,false
+telstar,telstar_reiziger,Daan Reiziger,Holland,GK,24,10,11,13,63,59,63,62,64,33,61,1.9,6,70,false
+fortuna,fortuna_wylin,Siebe Wylin,Belgian,RB,24,61,61,63,10,72,37,55,63,58,61,1.9,6,70,false
+nec,bremen_hansenaaren,Isak Hansen-Aarøen,Norwegian,CAM,20,63,63,54,10,70,51,61,68,47,50,4.3,9,79,false
+groningen,groningen_hernes,Travis Hernes,Norwegian,CM,24,63,62,59,10,66,55,60,66,55,61,1.9,6,70,false
+go_ahead,go_ahead_zwam,Giovanni van Zwam,Holland,CB,24,55,52,63,10,56,32,42,48,62,68,1.9,6,70,false
+psv,psv_smolenaars,Tijn Smolenaars,Holland,GK,24,10,11,13,62,62,61,60,62,32,62,1.7,6,69,false
+az,az_oerip,Julian Oerip,Holland,CAM,24,61,62,53,10,64,48,65,62,45,57,1.7,6,69,false
+pec_zwolle,pec_zwolle_reiziger,Gabriël Reiziger,Holland,CAM,24,62,60,50,10,76,61,55,68,43,49,1.7,6,69,false
+twente,twente_peixoto,Guilherme Peixoto,Portuguese,RB,24,59,59,62,10,74,34,53,62,58,59,1.7,6,69,false
+excelsior,excelsior_martens,Nolan Martens,Belgian,RB,24,56,56,62,10,66,32,47,57,61,57,1.7,6,69,false
+nec,nec_moslih,Yassin Moslih,Holland,CB,24,54,52,62,10,57,28,45,49,62,61,1.7,6,69,false
+telstar,telstar_seedorf,Jelani Seedorf,Holland,ST,24,62,60,42,10,78,61,45,58,22,72,1.7,6,69,false
+ajax,ajax_johnson,Jinairo Johnson,Holland,CB,24,61,58,62,10,76,44,55,60,60,69,1.7,6,69,false
+utrecht,utrecht_agougil,Oualid Agougil,Moroccan,CM,24,61,62,61,10,65,45,61,63,56,60,1.7,6,69,false
+utrecht,utrecht_adiele,Emeka Adiele,English,LM,24,62,61,61,10,77,56,55,63,58,53,1.7,6,69,false
+utrecht,utrecht_kloosterboer,Per Kloosterboer,Holland,CB,24,55,54,62,10,64,30,48,53,62,65,1.7,6,69,false
+telstar,telstar_soualhia,Abdelnour Soualhia,French,CB,24,53,47,62,10,58,30,33,39,62,75,1.7,6,69,false
+telstar,telstar_rust,Fabiano Rust,Holland,CAM,24,62,61,52,10,76,62,60,59,46,48,1.7,6,69,false
+psv,psv_bassey,Essiën Bassey,Holland,RB,24,62,59,62,10,75,41,50,61,57,71,1.7,6,69,false
+utrecht,utrecht_gadellaa,Kevin Gadellaa,Holland,GK,24,10,11,13,62,63,62,58,63,28,59,1.7,6,69,false
+telstar,telstar_aning,Prince Aning,Holland,LB,24,62,62,61,10,82,39,54,68,52,54,1.7,6,69,false
+groningen,groningen_stubljar,Lovro Štubljar,Slovenian,GK,24,10,11,13,62,63,61,62,64,21,61,1.7,6,69,false
+twente,twente_kurowski,Krzysztof Kurowski,Polish,LB,24,62,62,61,10,74,51,59,62,55,57,1.7,6,69,false
+twente,twente_hess,Lucas Vennegoor of Hess.,Holland,ST,24,61,59,44,10,58,59,42,58,24,66,1.5,5,68,false
+groningen,groningen_bouland,Sven Bouland,Holland,CB,24,57,55,61,10,60,34,50,46,58,67,1.5,5,68,false
+ajax,ajax_pugno,Diego Pugno,Italian,ST,24,61,59,39,10,58,61,52,61,22,54,1.5,5,68,false
+excelsior,excelsior_sulzbacher,Valentin Sulzbacher,Austrian,CM,24,58,58,61,10,66,56,58,56,60,68,1.5,5,68,false
+go_ahead,go_ahead_waayers,Eus Waayers,Holland,RB,24,58,57,61,10,67,35,51,56,57,60,1.5,5,68,false
+sparta,sparta_vianello,Giannino Vianello,Holland,LB,24,59,58,61,10,68,40,51,60,57,62,1.5,5,68,false
+excelsior,excelsior_wetering,Marlon van de Wetering,Jamaican,RB,24,56,56,61,10,66,30,48,57,59,58,1.5,5,68,false
+excelsior,excelsior_turay,Osman Turay,German,LB,24,61,59,58,10,85,44,53,63,51,64,1.5,5,68,false
+psv,psv_cornecion,Shuryjano Cornecion,Curaçaoan,CAM,24,61,60,52,10,69,56,61,61,44,59,1.5,5,68,false
+groningen,groningen_emeran,Noam Emeran,Rwanda,LM,24,61,59,44,10,75,57,58,63,31,53,1.5,5,68,false
+heerenveen,heerenveen_egbring,Mats Egbring,Holland,RB,24,59,59,61,10,57,35,56,57,59,63,1.5,5,68,false
+az,leverkusen_natali,Andrea Natali,Italian,CB,17,55,55,60,10,56,33,53,54,60,60,8.2,13,81,false
+nec,nec_sbai,Yousri Sbai,Holland,CB,24,57,56,60,10,74,41,50,63,60,61,1.3,5,67,false
+pec_zwolle,pec_zwolle_rahajaan,Givaro Rahajaän,Holland,CAM,24,60,60,49,10,75,49,58,67,41,42,1.3,5,67,false
+utrecht,utrecht_owen,Emmanuel Chigozie Owen,German,RM,24,60,58,48,10,75,55,53,63,38,50,1.3,5,67,false
+utrecht,utrecht_schuldes,Jamie Schuldes,German,CB,24,54,53,60,10,59,27,49,47,60,64,1.3,5,67,false
+excelsior,excelsior_garden,David Garden,Holland,ST,24,60,57,40,10,56,63,43,55,20,65,1.3,5,67,false
+go_ahead,go_ahead_weijenberg,Robbin Weijenberg,Holland,CDM,24,59,60,56,10,66,49,64,63,55,60,1.3,5,67,false
+heerenveen,heerenveen_bladi,Darling Bladi,French,LB,24,57,58,60,10,60,26,53,63,57,53,1.3,5,67,false
+telstar,telstar_ahmed,Isaiah Ahmed,Curaçaoan,CDM,24,55,56,59,10,60,44,52,58,57,61,1.1,4,66,false
+excelsior,excelsior_groen,Nesto Groen,Holland,ST,24,59,56,45,10,64,61,45,55,33,59,1.1,4,66,false
+nec,nec_laat,Sam de Laat,Holland,CM,24,58,59,54,10,63,44,58,60,47,57,1.1,4,66,false
+telstar,telstar_oudsten,Rojendro Oudsten,Surinamese,CDM,24,58,59,57,10,67,41,59,65,56,48,1.1,4,66,false
+utrecht,utrecht_eppink,Mees Eppink,Holland,GK,24,10,11,13,59,61,58,57,61,32,52,1.1,4,66,false
+utrecht,utrecht_pohl,Ferdinand Pohl,German,CB,24,52,51,59,10,55,34,48,47,61,57,1.1,4,66,false
+sparta,sparta_meftahi,Younes Jaber El Meftahi,Holland,LM,24,59,58,45,10,67,48,54,66,31,51,1.1,4,66,false
+nec,nec_kers,Kevin Kers,Holland,LM,24,59,57,46,10,68,55,54,58,33,54,1.1,4,66,false
+pec_zwolle,pec_zwolle_wal,Gilles van der Wal,Holland,CAM,24,59,59,49,10,56,56,61,61,44,47,1.1,4,66,false
+groningen,groningen_janse,Rijk Janse,Holland,GK,24,10,11,13,59,60,55,56,58,26,58,1.1,4,66,false
+sparta,sparta_kuiper,Pascal Kuiper,Holland,GK,24,10,11,13,59,62,59,58,60,25,57,1.1,4,66,false
+groningen,groningen_laan,Elvis van der Laan,Swedish,CB,24,51,50,58,10,54,24,40,53,58,61,1,4,66,false
+excelsior,excelsior_holla,Tijmen Holla,Holland,GK,24,10,11,13,58,58,59,57,59,25,55,1,4,66,false
+fortuna,fortuna_gbemou,Moussa Gbemou,Belgian,CAM,24,58,57,47,10,67,48,53,64,37,53,1,4,66,false
+excelsior,excelsior_cairo,Guilliano Cairo,Holland,CB,24,50,48,58,10,65,31,40,48,60,58,1,4,66,false
+nec,nec_entius,Freek Entius,Holland,GK,24,10,11,13,58,58,54,57,59,20,55,1,4,66,false
+nec,nec_wiel,Merijn van de Wiel,Holland,CB,24,55,55,58,10,64,43,54,57,59,56,1,4,66,false
+telstar,telstar_shenkman,Noach Shenkman,Holland,CDM,24,54,54,58,10,61,47,52,55,58,59,1,4,66,false
+heerenveen,heerenveen_courtens,Nolhan Courtens,Congo DR,CAM,24,58,58,47,10,71,42,57,65,39,39,1,4,66,false
+go_ahead,go_ahead_boakye,Ofosu Boakye,Ghanaian,ST,24,57,55,43,10,60,57,49,60,34,51,0.8,3,65,false
+twente,twente_gerritsen,Yannick Gerritsen,Holland,GK,24,10,11,13,57,55,56,59,60,22,59,0.8,3,65,false
+heerenveen,heerenveen_schaken,Kirayno Schaken,Holland,RW,24,57,56,38,10,86,47,52,62,28,38,0.8,3,65,false
+groningen,groningen_metu,Ryan Metu,Holland,LM,24,57,55,39,10,71,49,53,63,27,36,0.8,3,65,false
+heerenveen,heerenveen_bonevacia,Clayton Bonevacia,Holland,LW,24,57,56,38,10,68,52,53,62,28,39,0.8,3,65,false
+sparta,sparta_suur,Rik Suur,Holland,GK,24,10,11,13,57,59,53,61,60,28,57,0.8,3,65,false
+go_ahead,go_ahead_verdoni,Nando Verdoni,Holland,GK,24,10,11,13,57,56,55,60,57,27,55,0.8,3,65,false
+go_ahead,go_ahead_saathof,Pim Saathof,Holland,CB,24,55,56,57,10,57,47,52,60,58,51,0.8,3,65,false
+pec_zwolle,pec_zwolle_verduin,Duke Verduin,Holland,GK,24,10,11,13,57,57,56,50,57,31,57,0.8,3,65,false
+sparta,sparta_ligt,Max de Ligt,Holland,CB,24,48,46,57,10,56,30,42,42,60,60,0.8,3,65,false
+telstar,telstar_mulder,Finn Mulder,Holland,GK,24,10,11,13,55,52,55,59,60,23,54,0.6,2,63,false
+nec,nec_geneste,Joep Geneste,Holland,GK,24,10,11,13,55,54,53,55,59,22,59,0.6,2,63,false

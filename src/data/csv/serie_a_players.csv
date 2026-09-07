@@ -1,610 +1,610 @@
-team_id,player_id,name,nationality,position,age,attack,midfield,defence,goalkeeping,value_millions,wage_thousands,potential,is_wonderkid
-inter,inter_martinez,Lautaro Martínez,Argentine,ST,24,87,84,67,10,72,123,91,false
-ac_milan,ac_milan_maignan,Mike Maignan,French,GK,24,10,11,13,87,72,123,91,false
-inter,inter_barella,Nicolò Barella,Italian,CM,24,86,87,84,10,72,123,91,false
-napoli,man_utd_mctominay,Scott McTominay,Scottish,CM,28,86,85,86,10,19.9,66,86,false
-inter,inter_dimarco,Federico Dimarco,Italian,LB,24,84,86,84,10,61.8,108,90,false
-juventus,juventus_bremer,Bremer,Brazilian,CB,24,75,72,86,10,61.8,108,90,false
-atalanta,atalanta_carnesecchi,Marco Carnesecchi,Italian,GK,24,10,11,13,86,61.8,108,90,false
-inter,inter_bastoni,Alessandro Bastoni,Italian,CB,24,79,80,86,10,61.8,108,90,false
-roma,roma_dybala,Paulo Dybala,Argentine,CAM,24,85,83,59,10,53,95,89,false
-ac_milan,ac_milan_modric,Luka Modrić,Croatian,CM,24,83,85,76,10,53,95,89,false
-napoli,napoli_bruyne,Kevin De Bruyne,Belgian,CAM,24,84,85,73,10,53,95,89,false
-inter,inter_calhanoglu,Hakan Çalhanoğlu,Turkish,CDM,24,84,85,83,10,53,95,89,false
-ac_milan,ac_milan_rabiot,Adrien Rabiot,French,CM,24,85,85,84,10,53,95,89,false
-inter,inter_thuram,Marcus Thuram,French,ST,24,85,83,67,10,53,95,89,false
-roma,roma_svilar,Mile Svilar,Serbian,GK,24,10,11,13,85,53,95,89,false
-lecce,lecce_falcone,Wladimiro Falcone,Italian,GK,24,10,11,13,84,45.4,83,88,false
-juventus,juventus_locatelli,Manuel Locatelli,Italian,CDM,24,80,82,84,10,45.4,83,88,false
-roma,roma_mancini,Gianluca Mancini,Italian,CB,24,74,72,84,10,45.4,83,88,false
-como,como_paz,Nico Paz,Argentine,CAM,24,84,83,69,10,45.4,83,88,false
-juventus,juventus_z,Kenan Yıldız,Turkish,CAM,24,84,82,70,10,45.4,83,88,false
-fiorentina,fiorentina_gea,De Gea,Spanish,GK,24,10,11,13,83,38.9,73,87,false
-napoli,napoli_lobotka,Stanislav Lobotka,Slovak,CM,24,81,83,79,10,38.9,73,87,false
-inter,inter_provedel,Ivan Provedel,Italian,GK,24,10,11,13,83,38.9,73,87,false
-ac_milan,ac_milan_pulisic,Christian Pulisic,United States,CAM,24,83,81,61,10,38.9,73,87,false
-inter,mci_akanji,Manuel Akanji,Swiss,CB,30,75,75,83,10,55,175,88,false
-roma,roma_malen,Donyell Malen,Holland,ST,24,83,80,56,10,38.9,73,87,false
-roma,roma_ndicka,Evan Ndicka,Ivorian,CB,24,76,75,83,10,38.9,73,87,false
-ac_milan,ac_milan_leao,Rafael Leão,Portuguese,LW,24,83,81,52,10,38.9,73,87,false
-napoli,napoli_rrahmani,Amir Rrahmani,Kosovan,CB,24,73,71,83,10,38.9,73,87,false
-napoli,napoli_lukaku,Romelu Lukaku,Belgian,ST,24,82,80,61,10,33.4,64,86,false
-inter,inter_stones,John Stones,English,CB,24,76,79,82,10,33.4,64,86,false
-inter,inter_zielinski,Piotr Zieliński,Polish,CM,24,82,82,75,10,33.4,64,86,false
-sassuolo,sassuolo_berardi,Domenico Berardi,Italian,RW,24,82,81,56,10,33.4,64,86,false
-napoli,napoli_lorenzo,Giovanni Di Lorenzo,Italian,RB,24,80,78,82,10,33.4,64,86,false
-lazio,lazio_zaccagni,Mattia Zaccagni,Italian,LW,24,82,80,66,10,33.4,64,86,false
-napoli,napoli_anguissa,André-Franck Zambo Anguissa,Cameroonian,CM,24,80,81,82,10,33.4,64,86,false
-bologna,bologna_orsolini,Riccardo Orsolini,Italian,RM,24,82,81,66,10,33.4,64,86,false
-fiorentina,fiorentina_kean,Moise Kean,Italian,ST,24,82,77,59,10,33.4,64,86,false
-atalanta,ata_ederson,Éderson,Brazilian,CM,26,80,81,82,10,38,68,84,false
-inter,inter_mkhitaryan,Henrikh Mkhitaryan,Armenian,CM,24,81,81,76,10,28.6,56,86,false
-roma,roma_cristante,Bryan Cristante,Italian,CM,24,78,80,81,10,28.6,56,86,false
-lazio,lazio_romagnoli,Alessio Romagnoli,Italian,CB,24,71,70,81,10,28.6,56,86,false
-napoli,napoli_meret,Alex Meret,Italian,GK,24,10,11,13,81,28.6,56,86,false
-roma,roma_hermoso,Mario Hermoso,Spanish,CB,24,74,74,81,10,28.6,56,86,false
-napoli,napoli_neres,David Neres,Brazilian,LW,24,81,78,58,10,28.6,56,86,false
-como,getafe_milla,Luis Milla,Spanish,CM,30,79,81,79,10,21.6,67,81,false
-napoli,napoli_buongiorno,Alessandro Buongiorno,Italian,CB,24,72,71,81,10,28.6,56,86,false
-juventus,juventus_thuram,Khéphren Thuram,French,CM,24,78,79,81,10,28.6,56,86,false
-roma,roma_kone,Kouadio Manu Koné,French,CM,24,81,81,81,10,28.6,56,86,false
-atalanta,atalanta_ketelaere,Charles De Ketelaere,Belgian,CAM,24,81,81,67,10,28.6,56,86,false
-juventus,juventus_kalulu,Pierre Kalulu,French,CB,24,74,73,81,10,28.6,56,86,false
-ac_milan,ac_milan_gila,Mario Gila,Spanish,CB,24,75,75,81,10,28.6,56,86,false
-roma,roma_wesley,Wesley,Brazilian,LB,24,80,80,80,10,24.6,49,85,false
-napoli,napoli_spinazzola,Leonardo Spinazzola,Italian,LB,24,78,80,80,10,24.6,49,85,false
-atalanta,atalanta_roon,Marten de Roon,Holland,CM,24,75,77,80,10,24.6,49,85,false
-napoli,napoli_politano,Matteo Politano,Italian,RW,24,80,78,63,10,24.6,49,85,false
-napoli,napoli_savic,Vanja Milinković-Savić,Serbian,GK,24,10,11,13,80,24.6,49,85,false
-inter,inter_pavard,Benjamin Pavard,French,CB,24,75,75,80,10,24.6,49,85,false
-ac_milan,che_nkunku,Christopher Nkunku,French,ST,27,80,77,54,10,70,225,87,false
-ac_milan,ac_milan_tomori,Fikayo Tomori,English,CB,24,72,71,80,10,24.6,49,85,false
-juventus,juventus_gregorio,Michele Di Gregorio,Italian,GK,24,10,11,13,80,24.6,49,85,false
-juventus,juventus_mckennie,Weston McKennie,United States,CM,24,79,80,80,10,24.6,49,85,false
-inter,inter_frattesi,Davide Frattesi,Italian,CM,24,80,80,77,10,24.6,49,85,false
-ac_milan,ac_milan_gabbia,Matteo Gabbia,Italian,CB,24,69,69,80,10,24.6,49,85,false
-torino,torino_vlasic,Nikola Vlašić,Croatian,CAM,24,80,80,68,10,24.6,49,85,false
-ac_milan,ac_milan_saelemaekers,Alexis Saelemaekers,Belgian,RB,24,77,80,78,10,24.6,49,85,false
-sassuolo,sassuolo_lauriente,Armand Laurienté,French,LW,24,80,77,52,10,24.6,49,85,false
-juventus,juventus_david,Jonathan David,Canadian,ST,24,80,78,56,10,24.6,49,85,false
-ac_milan,ac_milan_fofana,Youssouf Fofana,French,CM,24,78,79,80,10,24.6,49,85,false
-cagliari,cagliari_caprile,Elia Caprile,Italian,GK,24,10,11,13,80,24.6,49,85,false
-ac_milan,psg_ramos_g,Gonçalo Ramos,Portuguese,ST,24,80,78,64,10,48,72,86,false
-inter,int_carlos_augusto,Carlos Augusto,Brazilian,LB,27,78,79,80,10,22,55,81,false
-juventus,juventus_cambiaso,Andrea Cambiaso,Italian,LB,24,79,80,78,10,24.6,49,85,false
-juventus,psv_conceicao,Francisco Conceição,Portuguese,CAM,22,80,79,59,10,32,52,90,true
-napoli,napoli_gutierrez,Miguel Gutiérrez,Spanish,LB,24,78,80,79,10,24.6,49,85,false
-roma,roma_soule,Matías Soulé,Argentine,CAM,24,80,79,62,10,24.6,49,85,false
-atalanta,atalanta_djimsiti,Berat Djimsiti,Albanian,CB,24,68,67,79,10,21.1,43,84,false
-ac_milan,ac_milan_cheek,Ruben Loftus-Cheek,English,CAM,24,79,79,78,10,21.1,43,84,false
-torino,torino_zapata,Duván Zapata,Colombian,ST,24,79,77,57,10,21.1,43,84,false
-atalanta,atalanta_zappacosta,Davide Zappacosta,Italian,RM,24,78,79,77,10,21.1,43,84,false
-atalanta,atalanta_pasalic,Mario Pašalić,Croatian,CM,24,79,79,73,10,21.1,43,84,false
-juventus,juventus_celik,Zeki Çelik,Turkish,RB,24,76,76,79,10,21.1,43,84,false
-como,como_audero,Emil Audero,Indonesia,GK,24,10,11,13,79,21.1,43,84,false
-lazio,fcu_doekhi,Danilho Doekhi,Holland,CB,27,70,68,79,10,14,28,85,false
-napoli,napoli_lang,Noa Lang,Holland,LM,24,79,77,63,10,21.1,43,84,false
-juventus,juventus_gonzalez,Nico González,Argentine,LM,24,79,77,65,10,21.1,43,84,false
-bologna,bologna_dovbyk,Artem Dovbyk,Ukrainian,ST,24,79,77,55,10,21.1,43,84,false
-atalanta,atalanta_kossounou,Odilon Kossounou,Ivorian,CB,24,69,68,79,10,21.1,43,84,false
-atalanta,atalanta_hien,Isak Hien,Swedish,CB,24,67,64,79,10,21.1,43,84,false
-como,como_baturina,Martin Baturina,Croatian,CAM,24,79,79,68,10,21.1,43,84,false
-atalanta,atalanta_scalvini,Giorgio Scalvini,Italian,CB,24,69,67,79,10,21.1,43,84,false
-juventus,juventus_gatti,Federico Gatti,Italian,CB,24,70,67,79,10,21.1,43,84,false
-fiorentina,fiorentina_jimenez,Álex Jiménez,Spanish,RB,24,75,77,79,10,21.1,43,84,false
-bologna,bologna_skorupski,Łukasz Skorupski,Polish,GK,24,10,11,13,78,18.1,38,83,false
-como,como_morata,Morata,Spanish,ST,24,78,77,53,10,18.1,38,83,false
-atalanta,atalanta_kolasinac,Sead Kolašinac,Bosnian,CB,24,73,72,78,10,18.1,38,83,false
-lazio,lazio_cataldi,Danilo Cataldi,Italian,CM,24,77,78,75,10,18.1,38,83,false
-roma,rom_angelino,Angeliño,Spanish,LB,28,76,78,75,10,22,52,78,false
-lazio,lazio_marusic,Adam Marušić,Montenegrin,RB,24,77,75,78,10,18.1,38,83,false
-juventus,nic_boga,Jérémie Boga,Ivorian,CAM,28,78,76,61,10,10,25,79,false
-como,como_butez,Jean Butez,French,GK,24,10,11,13,78,18.1,38,83,false
-atalanta,atalanta_scamacca,Gianluca Scamacca,Italian,ST,24,78,76,58,10,18.1,38,83,false
-roma,roma_pellegrini,Lorenzo Pellegrini,Italian,CAM,24,78,78,73,10,18.1,38,83,false
-fiorentina,fio_dodò,Dodô,Brazilian,RB,26,77,78,77,10,22,48,80,false
-juventus,nottm_forest_luiz,Douglas Luiz,Brazilian,CDM,27,77,78,75,10,38.6,109,84,false
-ac_milan,brighton_estupinan,Pervis Estupiñán,Ecuadorian,LB,27,76,78,77,10,9.5,31,80,false
-juventus,lil_zhegrova,Edon Zhegrova,Kosovan,RM,26,78,76,53,10,28,42,82,false
-juventus,juventus_koopmeiners,Teun Koopmeiners,Holland,CAM,24,77,78,75,10,18.1,38,83,false
-inter,inter_bisseck,Yann Aurel Bisseck,German,CB,24,73,72,78,10,18.1,38,83,false
-udinese,udinese_solet,Oumar Solet,French,CB,24,71,69,78,10,18.1,38,83,false
-ac_milan,fey_gimenez,Santiago Giménez,Mexican,ST,24,78,75,59,10,45,72,92,true
-ac_milan,ac_milan_chukwueze,Samuel Chukwueze,Nigerian,RM,24,78,75,53,10,18.1,38,83,false
-lazio,lazio_dia,Boulaye Dia,Senegalese,ST,24,78,74,57,10,18.1,38,83,false
-como,como_caqueret,Maxence Caqueret,French,CDM,24,77,78,76,10,18.1,38,83,false
-atalanta,atalanta_bellanova,Raoul Bellanova,Italian,RB,24,76,76,78,10,18.1,38,83,false
-atalanta,atletico_raspadori,Giacomo Raspadori,Italian,ST,25,78,75,47,10,68.2,136,86,false
-ac_milan,ac_milan_ricci,Samuele Ricci,Italian,CM,24,77,78,78,10,18.1,38,83,false
-como,como_cunha,Lucas Da Cunha,French,CDM,24,78,78,75,10,18.1,38,83,false
-ac_milan,ac_milan_pavlovic,Strahinja Pavlović,Serbian,CB,24,73,71,78,10,18.1,38,83,false
-lazio,lazio_rovella,Nicolò Rovella,Italian,CDM,24,76,78,76,10,18.1,38,83,false
-lazio,ajx_taylor,Kenneth Taylor,Holland,CM,23,78,78,71,10,20,45,85,true
-atalanta,atalanta_samardzic,Lazar Samardžić,Serbian,CAM,24,78,78,69,10,18.1,38,83,false
-napoli,napoli_jlund,Rasmus Højlund,Danish,ST,24,78,76,59,10,18.1,38,83,false
-inter,inter_bonny,Yoan Bonny,Ivorian,ST,24,78,77,53,10,18.1,38,83,false
-como,como_douvikas,Tasos Douvikas,Greek,ST,24,78,76,56,10,18.1,38,83,false
-atalanta,atalanta_zalewski,Nicola Zalewski,Polish,LM,24,78,77,72,10,18.1,38,83,false
-napoli,az_beukema,Sam Beukema,Holland,CB,26,71,71,78,10,20,48,83,true
-como,como_perrone,Máximo Perrone,Argentine,CDM,24,75,77,78,10,18.1,38,83,false
-inter,inter_sucic,Petar Sučić,Croatian,CM,24,78,78,72,10,18.1,38,83,false
-sassuolo,sassuolo_matic,Nemanja Matić,Serbian,CDM,24,72,75,77,10,15.5,33,82,false
-torino,torino_simeone,Giovanni Simeone,Argentine,ST,24,77,74,58,10,15.5,33,82,false
-como,como_posch,Stefan Posch,Austrian,CB,24,70,70,77,10,15.5,33,82,false
-fiorentina,fiorentina_mandragora,Rolando Mandragora,Italian,CM,24,76,77,77,10,15.5,33,82,false
-torino,sou_ch_adams,Ché Adams,Scottish,ST,29,77,74,56,10,3,14,77,false
-juventus,bou_kelly,Lloyd Kelly,English,CB,26,72,71,77,10,18,48,79,false
-juventus,juventus_muani,Randal Kolo Muani,French,ST,24,77,74,53,10,15.5,33,82,false
-fiorentina,fiorentina_mundsson,Albert Guðmundsson,Icelandic,ST,24,77,75,53,10,15.5,33,82,false
-napoli,napoli_olivera,Mathías Olivera,Uruguayan,LB,24,72,73,77,10,15.5,33,82,false
-bologna,bologna_ferguson,Lewis Ferguson,Scottish,CDM,24,77,77,75,10,15.5,33,82,false
-inter,marseille_henrique,Luis Henrique,Brazilian,RB,23,77,76,75,10,6.8,14,80,false
-roma,lens_aynaoui,Neil El Aynaoui,Moroccan,CM,24,76,77,76,10,3.5,9,82,false
-roma,roma_castro,Santiago Castro,Argentine,ST,24,77,75,59,10,15.5,33,82,false
-inter,inter_esposito,Francesco Pio Esposito,Italian,ST,24,77,76,58,10,15.5,33,82,false
-como,como_ramon,Jacobo Ramón,Spanish,CB,24,65,63,76,10,13.3,29,81,false
-como,como_rodriguez,Jesús Rodríguez,Spanish,LM,24,76,74,53,10,13.3,29,81,false
-juventus,juventus_perin,Mattia Perin,Italian,GK,24,10,11,13,76,13.3,29,81,false
-juventus,juventus_milik,Arkadiusz Milik,Polish,ST,24,76,74,56,10,13.3,29,81,false
-ac_milan,ac_milan_terracciano,Pietro Terracciano,Italian,GK,24,10,11,13,76,13.3,29,81,false
-como,como_kempf,Marc-Oliver Kempf,German,CB,24,70,69,76,10,13.3,29,81,false
-atalanta,atalanta_sportiello,Marco Sportiello,Italian,GK,24,10,11,13,76,13.3,29,81,false
-cagliari,cagliari_mina,Yerry Mina,Colombian,CB,24,67,64,76,10,13.3,29,81,false
-lazio,lazio_pedraza,Pedraza,Spanish,LB,24,76,76,76,10,13.3,29,81,false
-udinese,udinese_vojvoda,Mërgim Vojvoda,Kosovan,RB,24,73,76,76,10,13.3,29,81,false
-juventus,leverkusen_arthur,Arthur,Brazilian,CDM,22,74,76,71,10,13.5,25,84,false
-bologna,bologna_lucumi,Jhon Lucumí,Colombian,CB,24,68,67,76,10,13.3,29,81,false
-udinese,udinese_davis,Keinan Davis,English,ST,24,76,72,56,10,13.3,29,81,false
-bologna,bologna_odgaard,Jens Odgaard,Danish,CAM,24,76,74,62,10,13.3,29,81,false
-udinese,aston_villa_zaniolo,Nicolò Zaniolo,Italian,ST,26,76,75,60,10,12,35,80,false
-genoa,genoa_stigard,Leo Østigård,Norwegian,CB,24,67,65,76,10,13.3,29,81,false
-como,como_kuhn,Nicolas Kühn,German,RM,24,76,74,60,10,13.3,29,81,false
-bologna,bologna_miranda,Juan Miranda,Spanish,LB,24,75,75,76,10,13.3,29,81,false
-genoa,genoa_frendrup,Morten Frendrup,Danish,CDM,24,73,73,76,10,13.3,29,81,false
-sassuolo,sassuolo_thorstvedt,Kristian Thorstvedt,Norwegian,CM,24,76,76,75,10,13.3,29,81,false
-inter,inter_martinez2,Josep Martínez,Spanish,GK,24,10,11,13,76,13.3,29,81,false
-cagliari,cagliari_esposito,Sebastiano Esposito,Italian,ST,24,76,76,60,10,13.3,29,81,false
-lazio,lazio_isaksen,Gustav Isaksen,Danish,RW,24,76,73,54,10,13.3,29,81,false
-lazio,laz_nuno_tavares,Nuno Tavares,Portuguese,LB,25,76,76,74,10,22,42,76,false
-parma,parma_bernabe,Adrián Bernabé,Spanish,CM,24,76,76,72,10,13.3,29,81,false
-parma,aston_villa_suzuki,Zion Suzuki,Japanese,GK,24,10,11,13,76,24.9,58,83,false
-ac_milan,ac_milan_jashari,Ardon Jashari,Swiss,CDM,24,75,76,75,10,13.3,29,81,false
-udinese,udinese_okoye,Maduka Okoye,Nigerian,GK,24,10,11,13,76,13.3,29,81,false
-juventus,juventus_mario,João Mário,Portuguese,RB,24,73,76,75,10,13.3,29,81,false
-fiorentina,fiorentina_fagioli,Nicolò Fagioli,Italian,CDM,24,75,76,72,10,13.3,29,81,false
-torino,torino_coco,Saúl Coco,Equatoguinean,CB,24,69,66,76,10,13.3,29,81,false
-bologna,norwich_rowe,Jonathan Rowe,English,LM,22,76,74,61,10,2.5,12,81,false
-inter,inter_diouf,Andy Diouf,French,CM,24,76,76,73,10,13.3,29,81,false
-bologna,bologna_cambiaghi,Nicolò Cambiaghi,Italian,LM,24,76,74,57,10,13.3,29,81,false
-roma,roma_koulierakis,Konstantinos Koulierakis,Greek,CB,24,69,67,76,10,13.3,29,81,false
-fiorentina,fiorentina_atta,Arthur Atta,French,CM,24,76,75,70,10,13.3,29,81,false
-como,como_diao,Assane Diao,Senegalese,RM,24,76,73,56,10,13.3,29,81,false
-napoli,villarreal_marin,Rafa Marín,Spanish,CB,23,67,67,76,10,14.4,33,82,false
-atalanta,atalanta_krstovic,Nikola Krstović,Montenegrin,ST,24,76,73,51,10,13.3,29,81,false
-inter,inter_stankovic,Aleksandar Stanković,Serbian,CDM,24,73,74,76,10,13.3,29,81,false
-verona,verona_montipo,Lorenzo Montipò,Italian,GK,24,10,11,13,76,13.3,29,81,false
-como,como_smolcic,Ivan Smolčić,Croatian,RB,24,70,71,75,10,11.4,26,80,false
-como,como_kaiki,Kaiki,Brazilian,LB,24,71,71,75,10,11.4,26,80,false
-torino,torino_biraghi,Cristiano Biraghi,Italian,LB,24,72,75,72,10,11.4,26,80,false
-bologna,bologna_bernardeschi,Federico Bernardeschi,Italian,RM,24,75,74,61,10,11.4,26,80,false
-udinese,udinese_karlstrom,Jesper Karlström,Swedish,CDM,24,72,74,75,10,11.4,26,80,false
-lazio,marseille_gigot,Samuel Gigot,French,CB,31,67,68,75,10,12.7,36,80,false
-genoa,fey_bijlow,Justin Bijlow,Holland,GK,27,10,10,12,75,18,58,83,false
-lazio,lazio_lazzari,Manuel Lazzari,Italian,RB,24,71,75,71,10,11.4,26,80,false
-sassuolo,sassuolo_pinamonti,Andrea Pinamonti,Italian,ST,24,75,72,50,10,11.4,26,80,false
-fiorentina,fiorentina_ranieri,Luca Ranieri,Italian,CB,24,68,68,75,10,11.4,26,80,false
-genoa,genoa_traore,Hamed Junior Traoré,Ivorian,LM,24,75,73,64,10,11.4,26,80,false
-udinese,udinese_ekkelenkamp,Jurgen Ekkelenkamp,Holland,CM,24,74,75,71,10,11.4,26,80,false
-bologna,bologna_moro,Nikola Moro,Croatian,CDM,24,75,75,74,10,11.4,26,80,false
-genoa,genoa_vasquez,Johan Vásquez,Mexican,CB,24,66,66,75,10,11.4,26,80,false
-lecce,lecce_gallo,Antonino Gallo,Italian,LB,24,73,73,75,10,11.4,26,80,false
-roma,roma_kumbulla,Marash Kumbulla,Albanian,CB,24,64,64,75,10,11.4,26,80,false
-napoli,brighton_gilmour,Billy Gilmour,Scottish,CM,24,72,75,71,10,18.8,45,81,false
-bologna,bologna_holm,Emil Holm,Swedish,RB,24,73,71,75,10,11.4,26,80,false
-bologna,bologna_heggem,Torbjørn Heggem,Norwegian,CB,24,70,68,75,10,11.4,26,80,false
-fiorentina,fiorentina_piccoli,Roberto Piccoli,Italian,ST,24,75,72,56,10,11.4,26,80,false
-bologna,bologna_dallinga,Thijs Dallinga,Holland,ST,24,75,73,55,10,11.4,26,80,false
-parma,parma_delprato,Enrico Delprato,Italian,CB,24,70,70,75,10,11.4,26,80,false
-parma,parma_caviglia,Hans Nicolussi Caviglia,Italian,CDM,24,74,75,72,10,11.4,26,80,false
-torino,torino_ilic,Ivan Ilić,Serbian,CM,24,74,75,70,10,11.4,26,80,false
-parma,parma_valeri,Emanuele Valeri,Italian,LB,24,75,75,74,10,11.4,26,80,false
-torino,torino_ismajli,Ardian Ismajli,Albanian,CB,24,62,61,75,10,11.4,26,80,false
-roma,ajx_rensch,Devyne Rensch,Holland,RM,22,73,73,75,10,15,38,85,true
-fiorentina,fiorentina_parisi,Fabiano Parisi,Italian,LB,24,74,75,75,10,11.4,26,80,false
-bologna,bologna_vitik,Martin Vitík,Czech,CB,24,66,65,75,10,11.4,26,80,false
-genoa,genoa_cuffy,Brooke Norton-Cuffy,English,RB,24,73,74,75,10,11.4,26,80,false
-parma,parma_keita,Mandela Keita,Belgian,CDM,24,72,72,75,10,11.4,26,80,false
-sassuolo,sassuolo_idzes,Jay Idzes,Indonesia,CB,24,69,68,75,10,11.4,26,80,false
-genoa,gen_vitinha,Vitinha,Portuguese,ST,25,75,73,54,10,14,25,78,false
-sassuolo,watford_kone,Ismaël Koné,Canadian,CM,22,75,75,72,10,2,10,77,false
-ac_milan,ac_milan_winter,Koni De Winter,Belgian,CB,24,67,66,75,10,11.4,26,80,false
-cagliari,cagliari_obert,Adam Obert,Slovak,LB,24,73,73,75,10,11.4,26,80,false
-napoli,napoli_lucca,Lorenzo Lucca,Italian,ST,24,75,72,56,10,11.4,26,80,false
-roma,roma_eddine,Anass Salah-Eddine,Moroccan,LB,24,73,75,75,10,11.4,26,80,false
-juventus,juventus_miretti,Fabio Miretti,Italian,CM,24,74,75,70,10,11.4,26,80,false
-genoa,genoa_baldanzi,Tommaso Baldanzi,Italian,CAM,24,75,73,56,10,11.4,26,80,false
-como,como_valle,Álex Valle,Spanish,LB,24,73,74,75,10,11.4,26,80,false
-torino,torino_casadei,Cesare Casadei,Italian,CM,24,74,75,73,10,11.4,26,80,false
-torino,torino_comuzzo,Pietro Comuzzo,Italian,CB,24,63,63,75,10,11.4,26,80,false
-cremonese,cremonese_luperto,Sebastiano Luperto,Italian,CB,24,67,67,75,10,11.4,26,80,false
-verona,verona_serdar,Suat Serdar,German,CM,24,74,75,74,10,11.4,26,80,false
-cremonese,cremonese_baschirotto,Federico Baschirotto,Italian,CB,24,70,66,75,10,11.4,26,80,false
-atalanta,atalanta_ahanor,Honest Ahanor,Italian,CB,24,66,66,74,10,9.8,23,79,false
-napoli,napoli_santos,Alisson Santos,Brazilian,CAM,24,74,72,53,10,9.8,23,79,false
-lazio,laz_patric,Patric,Spanish,CB,32,69,71,74,10,6,35,78,false
-juventus,juventus_rugani,Daniele Rugani,Italian,CB,24,63,64,74,10,9.8,23,79,false
-roma,roma_gollini,Pierluigi Gollini,Italian,GK,24,10,11,13,74,9.8,23,79,false
-lecce,lecce_coulibaly,Lassana Coulibaly,Malian,CDM,24,70,72,74,10,9.8,23,79,false
-bologna,bologna_karlsson,Jesper Karlsson,Swedish,LW,24,74,72,53,10,9.8,23,79,false
-sassuolo,burnley_muric,Arijanet Murić,Kosovan,GK,27,10,11,13,74,3.1,13,76,false
-torino,torino_paleari,Alberto Paleari,Italian,GK,24,10,11,13,74,9.8,23,79,false
-genoa,genoa_martin,Aarón Martín,Spanish,LB,24,69,74,72,10,9.8,23,79,false
-bologna,bologna_casale,Nicolò Casale,Italian,CB,24,70,70,74,10,9.8,23,79,false
-lazio,lazio_pellegrini,Luca Pellegrini,Italian,LB,24,70,73,74,10,9.8,23,79,false
-sassuolo,sassuolo_walukiewicz,Sebastian Walukiewicz,Polish,RB,24,66,66,74,10,9.8,23,79,false
-fiorentina,fiorentina_sohm,Simon Sohm,Swiss,CM,24,73,73,74,10,9.8,23,79,false
-fiorentina,fiorentina_sottil,Riccardo Sottil,Italian,LM,24,74,71,51,10,9.8,23,79,false
-atalanta,atalanta_gaetano,Gianluca Gaetano,Italian,CAM,24,74,73,66,10,9.8,23,79,false
-torino,torino_aboukhlal,Zakaria Aboukhlal,Moroccan,CAM,24,74,71,56,10,9.8,23,79,false
-juventus,juventus_cabal,Juan David Cabal,Colombian,LB,24,68,70,74,10,9.8,23,79,false
-bologna,bologna_pobega,Tommaso Pobega,Italian,CDM,24,74,73,74,10,9.8,23,79,false
-sassuolo,sassuolo_turati,Stefano Turati,Italian,GK,24,10,11,13,74,9.8,23,79,false
-atalanta,atalanta_maldini,Daniel Maldini,Italian,ST,24,74,74,55,10,9.8,23,79,false
-atalanta,sou_sulemana,Kamaldeen Sulemana,Ghanaian,LM,23,74,72,49,10,3,12,82,false
-genoa,genoa_colombo,Lorenzo Colombo,Italian,ST,24,74,70,50,10,9.8,23,79,false
-lazio,lazio_bashiru,Fisayo Dele-Bashiru,Nigerian,CAM,24,74,72,72,10,9.8,23,79,false
-parma,parma_ndiaye,Abdoulaye Ndiaye,Senegalese,CB,24,63,61,74,10,9.8,23,79,false
-fiorentina,tot_dragusin,Radu Drăgușin,Romanian,CB,23,66,65,74,10,28,48,83,true
-udinese,udinese_kristensen,Thomas Kristensen,Danish,CB,24,63,61,74,10,9.8,23,79,false
-lazio,lazio_cancellieri,Matteo Cancellieri,Italian,RW,24,74,72,53,10,9.8,23,79,false
-lazio,lazio_noslin,Tijjani Noslin,Holland,ST,24,74,72,55,10,9.8,23,79,false
-napoli,napoli_folorunsho,Michael Folorunsho,Italian,CM,24,74,74,74,10,9.8,23,79,false
-parma,parma_circati,Alessandro Circati,Australian,CB,24,66,64,74,10,9.8,23,79,false
-torino,torino_israel,Franco Israel,Uruguayan,GK,24,10,11,13,74,9.8,23,79,false
-roma,roma_pisilli,Niccolò Pisilli,Italian,CM,24,73,74,74,10,9.8,23,79,false
-roma,roma_ghilardi,Daniele Ghilardi,Italian,CB,24,63,60,74,10,9.8,23,79,false
-lazio,lazio_mandas,Christos Mandas,Greek,GK,24,10,11,13,74,9.8,23,79,false
-ac_milan,ac_milan_bartesaghi,Davide Bartesaghi,Italian,LB,24,72,71,74,10,9.8,23,79,false
-verona,verona_leali,Nicola Leali,Italian,GK,24,10,11,13,74,9.8,23,79,false
-cremonese,cremonese_sanabria,Antonio Sanabria,Paraguayan,ST,24,74,72,48,10,9.8,23,79,false
-pisa,pisa_aebischer,Michel Aebischer,Swiss,CM,24,72,73,74,10,9.8,23,79,false
-pisa,pisa_tramoni,Mattéo Tramoni,Italian,CAM,24,74,73,62,10,9.8,23,79,false
-bologna,bologna_amondarain,Mikel Amondarain,Argentine,CM,24,73,73,72,10,8.4,20,79,false
-udinese,udinese_kabasele,Christian Kabasele,Belgian,CB,24,65,63,73,10,8.4,20,79,false
-udinese,udinese_lovric,Sandi Lovrič,Slovenian,CM,24,71,73,69,10,8.4,20,79,false
-torino,valencia_comert,Eray Cömert,Swiss,CB,27,67,66,73,10,20.4,53,78,false
-como,como_dossena,Alberto Dossena,Italian,CB,24,63,63,73,10,8.4,20,79,false
-fiorentina,fiorentina_pongracic,Marin Pongračić,Croatian,CB,24,65,64,73,10,8.4,20,79,false
-atalanta,atalanta_bakker,Mitchel Bakker,Holland,LB,24,73,72,73,10,8.4,20,79,false
-fiorentina,fiorentina_nzola,M'Bala Nzola,Angolan,ST,24,73,72,51,10,8.4,20,79,false
-torino,torino_pedersen,Marcus Pedersen,Norwegian,RB,24,73,73,72,10,8.4,20,79,false
-napoli,napoli_cajuste,Jens-Lys Cajuste,Swedish,CDM,24,70,71,73,10,8.4,20,79,false
-napoli,napoli_m,Jesper Lindstrøm,Danish,RM,24,73,71,56,10,8.4,20,79,false
-bologna,bologna_zortea,Nadir Zortea,Italian,RB,24,73,72,72,10,8.4,20,79,false
-cagliari,cagliari_zappa,Gabriele Zappa,Italian,RB,24,71,71,73,10,8.4,20,79,false
-ac_milan,ac_milan_musah,Yunus Musah,United States,CM,24,73,72,70,10,8.4,20,79,false
-cagliari,cagliari_adopo,Michel Ndary Adopo,French,CM,24,70,71,73,10,8.4,20,79,false
-parma,parma_ondrejka,Jacob Ondrejka,Swedish,LW,24,73,70,55,10,8.4,20,79,false
-sassuolo,sassuolo_doig,Josh Doig,Scottish,LB,24,72,72,73,10,8.4,20,79,false
-como,como_tornqvist,Noel Törnqvist,Swedish,GK,24,10,11,13,73,8.4,20,79,false
-inter,inter_asllani,Kristjan Asllani,Albanian,CDM,24,72,73,71,10,8.4,20,79,false
-fiorentina,fiorentina_valentini,Nicolás Valentini,Argentine,CB,24,65,64,73,10,8.4,20,79,false
-torino,torino_oristanio,Gaetano Oristanio,Italian,CAM,24,73,71,59,10,8.4,20,79,false
-fiorentina,fiorentina_fabbian,Giovanni Fabbian,Italian,CM,24,73,73,70,10,8.4,20,79,false
-atalanta,atalanta_sulemana,Ibrahim Sulemana,Ghanaian,CDM,24,70,70,73,10,8.4,20,79,false
-parma,parma_frigan,Matija Frigan,Croatian,ST,24,73,70,53,10,8.4,20,79,false
-cagliari,cagliari_pedro,Zé Pedro,Portuguese,CB,24,69,69,73,10,8.4,20,79,false
-fiorentina,fiorentina_oulai,Christ Ravynel Inao Oulaï,Ivorian,CDM,24,72,72,70,10,7.2,17,78,false
-cagliari,cagliari_rodriguez,Juan Rodríguez,Uruguayan,CB,24,64,61,72,10,7.2,17,78,false
-udinese,udinese_kamara,Hassane Kamara,Ivorian,LB,24,71,72,71,10,7.2,17,78,false
-como,como_mazzitelli,Luca Mazzitelli,Italian,CM,24,71,72,69,10,7.2,17,78,false
-como,como_goldaniga,Edoardo Goldaniga,Italian,CB,24,62,61,72,10,7.2,17,78,false
-udinese,udinese_piotrowski,Jakub Piotrowski,Polish,CM,24,71,72,71,10,7.2,17,78,false
-roma,roma_vasquez,Devis Vásquez,Colombian,GK,24,10,11,13,72,7.2,17,78,false
-fiorentina,fiorentina_barak,Antonín Barák,Czech,CAM,24,72,72,68,10,7.2,17,78,false
-genoa,genoa_messias,Junior Messias,Brazilian,CM,24,72,71,62,10,7.2,17,78,false
-udinese,udinese_chakvetadze,Giorgi Chakvetadze,Georgian,LM,24,72,71,55,10,7.2,17,78,false
-lecce,lecce_geubbels,Willem Geubbels,French,ST,24,72,70,47,10,7.2,17,78,false
-napoli,napoli_ngonge,Cyril Ngonge,Belgian,RM,24,72,69,51,10,7.2,17,78,false
-cagliari,cagliari_felici,Mattia Felici,Italian,LM,24,72,70,58,10,7.2,17,78,false
-como,como_brempt,Ignace Van der Brempt,Belgian,RB,24,70,71,72,10,7.2,17,78,false
-atalanta,atalanta_toure,El Bilal Touré,Malian,LM,24,72,68,46,10,7.2,17,78,false
-fiorentina,fiorentina_brescianini,Marco Brescianini,Italian,CM,24,72,72,71,10,7.2,17,78,false
-parma,parma_rensen,Oliver Sørensen,Danish,CM,24,72,72,71,10,7.2,17,78,false
-sassuolo,sassuolo_volpato,Cristian Volpato,Australian,RW,24,72,71,53,10,7.2,17,78,false
-cagliari,cagliari_fazzini,Jacopo Fazzini,Italian,CAM,24,72,72,64,10,7.2,17,78,false
-sassuolo,sassuolo_boloca,Daniel Boloca,Romanian,CM,24,71,72,72,10,7.2,17,78,false
-napoli,napoli_cheddira,Walid Cheddira,Moroccan,ST,24,72,70,56,10,7.2,17,78,false
-udinese,udinese_zanoli,Alessandro Zanoli,Italian,RB,24,69,69,72,10,7.2,17,78,false
-bologna,bologna_dominguez,Benjamín Domínguez,Argentine,LM,24,72,70,54,10,7.2,17,78,false
-udinese,udinese_bertola,Nicolò Bertola,Italian,CB,24,61,59,72,10,7.2,17,78,false
-cagliari,cagliari_prati,Matteo Prati,Italian,CDM,24,70,72,70,10,7.2,17,78,false
-torino,torino_gineitis,Gvidas Gineitis,Lithuanian,CM,24,70,72,69,10,7.2,17,78,false
-lecce,lecce_gaspar,Kialonda Gaspar,Angolan,CB,24,61,57,72,10,7.2,17,78,false
-genoa,genoa_marcandalli,Alessandro Marcandalli,Italian,CB,24,62,60,72,10,7.2,17,78,false
-fiorentina,fiorentina_ndour,Cher Ndour,Italian,CM,24,72,72,70,10,7.2,17,78,false
-udinese,athletic_bilbao_gomez,Unai Gómez,Spanish,CAM,22,72,71,59,10,17.1,37,82,false
-pisa,pisa_zanon,Simone Zanon,Italian,RB,24,71,72,71,10,7.2,17,78,false
-cremonese,cremonese_vandeputte,Jari Vandeputte,Belgian,CM,24,72,72,66,10,7.2,17,78,false
-cremonese,cremonese_fulignati,Andrea Fulignati,Italian,GK,24,10,11,13,72,7.2,17,78,false
-pisa,pisa_moreo,Stefano Moreo,Italian,ST,24,72,72,61,10,7.2,17,78,false
-cremonese,cremonese_bonazzoli,Federico Bonazzoli,Italian,ST,24,72,70,48,10,7.2,17,78,false
-cremonese,cremonese_pezzella,Giuseppe Pezzella,Italian,LM,24,71,71,72,10,7.2,17,78,false
-verona,verona_bernede,Antoine Bernede,French,CM,24,72,72,72,10,7.2,17,78,false
-verona,verona_kastanos,Grigoris Kastanos,Cypriot,CAM,24,72,71,61,10,7.2,17,78,false
-verona,verona_frese,Martin Frese,Danish,LB,24,70,70,72,10,7.2,17,78,false
-verona,verona_bradaric,Domagoj Bradarić,Croatian,LB,24,69,72,72,10,7.2,17,78,false
-verona,gro_van_der_horn,Tomáš Suslov,Slovak,CAM,23,72,71,60,10,10,25,80,true
-pisa,pisa_canestrelli,Simone Canestrelli,Italian,CB,24,63,60,72,10,7.2,17,78,false
-bologna,bologna_alhassane,Rahim Alhassane,Niger,LB,24,68,66,71,10,6.2,15,77,false
-atalanta,atalanta_bernasconi,Lorenzo Bernasconi,Italian,LM,24,70,71,71,10,6.2,15,77,false
-juventus,juventus_alajbegovic,Kerim Alajbegović,Bosnian,CAM,24,71,69,53,10,6.2,15,77,false
-roma,roma_vaz,Robinio Vaz,French,ST,24,71,67,49,10,6.2,15,77,false
-napoli,nap_giovane,Giovane,Brazilian,ST,23,71,70,50,10,18,35,83,false
-genoa,genoa_sabelli,Stefano Sabelli,Italian,RB,24,64,65,71,10,6.2,15,77,false
-cagliari,leicester_winks,Harry Winks,English,CDM,29,69,71,70,10,1.6,8,75,false
-udinese,udinese_buksa,Adam Buksa,Polish,ST,24,71,70,54,10,6.2,15,77,false
-parma,parma_almqvist,Pontus Almqvist,Swedish,RW,24,71,68,50,10,6.2,15,77,false
-fiorentina,fiorentina_christensen,Oliver Christensen,Danish,GK,24,10,11,13,71,6.2,15,77,false
-lecce,lecce_maleh,Youssef Maleh,Moroccan,CM,24,69,71,68,10,6.2,15,77,false
-napoli,napoli_mazzocchi,Pasquale Mazzocchi,Italian,RB,24,69,71,70,10,6.2,15,77,false
-sassuolo,sassuolo_pierini,Nicholas Pierini,Italian,ST,24,71,68,52,10,6.2,15,77,false
-lecce,lecce_pierotti,Santiago Pierotti,Argentine,RM,24,71,70,67,10,6.2,15,77,false
-sassuolo,sassuolo_cande,Fali Candé,Bissau-Guinean,CB,24,69,68,71,10,6.2,15,77,false
-udinese,udinese_zarraga,Oier Zarraga,Spanish,CM,24,70,71,67,10,6.2,15,77,false
-sassuolo,sassuolo_alvarez,Agustín Álvarez,Uruguayan,ST,24,71,70,52,10,6.2,15,77,false
-torino,torino_jim,Kian Fitz-Jim,Holland,CM,24,70,71,66,10,6.2,15,77,false
-parma,parma_pellegrino,Mateo Pellegrino,Argentine,ST,24,71,70,55,10,6.2,15,77,false
-como,como_fadera,Alieu Fadera,Gambian,LW,24,71,71,64,10,6.2,15,77,false
-genoa,genoa_ellertsson,Mikael Egill Ellertsson,Icelandic,CM,24,71,70,69,10,6.2,15,77,false
-ac_milan,ac_milan_terracciano2,Filippo Terracciano,Italian,CB,24,71,71,71,10,6.2,15,77,false
-lecce,lecce_gandelman,Omri Gandelman,Israeli,CAM,24,69,69,71,10,6.2,15,77,false
-como,como_addai,Jayden Addai,Holland,RM,24,71,69,50,10,6.2,15,77,false
-pisa,pisa_loyola,Felipe Loyola,Chilean,CM,24,69,70,71,10,6.2,15,77,false
-pisa,pisa_caracciolo,Antonio Caracciolo,Italian,CB,24,62,60,71,10,6.2,15,77,false
-cremonese,cremonese_bianchetti,Matteo Bianchetti,Italian,CB,24,63,64,71,10,6.2,15,77,false
-pisa,pisa_scuffet,Simone Scuffet,Italian,GK,24,10,11,13,71,6.2,15,77,false
-cremonese,cremonese_thorsby,Morten Thorsby,Norwegian,CM,24,67,69,71,10,6.2,15,77,false
-pisa,pisa_toure,Idrissa Touré,German,RM,24,71,71,69,10,6.2,15,77,false
-pisa,stoke_leris,Mehdi Léris,Algerian,RM,27,71,70,67,10,1.8,9,71,false
-verona,verona_harroui,Abdou Harroui,Moroccan,CM,24,71,71,69,10,6.2,15,77,false
-pisa,pisa_semper,Adrian Šemper,Croatian,GK,24,10,11,13,71,6.2,15,77,false
-verona,verona_sarr,Amin Sarr,Swedish,ST,24,71,68,48,10,6.2,15,77,false
-cremonese,cremonese_collocolo,Michele Collocolo,Italian,CM,24,69,70,71,10,6.2,15,77,false
-pisa,pisa_angori,Samuele Angori,Italian,LM,24,70,71,70,10,6.2,15,77,false
-cremonese,cremonese_barbieri,Tommaso Barbieri,Italian,RB,24,68,68,71,10,6.2,15,77,false
-cagliari,cagliari_idrissi,Riyad Idrissi,Italian,LB,24,68,66,70,10,5.3,13,76,false
-fiorentina,fiorentina_viery,Viery,Brazilian,CB,24,65,64,70,10,5.3,13,76,false
-cagliari,cagliari_deiola,Alessandro Deiola,Italian,CM,24,66,66,70,10,5.3,13,76,false
-lecce,lecce_fruchtl,Christian Früchtl,German,GK,24,10,11,13,70,5.3,13,76,false
-torino,torino_kulenovic,Sandro Kulenović,Croatian,ST,24,70,67,57,10,5.3,13,76,false
-genoa,genoa_vogliacco,Alessandro Vogliacco,Italian,CB,24,61,61,70,10,5.3,13,76,false
-sassuolo,sassuolo_ghion,Andrea Ghion,Italian,CM,24,68,70,68,10,5.3,13,76,false
-ac_milan,ac_milan_bondo,Warren Bondo,French,CDM,24,69,70,66,10,5.3,13,76,false
-parma,parma_balogh,Botond Balogh,Hungarian,CB,24,59,58,70,10,5.3,13,76,false
-lecce,lecce_siebert,Jamil Siebert,German,CB,24,63,59,70,10,5.3,13,76,false
-como,como_azon,Iván Azón,Spanish,ST,24,70,69,56,10,5.3,13,76,false
-sassuolo,sassuolo_odenthal,Cas Odenthal,Holland,CB,24,63,61,70,10,5.3,13,76,false
-sassuolo,sassuolo_ciervo,Riccardo Ciervo,Italian,RM,24,70,69,63,10,5.3,13,76,false
-lazio,lazio_provstgaard,Oliver Provstgaard,Danish,CB,24,64,62,70,10,5.3,13,76,false
-torino,torino_ilkhan,Emirhan İlkhan,Turkish,CM,24,69,70,64,10,5.3,13,76,false
-bologna,bologna_azzouzi,Oussama El Azzouzi,Moroccan,CDM,24,69,70,68,10,5.3,13,76,false
-lecce,lecce_banda,Lameck Banda,Zambian,LM,24,70,67,47,10,5.3,13,76,false
-parma,parma_ordonez,Christian Ordoñez,Argentine,CM,24,69,69,70,10,5.3,13,76,false
-lecce,lecce_stulic,Nikola Štulić,Serbian,ST,24,70,69,50,10,5.3,13,76,false
-genoa,levante_matturro,Alan Matturro,Uruguayan,CB,20,61,60,70,10,20.5,42,82,false
-udinese,udinese_modesto,Rui Modesto,Angolan,RB,24,70,69,68,10,5.3,13,76,false
-udinese,udinese_miller,Lennon Miller,Scottish,CM,24,70,70,67,10,5.3,13,76,false
-roma,roma_kowski,Jan Ziółkowski,Polish,CB,24,59,58,70,10,5.3,13,76,false
-parma,parma_troilo,Mariano Troilo,Argentine,CB,24,60,58,70,10,5.3,13,76,false
-pisa,pisa_leone,Giuseppe Leone,Italian,CM,24,69,70,70,10,5.3,13,76,false
-cremonese,cremonese_uric,Milan Đurić,Bosnian,ST,24,69,70,57,10,5.3,13,76,false
-cremonese,cremonese_pontisso,Simone Pontisso,Italian,CM,24,69,70,68,10,5.3,13,76,false
-pisa,pisa_vignato,Emanuel Vignato,Italian,CAM,24,70,69,52,10,5.3,13,76,false
-verona,verona_mulattieri,Samuele Mulattieri,Italian,ST,24,70,68,52,10,5.3,13,76,false
-verona,verona_niasse,Cheikh Niasse,Senegalese,CDM,24,62,65,70,10,5.3,13,76,false
-verona,verona_mosquera,Daniel Mosquera,Colombian,ST,24,70,68,51,10,5.3,13,76,false
-verona,verona_belghali,Rafik Belghali,Algerian,RB,24,69,70,70,10,5.3,13,76,false
-lecce,lecce_gabriel,Tiago Gabriel,Portuguese,CB,24,60,57,69,10,4.5,12,75,false
-ac_milan,troyes_diawara,Sankhoun Diawara,French,CB,20,60,57,69,10,3,6,72,false
-juventus,juventus_adzic,Vasilije Adžić,Montenegrin,CAM,24,69,69,63,10,4.5,12,75,false
-bologna,bologna_silvestri,Lorenzo De Silvestri,Italian,RB,24,67,68,69,10,4.5,12,75,false
-fiorentina,fiorentina_lezzerini,Luca Lezzerini,Italian,GK,24,10,11,13,69,4.5,12,75,false
-cagliari,cagliari_radunovic,Boris Radunović,Serbian,GK,24,10,11,13,69,4.5,12,75,false
-udinese,udinese_ebosse,Enzo Ebosse,Cameroonian,CB,24,62,62,69,10,4.5,12,75,false
-parma,parma_valenti,Lautaro Valenti,Argentine,CB,24,64,62,69,10,4.5,12,75,false
-cagliari,cagliari_borrelli,Gennaro Borrelli,Italian,ST,24,69,67,52,10,4.5,12,75,false
-genoa,genoa_mitaj,Mario Mitaj,Albanian,LB,24,68,69,69,10,4.5,12,75,false
-lecce,lecce_kaba,Mohamed Kaba,French,CDM,24,65,65,69,10,4.5,12,75,false
-udinese,udinese_abankwah,James Abankwah,Irish,CB,24,63,62,69,10,4.5,12,75,false
-udinese,udinese_buta,Leonardo Buta,Portuguese,LB,24,68,66,69,10,4.5,12,75,false
-lecce,lecce_jean,Gaby Jean,French,CB,24,59,57,69,10,4.5,12,75,false
-lecce,lecce_berisha,Medon Berisha,Albanian,CM,24,67,69,65,10,4.5,12,75,false
-parma,parma_corvi,Edoardo Corvi,Italian,GK,24,10,11,13,69,4.5,12,75,false
-lecce,lecce_veiga,Danilo Veiga,Portuguese,RB,24,68,67,69,10,4.5,12,75,false
-sassuolo,sassuolo_lipani,Luca Lipani,Italian,CM,24,66,68,69,10,4.5,12,75,false
-genoa,genoa_havel,Elias Havel,Austrian,ST,24,69,67,45,10,4.5,12,75,false
-napoli,napoli_vergara,Antonio Vergara,Italian,CAM,24,69,68,57,10,4.5,12,75,false
-lazio,lazio_motta,Edoardo Motta,Italian,GK,24,10,11,13,69,4.5,12,75,false
-cagliari,cagliari_kofler,Raphael Kofler,Italian,CB,24,67,65,69,10,4.5,12,75,false
-roma,roma_cherubini,Luigi Cherubini,Italian,CAM,24,69,68,58,10,4.5,12,75,false
-cremonese,cremonese_berti,Tommaso Berti,Italian,CAM,24,69,68,58,10,4.5,12,75,false
-cremonese,cremonese_grassi,Alberto Grassi,Italian,CM,24,68,69,68,10,4.5,12,75,false
-cremonese,cremonese_luca,Manuel De Luca,Italian,ST,24,69,68,56,10,4.5,12,75,false
-verona,verona_slotsager,Tobias Slotsager,Danish,CB,24,60,60,69,10,4.5,12,75,false
-pisa,pisa_meister,Henrik Meister,Danish,ST,24,69,68,51,10,4.5,12,75,false
-cagliari,cagliari_mutandwa,Kingstone Mutandwa,Zambian,ST,24,68,65,49,10,3.9,10,74,false
-udinese,udinese_goglichidze,Saba Goglichidze,Georgian,CB,24,57,55,68,10,3.9,10,74,false
-como,como_fumagalli,Tommaso Fumagalli,Italian,ST,24,68,67,49,10,3.9,10,74,false
-cagliari,cagliari_albarracin,Agustín Albarracín,Uruguayan,LM,24,68,67,50,10,3.9,10,74,false
-napoli,napoli_obaretin,Nosa Edward Obaretin,Italian,CB,24,62,59,68,10,3.9,10,74,false
-lazio,lazio_artistico,Gabriele Artistico,Italian,ST,24,68,66,47,10,3.9,10,74,false
-lazio,lazio_mussolini,Romano Floriani Mussolini,Italian,RM,24,67,67,68,10,3.9,10,74,false
-como,como_liberali,Mattia Liberali,Italian,CAM,24,68,66,55,10,3.9,10,74,false
-juventus,juventus_ekhator,Jeff Ekhator,Italian,ST,24,68,65,44,10,3.9,10,74,false
-lecce,lecce_kouassi,Owen Kouassi,Ivorian,RB,24,61,57,68,10,3.9,10,74,false
-udinese,udinese_gueye,Idrissa Gueye,Senegalese,ST,24,68,64,44,10,3.9,10,74,false
-genoa,genoa_meichtry,Franz-Ethan Meichtry,Swiss,CAM,24,68,66,58,10,3.9,10,74,false
-genoa,genoa_puczka,David Puczka,Austrian,LB,24,67,68,67,10,3.9,10,74,false
-juventus,juventus_pinsoglio,Carlo Pinsoglio,Italian,GK,24,10,11,13,68,3.9,10,74,false
-inter,inter_gennaro,Raffaele Di Gennaro,Italian,GK,24,10,11,13,68,3.9,10,74,false
-torino,torino_pellegri,Pietro Pellegri,Italian,ST,24,68,67,45,10,3.9,10,74,false
-udinese,udinese_bayo,Vakoun Issouf Bayo,Ivorian,ST,24,68,65,44,10,3.9,10,74,false
-lecce,lecce_dri,Konan N'Dri,Ivorian,RM,24,68,66,57,10,3.9,10,74,false
-torino,hud_anjorin,Tino Anjorin,English,CM,23,68,68,61,10,2,9,78,false
-sassuolo,sassuolo_moro,Luca Moro,Italian,ST,24,68,65,44,10,3.9,10,74,false
-como,como_braunoder,Matthias Braunöder,Austrian,CM,24,68,68,65,10,3.9,10,74,false
-como,como_gabrielloni,Alessandro Gabrielloni,Italian,ST,24,68,66,51,10,3.9,10,74,false
-inter,inter_massolin,Yanis Massolin,French,CM,24,68,68,67,10,3.9,10,74,false
-genoa,genoa_otoa,Sebastian Otoa,Danish,CB,24,59,57,68,10,3.9,10,74,false
-parma,parma_cremaschi,Benjamin Cremaschi,United States,CM,24,68,68,64,10,3.9,10,74,false
-parma,parma_joujou,Antoine Joujou,French,LM,24,68,66,43,10,3.9,10,74,false
-lazio,lazio_ratkov,Petar Ratkov,Serbian,ST,24,68,65,48,10,3.9,10,74,false
-genoa,genoa_masini,Patrizio Masini,Italian,CDM,24,66,67,68,10,3.9,10,74,false
-juventus,juventus_pecorino,Emanuele Pecorino,Italian,ST,24,68,68,56,10,3.9,10,74,false
-napoli,napoli_marianucci,Luca Marianucci,Italian,CB,24,57,58,68,10,3.9,10,74,false
-atalanta,atalanta_bonfanti,Giovanni Bonfanti,Italian,CB,24,60,60,68,10,3.9,10,74,false
-bologna,bologna_helland,Eivind Helland,Norwegian,CB,24,63,61,68,10,3.9,10,74,false
-ac_milan,ac_milan_athekame,Zachary Athekame,Swiss,RB,24,66,64,68,10,3.9,10,74,false
-verona,verona_livramento,Dailon Livramento,Cape Verde Islands,ST,24,68,66,49,10,3.9,10,74,false
-cremonese,cremonese_stuckler,David Stückler,Danish,ST,24,68,65,45,10,3.9,10,74,false
-cremonese,cremonese_gerli,Fabio Gerli,Italian,CDM,24,68,68,66,10,3.9,10,74,false
-pisa,pisa_calabresi,Arturo Calabresi,Italian,CB,24,62,63,68,10,3.9,10,74,false
-cremonese,cremonese_festa,Marco Festa,Italian,GK,24,10,11,13,68,3.9,10,74,false
-pisa,pisa_stojilkovic,Filip Stojilković,Swiss,ST,24,68,64,46,10,3.9,10,74,false
-pisa,pisa_piccinini,Gabriele Piccinini,Italian,CM,24,67,68,66,10,3.9,10,74,false
-bologna,bologna_ilic,Mihajlo Ilić,Serbian,CB,24,60,59,67,10,3.3,9,73,false
-genoa,genoa_stolz,Franz Stolz,Austrian,GK,24,10,11,13,67,3.3,9,73,false
-fiorentina,fiorentina_fortini,Niccolò Fortini,Italian,LB,24,66,67,65,10,3.3,9,73,false
-udinese,udinese_palma,Matteo Palma,German,CB,24,57,55,67,10,3.3,9,73,false
-atalanta,atalanta_vlahovic,Vanja Vlahović,Serbian,ST,24,67,65,44,10,3.3,9,73,false
-genoa,genoa_amorim,Amorim,Brazilian,CM,24,66,67,62,10,3.3,9,73,false
-napoli,napoli_contini,Nikita Contini,Italian,GK,24,10,11,13,67,3.3,9,73,false
-sassuolo,sassuolo_caligara,Fabrizio Caligara,Italian,CM,24,66,67,67,10,3.3,9,73,false
-sassuolo,sassuolo_antiste,Janis Antiste,French,ST,24,67,65,45,10,3.3,9,73,false
-sassuolo,sassuolo_bowie,Kieron Bowie,Scottish,ST,24,67,67,56,10,3.3,9,73,false
-sassuolo,sassuolo_missori,Filippo Missori,Italian,RB,24,62,63,67,10,3.3,9,73,false
-sassuolo,sassuolo_iannoni,Edoardo Iannoni,Italian,CM,24,66,67,63,10,3.3,9,73,false
-sassuolo,sassuolo_paz,Yeferson Paz,Colombian,RB,24,66,67,67,10,3.3,9,73,false
-atalanta,atalanta_giovane,Samuel Giovane,Italian,CDM,24,67,67,66,10,3.3,9,73,false
-lazio,lazio_belahyane,Reda Belahyane,Moroccan,CM,24,66,67,66,10,3.3,9,73,false
-sassuolo,sassuolo_pieragnolo,Edoardo Pieragnolo,Italian,LB,24,63,64,67,10,3.3,9,73,false
-parma,parma_daffara,Giovanni Daffara,Italian,GK,24,10,11,13,67,3.3,9,73,false
-verona,verona_edmundsson,Andrias Edmundsson,Faroe Islands,CB,24,59,57,67,10,3.3,9,73,false
-pisa,pisa_rao,Emanuele Rao,Italian,CAM,24,67,65,50,10,3.3,9,73,false
-pisa,pisa_esteves,Tomás Esteves,Portuguese,RB,24,66,66,67,10,3.3,9,73,false
-pisa,pisa_bonfanti,Nicholas Bonfanti,Italian,ST,24,67,62,43,10,3.3,9,73,false
-cremonese,cremonese_nasti,Marco Nasti,Italian,ST,24,67,65,47,10,3.3,9,73,false
-verona,verona_korac,Seid Korać,Luxembourger,CB,24,61,58,67,10,3.3,9,73,false
-sassuolo,sassuolo_kumi,Justin Kumi,Italian,CM,24,66,66,62,10,2.9,8,73,false
-sassuolo,sassuolo_bakola,Darryl Bakola,French,CAM,24,65,66,59,10,2.9,8,73,false
-cagliari,cagliari_sherri,Alen Sherri,Albanian,GK,24,10,11,13,66,2.9,8,73,false
-genoa,genoa_debenedetti,Alessandro Debenedetti,Italian,ST,24,66,65,47,10,2.9,8,73,false
-lazio,lazio_bordon,Filipe Bordon,Brazilian,CB,24,60,57,66,10,2.9,8,73,false
-fiorentina,fiorentina_valdepenas,Víctor Valdepeñas,Spanish,CB,24,62,61,66,10,2.9,8,73,false
-torino,torino_cacciamani,Alessio Cacciamani,Italian,LB,24,66,66,66,10,2.9,8,73,false
-lecce,lecce_perez,Matías Pérez,Chilean,CB,24,57,56,66,10,2.9,8,73,false
-cagliari,cagliari_liteta,Joseph Liteta,Zambian,CM,24,63,64,66,10,2.9,8,73,false
-lecce,lecce_ndaba,Corrie Ndaba,Irish,LB,24,61,60,66,10,2.9,8,73,false
-sassuolo,sassuolo_skjellerup,Laurs Skjellerup,Danish,ST,24,66,64,50,10,2.9,8,73,false
-lecce,lecce_ngom,Oumar Ngom,Mauritania,CDM,24,62,64,66,10,2.9,8,73,false
-lazio,lazio_przyborek,Adrian Przyborek,Polish,CAM,24,66,64,46,10,2.9,8,73,false
-atalanta,atalanta_zuccon,Federico Zuccon,Italian,CM,24,65,66,64,10,2.9,8,73,false
-ac_milan,ac_milan_cisse,Alphadjo Cissè,Italian,CAM,24,66,65,55,10,2.9,8,73,false
-ac_milan,ac_milan_zeroli,Kevin Zeroli,Italian,CM,24,66,66,66,10,2.9,8,73,false
-ac_milan,ac_milan_camarda,Francesco Camarda,Italian,ST,24,66,63,42,10,2.9,8,73,false
-como,como_rispoli,Fabio Rispoli,Italian,CM,24,66,66,62,10,2.9,8,73,false
-verona,sas_isaac_s,Isaac,Brazilian,ST,25,66,64,47,10,6,14,76,false
-cremonese,cremonese_jack,Fellipe Jack,Italian,CB,24,56,54,66,10,2.9,8,73,false
-verona,verona_cham,Fallou Cham,Gambian,RB,24,62,60,66,10,2.9,8,73,false
-cremonese,cremonese_agazzi,Federico Agazzi,Italian,GK,24,10,11,13,66,2.9,8,73,false
-pisa,pisa_jholt,Malthe Højholt,Danish,CDM,24,63,65,66,10,2.9,8,73,false
-verona,verona_cruz,Juan Manuel Cruz,Argentine,ST,24,66,63,46,10,2.9,8,73,false
-verona,verona_sezonienko,Kacper Sezonienko,Polish,LM,24,66,63,46,10,2.9,8,73,false
-verona,verona_compagnon,Mattia Compagnon,Italian,RM,24,66,64,52,10,2.9,8,73,false
-cremonese,cremonese_rocchetti,Yuri Rocchetti,Italian,LM,24,65,65,66,10,2.9,8,73,false
-pisa,pisa_lusuardi,Mateus Lusuardi,Brazilian,CB,24,58,56,66,10,2.9,8,73,false
-verona,verona_calabrese,Nicolò Calabrese,Italian,CB,24,57,56,66,10,2.9,8,73,false
-torino,torino_njie,Alieu Njie,Swedish,ST,24,65,62,39,10,2.4,7,72,false
-ac_milan,ac_milan_odogu,David Odogu,German,CB,24,57,55,65,10,2.4,7,72,false
-napoli,napoli_sgarbi,Lorenzo Sgarbi,Italian,ST,24,65,65,46,10,2.4,7,72,false
-torino,torino_vecchia,Marco Dalla Vecchia,Italian,CM,24,64,65,64,10,2.4,7,72,false
-parma,parma_britschgi,Sascha Britschgi,Swiss,RB,24,58,59,65,10,2.4,7,72,false
-genoa,genoa_venturino,Lorenzo Venturino,Italian,RM,24,65,63,44,10,2.4,7,72,false
-inter,inter_topalovic,Luka Topalovič,Slovenian,CM,24,65,65,59,10,2.4,7,72,false
-cagliari,cagliari_romano,Alessandro Romano,Swiss,CDM,24,65,65,64,10,2.4,7,72,false
-roma,roma_zelezny,Radosław Żelezny,Polish,GK,24,10,11,13,65,2.4,7,72,false
-roma,roma_mannini,Mattia Mannini,Italian,RB,24,59,61,65,10,2.4,7,72,false
-udinese,udinese_mlacic,Branimir Mlačić,Croatian,CB,24,61,60,65,10,2.4,7,72,false
-ac_milan,ac_milan_comotto,Christian Comotto,Italian,CM,24,65,65,62,10,2.4,7,72,false
-cagliari,cagliari_mendy,Paul Mendy,Senegalese,ST,24,65,64,45,10,2.4,7,72,false
-udinese,udinese_padelli,Daniele Padelli,Italian,GK,24,10,11,13,65,2.4,7,72,false
-lecce,lecce_fofana,Sadik Fofana,Togolese,CDM,24,58,59,65,10,2.4,7,72,false
-sassuolo,sassuolo_nuamah,Patrick Amoako Nuamah,Italian,CAM,24,65,64,62,10,2.4,7,72,false
-cagliari,cagliari_cavuoti,Nicolò Cavuoti,Italian,CAM,24,65,65,52,10,2.4,7,72,false
-sassuolo,sassuolo_andrea,Luca D'Andrea,Italian,RM,24,65,63,47,10,2.4,7,72,false
-torino,torino_dembele,Ali Bina Dembélé,French,CB,24,60,60,65,10,2.4,7,72,false
-parma,parma_elphege,Nesta Elphege,French,ST,24,65,64,51,10,2.4,7,72,false
-parma,parma_kouda,Rachid Kouda,Italian,CM,24,65,65,63,10,2.4,7,72,false
-atalanta,atalanta_lungo,Tommaso Del Lungo,Italian,CB,24,56,54,65,10,2.4,7,72,false
-torino,torino_mascardi,Diego Mascardi,Italian,GK,24,10,11,13,65,2.4,7,72,false
-verona,verona_corradi,Christian Corradi,Italian,CB,24,57,56,65,10,2.4,7,72,false
-cremonese,cremonese_folino,Francesco Folino,Italian,CB,24,58,56,65,10,2.4,7,72,false
-pisa,pisa_marras,Tommaso Marras,Italian,CAM,24,65,63,49,10,2.4,7,72,false
-verona,verona_bega,Leorat Bega,Swiss,CM,24,65,64,64,10,2.4,7,72,false
-verona,verona_oyegoke,Daniel Oyegoke,English,RB,24,61,61,65,10,2.4,7,72,false
-cremonese,cremonese_brambilla,Alessio Brambilla,Italian,CDM,24,63,64,65,10,2.4,7,72,false
-pisa,pisa_vukovic,Ante Vuković,Croatian,GK,24,10,11,13,65,2.4,7,72,false
-verona,verona_charlys,Charlys,Brazilian,CM,24,64,64,65,10,2.4,7,72,false
-como,como_cuenca,Andrés Cuenca,Spanish,CB,24,62,63,64,10,2.1,6,71,false
-roma,roma_reale,Filippo Reale,Italian,CB,24,57,55,64,10,2.1,6,71,false
-como,como_vigorito,Mauro Vigorito,Italian,GK,24,10,11,13,64,2.1,6,71,false
-sassuolo,sassuolo_russo,Alessandro Russo,Italian,GK,24,10,11,13,64,2.1,6,71,false
-pisa,pisa_bozhinov,Rosen Bozhinov,Bulgarian,CB,24,58,57,64,10,2.1,6,71,false
-sassuolo,sassuolo_russo2,Flavio Russo,Italian,ST,24,63,60,42,10,1.8,5,70,false
-cagliari,cagliari_raterink,Othniël Raterink,Holland,RB,24,63,61,63,10,1.8,5,70,false
-roma,roma_arena,Antonio Arena,Italian,ST,24,63,62,44,10,1.8,5,70,false
-cagliari,cagliari_trepy,Yael Trepy,French,ST,24,63,62,40,10,1.8,5,70,false
-como,como_mustapha,Marlon Suliman Mustapha,Austrian,ST,24,63,62,42,10,1.8,5,70,false
-parma,parma_carboni,Franco Carboni,Argentine,LB,24,59,60,63,10,1.8,5,70,false
-udinese,udinese_arizala,Juan David Arizala,Colombian,RM,24,63,60,44,10,1.8,5,70,false
-sassuolo,sassuolo_miranda,Kevin Miranda,Italian,CB,24,54,53,63,10,1.8,5,70,false
-parma,parma_amoran,Peter Amoran,Swedish,CB,24,56,54,63,10,1.8,5,70,false
-pisa,pisa_vural,İsak Vural,Turkish,CM,24,63,63,55,10,1.8,5,70,false
-pisa,pisa_loria,Leonardo Loria,Italian,GK,24,10,11,13,63,1.8,5,70,false
-torino,torino_ciammaglichella,Aaron Ciammaglichella,Italian,CM,24,61,61,62,10,1.5,5,69,false
-lazio,lazio_renzetti,Davide Renzetti,Italian,GK,24,10,11,13,62,1.5,5,69,false
-ac_milan,ac_milan_torriani,Lorenzo Torriani,Italian,GK,24,10,11,13,62,1.5,5,69,false
-parma,parma_ajewski,Daniel Mikołajewski,Polish,ST,24,62,60,43,10,1.5,5,69,false
-como,como_jasim,Ali Jasim,Iraqi,LM,24,62,59,41,10,1.5,5,69,false
-bologna,bologna_pessina,Massimo Pessina,Italian,GK,24,10,11,13,62,1.5,5,69,false
-lecce,lecce_kovac,Niko Kovač,Bosnian,CM,24,62,62,57,10,1.5,5,69,false
-lecce,lecce_gorter,Olaf Gorter,Holland,CDM,24,60,61,62,10,1.5,5,69,false
-sassuolo,sassuolo_zacchi,Gioele Zacchi,Italian,GK,24,10,11,13,62,1.5,5,69,false
-como,como_borgne,Andréa Le Borgne,French,CDM,24,55,56,62,10,1.5,5,69,false
-genoa,genoa_wiafe,Samuel Wiafe,Italian,CM,24,62,61,55,10,1.5,5,69,false
-atalanta,atalanta_rossi,Francesco Rossi,Italian,GK,24,10,11,13,62,1.5,5,69,false
-genoa,genoa_sommariva,Daniele Sommariva,Italian,GK,24,10,11,13,62,1.5,5,69,false
-lecce,lecce_esposito,Sebastian Esposito,Australian,CB,24,53,51,62,10,1.5,5,69,false
-pisa,pisa_denoon,Daniel Denoon,Swiss,CB,24,57,56,62,10,1.5,5,69,false
-verona,verona_vermesan,Ioan Vermeșan,Romanian,ST,24,62,60,39,10,1.5,5,69,false
-cremonese,cremonese_cabianca,Eddy Cabianca,Italian,RB,24,58,57,62,10,1.5,5,69,false
-pisa,pisa_coppola,Francesco Coppola,Italian,CB,24,52,50,62,10,1.5,5,69,false
-torino,torino_balcot,Côme Bianay Balcot,French,RB,24,56,57,61,10,1.3,4,68,false
-genoa,genoa_cuenca,Hugo Cuenca,Paraguayan,RW,24,59,61,53,10,1.3,4,68,false
-fiorentina,fiorentina_kospo,Eman Košpo,Bosnian,CB,24,52,49,61,10,1.3,4,68,false
-lazio,lazio_furlanetto,Alessio Furlanetto,Italian,GK,24,10,11,13,61,1.3,4,68,false
-cagliari,cagliari_ciocci,Giuseppe Ciocci,Italian,GK,24,10,11,13,61,1.3,4,68,false
-lecce,lecce_samooja,Jasper Samooja,Finnish,GK,24,10,11,13,61,1.3,4,68,false
-pisa,pisa_durmush,Mert Durmush,Bulgarian,RW,24,61,58,41,10,1.3,4,68,false
-cremonese,cremonese_saro,Gianluca Saro,Italian,GK,24,10,11,13,61,1.3,4,68,false
-como,como_lahdo,Adrian Lahdo,Swedish,CM,24,60,59,53,10,1.1,4,67,false
-genoa,genoa_nuredini,Joi Nuredini,Albanian,ST,24,60,58,41,10,1.1,4,67,false
-pisa,pisa_buffon,Louis Buffon,Czech,LM,24,60,58,43,10,1.1,4,67,false
-fiorentina,fiorentina_braschi,Riccardo Braschi,Italian,ST,24,59,56,38,10,1,3,66,false
-genoa,genoa_lysionok,Ernestas Lysionok,Lithuanian,GK,24,10,11,13,59,1,3,66,false
-cremonese,cremonese_tessadri,Simone Lottici Tessadri,Italian,CM,24,57,58,57,10,0.8,3,66,false
-torino,torino_siviero,Lapo Siviero,Italian,GK,24,10,11,13,56,0.6,2,64,false
-verona,verona_toniolo,Giacomo Toniolo,Italian,GK,24,10,11,13,56,0.6,2,64,false
-cremonese,cremonese_lordkipanidze,Dachi Lordkipanidze,Georgian,CM,24,55,56,54,10,0.6,2,64,false
-cremonese,cremonese_lickunas,Adrian Lickūnas,Lithuanian,RM,24,56,54,41,10,0.6,2,64,false
+team_id,player_id,name,nationality,position,age,attack,midfield,defence,goalkeeping,pace,shooting,passing,dribbling,defending,physical,value_millions,wage_thousands,potential,is_wonderkid
+inter,inter_martinez,Lautaro Martínez,Argentine,ST,24,87,84,67,10,80,88,76,85,51,74,72,123,91,false
+ac_milan,ac_milan_maignan,Mike Maignan,French,GK,24,10,11,13,87,83,86,81,89,64,84,72,123,91,false
+inter,inter_barella,Nicolò Barella,Italian,CM,24,86,87,84,10,77,78,84,86,81,72,72,123,91,false
+napoli,man_utd_mctominay,Scott McTominay,Scottish,CM,28,86,85,86,10,80,83,77,82,80,86,19.9,66,86,false
+inter,inter_dimarco,Federico Dimarco,Italian,LB,24,84,86,84,10,81,78,85,81,80,74,61.8,108,90,false
+juventus,juventus_bremer,Bremer,Brazilian,CB,24,75,72,86,10,85,52,59,68,87,85,61.8,108,90,false
+atalanta,atalanta_carnesecchi,Marco Carnesecchi,Italian,GK,24,10,11,13,86,84,85,76,87,30,86,61.8,108,90,false
+inter,inter_bastoni,Alessandro Bastoni,Italian,CB,24,79,80,86,10,74,47,76,78,86,82,61.8,108,90,false
+roma,roma_dybala,Paulo Dybala,Argentine,CAM,24,85,83,59,10,77,84,85,86,42,62,53,95,89,false
+ac_milan,ac_milan_modric,Luka Modrić,Croatian,CM,24,83,85,76,10,65,75,87,86,73,59,53,95,89,false
+napoli,napoli_bruyne,Kevin De Bruyne,Belgian,CAM,24,84,85,73,10,59,82,89,84,66,67,53,95,89,false
+inter,inter_calhanoglu,Hakan Çalhanoğlu,Turkish,CDM,24,84,85,83,10,68,81,85,82,81,68,53,95,89,false
+ac_milan,ac_milan_rabiot,Adrien Rabiot,French,CM,24,85,85,84,10,81,79,81,81,78,85,53,95,89,false
+inter,inter_thuram,Marcus Thuram,French,ST,24,85,83,67,10,86,83,75,81,50,81,53,95,89,false
+roma,roma_svilar,Mile Svilar,Serbian,GK,24,10,11,13,85,79,81,78,86,58,85,53,95,89,false
+lecce,lecce_falcone,Wladimiro Falcone,Italian,GK,24,10,11,13,84,80,79,78,85,27,84,45.4,83,88,false
+juventus,juventus_locatelli,Manuel Locatelli,Italian,CDM,24,80,82,84,10,56,70,81,75,81,76,45.4,83,88,false
+roma,roma_mancini,Gianluca Mancini,Italian,CB,24,74,72,84,10,69,50,61,66,85,82,45.4,83,88,false
+como,como_paz,Nico Paz,Argentine,CAM,24,84,83,69,10,81,78,79,84,54,68,45.4,83,88,false
+juventus,juventus_z,Kenan Yıldız,Turkish,CAM,24,84,82,70,10,85,81,79,85,59,70,45.4,83,88,false
+fiorentina,fiorentina_gea,De Gea,Spanish,GK,24,10,11,13,83,81,80,76,85,46,84,38.9,73,87,false
+napoli,napoli_lobotka,Stanislav Lobotka,Slovak,CM,24,81,83,79,10,68,69,81,82,75,62,38.9,73,87,false
+inter,inter_provedel,Ivan Provedel,Italian,GK,24,10,11,13,83,81,80,82,86,42,83,38.9,73,87,false
+ac_milan,ac_milan_pulisic,Christian Pulisic,United States,CAM,24,83,81,61,10,87,83,81,84,47,60,38.9,73,87,false
+inter,mci_akanji,Manuel Akanji,Swiss,CB,30,75,75,83,10,75,48,70,74,84,81,55,175,88,false
+roma,roma_malen,Donyell Malen,Holland,ST,24,83,80,56,10,86,83,73,85,38,68,38.9,73,87,false
+roma,roma_ndicka,Evan Ndicka,Ivorian,CB,24,76,75,83,10,74,53,69,70,83,84,38.9,73,87,false
+ac_milan,ac_milan_leao,Rafael Leão,Portuguese,LW,24,83,81,52,10,93,79,79,83,30,73,38.9,73,87,false
+napoli,napoli_rrahmani,Amir Rrahmani,Kosovan,CB,24,73,71,83,10,75,51,61,64,84,80,38.9,73,87,false
+napoli,napoli_lukaku,Romelu Lukaku,Belgian,ST,24,82,80,61,10,77,82,75,73,41,78,33.4,64,86,false
+inter,inter_stones,John Stones,English,CB,24,76,79,82,10,54,58,74,74,83,71,33.4,64,86,false
+inter,inter_zielinski,Piotr Zieliński,Polish,CM,24,82,82,75,10,77,77,81,83,70,63,33.4,64,86,false
+sassuolo,sassuolo_berardi,Domenico Berardi,Italian,RW,24,82,81,56,10,81,80,80,83,37,68,33.4,64,86,false
+napoli,napoli_lorenzo,Giovanni Di Lorenzo,Italian,RB,24,80,78,82,10,83,71,73,72,79,80,33.4,64,86,false
+lazio,lazio_zaccagni,Mattia Zaccagni,Italian,LW,24,82,80,66,10,87,78,77,84,57,62,33.4,64,86,false
+napoli,napoli_anguissa,André-Franck Zambo Anguissa,Cameroonian,CM,24,80,81,82,10,72,77,76,81,79,81,33.4,64,86,false
+bologna,bologna_orsolini,Riccardo Orsolini,Italian,RM,24,82,81,66,10,80,82,78,83,54,69,33.4,64,86,false
+fiorentina,fiorentina_kean,Moise Kean,Italian,ST,24,82,77,59,10,85,82,59,81,41,74,33.4,64,86,false
+atalanta,ata_ederson,Éderson,Brazilian,CM,26,80,81,82,10,81,73,78,80,80,81,38,68,84,false
+inter,inter_mkhitaryan,Henrikh Mkhitaryan,Armenian,CM,24,81,81,76,10,69,77,81,82,72,72,28.6,56,86,false
+roma,roma_cristante,Bryan Cristante,Italian,CM,24,78,80,81,10,54,74,79,76,79,82,28.6,56,86,false
+lazio,lazio_romagnoli,Alessio Romagnoli,Italian,CB,24,71,70,81,10,58,40,56,69,82,82,28.6,56,86,false
+napoli,napoli_meret,Alex Meret,Italian,GK,24,10,11,13,81,78,76,75,85,44,82,28.6,56,86,false
+roma,roma_hermoso,Mario Hermoso,Spanish,CB,24,74,74,81,10,71,49,72,69,82,80,28.6,56,86,false
+napoli,napoli_neres,David Neres,Brazilian,LW,24,81,78,58,10,86,76,75,85,46,53,28.6,56,86,false
+como,getafe_milla,Luis Milla,Spanish,CM,30,79,81,79,10,68,73,84,78,77,76,21.6,67,81,false
+napoli,napoli_buongiorno,Alessandro Buongiorno,Italian,CB,24,72,71,81,10,75,47,67,65,83,82,28.6,56,86,false
+juventus,juventus_thuram,Khéphren Thuram,French,CM,24,78,79,81,10,79,74,78,79,81,85,28.6,56,86,false
+roma,roma_kone,Kouadio Manu Koné,French,CM,24,81,81,81,10,74,74,77,83,77,83,28.6,56,86,false
+atalanta,atalanta_ketelaere,Charles De Ketelaere,Belgian,CAM,24,81,81,67,10,73,78,81,82,57,67,28.6,56,86,false
+juventus,juventus_kalulu,Pierre Kalulu,French,CB,24,74,73,81,10,79,53,68,72,83,79,28.6,56,86,false
+ac_milan,ac_milan_gila,Mario Gila,Spanish,CB,24,75,75,81,10,85,53,68,75,81,79,28.6,56,86,false
+roma,roma_wesley,Wesley,Brazilian,LB,24,80,80,80,10,90,63,75,81,75,77,24.6,49,85,false
+napoli,napoli_spinazzola,Leonardo Spinazzola,Italian,LB,24,78,80,80,10,84,68,76,79,76,67,24.6,49,85,false
+atalanta,atalanta_roon,Marten de Roon,Holland,CM,24,75,77,80,10,52,73,78,76,83,78,24.6,49,85,false
+napoli,napoli_politano,Matteo Politano,Italian,RW,24,80,78,63,10,79,77,78,84,56,52,24.6,49,85,false
+napoli,napoli_savic,Vanja Milinković-Savić,Serbian,GK,24,10,11,13,80,79,80,80,80,43,81,24.6,49,85,false
+inter,inter_pavard,Benjamin Pavard,French,CB,24,75,75,80,10,75,66,75,70,81,78,24.6,49,85,false
+ac_milan,che_nkunku,Christopher Nkunku,French,ST,27,80,77,54,10,75,83,79,82,41,56,70,225,87,false
+ac_milan,ac_milan_tomori,Fikayo Tomori,English,CB,24,72,71,80,10,85,40,63,68,80,80,24.6,49,85,false
+juventus,juventus_gregorio,Michele Di Gregorio,Italian,GK,24,10,11,13,80,81,80,78,84,56,79,24.6,49,85,false
+juventus,juventus_mckennie,Weston McKennie,United States,CM,24,79,80,80,10,78,74,79,79,79,81,24.6,49,85,false
+inter,inter_frattesi,Davide Frattesi,Italian,CM,24,80,80,77,10,80,77,77,80,73,74,24.6,49,85,false
+ac_milan,ac_milan_gabbia,Matteo Gabbia,Italian,CB,24,69,69,80,10,55,35,59,66,82,81,24.6,49,85,false
+torino,torino_vlasic,Nikola Vlašić,Croatian,CAM,24,80,80,68,10,71,78,78,82,57,71,24.6,49,85,false
+ac_milan,ac_milan_saelemaekers,Alexis Saelemaekers,Belgian,RB,24,77,80,78,10,78,67,76,82,74,62,24.6,49,85,false
+sassuolo,sassuolo_lauriente,Armand Laurienté,French,LW,24,80,77,52,10,91,75,74,82,36,51,24.6,49,85,false
+juventus,juventus_david,Jonathan David,Canadian,ST,24,80,78,56,10,79,79,71,79,38,73,24.6,49,85,false
+ac_milan,ac_milan_fofana,Youssouf Fofana,French,CM,24,78,79,80,10,75,69,76,79,78,74,24.6,49,85,false
+cagliari,cagliari_caprile,Elia Caprile,Italian,GK,24,10,11,13,80,79,76,76,85,51,80,24.6,49,85,false
+ac_milan,psg_ramos_g,Gonçalo Ramos,Portuguese,ST,24,80,78,64,10,72,79,65,76,47,79,48,72,86,false
+inter,int_carlos_augusto,Carlos Augusto,Brazilian,LB,27,78,79,80,10,77,72,77,79,79,74,22,55,81,false
+juventus,juventus_cambiaso,Andrea Cambiaso,Italian,LB,24,79,80,78,10,80,72,78,80,74,72,24.6,49,85,false
+juventus,psv_conceicao,Francisco Conceição,Portuguese,CAM,22,80,79,59,10,88,72,76,86,44,55,32,52,90,true
+napoli,napoli_gutierrez,Miguel Gutiérrez,Spanish,LB,24,78,80,79,10,79,71,79,78,76,67,24.6,49,85,false
+roma,roma_soule,Matías Soulé,Argentine,CAM,24,80,79,62,10,82,76,79,81,48,66,24.6,49,85,false
+atalanta,atalanta_djimsiti,Berat Djimsiti,Albanian,CB,24,68,67,79,10,58,39,62,54,81,80,21.1,43,84,false
+ac_milan,ac_milan_cheek,Ruben Loftus-Cheek,English,CAM,24,79,79,78,10,80,76,77,79,76,79,21.1,43,84,false
+torino,torino_zapata,Duván Zapata,Colombian,ST,24,79,77,57,10,70,79,63,76,35,79,21.1,43,84,false
+atalanta,atalanta_zappacosta,Davide Zappacosta,Italian,RM,24,78,79,77,10,73,73,78,77,75,67,21.1,43,84,false
+atalanta,atalanta_pasalic,Mario Pašalić,Croatian,CM,24,79,79,73,10,63,76,78,77,66,75,21.1,43,84,false
+juventus,juventus_celik,Zeki Çelik,Turkish,RB,24,76,76,79,10,74,59,72,73,76,77,21.1,43,84,false
+como,como_audero,Emil Audero,Indonesia,GK,24,10,11,13,79,81,76,74,81,53,78,21.1,43,84,false
+lazio,fcu_doekhi,Danilho Doekhi,Holland,CB,27,70,68,79,10,63,42,58,61,80,85,14,28,85,false
+napoli,napoli_lang,Noa Lang,Holland,LM,24,79,77,63,10,80,77,73,84,50,68,21.1,43,84,false
+juventus,juventus_gonzalez,Nico González,Argentine,LM,24,79,77,65,10,85,76,74,79,54,67,21.1,43,84,false
+bologna,bologna_dovbyk,Artem Dovbyk,Ukrainian,ST,24,79,77,55,10,80,79,67,75,33,79,21.1,43,84,false
+atalanta,atalanta_kossounou,Odilon Kossounou,Ivorian,CB,24,69,68,79,10,77,35,62,65,80,79,21.1,43,84,false
+atalanta,atalanta_hien,Isak Hien,Swedish,CB,24,67,64,79,10,65,37,49,59,80,83,21.1,43,84,false
+como,como_baturina,Martin Baturina,Croatian,CAM,24,79,79,68,10,76,72,79,83,62,58,21.1,43,84,false
+atalanta,atalanta_scalvini,Giorgio Scalvini,Italian,CB,24,69,67,79,10,73,36,59,62,80,80,21.1,43,84,false
+juventus,juventus_gatti,Federico Gatti,Italian,CB,24,70,67,79,10,77,42,56,67,80,82,21.1,43,84,false
+fiorentina,fiorentina_jimenez,Álex Jiménez,Spanish,RB,24,75,77,79,10,85,55,71,78,76,64,21.1,43,84,false
+bologna,bologna_skorupski,Łukasz Skorupski,Polish,GK,24,10,11,13,78,78,74,68,79,51,78,18.1,38,83,false
+como,como_morata,Morata,Spanish,ST,24,78,77,53,10,77,77,72,76,32,74,18.1,38,83,false
+atalanta,atalanta_kolasinac,Sead Kolašinac,Bosnian,CB,24,73,72,78,10,65,62,68,69,78,80,18.1,38,83,false
+lazio,lazio_cataldi,Danilo Cataldi,Italian,CM,24,77,78,75,10,65,72,78,78,73,66,18.1,38,83,false
+roma,rom_angelino,Angeliño,Spanish,LB,28,76,78,75,10,70,70,79,80,74,65,22,52,78,false
+lazio,lazio_marusic,Adam Marušić,Montenegrin,RB,24,77,75,78,10,79,66,67,74,74,78,18.1,38,83,false
+juventus,nic_boga,Jérémie Boga,Ivorian,CAM,28,78,76,61,10,85,72,73,84,48,68,10,25,79,false
+como,como_butez,Jean Butez,French,GK,24,10,11,13,78,74,79,84,79,49,76,18.1,38,83,false
+atalanta,atalanta_scamacca,Gianluca Scamacca,Italian,ST,24,78,76,58,10,60,80,66,73,38,72,18.1,38,83,false
+roma,roma_pellegrini,Lorenzo Pellegrini,Italian,CAM,24,78,78,73,10,72,77,79,78,71,71,18.1,38,83,false
+fiorentina,fio_dodò,Dodô,Brazilian,RB,26,77,78,77,10,85,59,75,79,71,65,22,48,80,false
+juventus,nottm_forest_luiz,Douglas Luiz,Brazilian,CDM,27,77,78,75,10,62,75,81,79,75,68,38.6,109,84,false
+ac_milan,brighton_estupinan,Pervis Estupiñán,Ecuadorian,LB,27,76,78,77,10,73,57,76,78,74,65,9.5,31,80,false
+juventus,lil_zhegrova,Edon Zhegrova,Kosovan,RM,26,78,76,53,10,82,67,75,84,34,58,28,42,82,false
+juventus,juventus_koopmeiners,Teun Koopmeiners,Holland,CAM,24,77,78,75,10,66,74,82,77,74,71,18.1,38,83,false
+inter,inter_bisseck,Yann Aurel Bisseck,German,CB,24,73,72,78,10,78,57,64,72,77,80,18.1,38,83,false
+udinese,udinese_solet,Oumar Solet,French,CB,24,71,69,78,10,84,43,62,68,77,81,18.1,38,83,false
+ac_milan,fey_gimenez,Santiago Giménez,Mexican,ST,24,78,75,59,10,76,79,70,76,45,68,45,72,92,true
+ac_milan,ac_milan_chukwueze,Samuel Chukwueze,Nigerian,RM,24,78,75,53,10,87,73,73,82,36,57,18.1,38,83,false
+lazio,lazio_dia,Boulaye Dia,Senegalese,ST,24,78,74,57,10,83,79,66,78,43,66,18.1,38,83,false
+como,como_caqueret,Maxence Caqueret,French,CDM,24,77,78,76,10,72,67,77,80,75,63,18.1,38,83,false
+atalanta,atalanta_bellanova,Raoul Bellanova,Italian,RB,24,76,76,78,10,85,54,71,75,73,77,18.1,38,83,false
+atalanta,atletico_raspadori,Giacomo Raspadori,Italian,ST,25,78,75,47,10,79,78,72,83,28,61,68.2,136,86,false
+ac_milan,ac_milan_ricci,Samuele Ricci,Italian,CM,24,77,78,78,10,75,62,74,80,74,72,18.1,38,83,false
+como,como_cunha,Lucas Da Cunha,French,CDM,24,78,78,75,10,77,72,76,81,75,59,18.1,38,83,false
+ac_milan,ac_milan_pavlovic,Strahinja Pavlović,Serbian,CB,24,73,71,78,10,72,50,60,70,76,86,18.1,38,83,false
+lazio,lazio_rovella,Nicolò Rovella,Italian,CDM,24,76,78,76,10,73,63,77,79,75,66,18.1,38,83,false
+lazio,ajx_taylor,Kenneth Taylor,Holland,CM,23,78,78,71,10,69,77,78,80,67,69,20,45,85,true
+atalanta,atalanta_samardzic,Lazar Samardžić,Serbian,CAM,24,78,78,69,10,71,74,75,79,61,57,18.1,38,83,false
+napoli,napoli_jlund,Rasmus Højlund,Danish,ST,24,78,76,59,10,83,78,65,73,42,79,18.1,38,83,false
+inter,inter_bonny,Yoan Bonny,Ivorian,ST,24,78,77,53,10,87,76,73,78,33,75,18.1,38,83,false
+como,como_douvikas,Tasos Douvikas,Greek,ST,24,78,76,56,10,77,78,67,76,37,70,18.1,38,83,false
+atalanta,atalanta_zalewski,Nicola Zalewski,Polish,LM,24,78,77,72,10,88,66,74,78,65,64,18.1,38,83,false
+napoli,az_beukema,Sam Beukema,Holland,CB,26,71,71,78,10,41,55,64,65,80,77,20,48,83,true
+como,como_perrone,Máximo Perrone,Argentine,CDM,24,75,77,78,10,68,55,70,77,75,62,18.1,38,83,false
+inter,inter_sucic,Petar Sučić,Croatian,CM,24,78,78,72,10,73,71,77,81,64,78,18.1,38,83,false
+sassuolo,sassuolo_matic,Nemanja Matić,Serbian,CDM,24,72,75,77,10,30,66,74,72,76,76,15.5,33,82,false
+torino,torino_simeone,Giovanni Simeone,Argentine,ST,24,77,74,58,10,67,80,63,74,41,72,15.5,33,82,false
+como,como_posch,Stefan Posch,Austrian,CB,24,70,70,77,10,70,55,68,67,79,74,15.5,33,82,false
+fiorentina,fiorentina_mandragora,Rolando Mandragora,Italian,CM,24,76,77,77,10,46,74,75,74,76,69,15.5,33,82,false
+torino,sou_ch_adams,Ché Adams,Scottish,ST,29,77,74,56,10,79,80,64,79,43,66,3,14,77,false
+juventus,bou_kelly,Lloyd Kelly,English,CB,26,72,71,77,10,76,48,67,70,77,78,18,48,79,false
+juventus,juventus_muani,Randal Kolo Muani,French,ST,24,77,74,53,10,88,77,68,77,38,63,15.5,33,82,false
+fiorentina,fiorentina_mundsson,Albert Guðmundsson,Icelandic,ST,24,77,75,53,10,86,77,71,81,37,68,15.5,33,82,false
+napoli,napoli_olivera,Mathías Olivera,Uruguayan,LB,24,72,73,77,10,73,51,69,72,77,70,15.5,33,82,false
+bologna,bologna_ferguson,Lewis Ferguson,Scottish,CDM,24,77,77,75,10,68,79,74,77,73,76,15.5,33,82,false
+inter,marseille_henrique,Luis Henrique,Brazilian,RB,23,77,76,75,10,90,74,72,78,70,76,6.8,14,80,false
+roma,lens_aynaoui,Neil El Aynaoui,Moroccan,CM,24,76,77,76,10,64,63,76,76,72,75,3.5,9,82,false
+roma,roma_castro,Santiago Castro,Argentine,ST,24,77,75,59,10,78,77,64,77,43,74,15.5,33,82,false
+inter,inter_esposito,Francesco Pio Esposito,Italian,ST,24,77,76,58,10,59,78,71,73,38,75,15.5,33,82,false
+como,como_ramon,Jacobo Ramón,Spanish,CB,24,65,63,76,10,69,41,54,59,78,73,13.3,29,81,false
+como,como_rodriguez,Jesús Rodríguez,Spanish,LM,24,76,74,53,10,79,69,72,78,35,52,13.3,29,81,false
+juventus,juventus_perin,Mattia Perin,Italian,GK,24,10,11,13,76,75,76,71,76,57,77,13.3,29,81,false
+juventus,juventus_milik,Arkadiusz Milik,Polish,ST,24,76,74,56,10,51,80,71,72,39,63,13.3,29,81,false
+ac_milan,ac_milan_terracciano,Pietro Terracciano,Italian,GK,24,10,11,13,76,76,74,72,78,41,78,13.3,29,81,false
+como,como_kempf,Marc-Oliver Kempf,German,CB,24,70,69,76,10,69,46,61,66,76,79,13.3,29,81,false
+atalanta,atalanta_sportiello,Marco Sportiello,Italian,GK,24,10,11,13,76,75,72,74,76,44,79,13.3,29,81,false
+cagliari,cagliari_mina,Yerry Mina,Colombian,CB,24,67,64,76,10,46,50,51,54,76,84,13.3,29,81,false
+lazio,lazio_pedraza,Pedraza,Spanish,LB,24,76,76,76,10,77,71,72,73,73,71,13.3,29,81,false
+udinese,udinese_vojvoda,Mërgim Vojvoda,Kosovan,RB,24,73,76,76,10,62,54,76,76,75,67,13.3,29,81,false
+juventus,leverkusen_arthur,Arthur,Brazilian,CDM,22,74,76,71,10,51,65,79,83,70,65,13.5,25,84,false
+bologna,bologna_lucumi,Jhon Lucumí,Colombian,CB,24,68,67,76,10,74,39,64,61,76,82,13.3,29,81,false
+udinese,udinese_davis,Keinan Davis,English,ST,24,76,72,56,10,79,76,56,75,40,68,13.3,29,81,false
+bologna,bologna_odgaard,Jens Odgaard,Danish,CAM,24,76,74,62,10,70,78,72,74,50,74,13.3,29,81,false
+udinese,aston_villa_zaniolo,Nicolò Zaniolo,Italian,ST,26,76,75,60,10,74,77,73,75,47,75,12,35,80,false
+genoa,genoa_stigard,Leo Østigård,Norwegian,CB,24,67,65,76,10,50,37,53,62,75,80,13.3,29,81,false
+como,como_kuhn,Nicolas Kühn,German,RM,24,76,74,60,10,90,71,68,80,47,63,13.3,29,81,false
+bologna,bologna_miranda,Juan Miranda,Spanish,LB,24,75,75,76,10,78,62,74,71,72,70,13.3,29,81,false
+genoa,genoa_frendrup,Morten Frendrup,Danish,CDM,24,73,73,76,10,76,61,66,75,74,69,13.3,29,81,false
+sassuolo,sassuolo_thorstvedt,Kristian Thorstvedt,Norwegian,CM,24,76,76,75,10,57,72,74,73,68,83,13.3,29,81,false
+inter,inter_martinez2,Josep Martínez,Spanish,GK,24,10,11,13,76,78,72,69,77,26,75,13.3,29,81,false
+cagliari,cagliari_esposito,Sebastiano Esposito,Italian,ST,24,76,76,60,10,78,78,78,77,50,72,13.3,29,81,false
+lazio,lazio_isaksen,Gustav Isaksen,Danish,RW,24,76,73,54,10,88,72,69,77,41,54,13.3,29,81,false
+lazio,laz_nuno_tavares,Nuno Tavares,Portuguese,LB,25,76,76,74,10,83,67,72,79,68,72,22,42,76,false
+parma,parma_bernabe,Adrián Bernabé,Spanish,CM,24,76,76,72,10,74,70,75,79,70,57,13.3,29,81,false
+parma,aston_villa_suzuki,Zion Suzuki,Japanese,GK,24,10,11,13,76,76,75,76,76,56,74,24.9,58,83,false
+ac_milan,ac_milan_jashari,Ardon Jashari,Swiss,CDM,24,75,76,75,10,75,67,75,73,72,76,13.3,29,81,false
+udinese,udinese_okoye,Maduka Okoye,Nigerian,GK,24,10,11,13,76,75,76,72,78,24,74,13.3,29,81,false
+juventus,juventus_mario,João Mário,Portuguese,RB,24,73,76,75,10,77,63,72,76,72,55,13.3,29,81,false
+fiorentina,fiorentina_fagioli,Nicolò Fagioli,Italian,CDM,24,75,76,72,10,78,65,79,80,71,60,13.3,29,81,false
+torino,torino_coco,Saúl Coco,Equatoguinean,CB,24,69,66,76,10,84,56,58,61,77,82,13.3,29,81,false
+bologna,norwich_rowe,Jonathan Rowe,English,LM,22,76,74,61,10,83,73,69,78,48,60,2.5,12,81,false
+inter,inter_diouf,Andy Diouf,French,CM,24,76,76,73,10,77,71,72,78,67,75,13.3,29,81,false
+bologna,bologna_cambiaghi,Nicolò Cambiaghi,Italian,LM,24,76,74,57,10,73,74,72,79,43,60,13.3,29,81,false
+roma,roma_koulierakis,Konstantinos Koulierakis,Greek,CB,24,69,67,76,10,66,44,57,65,76,78,13.3,29,81,false
+fiorentina,fiorentina_atta,Arthur Atta,French,CM,24,76,75,70,10,78,70,73,78,64,76,13.3,29,81,false
+como,como_diao,Assane Diao,Senegalese,RM,24,76,73,56,10,90,74,67,77,38,67,13.3,29,81,false
+napoli,villarreal_marin,Rafa Marín,Spanish,CB,23,67,67,76,10,70,28,63,63,77,76,14.4,33,82,false
+atalanta,atalanta_krstovic,Nikola Krstović,Montenegrin,ST,24,76,73,51,10,60,78,58,72,27,73,13.3,29,81,false
+inter,inter_stankovic,Aleksandar Stanković,Serbian,CDM,24,73,74,76,10,65,67,72,70,74,72,13.3,29,81,false
+verona,verona_montipo,Lorenzo Montipò,Italian,GK,24,10,11,13,76,74,72,70,79,42,74,13.3,29,81,false
+como,como_smolcic,Ivan Smolčić,Croatian,RB,24,70,71,75,10,64,56,66,71,77,73,11.4,26,80,false
+como,como_kaiki,Kaiki,Brazilian,LB,24,71,71,75,10,78,46,66,72,74,75,11.4,26,80,false
+torino,torino_biraghi,Cristiano Biraghi,Italian,LB,24,72,75,72,10,68,68,78,75,72,67,11.4,26,80,false
+bologna,bologna_bernardeschi,Federico Bernardeschi,Italian,RM,24,75,74,61,10,69,74,78,79,54,65,11.4,26,80,false
+udinese,udinese_karlstrom,Jesper Karlström,Swedish,CDM,24,72,74,75,10,68,60,72,71,71,78,11.4,26,80,false
+lazio,marseille_gigot,Samuel Gigot,French,CB,31,67,68,75,10,55,38,62,60,75,73,12.7,36,80,false
+genoa,fey_bijlow,Justin Bijlow,Holland,GK,27,10,10,12,75,75,74,75,76,42,73,18,58,83,false
+lazio,lazio_lazzari,Manuel Lazzari,Italian,RB,24,71,75,71,10,89,61,75,81,68,51,11.4,26,80,false
+sassuolo,sassuolo_pinamonti,Andrea Pinamonti,Italian,ST,24,75,72,50,10,64,77,59,72,29,67,11.4,26,80,false
+fiorentina,fiorentina_ranieri,Luca Ranieri,Italian,CB,24,68,68,75,10,74,42,60,68,75,72,11.4,26,80,false
+genoa,genoa_traore,Hamed Junior Traoré,Ivorian,LM,24,75,73,64,10,81,70,71,76,56,61,11.4,26,80,false
+udinese,udinese_ekkelenkamp,Jurgen Ekkelenkamp,Holland,CM,24,74,75,71,10,67,69,74,74,66,75,11.4,26,80,false
+bologna,bologna_moro,Nikola Moro,Croatian,CDM,24,75,75,74,10,60,73,75,74,72,71,11.4,26,80,false
+genoa,genoa_vasquez,Johan Vásquez,Mexican,CB,24,66,66,75,10,53,35,60,62,77,74,11.4,26,80,false
+lecce,lecce_gallo,Antonino Gallo,Italian,LB,24,73,73,75,10,84,52,69,67,69,67,11.4,26,80,false
+roma,roma_kumbulla,Marash Kumbulla,Albanian,CB,24,64,64,75,10,54,35,55,58,77,74,11.4,26,80,false
+napoli,brighton_gilmour,Billy Gilmour,Scottish,CM,24,72,75,71,10,55,59,76,77,71,52,18.8,45,81,false
+bologna,bologna_holm,Emil Holm,Swedish,RB,24,73,71,75,10,82,62,67,68,71,77,11.4,26,80,false
+bologna,bologna_heggem,Torbjørn Heggem,Norwegian,CB,24,70,68,75,10,69,48,61,66,74,82,11.4,26,80,false
+fiorentina,fiorentina_piccoli,Roberto Piccoli,Italian,ST,24,75,72,56,10,79,75,56,67,35,78,11.4,26,80,false
+bologna,bologna_dallinga,Thijs Dallinga,Holland,ST,24,75,73,55,10,67,74,67,72,38,64,11.4,26,80,false
+parma,parma_delprato,Enrico Delprato,Italian,CB,24,70,70,75,10,79,54,65,70,76,74,11.4,26,80,false
+parma,parma_caviglia,Hans Nicolussi Caviglia,Italian,CDM,24,74,75,72,10,59,68,77,75,69,67,11.4,26,80,false
+torino,torino_ilic,Ivan Ilić,Serbian,CM,24,74,75,70,10,62,72,76,77,69,64,11.4,26,80,false
+parma,parma_valeri,Emanuele Valeri,Italian,LB,24,75,75,74,10,77,70,73,74,71,67,11.4,26,80,false
+torino,torino_ismajli,Ardian Ismajli,Albanian,CB,24,62,61,75,10,62,30,49,62,79,68,11.4,26,80,false
+roma,ajx_rensch,Devyne Rensch,Holland,RM,22,73,73,75,10,79,59,70,73,74,66,15,38,85,true
+fiorentina,fiorentina_parisi,Fabiano Parisi,Italian,LB,24,74,75,75,10,75,66,70,77,73,63,11.4,26,80,false
+bologna,bologna_vitik,Martin Vitík,Czech,CB,24,66,65,75,10,70,39,57,62,75,75,11.4,26,80,false
+genoa,genoa_cuffy,Brooke Norton-Cuffy,English,RB,24,73,74,75,10,82,49,66,75,70,68,11.4,26,80,false
+parma,parma_keita,Mandela Keita,Belgian,CDM,24,72,72,75,10,75,62,65,77,73,75,11.4,26,80,false
+sassuolo,sassuolo_idzes,Jay Idzes,Indonesia,CB,24,69,68,75,10,43,47,62,62,75,83,11.4,26,80,false
+genoa,gen_vitinha,Vitinha,Portuguese,ST,25,75,73,54,10,73,76,67,77,38,71,14,25,78,false
+sassuolo,watford_kone,Ismaël Koné,Canadian,CM,22,75,75,72,10,75,66,70,76,67,71,2,10,77,false
+ac_milan,ac_milan_winter,Koni De Winter,Belgian,CB,24,67,66,75,10,73,40,60,67,76,77,11.4,26,80,false
+cagliari,cagliari_obert,Adam Obert,Slovak,LB,24,73,73,75,10,72,58,70,69,73,72,11.4,26,80,false
+napoli,napoli_lucca,Lorenzo Lucca,Italian,ST,24,75,72,56,10,61,77,59,65,34,75,11.4,26,80,false
+roma,roma_eddine,Anass Salah-Eddine,Moroccan,LB,24,73,75,75,10,78,45,71,77,70,67,11.4,26,80,false
+juventus,juventus_miretti,Fabio Miretti,Italian,CM,24,74,75,70,10,73,64,76,79,68,66,11.4,26,80,false
+genoa,genoa_baldanzi,Tommaso Baldanzi,Italian,CAM,24,75,73,56,10,76,72,72,76,45,42,11.4,26,80,false
+como,como_valle,Álex Valle,Spanish,LB,24,73,74,75,10,85,58,71,72,70,66,11.4,26,80,false
+torino,torino_casadei,Cesare Casadei,Italian,CM,24,74,75,73,10,61,70,75,73,70,71,11.4,26,80,false
+torino,torino_comuzzo,Pietro Comuzzo,Italian,CB,24,63,63,75,10,52,31,52,60,77,69,11.4,26,80,false
+cremonese,cremonese_luperto,Sebastiano Luperto,Italian,CB,24,67,67,75,10,55,48,60,62,77,76,11.4,26,80,false
+verona,verona_serdar,Suat Serdar,German,CM,24,74,75,74,10,61,72,71,79,74,68,11.4,26,80,false
+cremonese,cremonese_baschirotto,Federico Baschirotto,Italian,CB,24,70,66,75,10,64,53,60,58,74,90,11.4,26,80,false
+atalanta,atalanta_ahanor,Honest Ahanor,Italian,CB,24,66,66,74,10,66,43,58,66,76,67,9.8,23,79,false
+napoli,napoli_santos,Alisson Santos,Brazilian,CAM,24,74,72,53,10,83,67,70,78,39,52,9.8,23,79,false
+lazio,laz_patric,Patric,Spanish,CB,32,69,71,74,10,55,53,68,70,76,62,6,35,78,false
+juventus,juventus_rugani,Daniele Rugani,Italian,CB,24,63,64,74,10,31,40,54,59,77,65,9.8,23,79,false
+roma,roma_gollini,Pierluigi Gollini,Italian,GK,24,10,11,13,74,74,72,71,76,47,74,9.8,23,79,false
+lecce,lecce_coulibaly,Lassana Coulibaly,Malian,CDM,24,70,72,74,10,69,58,69,72,72,76,9.8,23,79,false
+bologna,bologna_karlsson,Jesper Karlsson,Swedish,LW,24,74,72,53,10,72,74,70,78,40,59,9.8,23,79,false
+sassuolo,burnley_muric,Arijanet Murić,Kosovan,GK,27,10,11,13,74,72,71,75,76,45,73,3.1,13,76,false
+torino,torino_paleari,Alberto Paleari,Italian,GK,24,10,11,13,74,72,71,71,75,32,79,9.8,23,79,false
+genoa,genoa_martin,Aarón Martín,Spanish,LB,24,69,74,72,10,50,54,75,75,73,59,9.8,23,79,false
+bologna,bologna_casale,Nicolò Casale,Italian,CB,24,70,70,74,10,69,53,66,66,74,73,9.8,23,79,false
+lazio,lazio_pellegrini,Luca Pellegrini,Italian,LB,24,70,73,74,10,66,54,66,76,72,55,9.8,23,79,false
+sassuolo,sassuolo_walukiewicz,Sebastian Walukiewicz,Polish,RB,24,66,66,74,10,64,39,59,65,75,74,9.8,23,79,false
+fiorentina,fiorentina_sohm,Simon Sohm,Swiss,CM,24,73,73,74,10,73,70,71,73,71,78,9.8,23,79,false
+fiorentina,fiorentina_sottil,Riccardo Sottil,Italian,LM,24,74,71,51,10,85,66,68,76,34,44,9.8,23,79,false
+atalanta,atalanta_gaetano,Gianluca Gaetano,Italian,CAM,24,74,73,66,10,71,72,74,77,63,60,9.8,23,79,false
+torino,torino_aboukhlal,Zakaria Aboukhlal,Moroccan,CAM,24,74,71,56,10,81,72,69,75,41,67,9.8,23,79,false
+juventus,juventus_cabal,Juan David Cabal,Colombian,LB,24,68,70,74,10,70,43,67,68,74,65,9.8,23,79,false
+bologna,bologna_pobega,Tommaso Pobega,Italian,CDM,24,74,73,74,10,70,76,69,76,74,74,9.8,23,79,false
+sassuolo,sassuolo_turati,Stefano Turati,Italian,GK,24,10,11,13,74,78,71,69,76,35,72,9.8,23,79,false
+atalanta,atalanta_maldini,Daniel Maldini,Italian,ST,24,74,74,55,10,78,71,75,77,42,65,9.8,23,79,false
+atalanta,sou_sulemana,Kamaldeen Sulemana,Ghanaian,LM,23,74,72,49,10,88,67,69,78,30,54,3,12,82,false
+genoa,genoa_colombo,Lorenzo Colombo,Italian,ST,24,74,70,50,10,76,76,55,72,30,75,9.8,23,79,false
+lazio,lazio_bashiru,Fisayo Dele-Bashiru,Nigerian,CAM,24,74,72,72,10,84,72,65,76,68,72,9.8,23,79,false
+parma,parma_ndiaye,Abdoulaye Ndiaye,Senegalese,CB,24,63,61,74,10,61,36,51,54,74,72,9.8,23,79,false
+fiorentina,tot_dragusin,Radu Drăgușin,Romanian,CB,23,66,65,74,10,67,38,57,64,75,74,28,48,83,true
+udinese,udinese_kristensen,Thomas Kristensen,Danish,CB,24,63,61,74,10,55,26,50,58,75,78,9.8,23,79,false
+lazio,lazio_cancellieri,Matteo Cancellieri,Italian,RW,24,74,72,53,10,81,73,70,76,41,65,9.8,23,79,false
+lazio,lazio_noslin,Tijjani Noslin,Holland,ST,24,74,72,55,10,75,73,66,78,43,60,9.8,23,79,false
+napoli,napoli_folorunsho,Michael Folorunsho,Italian,CM,24,74,74,74,10,76,74,70,72,70,82,9.8,23,79,false
+parma,parma_circati,Alessandro Circati,Australian,CB,24,66,64,74,10,50,41,58,51,74,79,9.8,23,79,false
+torino,torino_israel,Franco Israel,Uruguayan,GK,24,10,11,13,74,77,70,70,78,31,73,9.8,23,79,false
+roma,roma_pisilli,Niccolò Pisilli,Italian,CM,24,73,74,74,10,69,67,70,75,72,67,9.8,23,79,false
+roma,roma_ghilardi,Daniele Ghilardi,Italian,CB,24,63,60,74,10,61,42,49,54,76,73,9.8,23,79,false
+lazio,lazio_mandas,Christos Mandas,Greek,GK,24,10,11,13,74,76,71,72,78,23,70,9.8,23,79,false
+ac_milan,ac_milan_bartesaghi,Davide Bartesaghi,Italian,LB,24,72,71,74,10,78,58,67,66,70,76,9.8,23,79,false
+verona,verona_leali,Nicola Leali,Italian,GK,24,10,11,13,74,75,71,68,74,33,74,9.8,23,79,false
+cremonese,cremonese_sanabria,Antonio Sanabria,Paraguayan,ST,24,74,72,48,10,71,73,68,78,33,52,9.8,23,79,false
+pisa,pisa_aebischer,Michel Aebischer,Swiss,CM,24,72,73,74,10,59,67,72,75,74,70,9.8,23,79,false
+pisa,pisa_tramoni,Mattéo Tramoni,Italian,CAM,24,74,73,62,10,87,70,70,77,53,61,9.8,23,79,false
+bologna,bologna_amondarain,Mikel Amondarain,Argentine,CM,24,73,73,72,10,75,66,70,73,68,74,8.4,20,79,false
+udinese,udinese_kabasele,Christian Kabasele,Belgian,CB,24,65,63,73,10,45,50,51,58,74,77,8.4,20,79,false
+udinese,udinese_lovric,Sandi Lovrič,Slovenian,CM,24,71,73,69,10,54,64,74,73,66,59,8.4,20,79,false
+torino,valencia_comert,Eray Cömert,Swiss,CB,27,67,66,73,10,65,49,62,55,72,76,20.4,53,78,false
+como,como_dossena,Alberto Dossena,Italian,CB,24,63,63,73,10,39,40,53,58,74,72,8.4,20,79,false
+fiorentina,fiorentina_pongracic,Marin Pongračić,Croatian,CB,24,65,64,73,10,52,27,54,62,72,79,8.4,20,79,false
+atalanta,atalanta_bakker,Mitchel Bakker,Holland,LB,24,73,72,73,10,75,62,69,71,70,78,8.4,20,79,false
+fiorentina,fiorentina_nzola,M'Bala Nzola,Angolan,ST,24,73,72,51,10,79,70,61,70,29,79,8.4,20,79,false
+torino,torino_pedersen,Marcus Pedersen,Norwegian,RB,24,73,73,72,10,88,49,69,73,65,66,8.4,20,79,false
+napoli,napoli_cajuste,Jens-Lys Cajuste,Swedish,CDM,24,70,71,73,10,64,63,68,73,71,75,8.4,20,79,false
+napoli,napoli_m,Jesper Lindstrøm,Danish,RM,24,73,71,56,10,77,68,69,75,43,59,8.4,20,79,false
+bologna,bologna_zortea,Nadir Zortea,Italian,RB,24,73,72,72,10,75,68,69,71,69,75,8.4,20,79,false
+cagliari,cagliari_zappa,Gabriele Zappa,Italian,RB,24,71,71,73,10,76,60,66,67,69,68,8.4,20,79,false
+ac_milan,ac_milan_musah,Yunus Musah,United States,CM,24,73,72,70,10,88,69,71,78,70,68,8.4,20,79,false
+cagliari,cagliari_adopo,Michel Ndary Adopo,French,CM,24,70,71,73,10,70,62,67,73,70,79,8.4,20,79,false
+parma,parma_ondrejka,Jacob Ondrejka,Swedish,LW,24,73,70,55,10,75,72,71,73,46,51,8.4,20,79,false
+sassuolo,sassuolo_doig,Josh Doig,Scottish,LB,24,72,72,73,10,76,62,66,69,68,67,8.4,20,79,false
+como,como_tornqvist,Noel Törnqvist,Swedish,GK,24,10,11,13,73,71,71,68,72,46,75,8.4,20,79,false
+inter,inter_asllani,Kristjan Asllani,Albanian,CDM,24,72,73,71,10,65,61,73,74,69,64,8.4,20,79,false
+fiorentina,fiorentina_valentini,Nicolás Valentini,Argentine,CB,24,65,64,73,10,69,35,59,62,75,73,8.4,20,79,false
+torino,torino_oristanio,Gaetano Oristanio,Italian,CAM,24,73,71,59,10,84,72,69,76,51,55,8.4,20,79,false
+fiorentina,fiorentina_fabbian,Giovanni Fabbian,Italian,CM,24,73,73,70,10,61,70,72,74,67,64,8.4,20,79,false
+atalanta,atalanta_sulemana,Ibrahim Sulemana,Ghanaian,CDM,24,70,70,73,10,72,65,65,70,71,72,8.4,20,79,false
+parma,parma_frigan,Matija Frigan,Croatian,ST,24,73,70,53,10,78,73,60,72,37,70,8.4,20,79,false
+cagliari,cagliari_pedro,Zé Pedro,Portuguese,CB,24,69,69,73,10,70,52,66,66,73,75,8.4,20,79,false
+fiorentina,fiorentina_oulai,Christ Ravynel Inao Oulaï,Ivorian,CDM,24,72,72,70,10,76,59,69,76,66,66,7.2,17,78,false
+cagliari,cagliari_rodriguez,Juan Rodríguez,Uruguayan,CB,24,64,61,72,10,62,42,52,53,72,76,7.2,17,78,false
+udinese,udinese_kamara,Hassane Kamara,Ivorian,LB,24,71,72,71,10,78,62,67,74,66,60,7.2,17,78,false
+como,como_mazzitelli,Luca Mazzitelli,Italian,CM,24,71,72,69,10,42,70,73,72,67,63,7.2,17,78,false
+como,como_goldaniga,Edoardo Goldaniga,Italian,CB,24,62,61,72,10,44,34,50,55,74,73,7.2,17,78,false
+udinese,udinese_piotrowski,Jakub Piotrowski,Polish,CM,24,71,72,71,10,66,65,69,72,68,74,7.2,17,78,false
+roma,roma_vasquez,Devis Vásquez,Colombian,GK,24,10,11,13,72,72,68,71,75,38,70,7.2,17,78,false
+fiorentina,fiorentina_barak,Antonín Barák,Czech,CAM,24,72,72,68,10,70,72,73,73,65,77,7.2,17,78,false
+genoa,genoa_messias,Junior Messias,Brazilian,CM,24,72,71,62,10,78,73,70,77,60,49,7.2,17,78,false
+udinese,udinese_chakvetadze,Giorgi Chakvetadze,Georgian,LM,24,72,71,55,10,74,68,71,75,41,64,7.2,17,78,false
+lecce,lecce_geubbels,Willem Geubbels,French,ST,24,72,70,47,10,78,72,60,72,27,67,7.2,17,78,false
+napoli,napoli_ngonge,Cyril Ngonge,Belgian,RM,24,72,69,51,10,79,72,67,74,35,60,7.2,17,78,false
+cagliari,cagliari_felici,Mattia Felici,Italian,LM,24,72,70,58,10,90,67,65,75,48,53,7.2,17,78,false
+como,como_brempt,Ignace Van der Brempt,Belgian,RB,24,70,71,72,10,70,57,68,69,70,67,7.2,17,78,false
+atalanta,atalanta_toure,El Bilal Touré,Malian,LM,24,72,68,46,10,81,71,63,73,23,70,7.2,17,78,false
+fiorentina,fiorentina_brescianini,Marco Brescianini,Italian,CM,24,72,72,71,10,56,70,68,72,67,72,7.2,17,78,false
+parma,parma_rensen,Oliver Sørensen,Danish,CM,24,72,72,71,10,70,67,68,72,68,73,7.2,17,78,false
+sassuolo,sassuolo_volpato,Cristian Volpato,Australian,RW,24,72,71,53,10,69,70,68,73,39,59,7.2,17,78,false
+cagliari,cagliari_fazzini,Jacopo Fazzini,Italian,CAM,24,72,72,64,10,62,68,71,76,61,54,7.2,17,78,false
+sassuolo,sassuolo_boloca,Daniel Boloca,Romanian,CM,24,71,72,72,10,50,61,69,72,67,71,7.2,17,78,false
+napoli,napoli_cheddira,Walid Cheddira,Moroccan,ST,24,72,70,56,10,75,72,65,68,41,73,7.2,17,78,false
+udinese,udinese_zanoli,Alessandro Zanoli,Italian,RB,24,69,69,72,10,78,54,64,70,69,67,7.2,17,78,false
+bologna,bologna_dominguez,Benjamín Domínguez,Argentine,LM,24,72,70,54,10,82,68,67,75,42,49,7.2,17,78,false
+udinese,udinese_bertola,Nicolò Bertola,Italian,CB,24,61,59,72,10,64,33,47,52,73,73,7.2,17,78,false
+cagliari,cagliari_prati,Matteo Prati,Italian,CDM,24,70,72,70,10,53,67,72,71,68,66,7.2,17,78,false
+torino,torino_gineitis,Gvidas Gineitis,Lithuanian,CM,24,70,72,69,10,42,62,72,71,64,63,7.2,17,78,false
+lecce,lecce_gaspar,Kialonda Gaspar,Angolan,CB,24,61,57,72,10,58,30,42,51,72,84,7.2,17,78,false
+genoa,genoa_marcandalli,Alessandro Marcandalli,Italian,CB,24,62,60,72,10,61,40,51,52,72,73,7.2,17,78,false
+fiorentina,fiorentina_ndour,Cher Ndour,Italian,CM,24,72,72,70,10,67,65,69,72,64,72,7.2,17,78,false
+udinese,athletic_bilbao_gomez,Unai Gómez,Spanish,CAM,22,72,71,59,10,76,68,71,70,46,72,17.1,37,82,false
+pisa,pisa_zanon,Simone Zanon,Italian,RB,24,71,72,71,10,83,61,66,70,65,61,7.2,17,78,false
+cremonese,cremonese_vandeputte,Jari Vandeputte,Belgian,CM,24,72,72,66,10,79,65,72,75,63,58,7.2,17,78,false
+cremonese,cremonese_fulignati,Andrea Fulignati,Italian,GK,24,10,11,13,72,72,69,71,74,48,72,7.2,17,78,false
+pisa,pisa_moreo,Stefano Moreo,Italian,ST,24,72,72,61,10,77,69,65,69,47,78,7.2,17,78,false
+cremonese,cremonese_bonazzoli,Federico Bonazzoli,Italian,ST,24,72,70,48,10,59,74,64,73,29,63,7.2,17,78,false
+cremonese,cremonese_pezzella,Giuseppe Pezzella,Italian,LM,24,71,71,72,10,77,62,68,69,68,75,7.2,17,78,false
+verona,verona_bernede,Antoine Bernede,French,CM,24,72,72,72,10,66,66,70,75,71,67,7.2,17,78,false
+verona,verona_kastanos,Grigoris Kastanos,Cypriot,CAM,24,72,71,61,10,74,70,71,73,55,60,7.2,17,78,false
+verona,verona_frese,Martin Frese,Danish,LB,24,70,70,72,10,75,64,65,67,69,65,7.2,17,78,false
+verona,verona_bradaric,Domagoj Bradarić,Croatian,LB,24,69,72,72,10,70,57,67,71,69,57,7.2,17,78,false
+verona,gro_van_der_horn,Tomáš Suslov,Slovak,CAM,23,72,71,60,10,76,71,71,75,52,65,10,25,80,true
+pisa,pisa_canestrelli,Simone Canestrelli,Italian,CB,24,63,60,72,10,59,44,52,55,74,78,7.2,17,78,false
+bologna,bologna_alhassane,Rahim Alhassane,Niger,LB,24,68,66,71,10,86,45,58,63,65,72,6.2,15,77,false
+atalanta,atalanta_bernasconi,Lorenzo Bernasconi,Italian,LM,24,70,71,71,10,68,60,67,70,68,63,6.2,15,77,false
+juventus,juventus_alajbegovic,Kerim Alajbegović,Bosnian,CAM,24,71,69,53,10,73,72,69,75,41,62,6.2,15,77,false
+roma,roma_vaz,Robinio Vaz,French,ST,24,71,67,49,10,84,70,56,67,31,66,6.2,15,77,false
+napoli,nap_giovane,Giovane,Brazilian,ST,23,71,70,50,10,74,71,68,75,38,63,18,35,83,false
+genoa,genoa_sabelli,Stefano Sabelli,Italian,RB,24,64,65,71,10,65,39,59,61,70,58,6.2,15,77,false
+cagliari,leicester_winks,Harry Winks,English,CDM,29,69,71,70,10,51,60,71,70,67,66,1.6,8,75,false
+udinese,udinese_buksa,Adam Buksa,Polish,ST,24,71,70,54,10,49,73,56,67,32,76,6.2,15,77,false
+parma,parma_almqvist,Pontus Almqvist,Swedish,RW,24,71,68,50,10,75,67,62,74,38,44,6.2,15,77,false
+fiorentina,fiorentina_christensen,Oliver Christensen,Danish,GK,24,10,11,13,71,72,69,69,74,44,69,6.2,15,77,false
+lecce,lecce_maleh,Youssef Maleh,Moroccan,CM,24,69,71,68,10,50,65,72,73,67,60,6.2,15,77,false
+napoli,napoli_mazzocchi,Pasquale Mazzocchi,Italian,RB,24,69,71,70,10,74,59,70,73,68,61,6.2,15,77,false
+sassuolo,sassuolo_pierini,Nicholas Pierini,Italian,ST,24,71,68,52,10,90,69,64,76,43,59,6.2,15,77,false
+lecce,lecce_pierotti,Santiago Pierotti,Argentine,RM,24,71,70,67,10,72,68,65,71,60,74,6.2,15,77,false
+sassuolo,sassuolo_cande,Fali Candé,Bissau-Guinean,CB,24,69,68,71,10,78,56,65,67,70,73,6.2,15,77,false
+udinese,udinese_zarraga,Oier Zarraga,Spanish,CM,24,70,71,67,10,65,61,71,74,64,57,6.2,15,77,false
+sassuolo,sassuolo_alvarez,Agustín Álvarez,Uruguayan,ST,24,71,70,52,10,71,70,64,71,36,67,6.2,15,77,false
+torino,torino_jim,Kian Fitz-Jim,Holland,CM,24,70,71,66,10,73,59,69,77,63,54,6.2,15,77,false
+parma,parma_pellegrino,Mateo Pellegrino,Argentine,ST,24,71,70,55,10,46,74,55,68,35,78,6.2,15,77,false
+como,como_fadera,Alieu Fadera,Gambian,LW,24,71,71,64,10,79,64,64,76,58,66,6.2,15,77,false
+genoa,genoa_ellertsson,Mikael Egill Ellertsson,Icelandic,CM,24,71,70,69,10,67,70,68,73,68,69,6.2,15,77,false
+ac_milan,ac_milan_terracciano2,Filippo Terracciano,Italian,CB,24,71,71,71,10,77,61,71,71,69,73,6.2,15,77,false
+lecce,lecce_gandelman,Omri Gandelman,Israeli,CAM,24,69,69,71,10,56,72,65,69,70,75,6.2,15,77,false
+como,como_addai,Jayden Addai,Holland,RM,24,71,69,50,10,80,65,64,74,33,55,6.2,15,77,false
+pisa,pisa_loyola,Felipe Loyola,Chilean,CM,24,69,70,71,10,61,64,70,70,70,69,6.2,15,77,false
+pisa,pisa_caracciolo,Antonio Caracciolo,Italian,CB,24,62,60,71,10,42,32,48,58,72,79,6.2,15,77,false
+cremonese,cremonese_bianchetti,Matteo Bianchetti,Italian,CB,24,63,64,71,10,39,35,57,59,72,73,6.2,15,77,false
+pisa,pisa_scuffet,Simone Scuffet,Italian,GK,24,10,11,13,71,70,70,64,72,50,70,6.2,15,77,false
+cremonese,cremonese_thorsby,Morten Thorsby,Norwegian,CM,24,67,69,71,10,47,62,69,72,72,73,6.2,15,77,false
+pisa,pisa_toure,Idrissa Touré,German,RM,24,71,71,69,10,69,62,68,71,62,78,6.2,15,77,false
+pisa,stoke_leris,Mehdi Léris,Algerian,RM,27,71,70,67,10,76,62,67,70,60,72,1.8,9,71,false
+verona,verona_harroui,Abdou Harroui,Moroccan,CM,24,71,71,69,10,63,69,68,75,69,63,6.2,15,77,false
+pisa,pisa_semper,Adrian Šemper,Croatian,GK,24,10,11,13,71,72,68,66,72,31,70,6.2,15,77,false
+verona,verona_sarr,Amin Sarr,Swedish,ST,24,71,68,48,10,84,70,60,73,33,64,6.2,15,77,false
+cremonese,cremonese_collocolo,Michele Collocolo,Italian,CM,24,69,70,71,10,66,62,69,69,68,76,6.2,15,77,false
+pisa,pisa_angori,Samuele Angori,Italian,LM,24,70,71,70,10,67,58,69,71,66,69,6.2,15,77,false
+cremonese,cremonese_barbieri,Tommaso Barbieri,Italian,RB,24,68,68,71,10,79,45,61,66,67,62,6.2,15,77,false
+cagliari,cagliari_idrissi,Riyad Idrissi,Italian,LB,24,68,66,70,10,80,59,57,67,66,66,5.3,13,76,false
+fiorentina,fiorentina_viery,Viery,Brazilian,CB,24,65,64,70,10,59,43,60,58,69,73,5.3,13,76,false
+cagliari,cagliari_deiola,Alessandro Deiola,Italian,CM,24,66,66,70,10,61,68,64,65,70,81,5.3,13,76,false
+lecce,lecce_fruchtl,Christian Früchtl,German,GK,24,10,11,13,70,73,68,67,71,24,66,5.3,13,76,false
+torino,torino_kulenovic,Sandro Kulenović,Croatian,ST,24,70,67,57,10,76,72,54,60,41,76,5.3,13,76,false
+genoa,genoa_vogliacco,Alessandro Vogliacco,Italian,CB,24,61,61,70,10,65,36,54,56,71,68,5.3,13,76,false
+sassuolo,sassuolo_ghion,Andrea Ghion,Italian,CM,24,68,70,68,10,66,56,69,72,66,64,5.3,13,76,false
+ac_milan,ac_milan_bondo,Warren Bondo,French,CDM,24,69,70,66,10,71,61,68,75,65,54,5.3,13,76,false
+parma,parma_balogh,Botond Balogh,Hungarian,CB,24,59,58,70,10,53,33,50,51,72,70,5.3,13,76,false
+lecce,lecce_siebert,Jamil Siebert,German,CB,24,63,59,70,10,66,33,50,52,68,79,5.3,13,76,false
+como,como_azon,Iván Azón,Spanish,ST,24,70,69,56,10,73,68,58,64,38,79,5.3,13,76,false
+sassuolo,sassuolo_odenthal,Cas Odenthal,Holland,CB,24,63,61,70,10,60,36,52,58,70,75,5.3,13,76,false
+sassuolo,sassuolo_ciervo,Riccardo Ciervo,Italian,RM,24,70,69,63,10,80,62,64,70,54,68,5.3,13,76,false
+lazio,lazio_provstgaard,Oliver Provstgaard,Danish,CB,24,64,62,70,10,60,39,53,62,68,77,5.3,13,76,false
+torino,torino_ilkhan,Emirhan İlkhan,Turkish,CM,24,69,70,64,10,59,58,67,76,61,45,5.3,13,76,false
+bologna,bologna_azzouzi,Oussama El Azzouzi,Moroccan,CDM,24,69,70,68,10,62,61,67,72,65,64,5.3,13,76,false
+lecce,lecce_banda,Lameck Banda,Zambian,LM,24,70,67,47,10,86,66,59,76,30,44,5.3,13,76,false
+parma,parma_ordonez,Christian Ordoñez,Argentine,CM,24,69,69,70,10,79,53,64,73,67,67,5.3,13,76,false
+lecce,lecce_stulic,Nikola Štulić,Serbian,ST,24,70,69,50,10,48,73,60,66,28,74,5.3,13,76,false
+genoa,levante_matturro,Alan Matturro,Uruguayan,CB,20,61,60,70,10,64,30,54,55,71,71,20.5,42,82,false
+udinese,udinese_modesto,Rui Modesto,Angolan,RB,24,70,69,68,10,89,59,63,71,62,65,5.3,13,76,false
+udinese,udinese_miller,Lennon Miller,Scottish,CM,24,70,70,67,10,78,64,70,70,64,62,5.3,13,76,false
+roma,roma_kowski,Jan Ziółkowski,Polish,CB,24,59,58,70,10,64,28,46,53,71,69,5.3,13,76,false
+parma,parma_troilo,Mariano Troilo,Argentine,CB,24,60,58,70,10,36,30,47,46,69,76,5.3,13,76,false
+pisa,pisa_leone,Giuseppe Leone,Italian,CM,24,69,70,70,10,68,60,68,69,66,73,5.3,13,76,false
+cremonese,cremonese_uric,Milan Đurić,Bosnian,ST,24,69,70,57,10,31,69,55,60,32,83,5.3,13,76,false
+cremonese,cremonese_pontisso,Simone Pontisso,Italian,CM,24,69,70,68,10,65,64,70,69,64,74,5.3,13,76,false
+pisa,pisa_vignato,Emanuel Vignato,Italian,CAM,24,70,69,52,10,67,63,69,74,39,49,5.3,13,76,false
+verona,verona_mulattieri,Samuele Mulattieri,Italian,ST,24,70,68,52,10,71,70,60,70,37,71,5.3,13,76,false
+verona,verona_niasse,Cheikh Niasse,Senegalese,CDM,24,62,65,70,10,50,46,60,69,70,65,5.3,13,76,false
+verona,verona_mosquera,Daniel Mosquera,Colombian,ST,24,70,68,51,10,64,72,58,67,32,72,5.3,13,76,false
+verona,verona_belghali,Rafik Belghali,Algerian,RB,24,69,70,70,10,80,63,65,71,66,62,5.3,13,76,false
+lecce,lecce_gabriel,Tiago Gabriel,Portuguese,CB,24,60,57,69,10,56,35,46,52,69,78,4.5,12,75,false
+ac_milan,troyes_diawara,Sankhoun Diawara,French,CB,20,60,57,69,10,58,34,44,52,68,71,3,6,72,false
+juventus,juventus_adzic,Vasilije Adžić,Montenegrin,CAM,24,69,69,63,10,60,68,67,72,59,57,4.5,12,75,false
+bologna,bologna_silvestri,Lorenzo De Silvestri,Italian,RB,24,67,68,69,10,48,63,70,65,70,71,4.5,12,75,false
+fiorentina,fiorentina_lezzerini,Luca Lezzerini,Italian,GK,24,10,11,13,69,70,67,62,71,48,70,4.5,12,75,false
+cagliari,cagliari_radunovic,Boris Radunović,Serbian,GK,24,10,11,13,69,69,68,69,71,40,68,4.5,12,75,false
+udinese,udinese_ebosse,Enzo Ebosse,Cameroonian,CB,24,62,62,69,10,44,35,54,61,70,67,4.5,12,75,false
+parma,parma_valenti,Lautaro Valenti,Argentine,CB,24,64,62,69,10,64,51,55,59,69,75,4.5,12,75,false
+cagliari,cagliari_borrelli,Gennaro Borrelli,Italian,ST,24,69,67,52,10,54,69,49,63,29,78,4.5,12,75,false
+genoa,genoa_mitaj,Mario Mitaj,Albanian,LB,24,68,69,69,10,77,35,65,69,62,68,4.5,12,75,false
+lecce,lecce_kaba,Mohamed Kaba,French,CDM,24,65,65,69,10,58,56,58,69,67,71,4.5,12,75,false
+udinese,udinese_abankwah,James Abankwah,Irish,CB,24,63,62,69,10,69,35,52,62,68,70,4.5,12,75,false
+udinese,udinese_buta,Leonardo Buta,Portuguese,LB,24,68,66,69,10,81,49,60,65,63,69,4.5,12,75,false
+lecce,lecce_jean,Gaby Jean,French,CB,24,59,57,69,10,46,33,46,50,70,72,4.5,12,75,false
+lecce,lecce_berisha,Medon Berisha,Albanian,CM,24,67,69,65,10,43,59,68,67,61,57,4.5,12,75,false
+parma,parma_corvi,Edoardo Corvi,Italian,GK,24,10,11,13,69,69,66,66,69,25,67,4.5,12,75,false
+lecce,lecce_veiga,Danilo Veiga,Portuguese,RB,24,68,67,69,10,68,57,60,68,67,70,4.5,12,75,false
+sassuolo,sassuolo_lipani,Luca Lipani,Italian,CM,24,66,68,69,10,46,55,66,68,67,64,4.5,12,75,false
+genoa,genoa_havel,Elias Havel,Austrian,ST,24,69,67,45,10,89,67,62,67,28,67,4.5,12,75,false
+napoli,napoli_vergara,Antonio Vergara,Italian,CAM,24,69,68,57,10,74,66,68,70,49,64,4.5,12,75,false
+lazio,lazio_motta,Edoardo Motta,Italian,GK,24,10,11,13,69,74,67,68,68,20,66,4.5,12,75,false
+cagliari,cagliari_kofler,Raphael Kofler,Italian,CB,24,67,65,69,10,56,50,61,62,67,82,4.5,12,75,false
+roma,roma_cherubini,Luigi Cherubini,Italian,CAM,24,69,68,58,10,68,67,66,75,51,58,4.5,12,75,false
+cremonese,cremonese_berti,Tommaso Berti,Italian,CAM,24,69,68,58,10,69,66,69,74,52,59,4.5,12,75,false
+cremonese,cremonese_grassi,Alberto Grassi,Italian,CM,24,68,69,68,10,43,62,67,70,66,61,4.5,12,75,false
+cremonese,cremonese_luca,Manuel De Luca,Italian,ST,24,69,68,56,10,48,69,57,64,37,73,4.5,12,75,false
+verona,verona_slotsager,Tobias Slotsager,Danish,CB,24,60,60,69,10,65,27,49,61,69,64,4.5,12,75,false
+pisa,pisa_meister,Henrik Meister,Danish,ST,24,69,68,51,10,68,66,55,67,32,76,4.5,12,75,false
+cagliari,cagliari_mutandwa,Kingstone Mutandwa,Zambian,ST,24,68,65,49,10,73,68,54,65,33,63,3.9,10,74,false
+udinese,udinese_goglichidze,Saba Goglichidze,Georgian,CB,24,57,55,68,10,53,25,44,50,69,71,3.9,10,74,false
+como,como_fumagalli,Tommaso Fumagalli,Italian,ST,24,68,67,49,10,79,66,63,68,36,65,3.9,10,74,false
+cagliari,cagliari_albarracin,Agustín Albarracín,Uruguayan,LM,24,68,67,50,10,72,69,68,71,41,44,3.9,10,74,false
+napoli,napoli_obaretin,Nosa Edward Obaretin,Italian,CB,24,62,59,68,10,57,37,51,51,66,79,3.9,10,74,false
+lazio,lazio_artistico,Gabriele Artistico,Italian,ST,24,68,66,47,10,65,70,55,68,29,68,3.9,10,74,false
+lazio,lazio_mussolini,Romano Floriani Mussolini,Italian,RM,24,67,67,68,10,70,57,65,67,66,64,3.9,10,74,false
+como,como_liberali,Mattia Liberali,Italian,CAM,24,68,66,55,10,76,64,65,73,48,47,3.9,10,74,false
+juventus,juventus_ekhator,Jeff Ekhator,Italian,ST,24,68,65,44,10,67,66,49,69,24,61,3.9,10,74,false
+lecce,lecce_kouassi,Owen Kouassi,Ivorian,RB,24,61,57,68,10,72,35,50,53,68,79,3.9,10,74,false
+udinese,udinese_gueye,Idrissa Gueye,Senegalese,ST,24,68,64,44,10,62,68,49,68,24,54,3.9,10,74,false
+genoa,genoa_meichtry,Franz-Ethan Meichtry,Swiss,CAM,24,68,66,58,10,70,67,59,71,48,60,3.9,10,74,false
+genoa,genoa_puczka,David Puczka,Austrian,LB,24,67,68,67,10,63,61,67,64,64,59,3.9,10,74,false
+juventus,juventus_pinsoglio,Carlo Pinsoglio,Italian,GK,24,10,11,13,68,68,68,61,68,42,67,3.9,10,74,false
+inter,inter_gennaro,Raffaele Di Gennaro,Italian,GK,24,10,11,13,68,71,67,62,69,43,65,3.9,10,74,false
+torino,torino_pellegri,Pietro Pellegri,Italian,ST,24,68,67,45,10,54,68,54,67,21,70,3.9,10,74,false
+udinese,udinese_bayo,Vakoun Issouf Bayo,Ivorian,ST,24,68,65,44,10,74,68,54,67,25,67,3.9,10,74,false
+lecce,lecce_dri,Konan N'Dri,Ivorian,RM,24,68,66,57,10,86,66,61,73,51,53,3.9,10,74,false
+torino,hud_anjorin,Tino Anjorin,English,CM,23,68,68,61,10,72,68,67,73,56,67,2,9,78,false
+sassuolo,sassuolo_moro,Luca Moro,Italian,ST,24,68,65,44,10,60,68,49,68,23,60,3.9,10,74,false
+como,como_braunoder,Matthias Braunöder,Austrian,CM,24,68,68,65,10,79,56,70,72,65,55,3.9,10,74,false
+como,como_gabrielloni,Alessandro Gabrielloni,Italian,ST,24,68,66,51,10,76,68,58,68,38,68,3.9,10,74,false
+inter,inter_massolin,Yanis Massolin,French,CM,24,68,68,67,10,72,62,67,67,62,79,3.9,10,74,false
+genoa,genoa_otoa,Sebastian Otoa,Danish,CB,24,59,57,68,10,58,35,49,50,68,69,3.9,10,74,false
+parma,parma_cremaschi,Benjamin Cremaschi,United States,CM,24,68,68,64,10,73,57,64,72,60,55,3.9,10,74,false
+parma,parma_joujou,Antoine Joujou,French,LM,24,68,66,43,10,70,65,63,71,22,53,3.9,10,74,false
+lazio,lazio_ratkov,Petar Ratkov,Serbian,ST,24,68,65,48,10,63,69,52,67,31,67,3.9,10,74,false
+genoa,genoa_masini,Patrizio Masini,Italian,CDM,24,66,67,68,10,62,56,62,67,67,54,3.9,10,74,false
+juventus,juventus_pecorino,Emanuele Pecorino,Italian,ST,24,68,68,56,10,52,66,58,65,38,81,3.9,10,74,false
+napoli,napoli_marianucci,Luca Marianucci,Italian,CB,24,57,58,68,10,35,26,48,56,70,59,3.9,10,74,false
+atalanta,atalanta_bonfanti,Giovanni Bonfanti,Italian,CB,24,60,60,68,10,45,37,56,54,70,69,3.9,10,74,false
+bologna,bologna_helland,Eivind Helland,Norwegian,CB,24,63,61,68,10,69,48,54,57,67,70,3.9,10,74,false
+ac_milan,ac_milan_athekame,Zachary Athekame,Swiss,RB,24,66,64,68,10,79,48,56,65,64,66,3.9,10,74,false
+verona,verona_livramento,Dailon Livramento,Cape Verde Islands,ST,24,68,66,49,10,80,67,56,68,34,64,3.9,10,74,false
+cremonese,cremonese_stuckler,David Stückler,Danish,ST,24,68,65,45,10,75,67,51,68,24,72,3.9,10,74,false
+cremonese,cremonese_gerli,Fabio Gerli,Italian,CDM,24,68,68,66,10,65,59,68,71,64,58,3.9,10,74,false
+pisa,pisa_calabresi,Arturo Calabresi,Italian,CB,24,62,63,68,10,45,31,58,61,68,69,3.9,10,74,false
+cremonese,cremonese_festa,Marco Festa,Italian,GK,24,10,11,13,68,67,66,70,69,46,70,3.9,10,74,false
+pisa,pisa_stojilkovic,Filip Stojilković,Swiss,ST,24,68,64,46,10,87,68,49,66,29,66,3.9,10,74,false
+pisa,pisa_piccinini,Gabriele Piccinini,Italian,CM,24,67,68,66,10,59,58,67,69,61,66,3.9,10,74,false
+bologna,bologna_ilic,Mihajlo Ilić,Serbian,CB,24,60,59,67,10,36,42,51,53,68,66,3.3,9,73,false
+genoa,genoa_stolz,Franz Stolz,Austrian,GK,24,10,11,13,67,68,65,64,66,33,66,3.3,9,73,false
+fiorentina,fiorentina_fortini,Niccolò Fortini,Italian,LB,24,66,67,65,10,69,56,63,70,61,59,3.3,9,73,false
+udinese,udinese_palma,Matteo Palma,German,CB,24,57,55,67,10,60,29,42,49,67,70,3.3,9,73,false
+atalanta,atalanta_vlahovic,Vanja Vlahović,Serbian,ST,24,67,65,44,10,65,68,57,68,26,66,3.3,9,73,false
+genoa,genoa_amorim,Amorim,Brazilian,CM,24,66,67,62,10,61,60,63,74,59,58,3.3,9,73,false
+napoli,napoli_contini,Nikita Contini,Italian,GK,24,10,11,13,67,68,66,61,69,48,64,3.3,9,73,false
+sassuolo,sassuolo_caligara,Fabrizio Caligara,Italian,CM,24,66,67,67,10,59,59,64,69,65,68,3.3,9,73,false
+sassuolo,sassuolo_antiste,Janis Antiste,French,ST,24,67,65,45,10,75,66,62,69,31,61,3.3,9,73,false
+sassuolo,sassuolo_bowie,Kieron Bowie,Scottish,ST,24,67,67,56,10,69,66,58,63,41,80,3.3,9,73,false
+sassuolo,sassuolo_missori,Filippo Missori,Italian,RB,24,62,63,67,10,62,35,58,59,66,60,3.3,9,73,false
+sassuolo,sassuolo_iannoni,Edoardo Iannoni,Italian,CM,24,66,67,63,10,53,60,67,65,59,62,3.3,9,73,false
+sassuolo,sassuolo_paz,Yeferson Paz,Colombian,RB,24,66,67,67,10,73,51,63,68,63,57,3.3,9,73,false
+atalanta,atalanta_giovane,Samuel Giovane,Italian,CDM,24,67,67,66,10,81,57,66,70,64,64,3.3,9,73,false
+lazio,lazio_belahyane,Reda Belahyane,Moroccan,CM,24,66,67,66,10,59,50,64,76,67,45,3.3,9,73,false
+sassuolo,sassuolo_pieragnolo,Edoardo Pieragnolo,Italian,LB,24,63,64,67,10,66,34,60,62,64,64,3.3,9,73,false
+parma,parma_daffara,Giovanni Daffara,Italian,GK,24,10,11,13,67,66,67,66,67,29,66,3.3,9,73,false
+verona,verona_edmundsson,Andrias Edmundsson,Faroe Islands,CB,24,59,57,67,10,51,34,47,54,67,70,3.3,9,73,false
+pisa,pisa_rao,Emanuele Rao,Italian,CAM,24,67,65,50,10,76,64,64,68,37,62,3.3,9,73,false
+pisa,pisa_esteves,Tomás Esteves,Portuguese,RB,24,66,66,67,10,78,48,60,68,62,64,3.3,9,73,false
+pisa,pisa_bonfanti,Nicholas Bonfanti,Italian,ST,24,67,62,43,10,72,69,53,67,29,51,3.3,9,73,false
+cremonese,cremonese_nasti,Marco Nasti,Italian,ST,24,67,65,47,10,56,68,58,70,33,55,3.3,9,73,false
+verona,verona_korac,Seid Korać,Luxembourger,CB,24,61,58,67,10,53,31,50,55,65,78,3.3,9,73,false
+sassuolo,sassuolo_kumi,Justin Kumi,Italian,CM,24,66,66,62,10,60,59,65,67,58,58,2.9,8,73,false
+sassuolo,sassuolo_bakola,Darryl Bakola,French,CAM,24,65,66,59,10,57,56,66,69,53,59,2.9,8,73,false
+cagliari,cagliari_sherri,Alen Sherri,Albanian,GK,24,10,11,13,66,69,63,67,65,44,64,2.9,8,73,false
+genoa,genoa_debenedetti,Alessandro Debenedetti,Italian,ST,24,66,65,47,10,66,65,54,64,26,76,2.9,8,73,false
+lazio,lazio_bordon,Filipe Bordon,Brazilian,CB,24,60,57,66,10,58,39,50,49,63,76,2.9,8,73,false
+fiorentina,fiorentina_valdepenas,Víctor Valdepeñas,Spanish,CB,24,62,61,66,10,70,41,56,57,64,69,2.9,8,73,false
+torino,torino_cacciamani,Alessio Cacciamani,Italian,LB,24,66,66,66,10,78,50,60,66,60,57,2.9,8,73,false
+lecce,lecce_perez,Matías Pérez,Chilean,CB,24,57,56,66,10,49,31,46,51,66,71,2.9,8,73,false
+cagliari,cagliari_liteta,Joseph Liteta,Zambian,CM,24,63,64,66,10,63,53,61,68,65,65,2.9,8,73,false
+lecce,lecce_ndaba,Corrie Ndaba,Irish,LB,24,61,60,66,10,69,28,55,60,64,73,2.9,8,73,false
+sassuolo,sassuolo_skjellerup,Laurs Skjellerup,Danish,ST,24,66,64,50,10,83,62,56,61,35,71,2.9,8,73,false
+lecce,lecce_ngom,Oumar Ngom,Mauritania,CDM,24,62,64,66,10,53,49,59,66,62,65,2.9,8,73,false
+lazio,lazio_przyborek,Adrian Przyborek,Polish,CAM,24,66,64,46,10,73,57,63,68,29,57,2.9,8,73,false
+atalanta,atalanta_zuccon,Federico Zuccon,Italian,CM,24,65,66,64,10,73,56,67,68,63,67,2.9,8,73,false
+ac_milan,ac_milan_cisse,Alphadjo Cissè,Italian,CAM,24,66,65,55,10,79,61,65,71,49,53,2.9,8,73,false
+ac_milan,ac_milan_zeroli,Kevin Zeroli,Italian,CM,24,66,66,66,10,73,59,62,70,65,59,2.9,8,73,false
+ac_milan,ac_milan_camarda,Francesco Camarda,Italian,ST,24,66,63,42,10,76,66,51,66,24,63,2.9,8,73,false
+como,como_rispoli,Fabio Rispoli,Italian,CM,24,66,66,62,10,75,60,65,71,59,58,2.9,8,73,false
+verona,sas_isaac_s,Isaac,Brazilian,ST,25,66,64,47,10,61,67,54,67,31,65,6,14,76,false
+cremonese,cremonese_jack,Fellipe Jack,Italian,CB,24,56,54,66,10,70,27,46,49,66,65,2.9,8,73,false
+verona,verona_cham,Fallou Cham,Gambian,RB,24,62,60,66,10,72,43,54,62,65,68,2.9,8,73,false
+cremonese,cremonese_agazzi,Federico Agazzi,Italian,GK,24,10,11,13,66,65,66,62,69,22,67,2.9,8,73,false
+pisa,pisa_jholt,Malthe Højholt,Danish,CDM,24,63,65,66,10,57,44,58,66,62,56,2.9,8,73,false
+verona,verona_cruz,Juan Manuel Cruz,Argentine,ST,24,66,63,46,10,61,67,52,62,28,60,2.9,8,73,false
+verona,verona_sezonienko,Kacper Sezonienko,Polish,LM,24,66,63,46,10,81,61,59,65,27,64,2.9,8,73,false
+verona,verona_compagnon,Mattia Compagnon,Italian,RM,24,66,64,52,10,68,64,59,71,42,48,2.9,8,73,false
+cremonese,cremonese_rocchetti,Yuri Rocchetti,Italian,LM,24,65,65,66,10,68,56,61,66,63,67,2.9,8,73,false
+pisa,pisa_lusuardi,Mateus Lusuardi,Brazilian,CB,24,58,56,66,10,47,29,47,50,66,70,2.9,8,73,false
+verona,verona_calabrese,Nicolò Calabrese,Italian,CB,24,57,56,66,10,61,36,48,53,67,63,2.9,8,73,false
+torino,torino_njie,Alieu Njie,Swedish,ST,24,65,62,39,10,75,65,55,71,24,50,2.4,7,72,false
+ac_milan,ac_milan_odogu,David Odogu,German,CB,24,57,55,65,10,63,32,45,52,65,66,2.4,7,72,false
+napoli,napoli_sgarbi,Lorenzo Sgarbi,Italian,ST,24,65,65,46,10,57,65,58,67,27,70,2.4,7,72,false
+torino,torino_vecchia,Marco Dalla Vecchia,Italian,CM,24,64,65,64,10,71,48,63,67,59,64,2.4,7,72,false
+parma,parma_britschgi,Sascha Britschgi,Swiss,RB,24,58,59,65,10,61,30,54,58,64,58,2.4,7,72,false
+genoa,genoa_venturino,Lorenzo Venturino,Italian,RM,24,65,63,44,10,69,53,58,65,23,54,2.4,7,72,false
+inter,inter_topalovic,Luka Topalovič,Slovenian,CM,24,65,65,59,10,61,62,59,66,51,57,2.4,7,72,false
+cagliari,cagliari_romano,Alessandro Romano,Swiss,CDM,24,65,65,64,10,64,62,63,64,60,64,2.4,7,72,false
+roma,roma_zelezny,Radosław Żelezny,Polish,GK,24,10,11,13,65,63,68,60,65,28,65,2.4,7,72,false
+roma,roma_mannini,Mattia Mannini,Italian,RB,24,59,61,65,10,69,35,52,62,62,47,2.4,7,72,false
+udinese,udinese_mlacic,Branimir Mlačić,Croatian,CB,24,61,60,65,10,53,48,53,54,63,67,2.4,7,72,false
+ac_milan,ac_milan_comotto,Christian Comotto,Italian,CM,24,65,65,62,10,69,55,65,69,59,64,2.4,7,72,false
+cagliari,cagliari_mendy,Paul Mendy,Senegalese,ST,24,65,64,45,10,76,63,52,64,26,68,2.4,7,72,false
+udinese,udinese_padelli,Daniele Padelli,Italian,GK,24,10,11,13,65,62,65,56,62,45,70,2.4,7,72,false
+lecce,lecce_fofana,Sadik Fofana,Togolese,CDM,24,58,59,65,10,64,45,56,61,65,69,2.4,7,72,false
+sassuolo,sassuolo_nuamah,Patrick Amoako Nuamah,Italian,CAM,24,65,64,62,10,81,58,64,66,58,64,2.4,7,72,false
+cagliari,cagliari_cavuoti,Nicolò Cavuoti,Italian,CAM,24,65,65,52,10,67,60,65,69,42,56,2.4,7,72,false
+sassuolo,sassuolo_andrea,Luca D'Andrea,Italian,RM,24,65,63,47,10,78,58,59,70,34,46,2.4,7,72,false
+torino,torino_dembele,Ali Bina Dembélé,French,CB,24,60,60,65,10,67,42,56,62,65,64,2.4,7,72,false
+parma,parma_elphege,Nesta Elphege,French,ST,24,65,64,51,10,52,64,47,59,30,73,2.4,7,72,false
+parma,parma_kouda,Rachid Kouda,Italian,CM,24,65,65,63,10,87,52,60,67,56,72,2.4,7,72,false
+atalanta,atalanta_lungo,Tommaso Del Lungo,Italian,CB,24,56,54,65,10,58,30,44,52,66,67,2.4,7,72,false
+torino,torino_mascardi,Diego Mascardi,Italian,GK,24,10,11,13,65,65,63,63,66,31,62,2.4,7,72,false
+verona,verona_corradi,Christian Corradi,Italian,CB,24,57,56,65,10,62,33,48,49,64,64,2.4,7,72,false
+cremonese,cremonese_folino,Francesco Folino,Italian,CB,24,58,56,65,10,52,36,48,47,64,71,2.4,7,72,false
+pisa,pisa_marras,Tommaso Marras,Italian,CAM,24,65,63,49,10,68,58,63,67,36,61,2.4,7,72,false
+verona,verona_bega,Leorat Bega,Swiss,CM,24,65,64,64,10,71,59,59,61,57,71,2.4,7,72,false
+verona,verona_oyegoke,Daniel Oyegoke,English,RB,24,61,61,65,10,73,43,54,63,64,61,2.4,7,72,false
+cremonese,cremonese_brambilla,Alessio Brambilla,Italian,CDM,24,63,64,65,10,63,50,65,62,61,66,2.4,7,72,false
+pisa,pisa_vukovic,Ante Vuković,Croatian,GK,24,10,11,13,65,61,62,65,66,30,67,2.4,7,72,false
+verona,verona_charlys,Charlys,Brazilian,CM,24,64,64,65,10,56,60,61,65,63,67,2.4,7,72,false
+como,como_cuenca,Andrés Cuenca,Spanish,CB,24,62,63,64,10,71,39,63,63,62,65,2.1,6,71,false
+roma,roma_reale,Filippo Reale,Italian,CB,24,57,55,64,10,58,35,48,51,64,65,2.1,6,71,false
+como,como_vigorito,Mauro Vigorito,Italian,GK,24,10,11,13,64,63,63,60,65,39,65,2.1,6,71,false
+sassuolo,sassuolo_russo,Alessandro Russo,Italian,GK,24,10,11,13,64,68,62,57,64,31,61,2.1,6,71,false
+pisa,pisa_bozhinov,Rosen Bozhinov,Bulgarian,CB,24,58,57,64,10,69,31,50,52,62,64,2.1,6,71,false
+sassuolo,sassuolo_russo2,Flavio Russo,Italian,ST,24,63,60,42,10,60,64,45,65,25,57,1.8,5,70,false
+cagliari,cagliari_raterink,Othniël Raterink,Holland,RB,24,63,61,63,10,78,52,54,61,57,65,1.8,5,70,false
+roma,roma_arena,Antonio Arena,Italian,ST,24,63,62,44,10,62,60,50,61,24,62,1.8,5,70,false
+cagliari,cagliari_trepy,Yael Trepy,French,ST,24,63,62,40,10,76,63,58,66,23,66,1.8,5,70,false
+como,como_mustapha,Marlon Suliman Mustapha,Austrian,ST,24,63,62,42,10,80,64,54,62,24,76,1.8,5,70,false
+parma,parma_carboni,Franco Carboni,Argentine,LB,24,59,60,63,10,54,40,55,58,62,61,1.8,5,70,false
+udinese,udinese_arizala,Juan David Arizala,Colombian,RM,24,63,60,44,10,84,52,51,65,25,45,1.8,5,70,false
+sassuolo,sassuolo_miranda,Kevin Miranda,Italian,CB,24,54,53,63,10,53,31,46,49,65,63,1.8,5,70,false
+parma,parma_amoran,Peter Amoran,Swedish,CB,24,56,54,63,10,59,28,45,50,62,67,1.8,5,70,false
+pisa,pisa_vural,İsak Vural,Turkish,CM,24,63,63,55,10,50,58,62,67,51,43,1.8,5,70,false
+pisa,pisa_loria,Leonardo Loria,Italian,GK,24,10,11,13,63,65,63,60,65,25,63,1.8,5,70,false
+torino,torino_ciammaglichella,Aaron Ciammaglichella,Italian,CM,24,61,61,62,10,66,57,60,64,63,58,1.5,5,69,false
+lazio,lazio_renzetti,Davide Renzetti,Italian,GK,24,10,11,13,62,59,60,61,62,22,62,1.5,5,69,false
+ac_milan,ac_milan_torriani,Lorenzo Torriani,Italian,GK,24,10,11,13,62,59,56,66,65,20,62,1.5,5,69,false
+parma,parma_ajewski,Daniel Mikołajewski,Polish,ST,24,62,60,43,10,56,63,51,62,27,55,1.5,5,69,false
+como,como_jasim,Ali Jasim,Iraqi,LM,24,62,59,41,10,67,62,57,63,22,66,1.5,5,69,false
+bologna,bologna_pessina,Massimo Pessina,Italian,GK,24,10,11,13,62,61,61,65,61,28,62,1.5,5,69,false
+lecce,lecce_kovac,Niko Kovač,Bosnian,CM,24,62,62,57,10,56,55,63,65,52,62,1.5,5,69,false
+lecce,lecce_gorter,Olaf Gorter,Holland,CDM,24,60,61,62,10,49,51,60,58,59,58,1.5,5,69,false
+sassuolo,sassuolo_zacchi,Gioele Zacchi,Italian,GK,24,10,11,13,62,61,62,59,62,24,61,1.5,5,69,false
+como,como_borgne,Andréa Le Borgne,French,CDM,24,55,56,62,10,62,43,51,55,60,64,1.5,5,69,false
+genoa,genoa_wiafe,Samuel Wiafe,Italian,CM,24,62,61,55,10,66,58,59,66,51,58,1.5,5,69,false
+atalanta,atalanta_rossi,Francesco Rossi,Italian,GK,24,10,11,13,62,63,62,63,62,22,60,1.5,5,69,false
+genoa,genoa_sommariva,Daniele Sommariva,Italian,GK,24,10,11,13,62,64,56,62,68,42,59,1.5,5,69,false
+lecce,lecce_esposito,Sebastian Esposito,Australian,CB,24,53,51,62,10,57,29,39,50,63,61,1.5,5,69,false
+pisa,pisa_denoon,Daniel Denoon,Swiss,CB,24,57,56,62,10,56,33,52,49,60,67,1.5,5,69,false
+verona,verona_vermesan,Ioan Vermeșan,Romanian,ST,24,62,60,39,10,62,61,48,60,19,58,1.5,5,69,false
+cremonese,cremonese_cabianca,Eddy Cabianca,Italian,RB,24,58,57,62,10,64,37,53,55,61,66,1.5,5,69,false
+pisa,pisa_coppola,Francesco Coppola,Italian,CB,24,52,50,62,10,56,26,39,47,63,63,1.5,5,69,false
+torino,torino_balcot,Côme Bianay Balcot,French,RB,24,56,57,61,10,49,42,55,57,63,61,1.3,4,68,false
+genoa,genoa_cuenca,Hugo Cuenca,Paraguayan,RW,24,59,61,53,10,66,54,62,64,47,59,1.3,4,68,false
+fiorentina,fiorentina_kospo,Eman Košpo,Bosnian,CB,24,52,49,61,10,60,30,40,43,62,64,1.3,4,68,false
+lazio,lazio_furlanetto,Alessio Furlanetto,Italian,GK,24,10,11,13,61,63,60,58,65,39,55,1.3,4,68,false
+cagliari,cagliari_ciocci,Giuseppe Ciocci,Italian,GK,24,10,11,13,61,61,56,56,65,24,58,1.3,4,68,false
+lecce,lecce_samooja,Jasper Samooja,Finnish,GK,24,10,11,13,61,62,65,61,59,26,60,1.3,4,68,false
+pisa,pisa_durmush,Mert Durmush,Bulgarian,RW,24,61,58,41,10,63,68,57,60,29,58,1.3,4,68,false
+cremonese,cremonese_saro,Gianluca Saro,Italian,GK,24,10,11,13,61,59,64,61,61,21,60,1.3,4,68,false
+como,como_lahdo,Adrian Lahdo,Swedish,CM,24,60,59,53,10,57,55,58,59,48,48,1.1,4,67,false
+genoa,genoa_nuredini,Joi Nuredini,Albanian,ST,24,60,58,41,10,47,61,45,60,22,61,1.1,4,67,false
+pisa,pisa_buffon,Louis Buffon,Czech,LM,24,60,58,43,10,68,56,55,58,26,58,1.1,4,67,false
+fiorentina,fiorentina_braschi,Riccardo Braschi,Italian,ST,24,59,56,38,10,58,59,43,57,19,57,1,3,66,false
+genoa,genoa_lysionok,Ernestas Lysionok,Lithuanian,GK,24,10,11,13,59,56,58,56,62,22,59,1,3,66,false
+cremonese,cremonese_tessadri,Simone Lottici Tessadri,Italian,CM,24,57,58,57,10,54,47,60,56,53,57,0.8,3,66,false
+torino,torino_siviero,Lapo Siviero,Italian,GK,24,10,11,13,56,51,56,52,60,29,56,0.6,2,64,false
+verona,verona_toniolo,Giacomo Toniolo,Italian,GK,24,10,11,13,56,58,51,54,63,45,52,0.6,2,64,false
+cremonese,cremonese_lordkipanidze,Dachi Lordkipanidze,Georgian,CM,24,55,56,54,10,56,45,52,57,49,50,0.6,2,64,false
+cremonese,cremonese_lickunas,Adrian Lickūnas,Lithuanian,RM,24,56,54,41,10,65,47,48,56,26,50,0.6,2,64,false
