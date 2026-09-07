@@ -1,7 +1,7 @@
 import { LEDGER_PRESENTATION_TIME_SCALE } from './broadcastSimulation.js';
 import { advanceLiveMatchStory, createLiveMatchStoryState } from './liveMatchStory.js';
 
-export const BROADCAST_FRAME_SEMANTICS_VERSION = 5;
+export const BROADCAST_FRAME_SEMANTICS_VERSION = 6;
 
 const storyStateBySimulation = new WeakMap();
 
@@ -25,9 +25,11 @@ function commentaryClockMs(simulation) {
  * The authoritative simulation may advance quickly, while liveMatchStory owns
  * the human reading pace and admits only a bounded set of meaningful passages.
  *
- * `commentaryGoalReady` is presentation-only handshake state. It never changes
- * football authority; it simply tells the legacy score/event reveal seam that
- * the narrated passage has finally reached its terminal "GOAL!" beat.
+ * The two flags written onto the simulation are presentation-only handshakes:
+ * - commentaryGoalReady means the reader has reached its terminal "GOAL!" beat.
+ * - commentaryBusy means a selected passage or queued key event still deserves
+ *   to finish before the full-time screen replaces the commentary reader.
+ * Neither flag changes RNG, score, ledger records or any football outcome.
  */
 export function describeBroadcastFrame(frame, simulation) {
   if (!simulation || typeof simulation !== 'object') {
@@ -40,15 +42,17 @@ export function describeBroadcastFrame(frame, simulation) {
     };
   }
 
+  const state = storyStateFor(simulation);
   const playersById = new Map((simulation.players ?? []).map(player => [player.id, player]));
   const scene = simulation.activePhase;
-  const presentation = advanceLiveMatchStory(storyStateFor(simulation), {
+  const presentation = advanceLiveMatchStory(state, {
     record:scene?.record ?? null,
     stage:scene?.stage ?? 'acquire',
     playersById,
     nowMs:commentaryClockMs(simulation),
   });
 
+  simulation.commentaryBusy = Boolean(state.current || state.queue.length);
   if (presentation.action?.startsWith('GOAL!')) simulation.commentaryGoalReady = true;
   return presentation;
 }
