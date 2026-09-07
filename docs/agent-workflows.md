@@ -2,7 +2,8 @@
 
 Pitch consumes reusable skills from Agent-Template and their canonical upstream
 sources. `.agents/skills.lock.json` owns exact revisions and selected skill paths.
-The game-specific rules remain in this repository's AGENTS.md/CLAUDE.md.
+AGENTS.md is the canonical root contract; CLAUDE.md is a compatibility pointer.
+Domain details live under docs/engineering/ and load only for the affected task.
 
 ## Start a task
 
@@ -113,3 +114,12 @@ before removing `.agents/install.lock`. Changed/unmanaged discovery links are
 rejected, not overwritten. Other project-specific skills can remain checked in.
 ESLint excludes generated skill/cache paths so upstream helper code is not
 mistaken for Pitch source. Vitest already selects only `src/` and `functions/`.
+
+## Context evaluation
+
+Use delivery-loop/measurement.md only for an explicit efficiency evaluation.
+Record actual host telemetry when available; file-size reduction is not a measured
+cache hit or cost saving. Keep the final preview and unverified checks in handoffs.
+
+This coordinated adoption pins 208d2a407de3a2b4ddbb8cc8d54a1e227dddea65.
+Merge Agent-Template PR 4 first; regenerate this lock if the merged SHA changes.

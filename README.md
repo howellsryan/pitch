@@ -88,7 +88,7 @@ npm run build
 
 Pre-registered slots exist for Segunda División, 2. Bundesliga, Serie B, and Ligue 2 — just add the CSVs and build.
 
-See [`CLAUDE.md`](CLAUDE.md) for full architecture documentation, invariants, and anti-patterns.
+Start with [`AGENTS.md`](AGENTS.md); its task routing links to architecture contracts, invariants and verification.
 
 ## Version History
 

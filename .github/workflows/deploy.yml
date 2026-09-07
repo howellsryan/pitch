@@ -7,9 +7,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Runs on every push and PR. Both build paths are exercised: build.py's
-  # concatenation (which runs validate.js's compatibility suite) and the Vite
-  # build, plus lint, Vitest, and the club-accent contrast floor.
+  # Runs on every push and PR. Vite is the only application build: it produces
+  # the same dist/ artifact Cloudflare Workers Builds deploys. Verification then
+  # runs lint, deterministic Vitest/contracts, match-balance guardrails and the
+  # club-accent contrast floor.
   #
   # There is deliberately no browser/E2E job here, and no E2E suite in the
   # repository: Playwright, its config and its opt-in workflow were removed
@@ -19,28 +20,19 @@ jobs:
   # This workflow does NOT deploy. Cloudflare Workers Builds is connected to
   # this repo and owns both production deploys and per-branch previews —
   # having both systems deploy the same Worker races them against each other.
-  # Its build command is `npm ci && npm run build:app`, which deliberately
-  # skips build:legacy: that path exists only to feed validate.js, it is
-  # gated here, and it needs python3 in the build image.
+  # Its build command is `npm ci && npm run build:app` and it serves `dist/`.
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
 
-      # The legacy concatenation path bundles and runs validate.js. It remains
-      # the gate nothing bypasses; stochastic outcome sampling is excluded.
-      - run: npm run build:legacy
-
-      # The Vite path: real ES modules, the deployed app.
-      - run: npm run build:app
+      # The canonical Vite/Svelte production build.
+      - run: npm run build
       - run: npm run lint
       - run: npm run test
 
@@ -52,10 +44,9 @@ jobs:
 
       - run: npm run check:accents
 
-      # Kept for debugging — the legacy single-file build, downloadable from
-      # the run. Nothing deploys from it.
+      # Keep the actual production artifact for debugging failed deployments.
       - uses: actions/upload-artifact@v4
         with:
-          name: index.html
-          path: index.html
+          name: dist
+          path: dist/
           retention-days: 7

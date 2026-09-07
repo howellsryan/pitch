@@ -5,8 +5,7 @@
   "description": "Football career simulator. Live at pitch-sim.com.",
   "scripts": {
     "dev": "node tools/make-entry.mjs && vite",
-    "build": "npm run build:legacy && npm run build:app",
-    "build:legacy": "python3 src/build.py",
+    "build": "npm run build:app",
     "build:app": "node tools/make-entry.mjs && vite build",
     "preview": "npm run build:app && vite preview --port 4173 --strictPort",
     "validate": "python3 src/validate_p0.py",

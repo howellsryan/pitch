@@ -39,8 +39,7 @@ jobs:
 
       - name: Verify refreshed data
         run: |
-          npm run build:legacy
-          npm run build:app
+          npm run build
           npm run lint
           npm run test
           npm run check:accents
