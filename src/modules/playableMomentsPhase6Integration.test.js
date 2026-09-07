@@ -5,7 +5,6 @@ import {
   resumePlayableMatchPhase,
   simulateMatchSegment,
 } from './matchEngine.js';
-import { preparePlayableContactContinuation } from './matchContactPhase.js';
 import { createUserTacticalPlan } from './tactics.js';
 
 const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
@@ -15,26 +14,13 @@ function player(id, position, rating = 80) {
   const midfield = ['CM','CDM','CAM','RM','LM','RW','LW'].includes(position);
   const defending = ['CB','RB','LB','CDM'].includes(position);
   return {
-    id,
-    name:id,
-    position,
-    matchPosition:position,
-    age:25,
+    id, name:id, position, matchPosition:position, age:25,
     attack:attacking ? rating : rating - 9,
     midfield:midfield ? rating : rating - 7,
     defence:defending ? rating : rating - 16,
     goalkeeping:position === 'GK' ? rating : 8,
-    fitness:94,
-    form:50,
-    individualMorale:50,
-    sharpness:50,
-    traits:[],
-    injured:false,
-    suspended:false,
-    inSquad:true,
-    appearances:0,
-    goals:0,
-    assists:0,
+    fitness:94, form:50, individualMorale:50, sharpness:50,
+    traits:[], injured:false, suspended:false, inSquad:true,
     positionSuitability:{ [position]:1 },
     attributeProfile:{
       version:1,
@@ -59,13 +45,13 @@ function fixture(seed) {
   };
   const away = { id:'away', name:'Away', crest:'A', reputation:80 };
   const state = buildLiveMatchState(
-    home, away, squad('h', 82), squad('a', 80),
+    home, away, squad('h',82), squad('a',80),
     '4-3-3', '4-3-3', null, null, 'balanced', 'balanced', { seed },
   );
   return { home, away, state };
 }
 
-function stateContract(state) {
+function contract(state) {
   return {
     actionLedger:state.actionLedger,
     hGoals:state.hGoals,
@@ -78,116 +64,52 @@ function stateContract(state) {
   };
 }
 
-function findContactMoment() {
-  for (let seedIndex = 0; seedIndex < 32; seedIndex += 1) {
-    const current = fixture(`phase6-contact-${seedIndex}`);
-    let state = current.state;
-    for (let phase = 1; phase <= MATCH_PHASES; phase += 1) {
-      const suspended = simulateMatchSegment(
-        current.home,
-        current.away,
-        state,
-        phase,
-        phase,
-        current.home.id,
-        { suspend:true, controlledTeamId:current.home.id },
+function suspensionAware(seed) {
+  const current = fixture(seed);
+  let state = current.state;
+  const offered = [];
+  const events = [];
+
+  for (let phase = 1; phase <= MATCH_PHASES; phase += 1) {
+    const step = simulateMatchSegment(
+      current.home, current.away, state, phase, phase, current.home.id,
+      { suspend:true, controlledTeamId:current.home.id },
+    );
+    if (step.pendingPlayableMoment) {
+      offered.push(step.pendingPlayableMoment);
+      const resumed = resumePlayableMatchPhase(
+        current.home, current.away, state, step.playableContinuation, null, current.home.id,
       );
-      if (suspended.pendingPlayableMoment?.interactionType === 'contact') {
-        return { ...current, stateBefore:state, phase, suspended };
-      }
-      if (suspended.pendingPlayableMoment) {
-        state = resumePlayableMatchPhase(
-          current.home,
-          current.away,
-          state,
-          suspended.playableContinuation,
-          null,
-          current.home.id,
-        ).updatedState;
-      } else {
-        state = suspended.updatedState;
-      }
+      state = resumed.updatedState;
+      events.push(...resumed.segEvents);
+    } else {
+      state = step.updatedState;
+      events.push(...step.segEvents);
     }
   }
-  throw new Error('Could not find a deterministic Phase 6 contact moment');
+  return { ...current, state, offered, events };
 }
 
-describe('Phase 6 real-match authoritative integration', () => {
-  it('keeps the original automatic phase isolated while a selected contact commits exactly once', () => {
-    const found = findContactMoment();
-    const originalAutomatic = simulateMatchSegment(
-      found.home,
-      found.away,
-      found.stateBefore,
-      found.phase,
-      found.phase,
-      found.home.id,
-    );
-    const originalResumed = resumePlayableMatchPhase(
-      found.home,
-      found.away,
-      found.stateBefore,
-      found.suspended.playableContinuation,
-      null,
-      found.home.id,
-    );
+describe('retired contact interactions in real-match integration', () => {
+  it('never offers contact or defending moments while the authoritative match keeps progressing', () => {
+    const offered = [];
+    for (let index = 0; index < 12; index += 1) {
+      offered.push(...suspensionAware(`phase6-retired-contact-${index}`).offered);
+    }
 
-    expect(originalResumed.segEvents).toEqual(originalAutomatic.segEvents);
-    expect(stateContract(originalResumed.updatedState)).toEqual(stateContract(originalAutomatic.updatedState));
-
-    const selected = preparePlayableContactContinuation(
-      found.suspended.playableContinuation,
-      found.home.id,
-      found.suspended.pendingPlayableMoment.version,
-    );
-    expect(selected).toBeTruthy();
-    expect(selected.moment.interactionType).toBe('contact');
-    expect(selected.continuation.preparedAction.contactAction.type).toBe(selected.moment.contactType);
-
-    const intent = selected.moment.mode === 'attack'
-      ? { attack:{ aimX:.22, aimY:.52, power:selected.moment.contactAction.preferredPower, timing:.88 } }
-      : { goalkeeper:{ x:.22, y:.52, timing:.88 } };
-    const committed = resumePlayableMatchPhase(
-      found.home,
-      found.away,
-      found.stateBefore,
-      selected.continuation,
-      intent,
-      found.home.id,
-    );
-
-    expect(committed.updatedState.actionLedger).toHaveLength(found.stateBefore.actionLedger.length + 1);
-    const record = committed.updatedState.actionLedger.at(-1);
-    expect(record.outcome).toBe('chance_created');
-    expect(record.contactType).toBe(selected.moment.contactType);
-    expect(record.continuation?.success).toBe(true);
-    expect(record.shotId).toBe(selected.moment.shooterId);
-    expect(record.xg).toBe(selected.moment.xg);
-    expect(record.finish).toBe(committed.playableResolution.shot.finish);
-    expect(committed.segEvents.filter(event => event.type === 'goal')).toHaveLength(committed.playableResolution.shot.goal ? 1 : 0);
+    expect(offered.length).toBeGreaterThan(0);
+    expect(offered.every(moment => moment.mode === 'attack')).toBe(true);
+    expect(offered.some(moment => moment.interactionType === 'contact')).toBe(false);
+    expect(offered.some(moment => moment.mode === 'goalkeeper')).toBe(false);
   });
 
-  it('replaying the same enriched continuation and intent is deterministic and cannot duplicate phase effects', () => {
-    const found = findContactMoment();
-    const selected = preparePlayableContactContinuation(
-      found.suspended.playableContinuation,
-      found.home.id,
-      found.suspended.pendingPlayableMoment.version,
-    );
-    const intent = selected.moment.mode === 'attack'
-      ? { attack:{ aimX:-.18, aimY:.48, power:selected.moment.contactAction.preferredPower, timing:.84 } }
-      : { goalkeeper:{ x:-.18, y:.48, timing:.84 } };
+  it('keeps suspension-aware null-intent play identical to the unchanged automatic engine', () => {
+    const seed = 'phase6-retired-contact-parity';
+    const current = fixture(seed);
+    const automatic = simulateMatchSegment(current.home, current.away, current.state, 1, MATCH_PHASES, current.home.id);
+    const interactiveBoundary = suspensionAware(seed);
 
-    const first = resumePlayableMatchPhase(
-      found.home, found.away, found.stateBefore, selected.continuation, intent, found.home.id,
-    );
-    const second = resumePlayableMatchPhase(
-      found.home, found.away, found.stateBefore, selected.continuation, intent, found.home.id,
-    );
-
-    expect(first.segEvents).toEqual(second.segEvents);
-    expect(first.playableResolution).toEqual(second.playableResolution);
-    expect(stateContract(first.updatedState)).toEqual(stateContract(second.updatedState));
-    expect(first.updatedState.actionLedger).toHaveLength(found.stateBefore.actionLedger.length + 1);
+    expect(contract(interactiveBoundary.state)).toEqual(contract(automatic.updatedState));
+    expect(interactiveBoundary.events).toEqual(automatic.segEvents);
   });
 });
