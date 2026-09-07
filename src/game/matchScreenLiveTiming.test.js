@@ -46,14 +46,17 @@ describe('MatchScreen live timing and presentation authority', () => {
     expect(scheduleTick).toContain('Math.max(PRESENTATION_RETRY_MS, WATCH_TICK_MS + extraDelay)');
   });
 
-  it('queues authoritative goals and reveals them only when the visible scene reaches GOAL', () => {
+  it('queues authoritative goals and reveals them only when commentary reaches its final goal beat', () => {
     const events = sourceOf('handleNewEvents');
     expect(events).toContain("if (ev.type === 'goal')");
     expect(events).toContain('queuedGoalNotice = { ...ev, isUser }');
     expect(events).not.toContain('revealGoalNotice();');
 
     const presentation = sourceOf('startPresentation');
-    expect(presentation).toContain("if (broadcastFrame.action === 'GOAL') revealGoalNotice()");
+    expect(presentation).toContain('broadcastSimulation.commentaryGoalReady && queuedGoalNotice');
+    expect(presentation).toContain('broadcastSimulation.commentaryGoalReady = false');
+    expect(presentation).toContain('revealGoalNotice();');
+    expect(presentation).not.toContain("broadcastFrame.action === 'GOAL'");
   });
 
   it('uses the football-style stoppage clock instead of a raw 1–90 phase calculation', () => {
