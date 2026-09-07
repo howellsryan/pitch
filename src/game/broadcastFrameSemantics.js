@@ -1,17 +1,18 @@
 import { describeBroadcastLedgerRecord } from './broadcastLedgerSemantics.js';
 
-export const BROADCAST_FRAME_SEMANTICS_VERSION = 1;
+export const BROADCAST_FRAME_SEMANTICS_VERSION = 2;
 
 /**
- * T6 presentation adapter for the existing ledger-driven Broadcast engine.
- * Reads the current scene but never mutates simulation state or changes timing,
- * geometry, RNG, score, actions or readiness gating.
+ * Text-first presentation adapter for the existing ledger-driven Broadcast
+ * sequencer. The sequencer now exists only to pace readable commentary stages;
+ * this adapter never mutates simulation state or changes timing, RNG, score,
+ * actions or readiness gating.
  */
 export function describeBroadcastFrame(frame, simulation) {
   const fallback = {
-    phaseLabel:frame?.phaseLabel ?? 'Kick off',
-    action:frame?.action ?? 'TEAMS SET',
-    detail:frame?.carrierName || 'Ball in flight',
+    phaseLabel:frame?.phaseLabel ?? 'Match flow',
+    action:frame?.action ?? 'TEAMS RESETTING',
+    detail:frame?.carrierName ? `${frame.carrierName} is involved in the next phase.` : 'Both sides reorganise for the next phase of play.',
   };
   const scene = simulation?.activePhase;
   if (!scene?.record) return fallback;
@@ -24,7 +25,7 @@ export function describeBroadcastFrame(frame, simulation) {
 
   return {
     phaseLabel:presentation.label || fallback.phaseLabel,
-    action:fallback.action,
+    action:presentation.action || fallback.action,
     detail:presentation.detail || fallback.detail,
   };
 }
