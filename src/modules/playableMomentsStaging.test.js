@@ -87,7 +87,6 @@ describe('Phase 3 playable staging projection', () => {
   it('is strictly pre-outcome and cannot change when only shot/finish rolls change', () => {
     const first = derivePlayableMomentStaging(prepared({ packet:{ target:.18, shot:.01, finish:.01 } }));
     const second = derivePlayableMomentStaging(prepared({ packet:{ target:.18, shot:.99, finish:.99 } }));
-
     expect(first).toEqual(second);
   });
 
@@ -95,7 +94,6 @@ describe('Phase 3 playable staging projection', () => {
     expect(derivePlayableMomentStaging(prepared({ packet:{ target:.50 } })).channelBand).toBe('central');
     expect(derivePlayableMomentStaging(prepared({ packet:{ target:.12 } })).channelBand).toBe('left');
     expect(derivePlayableMomentStaging(prepared({ packet:{ target:.88 } })).channelBand).toBe('right');
-
     expect(derivePlayableMomentStaging(prepared({ packet:{ target:.50 } })).variant).toBe('central_snapshot');
     expect(derivePlayableMomentStaging(prepared({ packet:{ target:.12 } })).variant).toBe('left_channel_snapshot');
     expect(derivePlayableMomentStaging(prepared({ packet:{ target:.88 } })).variant).toBe('right_channel_snapshot');
@@ -127,18 +125,19 @@ describe('Phase 3 playable staging projection', () => {
     expect(high.defenderRelationship).not.toBe(low.defenderRelationship);
   });
 
-  it('builds bounded scene geometry and legal actions from the staging contract', () => {
+  it('builds bounded attacking scene geometry while refusing an opponent-owned goalkeeper scene', () => {
     const deepPrepared = prepared({ xg:.24, route:'pass_into_space', packet:{ target:.18 } });
     const advancingPrepared = prepared({ xg:.36, route:'pass_into_space', packet:{ target:.18 } });
-    const attackMoment = buildPlayableMoment(deepPrepared, 'home');
-    const keeperMoment = buildPlayableMoment(advancingPrepared, 'away');
+    const deepMoment = buildPlayableMoment(deepPrepared, 'home');
+    const advancingMoment = buildPlayableMoment(advancingPrepared, 'home');
 
-    expect(attackMoment.geometry.staging.variant).toBe('one_on_one_deep_keeper');
-    expect(keeperMoment.geometry.staging.variant).toBe('one_on_one_advancing_keeper');
-    expect(attackMoment.geometry.goalkeeper.z).toBe(attackMoment.geometry.staging.keeperDepth);
-    expect(keeperMoment.geometry.goalkeeper.z).toBe(keeperMoment.geometry.staging.keeperDepth);
-    expect(keeperMoment.geometry.goalkeeper.z).toBeGreaterThan(attackMoment.geometry.goalkeeper.z);
-    expect(attackMoment.geometry.legalActions).toEqual({ attack:['aim', 'power', 'timing'], goalkeeper:['position', 'timing'] });
-    expect(attackMoment.geometry.continuousLocomotion).toBe(false);
+    expect(deepMoment.geometry.staging.variant).toBe('one_on_one_deep_keeper');
+    expect(advancingMoment.geometry.staging.variant).toBe('one_on_one_advancing_keeper');
+    expect(deepMoment.geometry.goalkeeper.z).toBe(deepMoment.geometry.staging.keeperDepth);
+    expect(advancingMoment.geometry.goalkeeper.z).toBe(advancingMoment.geometry.staging.keeperDepth);
+    expect(advancingMoment.geometry.goalkeeper.z).toBeGreaterThan(deepMoment.geometry.goalkeeper.z);
+    expect(deepMoment.geometry.legalActions.attack).toEqual(['aim', 'power', 'timing']);
+    expect(deepMoment.geometry.continuousLocomotion).toBe(false);
+    expect(buildPlayableMoment(advancingPrepared, 'away')).toBeNull();
   });
 });
