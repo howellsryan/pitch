@@ -11,10 +11,9 @@ import {
 /**
  * Durable presentation wrapper around the authoritative Phase 7 shootout state.
  *
- * The underlying matchShootout state still owns all football/rules. This wrapper
- * only records which exact deterministic kick has been offered to the manager,
- * whether its committed result is still awaiting presentation acknowledgement,
- * and the regulation result needed to recover the cup closeout after refresh.
+ * Playable shootouts are attacking-only: the manager takes their own penalties
+ * while opponent kicks are resolved automatically by the same deterministic
+ * shootout domain. No goalkeeper/defending interaction is presented.
  */
 
 export const COMPETITION_SHOOTOUT_SESSION_VERSION = 1;
@@ -36,11 +35,24 @@ function sameKick(left, right) {
   return SHOOTOUT_PACKET_FIELDS.every(field => left.packet?.[field] === right.packet?.[field]);
 }
 
+function advanceOpponentKicks(state, controlledTeamId) {
+  let next = assertSupportedShootoutState(state);
+  while (next.status === 'active') {
+    const kick = getNextShootoutKick(next);
+    if (!kick || kick.teamId === controlledTeamId) break;
+    next = resolveShootoutKick(next, { intent:null }).state;
+  }
+  return next;
+}
+
 function pendingShootoutKick(state, controlledTeamId) {
   const kick = getNextShootoutKick(state);
   if (!kick) return null;
+  if (kick.teamId !== controlledTeamId) throw new Error('COMPETITION_SHOOTOUT_DEFENDING_KICK_MUST_BE_AUTOMATIC');
   const moment = buildShootoutPlayableMoment(state, controlledTeamId);
-  if (!moment || moment.kickId !== kick.kickId) throw new Error('COMPETITION_SHOOTOUT_MOMENT_UNAVAILABLE');
+  if (!moment || moment.kickId !== kick.kickId || moment.mode !== 'attack') {
+    throw new Error('COMPETITION_SHOOTOUT_MOMENT_UNAVAILABLE');
+  }
   return {
     kick:shootoutSessionClone(kick),
     moment:shootoutSessionClone(moment),
@@ -54,14 +66,16 @@ export function createCompetitionShootoutSession({ shootoutState, controlledTeam
     throw new Error('COMPETITION_SHOOTOUT_CONTROLLED_TEAM_INVALID');
   }
   if (!regulationResult || typeof regulationResult !== 'object') throw new Error('COMPETITION_SHOOTOUT_REGULATION_RESULT_REQUIRED');
-  const pending = pendingShootoutKick(shootoutState, controlledTeamId);
+
+  const state = advanceOpponentKicks(shootoutState, controlledTeamId);
+  const pending = state.status === 'active' ? pendingShootoutKick(state, controlledTeamId) : null;
   const session = {
     version:COMPETITION_SHOOTOUT_SESSION_VERSION,
-    shootoutId:shootoutState.shootoutId,
+    shootoutId:state.shootoutId,
     revision:1,
     controlledTeamId,
-    status:'pending',
-    state:shootoutSessionClone(shootoutState),
+    status:state.status === 'complete' ? 'complete' : 'pending',
+    state:shootoutSessionClone(state),
     regulationResult:shootoutSessionClone(regulationResult),
     pending,
     lastMoment:null,
@@ -85,9 +99,13 @@ export function assertSupportedCompetitionShootoutSession(session) {
   if (session.status === 'pending') {
     if (state.status !== 'active' || !session.pending) throw new Error('COMPETITION_SHOOTOUT_PENDING_STATE_INVALID');
     const expected = getNextShootoutKick(state);
+    if (expected?.teamId !== session.controlledTeamId) throw new Error('COMPETITION_SHOOTOUT_DEFENDING_KICK_EXPOSED');
     if (!sameKick(session.pending.kick, expected)) throw new Error('COMPETITION_SHOOTOUT_PENDING_KICK_STALE');
     if (session.pending.moment?.kickId !== expected.kickId || session.pending.moment?.shootoutId !== state.shootoutId) {
       throw new Error('COMPETITION_SHOOTOUT_PENDING_MOMENT_STALE');
+    }
+    if (session.pending.moment?.mode !== 'attack' || session.pending.moment?.attackingTeamId !== session.controlledTeamId) {
+      throw new Error('COMPETITION_SHOOTOUT_DEFENDING_MOMENT_EXPOSED');
     }
   } else if (session.status === 'committed') {
     if (!session.lastReceipt || !session.lastMoment || !session.lastShot || session.pending) {
@@ -96,6 +114,9 @@ export function assertSupportedCompetitionShootoutSession(session) {
     const last = state.kicks.at(-1);
     if (!last || last.kickId !== session.lastReceipt.kickId || session.lastMoment.kickId !== last.kickId) {
       throw new Error('COMPETITION_SHOOTOUT_COMMITTED_RECEIPT_STALE');
+    }
+    if (session.lastMoment.mode !== 'attack' || session.lastMoment.attackingTeamId !== session.controlledTeamId) {
+      throw new Error('COMPETITION_SHOOTOUT_DEFENDING_MOMENT_EXPOSED');
     }
   } else if (session.status === 'complete') {
     if (state.status !== 'complete' || session.pending) throw new Error('COMPETITION_SHOOTOUT_COMPLETE_STATE_INVALID');
@@ -109,6 +130,7 @@ export function resolveCompetitionShootoutSession(session, intent = null) {
   assertSupportedCompetitionShootoutSession(session);
   if (session.status !== 'pending') throw new Error('COMPETITION_SHOOTOUT_SESSION_NOT_PENDING');
   const expected = getNextShootoutKick(session.state);
+  if (expected?.teamId !== session.controlledTeamId) throw new Error('COMPETITION_SHOOTOUT_DEFENDING_KICK_MUST_BE_AUTOMATIC');
   if (!sameKick(session.pending.kick, expected)) throw new Error('COMPETITION_SHOOTOUT_PENDING_KICK_STALE');
   const resolved = resolveShootoutKick(session.state, { intent });
   if (resolved.kick?.kickId !== session.pending.kick.kickId) throw new Error('COMPETITION_SHOOTOUT_RESOLVED_KICK_MISMATCH');
@@ -140,11 +162,24 @@ export function acknowledgeCompetitionShootoutSession(session) {
       pending:null,
     });
   }
+
+  const state = advanceOpponentKicks(session.state, session.controlledTeamId);
+  if (state.status === 'complete') {
+    return assertSupportedCompetitionShootoutSession({
+      ...session,
+      revision:session.revision + 1,
+      status:'complete',
+      state:shootoutSessionClone(state),
+      pending:null,
+    });
+  }
+
   return assertSupportedCompetitionShootoutSession({
     ...session,
     revision:session.revision + 1,
     status:'pending',
-    pending:pendingShootoutKick(session.state, session.controlledTeamId),
+    state:shootoutSessionClone(state),
+    pending:pendingShootoutKick(state, session.controlledTeamId),
   });
 }
 
