@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LEDGER_PRESENTATION_TIME_SCALE } from './broadcastSimulation.js';
 import { describeBroadcastFrame } from './broadcastFrameSemantics.js';
 
 const players = [
@@ -11,6 +12,7 @@ const players = [
 
 function simulation(stage = 'route', extra = {}) {
   return {
+    clock:0,
     players,
     activePhase:{
       stage,
@@ -23,73 +25,118 @@ function simulation(stage = 'route', extra = {}) {
   };
 }
 
-describe('continuous live-match story adapter', () => {
-  it('turns the route into a readable football passage instead of a renderer action', () => {
-    const frame = { phaseLabel:'Legacy route', action:'CHANCE · RUNNER FINDING SPACE', carrierName:'Mason Vale' };
+function readAt(sim, wallClockMs, frame = {}) {
+  sim.clock = wallClockMs * LEDGER_PRESENTATION_TIME_SCALE;
+  return describeBroadcastFrame(frame, sim);
+}
+
+describe('human-paced live-match commentary reader', () => {
+  it('builds one passage over several seconds instead of dumping every sentence at once', () => {
     const sim = simulation('route');
     const before = JSON.parse(JSON.stringify(sim));
 
-    const presentation = describeBroadcastFrame(frame, sim);
-    expect(presentation.phaseLabel).toBe('Progression · run in behind');
-    expect(presentation.action).toBe('Mason Vale tries to release Rico Lane');
-    expect(presentation.detail).toContain('Rico Lane starts the run beyond the defensive line');
-    expect(presentation.detail).toContain('turn controlled possession into a clear chance');
-    expect(sim).toEqual(before);
+    const opening = readAt(sim, 0);
+    expect(opening.phaseLabel).toBe('Progression · run in behind');
+    expect(opening.action).toBe('Mason Vale tries to release Rico Lane');
+    expect(opening.detail).toContain('next meaningful passage');
+    expect(opening.detail).not.toContain('Rico Lane starts the run');
+
+    const secondBeat = readAt(sim, 1700);
+    expect(secondBeat.detail).toContain('Rico Lane starts the run beyond the defensive line');
+    expect(secondBeat.detail.length).toBeGreaterThan(opening.detail.length);
+    expect(sim.activePhase).toEqual(before.activePhase);
   });
 
-  it('keeps the previous meaningful passage visible during the internal acquire stage', () => {
-    const sim = simulation('route');
-    const route = describeBroadcastFrame({}, sim);
-    sim.activePhase = {
-      stage:'acquire',
-      record:{ phase:43, minute:33, teamId:'away', opponentTeamId:'home', route:'circulation', actorId:'d1', outcome:'retain' },
-    };
-    const acquire = describeBroadcastFrame({}, sim);
-    expect(acquire).toEqual(route);
-    expect(acquire.action).not.toMatch(/RESET/i);
-  });
+  it('does not reveal a terminal result until the narrated buildup has had time to play', () => {
+    const sim = simulation('route', { finish:'goal' });
+    const opening = readAt(sim, 0);
+    expect(JSON.stringify(opening)).not.toMatch(/GOAL!/);
 
-  it('evolves the same passage through chance and finish rather than replacing it with a burst', () => {
-    const sim = simulation('route');
-    const opening = describeBroadcastFrame({}, sim);
     sim.activePhase.stage = 'chance';
-    const finished = describeBroadcastFrame({}, sim);
+    const developing = readAt(sim, 3600);
+    expect(developing.detail).toContain('opened a shooting chance');
+    expect(JSON.stringify(developing)).not.toMatch(/GOAL!/);
 
-    expect(finished.action).toBe('Kai Stone is denied by the goalkeeper');
-    expect(finished.detail).toContain('Rico Lane starts the run beyond the defensive line');
-    expect(finished.detail).toContain('opens a shooting window');
-    expect(finished.detail).toContain('gets the effort on target');
-    expect(finished.detail.length).toBeGreaterThan(opening.detail.length);
+    const goal = readAt(sim, 5600);
+    expect(goal.action).toBe('GOAL! Kai Stone');
+    expect(goal.detail).toContain('Kai Stone takes the chance... GOAL!');
   });
 
-  it('carries momentum into the next possession and explicitly narrates a change of team', () => {
-    const sim = simulation('contest', { outcome:'intercepted', shotId:null, finish:null });
-    const first = describeBroadcastFrame({}, sim);
-    expect(first.detail).toContain('Jon Bell');
+  it('keeps what the user is reading when a routine internal phase arrives', () => {
+    const sim = simulation('route');
+    const first = readAt(sim, 1800);
 
     sim.activePhase = {
       stage:'route',
-      record:{ phase:43, minute:33, teamId:'away', opponentTeamId:'home', route:'carry', actorId:'d1', outcome:'progress' },
+      record:{ phase:43, minute:33, teamId:'away', opponentTeamId:'home', route:'circulation', actorId:'d1', outcome:'retain' },
     };
-    const second = describeBroadcastFrame({}, sim);
-    expect(second.detail).toContain('Possession changes hands');
-    expect(second.detail).toContain('Jon Bell carries the ball forward');
+    const routine = readAt(sim, 2300);
+    expect(routine).toEqual(first);
+    expect(routine.action).not.toMatch(/RESET/i);
   });
 
-  it('narrates direct free kicks as complete set-piece situations', () => {
+  it('samples ordinary match flow instead of narrating every authoritative phase', () => {
+    const sim = {
+      clock:0,
+      players,
+      activePhase:{
+        stage:'route',
+        record:{ phase:43, minute:33, teamId:'home', opponentTeamId:'away', route:'circulation', actorId:'p1', targetId:'p2', outcome:'retain' },
+      },
+    };
+    const skipped = readAt(sim, 0);
+    expect(skipped.action).toBe('The match is beginning to take shape');
+
+    sim.activePhase = {
+      stage:'route',
+      record:{ phase:48, minute:36, teamId:'home', opponentTeamId:'away', route:'direct_pass', actorId:'p1', targetId:'p2', outcome:'progress' },
+    };
+    const sampled = readAt(sim, 1000);
+    expect(sampled.phaseLabel).toBe('Progression · direct ball');
+    expect(sampled.action).toBe('Mason Vale looks forward early');
+  });
+
+  it('narrates a direct free kick as a set-piece story and reveals the wall on the second beat', () => {
     const sim = simulation('route', {
-      route:'carry', outcome:'foul_won', setPieceType:'direct_free_kick', shotId:'s1', finish:null,
+      route:'carry', outcome:'foul_won', setPieceType:'direct_free_kick', shotId:'s1', finish:'saved',
     });
-    const presentation = describeBroadcastFrame({}, sim);
-    expect(presentation.phaseLabel).toBe('Direct free kick · shooting range');
-    expect(presentation.action).toBe('Kai Stone stands over a dangerous free kick');
-    expect(presentation.detail).toContain('wall is set between ball and goalkeeper');
+    const opening = readAt(sim, 0);
+    expect(opening.phaseLabel).toBe('Direct free kick · shooting range');
+    expect(opening.action).toBe('Kai Stone stands over a dangerous free kick');
+    expect(opening.detail).not.toContain('sets its wall');
+
+    const setup = readAt(sim, 1700);
+    expect(setup.detail).toContain('sets its wall between ball and goalkeeper');
   });
 
-  it('starts with football commentary rather than TEAMS RESETTING when no ledger scene is ready yet', () => {
+  it('queues a goal behind an important passage already being read instead of replacing it instantly', () => {
+    const sim = simulation('chance', { finish:'saved' });
+    const first = readAt(sim, 0);
+
+    sim.activePhase = {
+      stage:'chance',
+      record:{
+        phase:44, minute:33, teamId:'away', opponentTeamId:'home',
+        route:'carry', actorId:'d1', targetId:null, defenderId:'p1',
+        outcome:'chance_created', shotId:'d1', finish:'goal',
+      },
+    };
+    const whileReading = readAt(sim, 1200);
+    expect(whileReading.action).toBe(first.action);
+    expect(JSON.stringify(whileReading)).not.toMatch(/GOAL!/);
+
+    const nextPassage = readAt(sim, 8200);
+    expect(nextPassage.action).toBe('Jon Bell drives at the defence');
+    expect(JSON.stringify(nextPassage)).not.toMatch(/GOAL!/);
+
+    const goal = readAt(sim, 13800);
+    expect(goal.action).toBe('GOAL! Jon Bell');
+  });
+
+  it('starts with football commentary rather than TEAMS RESETTING when no ledger scene is ready', () => {
     const presentation = describeBroadcastFrame(
       { phaseLabel:'Second half', action:'TEAMS RESETTING', carrierName:'Alex Keeper' },
-      { players, activePhase:null },
+      { clock:0, players, activePhase:null },
     );
     expect(presentation.action).toBe('The match is beginning to take shape');
     expect(presentation.detail).toContain('feeling their way into the game');
