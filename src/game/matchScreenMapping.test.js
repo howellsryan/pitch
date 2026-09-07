@@ -6,6 +6,7 @@ import { buildManagedMatchInputs } from '../modules/managerTactics.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const matchScreenSrc = readFileSync(resolve(here, '../lib/ui/MatchScreen.svelte'), 'utf8');
+const mainSrc = readFileSync(resolve(here, '../main.js'), 'utf8');
 
 function sourceOf(functionName, length = 5000) {
   const start = matchScreenSrc.indexOf(`async function ${functionName}`);
@@ -63,5 +64,14 @@ describe('MatchScreen home/away mapping', () => {
     expect(matchScreenSrc).toContain('advancePlayableMatchPhase({');
     expect(matchScreenSrc).toContain('advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome)');
     expect(matchScreenSrc).toContain('clearPlayableMatchAfterClose(playableSession)');
+  });
+});
+
+describe('MatchScreen mount lifecycle', () => {
+  it('does not mount MatchScreen until the match route is actually active', () => {
+    expect(mainSrc).toContain("const matchMount = document.getElementById('screen-match')");
+    expect(mainSrc).toContain("matchMount.classList.contains('active')");
+    expect(mainSrc).toContain("matchObserver.observe(matchMount, { attributes:true, attributeFilter:['class'] })");
+    expect(mainSrc).not.toContain('if (matchMount) mount(MatchScreen, { target:matchMount });');
   });
 });
