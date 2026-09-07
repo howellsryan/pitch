@@ -1,6 +1,7 @@
+import { LEDGER_PRESENTATION_TIME_SCALE } from './broadcastSimulation.js';
 import { advanceLiveMatchStory, createLiveMatchStoryState } from './liveMatchStory.js';
 
-export const BROADCAST_FRAME_SEMANTICS_VERSION = 3;
+export const BROADCAST_FRAME_SEMANTICS_VERSION = 4;
 
 const storyStateBySimulation = new WeakMap();
 
@@ -13,11 +14,16 @@ function storyStateFor(simulation) {
   return state;
 }
 
+function commentaryClockMs(simulation) {
+  const presentationClock = Number(simulation?.clock ?? 0);
+  if (!Number.isFinite(presentationClock) || presentationClock <= 0) return 0;
+  return presentationClock / Math.max(1, Number(LEDGER_PRESENTATION_TIME_SCALE) || 1);
+}
+
 /**
- * Text-first presentation adapter for the existing ledger-driven Broadcast
- * sequencer. Broadcast still paces the authoritative record, but its internal
- * acquire/route/contest stages are translated into one evolving passage of
- * football commentary rather than exposed as separate debug-like snippets.
+ * Text-first presentation adapter for the existing ledger-driven Broadcast.
+ * The authoritative simulation may advance quickly, while liveMatchStory owns
+ * the human reading pace and admits only a bounded set of meaningful passages.
  */
 export function describeBroadcastFrame(frame, simulation) {
   if (!simulation || typeof simulation !== 'object') {
@@ -36,5 +42,6 @@ export function describeBroadcastFrame(frame, simulation) {
     record:scene?.record ?? null,
     stage:scene?.stage ?? 'acquire',
     playersById,
+    nowMs:commentaryClockMs(simulation),
   });
 }
