@@ -3,7 +3,14 @@ import { PLAYABLE_POC_RENDERERS, samplePlayablePocMotion, sceneWorldFromMoment }
 import { createPlayableFootballer } from './playableFootballer.js';
 import { resolvePlayableAppearance } from './matchKits.js';
 import { sampleFootballStance } from './playableFootballMotion.js';
-import { createPlayableFootballStage, framePlayableCamera } from './playableFootballStage.js';
+import { createPlayableFootballStage } from './playableFootballStage.js';
+import {
+  playableDefenderDirection,
+  playablePresentedBall,
+  playableShooterDirection,
+  playableShotCameraComposition,
+  transformPlayableFootballJoints,
+} from './playableShotPresentation.js';
 
 const CANDIDATE = PLAYABLE_POC_RENDERERS.three;
 const MAX_SET_PIECE_WALL_PLAYERS = 5;
@@ -152,6 +159,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
   const specialRight = specialMarker();
 
   let currentWorld = null;
+  let activeMoment = initialMoment;
   let stage = null;
 
   function rebuildWorld(moment) {
@@ -180,8 +188,9 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
     }
   }
 
-  function applyHuman(model, pose, kind) {
-    model.pose(pose.joints ?? sampleFootballStance(pose, 0, kind === 'defender' ? pose.lunge : 0));
+  function applyHuman(model, pose, kind, direction = null) {
+    const joints = pose.joints ?? sampleFootballStance(pose, 0, kind === 'defender' ? pose.lunge : 0);
+    model.pose(direction ? transformPlayableFootballJoints(joints, direction) : joints);
   }
 
   function updateAuthoritativeDefenders(moment, resolution, progress, frame) {
@@ -191,13 +200,15 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
       ? moment.geometry.defender != null
       : true;
     defender.root.visible = !hasWall && hasExplicitDefender;
-    if (defender.root.visible) applyHuman(defender, frame.defender, 'defender');
+    if (defender.root.visible) {
+      applyHuman(defender, frame.defender, 'defender', playableDefenderDirection(moment, progress));
+    }
 
     const shot = resolution?.shot ?? resolution ?? null;
     const blockerId = shot?.presentation?.blockerId ?? null;
     const blocked = shot?.finish === 'blocked';
-    const wallFlight = Math.max(0, Math.min(1, (Number(progress) - .27) / .38));
-    const wallJump = Math.sin(wallFlight * Math.PI) * .18;
+    const wallFlight = Math.max(0, Math.min(1, (Number(progress) - .29) / .36));
+    const wallPulse = Math.sin(wallFlight * Math.PI);
     const blockPulse = Math.sin(Math.max(0, Math.min(1, (Number(progress) - .37) / .30)) * Math.PI);
 
     for (let index = 0; index < wallModels.length; index += 1) {
@@ -206,6 +217,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
       model.root.visible = Boolean(member);
       if (!member) continue;
       const isBlocker = blocked && blockerId === member.id;
+      const wallJump = wallPulse * (.22 + (index % 2) * .025);
       applyHuman(model, {
         x:Number(member.x ?? 0),
         y:wallJump + (isBlocker ? blockPulse * .04 : 0),
@@ -222,8 +234,13 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
     const targetWidth = Math.floor(width * pixelRatio);
     const targetHeight = Math.floor(height * pixelRatio);
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) renderer.setSize(width, height, false);
-    camera.aspect = width / height;
-    framePlayableCamera(camera, currentWorld, width / height);
+    const aspect = width / height;
+    const composition = playableShotCameraComposition(activeMoment, currentWorld, aspect);
+    camera.aspect = aspect;
+    camera.fov = composition.fov;
+    camera.position.set(composition.position.x, composition.position.y, composition.position.z);
+    camera.lookAt(composition.lookAt.x, composition.lookAt.y, composition.lookAt.z);
+    camera.updateProjectionMatrix();
   }
 
   function goalIntentFromClientPoint(clientX, clientY) {
@@ -246,14 +263,16 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
   }
 
   function render({ moment = initialMoment, resolution = null, progress = 0 } = {}) {
+    activeMoment = moment;
     rebuildWorld(moment);
     updateGoalCues(moment, resolution);
     const frame = samplePlayablePocMotion(moment, resolution, progress);
-    applyHuman(shooter, frame.shooter, 'shooter');
+    applyHuman(shooter, frame.shooter, 'shooter', playableShooterDirection(moment, progress));
     applyHuman(keeper, frame.keeper, 'keeper');
     updateAuthoritativeDefenders(moment, resolution, progress, frame);
-    ball.position.set(frame.ball.x, Math.max(.11, frame.ball.y), frame.ball.z);
-    stage.update(frame);
+    const presentedBall = playablePresentedBall(moment, resolution, progress, frame.ball);
+    ball.position.set(presentedBall.x, Math.max(.11, presentedBall.y), presentedBall.z);
+    stage.update({ ...frame, ball:presentedBall });
     ball.rotation.x = Number(frame.ball.spinX ?? 0);
     ball.rotation.z = Number(frame.ball.spinZ ?? 0);
     resize();
