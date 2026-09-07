@@ -863,9 +863,9 @@
     for (const ev of segEvents) {
       const isUser = ev.teamId === live.userTeam.id;
       if (ev.type === 'goal') {
-        // Queue the authoritative goal, but reveal it only when the ledger scene
-        // actually reaches GOAL. This keeps score, animation and commentary in
-        // the same order without giving presentation any result authority.
+        // Queue the authoritative goal immediately, but do not reveal the score
+        // or takeover until the human-paced commentary reader reaches its final
+        // "GOAL!" beat. Presentation still has no authority over the result.
         queuedGoalNotice = { ...ev, isUser };
       } else if (ev.type === 'injury' && isUser && live && !live.paused) {
         togglePause();
@@ -902,7 +902,10 @@
           broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, step);
           remaining -= step;
         }
-        if (broadcastFrame.action === 'GOAL') revealGoalNotice();
+        if (broadcastSimulation.commentaryGoalReady && queuedGoalNotice) {
+          broadcastSimulation.commentaryGoalReady = false;
+          revealGoalNotice();
+        }
       }
     };
     presentationFrame = window.requestAnimationFrame(animate);
@@ -999,7 +1002,8 @@
 
   async function finishMatch() {
     if (!live || beat === 'fulltime' || beat === 'shootout') return;
-    if (broadcastSimulation && !isBroadcastReady(broadcastSimulation) && live.currentPhase >= TOTAL_PHASES) {
+    if (broadcastSimulation && live.currentPhase >= TOTAL_PHASES
+        && (!isBroadcastReady(broadcastSimulation) || broadcastSimulation.commentaryBusy || queuedGoalNotice)) {
       scheduleTick(PRESENTATION_RETRY_MS - WATCH_TICK_MS);
       return;
     }
