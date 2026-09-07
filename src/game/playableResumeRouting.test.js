@@ -17,8 +17,9 @@ describe('playable match boot resume routing', () => {
 
   it('keeps the legacy argument-free enterGame handoff and ordinary careers on Home', () => {
     expect(source).toContain('export async function enterGame()');
+    expect(source).toContain("const goHome=()=>navigateTo('home'");
+    expect(source).toContain('else await goHome()');
     expect(source).toContain('await enterGame();');
-    expect(source).toContain("else await navigateTo('home'");
     expect(source).toContain('pendingResumeScreen=null');
   });
 
