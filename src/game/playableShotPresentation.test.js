@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { playablePresentationScenario } from './playableMomentsSceneDirector.js';
 import {
   playableDefenderDirection,
   playablePresentedBall,
@@ -68,11 +69,25 @@ function world(moment) {
 }
 
 describe('active key-moment presentation direction', () => {
-  it('keeps the current career event families distinct while shootouts reuse penalty grammar', () => {
-    expect(playableShotPresentationScenario(openPlay())).toBe('open_play');
-    expect(playableShotPresentationScenario(freeKick())).toBe('direct_free_kick');
-    expect(playableShotPresentationScenario(penalty())).toBe('penalty');
-    expect(playableShotPresentationScenario(penalty({ interactionType:'shootout', route:'penalty_shootout' }))).toBe('shootout');
+  it('keeps the current career event families aligned with the scene director while shootouts reuse penalty grammar', () => {
+    const moments = [
+      openPlay(),
+      freeKick(),
+      penalty(),
+      penalty({ interactionType:'shootout', route:'penalty_shootout' }),
+    ];
+    expect(moments.map(playableShotPresentationScenario)).toEqual(['open_play','direct_free_kick','penalty','shootout']);
+    expect(moments.map(playableShotPresentationScenario)).toEqual(moments.map(playablePresentationScenario));
+  });
+
+  it('keeps retired contact moments on their neutral compatibility presentation', () => {
+    const legacy = openPlay({ interactionType:'contact', contactType:'volley' });
+    const neutral = { offsetX:0, offsetY:0, offsetZ:0, yaw:0 };
+    expect(playableShotPresentationScenario(legacy)).toBe('legacy_contact');
+    expect(playableShotPresentationScenario(legacy)).toBe(playablePresentationScenario(legacy));
+    expect(playableShooterDirection(legacy, .12)).toEqual(neutral);
+    expect(playableDefenderDirection(legacy, .12)).toEqual(neutral);
+    expect(playableShotCameraComposition(legacy, world(legacy), 16 / 9).fov).toBe(43);
   });
 
   it('preserves the accepted penalty and shootout run-up while giving a free kick an angled pre-contact approach', () => {
