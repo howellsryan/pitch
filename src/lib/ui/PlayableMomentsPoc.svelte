@@ -9,12 +9,17 @@
   import { createUserTacticalPlan } from '../../modules/tactics.js';
   import {
     PLAYABLE_POC_RENDERERS,
-    createSyntheticPlayableMoment,
     gestureToPlayableIntent,
     percentile95,
-    resolveSyntheticAttackShot,
-    resolveSyntheticGoalkeeperShot,
   } from '../../game/playableMomentsPocScene.js';
+  import {
+    POC_ATTACKING_SCENARIOS,
+    createPocAttackingMoment,
+    pocPenaltyDiveDirection,
+    pocScenarioHint,
+    pocScenarioStatus,
+    resolvePocAttackingMoment,
+  } from '../../game/playableMomentsPocScenarios.js';
 
   const POSITIONS = ['GK','CB','CB','RB','LB','CDM','CM','CAM','RW','LW','ST','GK','CB','CM','RW','ST','LB','CDM'];
   const renderer = PLAYABLE_POC_RENDERERS.three;
@@ -32,11 +37,11 @@
   let currentProgress = 0;
 
   let source = $state('synthetic');
-  let syntheticMode = $state('attack');
+  let syntheticScenario = $state('shot');
   let syntheticAttempt = $state(0);
-  let currentMoment = $state(createSyntheticPlayableMoment('attack'));
+  let currentMoment = $state(createPocAttackingMoment('shot', 0));
   let resolution = $state(null);
-  let status = $state('Hit either gold top-corner target to score. Any other on-target shot is saved.');
+  let status = $state(pocScenarioHint('shot'));
   let selectedLane = $state(0);
   let selectedHeight = $state(.55);
   let pointerStart = null;
@@ -47,6 +52,10 @@
   let currentPhase = $state(1);
   let fixtureEvents = $state([]);
   let fixtureComplete = $state(false);
+
+  const currentScenarioLabel = $derived(
+    POC_ATTACKING_SCENARIOS.find(item => item.id === syntheticScenario)?.label ?? 'Open-play shot'
+  );
 
   function makePlayer(id, position, rating = 78) {
     const attacking = ['ST','CF','RW','LW','CAM'].includes(position);
@@ -172,54 +181,27 @@
   }
 
   function syntheticResolve(intent) {
-    const shot = syntheticMode === 'goalkeeper'
-      ? resolveSyntheticGoalkeeperShot(currentMoment, intent ?? {})
-      : resolveSyntheticAttackShot(intent ?? {});
+    const shot = resolvePocAttackingMoment(currentMoment, intent ?? null);
     startAnimation({ shot });
-
-    if (syntheticMode === 'goalkeeper') {
-      const targetLabel = currentMoment?.syntheticTarget?.label ?? 'the marked target';
-      status = shot.finish === 'saved'
-        ? `SAVE — you covered ${targetLabel}. Choose Next keeper shot for a new target.`
-        : `GOAL — the cyan cue showed ${targetLabel}. Get your dive closer to the marker, then try the next shot.`;
-      return;
-    }
-
-    if (shot.finish === 'goal' && shot.syntheticSpecial) {
-      status = 'GOAL — gold-zone special finish. Hitting either highlighted top corner beats the keeper.';
-    } else if (shot.finish === 'saved') {
-      status = 'SAVED — ordinary on-target shots are stopped in this drill. Put the endpoint inside either gold top-corner target.';
-    } else {
-      status = 'MISS — the shot left the goal frame. Keep the finish inside a highlighted top corner.';
-    }
+    status = pocScenarioStatus(currentMoment, shot);
   }
 
-  function resetSynthetic(mode = syntheticMode) {
+  function resetSynthetic(scenario = syntheticScenario, attempt = 0) {
     source = 'synthetic';
-    syntheticMode = mode;
-    syntheticAttempt = 0;
-    currentMoment = createSyntheticPlayableMoment(mode, syntheticAttempt);
+    syntheticScenario = scenario;
+    syntheticAttempt = attempt;
+    currentMoment = createPocAttackingMoment(scenario, attempt);
     resolution = null;
     currentProgress = 0;
     animationStarted = null;
     selectedLane = 0;
-    selectedHeight = .55;
-    status = mode === 'attack'
-      ? 'Hit either gold top-corner target to score. Any other on-target shot is saved.'
-      : `Read the cyan ${currentMoment.syntheticTarget.label} cue, then dive/tap towards it. Correct reads are deliberately forgiving in this drill.`;
+    selectedHeight = scenario === 'free_kick' || scenario === 'long_shot' ? .78 : .55;
+    status = pocScenarioHint(scenario);
     controller?.render?.({ moment:currentMoment, resolution:null, progress:0 });
   }
 
-  function nextSyntheticKeeperShot() {
-    syntheticAttempt += 1;
-    currentMoment = createSyntheticPlayableMoment('goalkeeper', syntheticAttempt);
-    resolution = null;
-    currentProgress = 0;
-    animationStarted = null;
-    selectedLane = 0;
-    selectedHeight = .55;
-    status = `New shot: read the cyan ${currentMoment.syntheticTarget.label} cue and move the keeper towards it.`;
-    controller?.render?.({ moment:currentMoment, resolution:null, progress:0 });
+  function nextSyntheticAttempt() {
+    resetSynthetic(syntheticScenario, syntheticAttempt + 1);
   }
 
   function startAuthoritativeFixture() {
@@ -232,7 +214,7 @@
     fixtureComplete = false;
     resolution = null;
     currentProgress = 0;
-    status = 'Running the real authoritative phase loop until the next user-owned chance…';
+    status = 'Running the real authoritative phase loop until the next user-owned attacking shot…';
     findNextAuthoritativeMoment();
   }
 
@@ -252,10 +234,36 @@
         { suspend:true, controlledTeamId:fixture.home.id },
       );
       if (part.pendingPlayableMoment) {
+        // The resolver contract is attacking-only. Keep this guard so a future
+        // regression cannot accidentally revive a defending POC interaction.
+        if (part.pendingPlayableMoment.mode !== 'attack'
+          || part.pendingPlayableMoment.attackingTeamId !== fixture.home.id) {
+          const automatic = resumePlayableMatchPhase(
+            fixture.home,
+            fixture.away,
+            liveState,
+            part.playableContinuation,
+            null,
+            fixture.home.id,
+          );
+          liveState = automatic.updatedState;
+          fixtureEvents = [...fixtureEvents, ...automatic.segEvents];
+          currentPhase = phase + 1;
+          continue;
+        }
         currentPhase = phase;
         currentMoment = part.pendingPlayableMoment;
         pendingContinuation = part.playableContinuation;
-        status = `${currentMoment.minute}' — ${currentMoment.mode === 'attack' ? 'attacking chance' : 'goalkeeper decision'} from the real Pitch phase resolver.`;
+        const eventLabel = currentMoment.setPiece?.kind === 'direct_free_kick'
+          ? 'direct free kick'
+          : currentMoment.setPiece?.kind === 'penalty'
+            ? 'penalty'
+            : currentMoment.geometry?.staging?.variant?.startsWith?.('one_on_one')
+              ? '1v1'
+              : currentMoment.geometry?.staging?.distanceBand === 'edge'
+                ? 'long shot'
+                : 'attacking shot';
+        status = `${currentMoment.minute}' — user-owned ${eventLabel} from the real Pitch phase resolver.`;
         controller?.render?.({ moment:currentMoment, resolution:null, progress:0 });
         return;
       }
@@ -295,11 +303,7 @@
   }
 
   function accessibleAction() {
-    if (currentMoment?.mode === 'goalkeeper') {
-      resolveIntent({ goalkeeper:{ x:selectedLane * .76, y:selectedHeight, timing:.86 } });
-    } else {
-      resolveIntent({ attack:{ aimX:selectedLane * .80, aimY:selectedHeight, power:.78, timing:.86 } });
-    }
+    resolveIntent({ attack:{ aimX:selectedLane * .80, aimY:selectedHeight, power:.78, timing:.86 } });
   }
 
   function pointerDown(event) {
@@ -310,12 +314,11 @@
 
   function pointerUp(event) {
     if (!pointerStart || (source === 'authoritative' && !pendingContinuation)) return;
-    if (source === 'synthetic' && syntheticMode === 'goalkeeper' && resolution) return;
     const point = event.changedTouches?.[0] ?? event;
     const bounds = canvas.getBoundingClientRect();
     const goalTarget = controller?.goalIntentFromClientPoint?.(point.clientX, point.clientY) ?? null;
     const intent = gestureToPlayableIntent({
-      mode:currentMoment?.mode ?? 'attack',
+      mode:'attack',
       start:pointerStart,
       end:{ x:point.clientX, y:point.clientY },
       bounds,
@@ -368,9 +371,9 @@
 <div class="poc-shell" role="dialog" aria-modal="true" aria-label="Playable Key Moments proof of concept">
   <header class="poc-header">
     <div>
-      <div class="eyebrow">DEV-ONLY · PHASE 1 POC</div>
+      <div class="eyebrow">DEV-ONLY · ATTACKING KEY MOMENTS</div>
       <h1>Playable Key Moments</h1>
-      <p>Three.js · procedural footballers · authoritative football · no career writeback</p>
+      <p>Three.js · attacking shots only · authoritative outcome rules · no career writeback</p>
     </div>
     <button class="ghost" type="button" onclick={closePoc}>Close POC</button>
   </header>
@@ -380,26 +383,31 @@
       <span>Renderer</span>
       <strong>{renderer.label} {renderer.version}</strong>
     </div>
-    <div class="control-group">
+    <div class="control-group scenario-picker">
       <span>Scenario</span>
-      <button type="button" class:active={source === 'synthetic' && syntheticMode === 'attack'} onclick={() => resetSynthetic('attack')}>Synthetic shot</button>
-      <button type="button" class:active={source === 'synthetic' && syntheticMode === 'goalkeeper'} onclick={() => resetSynthetic('goalkeeper')}>Synthetic keeper</button>
-      <button type="button" class:active={source === 'authoritative'} onclick={startAuthoritativeFixture}>Real open-play fixture</button>
+      {#each POC_ATTACKING_SCENARIOS as scenario (scenario.id)}
+        <button
+          type="button"
+          class:active={source === 'synthetic' && syntheticScenario === scenario.id}
+          onclick={() => resetSynthetic(scenario.id)}
+        >{scenario.label}</button>
+      {/each}
+      <button type="button" class:active={source === 'authoritative'} onclick={startAuthoritativeFixture}>Real fixture</button>
     </div>
   </section>
 
   <main class="poc-main">
     <section class="stage-card">
       <div class="score-strip">
-        <span>{source === 'authoritative' ? `${liveState?.hGoals ?? 0} — ${liveState?.aGoals ?? 0}` : 'VISUAL HARNESS'}</span>
-        <strong>{currentMoment?.mode === 'goalkeeper' ? 'GOALKEEPER' : 'ATTACK'}</strong>
+        <span>{source === 'authoritative' ? `${liveState?.hGoals ?? 0} — ${liveState?.aGoals ?? 0}` : 'ATTACKING HARNESS'}</span>
+        <strong>{source === 'synthetic' ? currentScenarioLabel.toUpperCase() : 'REAL ATTACK'}</strong>
         <span>{currentMoment?.minute ? `${currentMoment.minute}'` : 'Synthetic'}</span>
       </div>
       <div
         class="stage"
         class:loading={rendererLoading}
         role="group"
-        aria-label="Playable football interaction surface"
+        aria-label="Playable football attacking interaction surface"
         onpointerdown={pointerDown}
         onpointerup={pointerUp}
         onpointercancel={() => pointerStart = null}
@@ -407,11 +415,11 @@
         <canvas bind:this={canvas} aria-label="Playable football 3D scene"></canvas>
         {#if rendererLoading}<div class="stage-message">Loading {renderer.label}…</div>{/if}
         {#if rendererError}<div class="stage-message error">{rendererError}</div>{/if}
-        {#if source === 'synthetic' && syntheticMode === 'attack' && !resolution}
-          <div class="stage-hint special-hint">SPECIAL FINISH · GOLD ZONE = GOAL · hit either top corner</div>
+        {#if source === 'synthetic' && !resolution}
+          <div class="stage-hint special-hint">{pocScenarioHint(syntheticScenario)}</div>
         {/if}
-        {#if source === 'synthetic' && syntheticMode === 'goalkeeper' && !resolution}
-          <div class="stage-hint keeper-hint">READ THE CYAN TARGET · {currentMoment?.syntheticTarget?.label}</div>
+        {#if source === 'synthetic' && syntheticScenario === 'penalty' && !resolution}
+          <div class="rng-note">POC RNG packet: keeper will commit {pocPenaltyDiveDirection(currentMoment)}</div>
         {/if}
         {#if source === 'authoritative' && !pendingContinuation && !fixtureComplete && currentPhase > 1}
           <div class="stage-message">Moment committed. Continue when ready.</div>
@@ -423,18 +431,18 @@
           type="button"
           class="primary"
           onclick={accessibleAction}
-          disabled={(source === 'authoritative' && !pendingContinuation) || (source === 'synthetic' && syntheticMode === 'goalkeeper' && Boolean(resolution))}
-        >Take action</button>
+          disabled={source === 'authoritative' && !pendingContinuation}
+        >Take shot</button>
         <button
           type="button"
           onclick={simulateCurrent}
-          disabled={(source === 'authoritative' && !pendingContinuation) || (source === 'synthetic' && syntheticMode === 'goalkeeper' && Boolean(resolution))}
+          disabled={source === 'authoritative' && !pendingContinuation}
         >Simulate</button>
-        {#if source === 'synthetic' && syntheticMode === 'goalkeeper' && resolution}
-          <button type="button" class="primary" onclick={nextSyntheticKeeperShot}>Next keeper shot</button>
+        {#if source === 'synthetic'}
+          <button type="button" onclick={nextSyntheticAttempt}>New RNG attempt</button>
         {/if}
         {#if source === 'authoritative' && !pendingContinuation && !fixtureComplete}
-          <button type="button" onclick={findNextAuthoritativeMoment}>Next key moment</button>
+          <button type="button" onclick={findNextAuthoritativeMoment}>Next attacking moment</button>
         {/if}
         {#if source === 'authoritative' && fixtureComplete}
           <button type="button" onclick={startAuthoritativeFixture}>Restart fixture</button>
@@ -443,17 +451,23 @@
     </section>
 
     <aside class="panel">
-      <h2>How this drill works</h2>
-      {#if source === 'synthetic' && syntheticMode === 'attack'}
-        <p>Ordinary on-target shots are intentionally saved. Put the shot endpoint inside either gold top-corner target and the special finish scores — there is no hidden power or timing requirement after you hit the gold zone.</p>
-      {:else if source === 'synthetic' && syntheticMode === 'goalkeeper'}
-        <p>The incoming shot changes between six goal zones. The cyan target shows where it is heading before the strike; move close to that cue to make the save.</p>
+      <h2>How this scenario works</h2>
+      {#if source === 'synthetic' && syntheticScenario === 'penalty'}
+        <p>The goalkeeper commits left, centre or right from a deterministic RNG packet that is independent of your chosen aim. Pick your placement and try to send the ball away from the dive.</p>
+      {:else if source === 'synthetic' && syntheticScenario === 'free_kick'}
+        <p>A real four-player wall is placed 9.15 metres from the ball. A playable direct free kick only scores when the resolved trajectory reaches either top corner; other on-target efforts are saved or can hit the wall.</p>
+      {:else if source === 'synthetic' && syntheticScenario === 'long_shot'}
+        <p>This is the engine's edge-of-box / low-xG shot case. It can only score when the resolved trajectory reaches a top corner, making long-range goals a placement challenge.</p>
+      {:else if source === 'synthetic' && syntheticScenario === 'one_on_one'}
+        <p>This uses the engine's pass-in-behind 1v1 staging. Compared with an ordinary shot, the chance has reduced initial block risk and reduced effective goalkeeper reach.</p>
+      {:else if source === 'synthetic'}
+        <p>This is a normal open-play shot using the same interactive shot resolver used by career Play Key Moments.</p>
       {:else}
-        <p>The real fixture uses Pitch's authoritative match resolver. There are no synthetic success rules in this mode.</p>
+        <p>The real fixture runs Pitch's authoritative match phases and only pauses for your team's own shots, direct free kicks or penalties. Opponent attacks resolve automatically.</p>
       {/if}
 
       <h2>Accessible controls</h2>
-      <p>These controls exercise the same normalized intent contract without a drag gesture.</p>
+      <p>These controls exercise the same normalized attacking intent contract without a drag gesture.</p>
       <div class="choice-row" aria-label="Horizontal aim">
         <button type="button" class:active={selectedLane === -1} onclick={() => selectedLane = -1}>Left</button>
         <button type="button" class:active={selectedLane === 0} onclick={() => selectedLane = 0}>Centre</button>
@@ -513,6 +527,7 @@
   .control-group { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
   .control-group > span { margin-right:4px; color:#8da197; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
   .renderer-choice strong { font-size:13px; color:#dce8e0; }
+  .scenario-picker { flex:1; }
   .poc-main { display:grid; grid-template-columns:minmax(0, 1fr) minmax(250px, 340px); gap:16px; padding:16px clamp(12px, 2.5vw, 30px) 28px; max-width:1400px; margin:0 auto; }
   .stage-card, .panel { border:1px solid rgba(255,255,255,.1); border-radius:14px; background:#0c1912; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.28); }
   .score-strip { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; padding:10px 14px; background:#111f17; font-size:12px; color:#a9b9af; }
@@ -524,7 +539,7 @@
   .stage-message.error { border:1px solid #b85c55; color:#ffc3bd; }
   .stage-hint { position:absolute; left:50%; top:13px; transform:translateX(-50%); width:max-content; max-width:calc(100% - 28px); padding:7px 11px; border-radius:999px; background:rgba(3,12,7,.84); font-size:10px; font-weight:900; letter-spacing:.08em; text-align:center; pointer-events:none; }
   .special-hint { border:1px solid rgba(255,216,107,.7); color:#ffe7a0; }
-  .keeper-hint { border:1px solid rgba(119,231,255,.72); color:#c9f7ff; }
+  .rng-note { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); width:max-content; max-width:calc(100% - 24px); padding:7px 10px; border-radius:8px; background:rgba(3,12,7,.86); color:#bfeecf; font-size:10px; font-weight:800; text-align:center; pointer-events:none; }
   .status { min-height:20px; margin:0; padding:10px 14px 0; color:#c7d4cc; font-size:13px; }
   .stage-actions { display:flex; flex-wrap:wrap; gap:8px; padding:10px 14px 14px; }
   .panel { padding:14px; overflow:auto; max-height:calc(100vh - 150px); }
@@ -557,6 +572,7 @@
     .stage { min-height:48vh; }
     canvas { height:48vh; min-height:300px; }
     .stage-hint { top:9px; max-width:calc(100% - 18px); font-size:9px; }
+    .rng-note { bottom:9px; font-size:9px; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
