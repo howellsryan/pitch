@@ -118,6 +118,7 @@ let pendingResumeScreen = null;
  * shell contract used by the entry and legacy validation paths.
  */
 export async function enterGame(){
+  const goHome=()=>navigateTo('home',{ history:'replace' });
   const initialScreen=pendingResumeScreen;
   pendingResumeScreen=null;
   entryState.showing=false;
@@ -127,7 +128,7 @@ export async function enterGame(){
   app.style.display='flex';
   initUI();
   if(initialScreen==='match') await navigateTo('match',{ history:'replace' });
-  else await navigateTo('home',{ history:'replace' });
+  else await goHome();
   _updateInboxBadge();
   // The entry route's sheet restores focus to the club card that started the
   // career — which #ng's display:none has just removed from the page, leaving
