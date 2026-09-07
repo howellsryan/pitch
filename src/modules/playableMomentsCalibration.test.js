@@ -81,7 +81,7 @@ function targetError(result, intended) {
   return Math.hypot(target.x - intended.aimX, target.y - intended.aimY);
 }
 
-describe('Phase 2 interactive calibration contracts', () => {
+describe('Phase 2 attacking interaction calibration contracts', () => {
   it('turns progressively better attack timing/control into progressively better execution quality', () => {
     const qualities = ['poor', 'average', 'strong', 'nearPerfect'].map(policy => {
       const intent = PLAYABLE_CALIBRATION_POLICIES[policy].attack;
@@ -131,34 +131,25 @@ describe('Phase 2 interactive calibration contracts', () => {
       return count;
     };
 
-    const lowQuality = blocked(.06);
-    const highQuality = blocked(.44);
-    expect(highQuality).toBeLessThan(lowQuality);
+    expect(blocked(.44)).toBeLessThan(blocked(.06));
   });
 
-  it('rewards a well-read goalkeeper input without turning the renderer into the authority', () => {
+  it('does not let retired goalkeeper input change an attacking key moment', () => {
     const attack = { attack:{ aimX:.78, aimY:.78, power:.72, timing:.9 } };
     const rng = packet({ outcome:.95, shot:.5, finish:.5 });
-    const poor = resolve({ intent:{ ...attack, ...PLAYABLE_CALIBRATION_POLICIES.poor.goalkeeper }, rng });
-    const nearPerfect = resolve({ intent:{ ...attack, ...PLAYABLE_CALIBRATION_POLICIES.nearPerfect.goalkeeper }, rng });
+    const left = resolve({ intent:{ ...attack, goalkeeper:{ x:-1, y:.1, timing:0 } }, rng });
+    const right = resolve({ intent:{ ...attack, goalkeeper:{ x:1, y:.9, timing:1 } }, rng });
 
-    expect(poor.finish).toBe('goal');
-    expect(nearPerfect.finish).toBe('saved');
-    expect(poor.presentation.contact).toBe('goal');
-    expect(nearPerfect.presentation.contact).toBe('save');
+    expect(left).toEqual(right);
   });
 
-  it('keeps goalkeeper ability material for the same positioning and timing input', () => {
-    const intent = {
-      attack:{ aimX:.60, aimY:.60, power:.72, timing:.9 },
-      goalkeeper:{ x:.16, y:.60, timing:.70 },
-    };
+  it('keeps goalkeeper quality material in the automatic opposition response', () => {
+    const intent = { attack:{ aimX:.60, aimY:.60, power:.72, timing:.9 } };
     const rng = packet({ outcome:.95, shot:.5, finish:.5 });
     const weakKeeper = resolve({ keeperRating:50, intent, rng });
     const eliteKeeper = resolve({ keeperRating:94, intent, rng });
 
     expect(eliteKeeper.goalkeeping).toBeGreaterThan(weakKeeper.goalkeeping);
-    expect(weakKeeper.finish).toBe('goal');
-    expect(eliteKeeper.finish).toBe('saved');
+    expect(eliteKeeper.presentation.keeper.reach).toBeGreaterThan(weakKeeper.presentation.keeper.reach);
   });
 });
