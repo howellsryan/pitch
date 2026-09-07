@@ -1,31 +1,40 @@
-import { describeBroadcastLedgerRecord } from './broadcastLedgerSemantics.js';
+import { advanceLiveMatchStory, createLiveMatchStoryState } from './liveMatchStory.js';
 
-export const BROADCAST_FRAME_SEMANTICS_VERSION = 2;
+export const BROADCAST_FRAME_SEMANTICS_VERSION = 3;
+
+const storyStateBySimulation = new WeakMap();
+
+function storyStateFor(simulation) {
+  let state = storyStateBySimulation.get(simulation);
+  if (!state) {
+    state = createLiveMatchStoryState();
+    storyStateBySimulation.set(simulation, state);
+  }
+  return state;
+}
 
 /**
  * Text-first presentation adapter for the existing ledger-driven Broadcast
- * sequencer. The sequencer now exists only to pace readable commentary stages;
- * this adapter never mutates simulation state or changes timing, RNG, score,
- * actions or readiness gating.
+ * sequencer. Broadcast still paces the authoritative record, but its internal
+ * acquire/route/contest stages are translated into one evolving passage of
+ * football commentary rather than exposed as separate debug-like snippets.
  */
 export function describeBroadcastFrame(frame, simulation) {
-  const fallback = {
-    phaseLabel:frame?.phaseLabel ?? 'Match flow',
-    action:frame?.action ?? 'TEAMS RESETTING',
-    detail:frame?.carrierName ? `${frame.carrierName} is involved in the next phase.` : 'Both sides reorganise for the next phase of play.',
-  };
-  const scene = simulation?.activePhase;
-  if (!scene?.record) return fallback;
+  if (!simulation || typeof simulation !== 'object') {
+    return {
+      phaseLabel:frame?.phaseLabel ?? 'Opening exchanges',
+      action:'The match is beginning to take shape',
+      detail:frame?.carrierName
+        ? `${frame.carrierName} helps the next spell of possession develop as both teams settle into their shape.`
+        : 'Both teams are feeling their way into the game and looking for the first sustained spell of pressure.',
+    };
+  }
 
   const playersById = new Map((simulation.players ?? []).map(player => [player.id, player]));
-  const presentation = describeBroadcastLedgerRecord(scene.record, {
+  const scene = simulation.activePhase;
+  return advanceLiveMatchStory(storyStateFor(simulation), {
+    record:scene?.record ?? null,
+    stage:scene?.stage ?? 'acquire',
     playersById,
-    stage:scene.stage ?? 'route',
   });
-
-  return {
-    phaseLabel:presentation.label || fallback.phaseLabel,
-    action:presentation.action || fallback.action,
-    detail:presentation.detail || fallback.detail,
-  };
 }
