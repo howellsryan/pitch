@@ -3,6 +3,7 @@ import { sceneWorldFromMoment } from '../game/playableMomentsPocScene.js';
 import {
   buildPlayableMoment,
   derivePlayableMomentStaging,
+  isPlayableShotTopCornerTarget,
   resolveInteractiveShotOutcome,
 } from './matchActionResolver.js';
 import { PLAYABLE_CALIBRATION_POLICIES } from './playableMomentsCareer.js';
@@ -106,6 +107,7 @@ function interactive(preparedPhase, intent, overrides = {}) {
     xg:preparedPhase.xg,
     packet:{ ...preparedPhase.packet, ...overrides },
     intent,
+    route:preparedPhase.route,
   });
 }
 
@@ -158,15 +160,43 @@ describe('Phase 3 representative geometry and calibration', () => {
   it.each(SCENARIOS)('$name keeps goalkeeper quality material to reachable save area', ({ args }) => {
     const weak = prepared({ ...args, keeperRating:55, defenderRating:60 });
     const strong = prepared({ ...args, keeperRating:94, defenderRating:60 });
-    const intent = {
-      attack:{ aimX:.30, aimY:.56, power:.72, timing:.90 },
-      goalkeeper:{ x:.30, y:.56, timing:.80 },
-    };
+    const intent = { attack:{ aimX:.30, aimY:.56, power:.72, timing:.90 } };
     const weakResolution = interactive(weak, intent, { finish:.50 });
     const strongResolution = interactive(strong, intent, { finish:.50 });
 
     expect(weakResolution.presentation.keeper).not.toBeNull();
     expect(strongResolution.presentation.keeper).not.toBeNull();
     expect(strongResolution.presentation.keeper.reach).toBeGreaterThan(weakResolution.presentation.keeper.reach);
+  });
+
+  it('makes equivalent one-on-one chances materially easier by reducing block and keeper reach', () => {
+    const oneOnOne = prepared({ xg:.24, route:'pass_into_space', defenderRating:76, keeperRating:82 });
+    const ordinary = prepared({ xg:.24, route:'carry', defenderRating:76, keeperRating:82 });
+    const intent = { attack:{ aimX:.58, aimY:.55, power:.74, timing:.90 } };
+    const rng = { outcome:.90, shot:.50, finish:.50 };
+
+    const oneOnOneResolution = interactive(oneOnOne, intent, rng);
+    const ordinaryResolution = interactive(ordinary, intent, rng);
+
+    expect(oneOnOneResolution.presentation.oneOnOne).toBe(true);
+    expect(oneOnOneResolution.presentation.oneOnOneEasier).toBe(true);
+    expect(ordinaryResolution.presentation.oneOnOne).toBe(false);
+    expect(oneOnOneResolution.presentation.keeper.reach)
+      .toBeLessThan(ordinaryResolution.presentation.keeper.reach);
+  });
+
+  it('requires a top-corner trajectory for playable long shots to score', () => {
+    const longShot = prepared({ xg:.09, route:'circulation', shooterRating:90, defenderRating:58, keeperRating:80 });
+    const neutralPacket = { outcome:.99, shot:.50, finish:.50 };
+    const top = interactive(longShot, { attack:{ aimX:.82, aimY:.84, power:.78, timing:.98 } }, neutralPacket);
+    const middle = interactive(longShot, { attack:{ aimX:.05, aimY:.62, power:.78, timing:.98 } }, neutralPacket);
+
+    expect(top.presentation.longShot).toBe(true);
+    expect(top.presentation.topCornerRequired).toBe(true);
+    expect(isPlayableShotTopCornerTarget(top.presentation.target)).toBe(true);
+    expect(top.finish).toBe('goal');
+    expect(isPlayableShotTopCornerTarget(middle.presentation.target)).toBe(false);
+    expect(middle.finish).toBe('saved');
+    expect(middle.goal).toBe(false);
   });
 });
