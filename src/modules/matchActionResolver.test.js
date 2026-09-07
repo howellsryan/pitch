@@ -179,8 +179,6 @@ describe('playable moment prepare/commit seam', () => {
   it('prepares a terminal shot chance without resolving its finish and keeps automatic commit identical to the public resolver', () => {
     const attackers = attackingUnit(92);
     const defenders = defendingUnit(70);
-    // Carry is deliberately used here so this test remains about the terminal
-    // shot seam; Phase 5 final-pass routes now suspend one stage earlier.
     const input = phaseInput(attackers, defenders, packet({ route:.78, actor:.85, chance:.001, shot:.21, finish:.17 }));
 
     const prepared = prepareAuthoritativePhase(input);
@@ -194,29 +192,31 @@ describe('playable moment prepare/commit seam', () => {
     expect(committed).toEqual(publicResult);
   });
 
-  it('builds pre-outcome scene geometry without leaking shot or finish rolls', () => {
+  it('builds pre-outcome attack geometry without leaking shot or finish rolls', () => {
     const attackers = attackingUnit(92);
     const defenders = defendingUnit(70);
-    const first = prepareAuthoritativePhase(phaseInput(attackers, defenders, packet({ chance:.001, shot:.01, finish:.01 })));
-    const second = prepareAuthoritativePhase(phaseInput(attackers, defenders, packet({ chance:.001, shot:.99, finish:.99 })));
+    const base = { route:.78, actor:.85, chance:.001 };
+    const first = prepareAuthoritativePhase(phaseInput(attackers, defenders, packet({ ...base, shot:.01, finish:.01 })));
+    const second = prepareAuthoritativePhase(phaseInput(attackers, defenders, packet({ ...base, shot:.99, finish:.99 })));
 
-    const firstMoment = buildPlayableMoment(first, 'home');
-    const secondMoment = buildPlayableMoment(second, 'home');
+    const firstMoment = buildPlayableMoment(first, first.teamId);
+    const secondMoment = buildPlayableMoment(second, second.teamId);
 
     expect(firstMoment).toBeTruthy();
     expect(secondMoment).toBeTruthy();
+    expect(firstMoment.mode).toBe('attack');
     expect(firstMoment.geometry).toEqual(secondMoment.geometry);
     expect(firstMoment.xg).toBe(secondMoment.xg);
     expect(firstMoment.route).toBe(secondMoment.route);
   });
 
-  it('maps a user-owned terminal shot to attack and an opponent terminal shot to goalkeeper control', () => {
+  it('maps only a user-owned terminal shot to attack and refuses opponent goalkeeper control', () => {
     const prepared = prepareAuthoritativePhase(phaseInput(
       attackingUnit(), defendingUnit(), packet({ route:.78, actor:.85, chance:.001 }),
     ));
     expect(prepared.continuationAction).toBeUndefined();
     expect(buildPlayableMoment(prepared, 'home')?.mode).toBe('attack');
-    expect(buildPlayableMoment(prepared, 'away')?.mode).toBe('goalkeeper');
+    expect(buildPlayableMoment(prepared, 'away')).toBeNull();
     expect(buildPlayableMoment(prepared, 'third')).toBeNull();
   });
 });
@@ -252,16 +252,13 @@ describe('playable moment intent and spatial coherence', () => {
     expect(Math.abs(result.presentation.target.x)).toBeGreaterThan(1);
   });
 
-  it('allows a stronger goalkeeper to cover a shot that a weak goalkeeper cannot reach', () => {
+  it('keeps goalkeeper ability material through the automatic keeper reach model', () => {
     const common = {
       shooter,
       defender,
       xg:.32,
       packet:packet({ outcome:.99, shot:.5, finish:.5 }),
-      intent:{
-        attack:{ aimX:.5, aimY:.5, power:.72, timing:1 },
-        goalkeeper:{ x:0, y:.5, timing:.7 },
-      },
+      intent:{ attack:{ aimX:.5, aimY:.5, power:.72, timing:1 } },
     };
     const weak = resolveInteractiveShotOutcome({
       ...common,
@@ -272,8 +269,7 @@ describe('playable moment intent and spatial coherence', () => {
       defenders:[defender, player('strong-keeper', 'GK', {}, { goalkeeping:99 })],
     });
 
-    expect(weak.finish).toBe('goal');
-    expect(strong.finish).toBe('saved');
+    expect(strong.goalkeeping).toBeGreaterThan(weak.goalkeeping);
     expect(strong.presentation.keeper.reach).toBeGreaterThan(weak.presentation.keeper.reach);
   });
 
