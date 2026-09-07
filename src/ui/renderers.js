@@ -29,7 +29,6 @@ export function _removeFullOverlay() {
 // ── TROPHIES (merged Cups + Honours) ─────────────────────────
 // Migrated to src/lib/ui/TrophiesScreen.svelte (Phase 4,
 // docs/plan/04-migration-phases.md) — same reasoning as Competitions above.
-// registerScreen('trophies', ...) below just bumps screenTicks.trophies.
 
 // ── SETTINGS ──────────────────────────────────────────────────
 // Migrated to src/lib/ui/SettingsScreen.svelte (Phase 4,
@@ -101,23 +100,33 @@ export function showEntryMenu(){
   ng.focus?.();
 }
 
+export function initialScreenForSave(save) {
+  const playableMatchActive = Boolean(save?.playableMatchSession);
+  const shootoutActive = Array.isArray(save?.pendingEvents)
+    && save.pendingEvents.some(event => Boolean(event?.shootoutSession));
+  return playableMatchActive || shootoutActive ? 'match' : 'home';
+}
+
 // ── ENTER THE GAME SHELL ──────────────────────────────────────
 /**
- * Hide the entry route, reveal the app, wire the screens, land on Home.
+ * Hide the entry route, reveal the app, wire the screens, and land on the
+ * requested safe resume screen. Normal careers still enter Home; a durable
+ * Play Key Moments/shootout session resumes directly into Match so refresh
+ * never exposes an intermediate Home screen or invites a second fixture start.
  *
  * Shared by boot()'s resume branch and EntryScreen's start-a-career and
  * continue-a-career handoffs. Kept in one place deliberately: three callers
  * doing these four things by hand is how the new-career path and the resume
  * path drift out of step.
  */
-export async function enterGame(){
+export async function enterGame(initialScreen = 'home'){
   entryState.showing=false;
   entryState.hasSave=true;
   document.getElementById('ng').style.display='none';
   const app=document.getElementById('app');
   app.style.display='flex';
   initUI();
-  await navigateTo('home', { history: 'replace' });
+  await navigateTo(initialScreen, { history: 'replace' });
   _updateInboxBadge();
   // The entry route's sheet restores focus to the club card that started the
   // career — which #ng's display:none has just removed from the page, leaving
@@ -161,7 +170,7 @@ export async function boot(){
     } else {
       entryState.hasSave=true;
       await themeForTeam(save.userTeamId);
-      await enterGame();
+      await enterGame(initialScreenForSave(save));
     }
   }catch(err){
     console.error('[boot]',err);
