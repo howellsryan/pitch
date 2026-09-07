@@ -6,6 +6,7 @@ import {
   resolveDirectFreeKickOutcome,
   resolvePenaltyOutcome,
 } from './matchActionResolver.js';
+import { isPlayableTopCornerTarget, playablePenaltyKeeperDive } from './matchSetPieces.js';
 
 function player(id, position, rating = 78) {
   const isKeeper = position === 'GK';
@@ -139,7 +140,7 @@ describe('Phase 4 authoritative set-piece domain', () => {
     expect(setPiece).toBeNull();
   });
 
-  it('resolves automatic penalties on a separate calibrated path with explicit restart semantics', () => {
+  it('keeps automatic penalties on their calibrated result path', () => {
     const setPiece = deriveAuthoritativeSetPiece(prepared({ packet:packet({ chance:.01 }) }));
     const goal = resolvePenaltyOutcome({
       setPiece,
@@ -161,7 +162,38 @@ describe('Phase 4 authoritative set-piece domain', () => {
     expect(goal.setPieceType).toBe('penalty');
   });
 
-  it('resolves direct free kicks with coherent wall/save/miss/goal restart contracts', () => {
+  it('chooses playable penalty keeper direction from RNG independently of shot aim', () => {
+    const leftPacket = packet({ chance:.01, defender:.10, outcome:.20, shot:.50, finish:.50 });
+    const centrePacket = packet({ chance:.01, defender:.50, outcome:.50, shot:.50, finish:.50 });
+    const rightPacket = packet({ chance:.01, defender:.90, outcome:.80, shot:.50, finish:.50 });
+
+    expect(playablePenaltyKeeperDive(leftPacket, 80).x).toBeLessThan(0);
+    expect(playablePenaltyKeeperDive(centrePacket, 80).x).toBe(0);
+    expect(playablePenaltyKeeperDive(rightPacket, 80).x).toBeGreaterThan(0);
+    expect(playablePenaltyKeeperDive(leftPacket, 80)).toEqual(playablePenaltyKeeperDive(leftPacket, 80));
+
+    const setPiece = deriveAuthoritativeSetPiece(prepared({ packet:leftPacket }));
+    const aimRight = resolvePenaltyOutcome({
+      setPiece,
+      shooter:player('taker', 'ST', 86),
+      defenders:[player('keeper', 'GK', 82)],
+      packet:leftPacket,
+      intent:{ attack:{ aimX:.72, aimY:.62, power:.76, timing:.90 } },
+    });
+    const aimLeft = resolvePenaltyOutcome({
+      setPiece,
+      shooter:player('taker', 'ST', 86),
+      defenders:[player('keeper', 'GK', 82)],
+      packet:leftPacket,
+      intent:{ attack:{ aimX:-.72, aimY:.62, power:.76, timing:.90 } },
+    });
+
+    expect(aimRight.presentation.keeper.x).toBe(aimLeft.presentation.keeper.x);
+    expect(aimRight.presentation.keeperDiveRng).toBe(true);
+    expect(aimLeft.presentation.keeperDiveRng).toBe(true);
+  });
+
+  it('keeps automatic direct free kicks on the existing wall/save/miss/goal model', () => {
     const setPiece = deriveAuthoritativeSetPiece(prepared({ packet:packet({ chance:.07 }) }));
     const blocked = resolveDirectFreeKickOutcome({
       setPiece,
@@ -181,10 +213,38 @@ describe('Phase 4 authoritative set-piece domain', () => {
     expect(blocked.presentation.blockerId).toBeTruthy();
     expect(goal.finish).toBe('goal');
     expect(goal.restart).toBe('kickoff');
-    expect(goal.setPieceType).toBe('direct_free_kick');
   });
 
-  it('projects penalties and free kicks into bounded playable geometry without inventing actors', () => {
+  it('makes top corners the only playable direct-free-kick scoring zone', () => {
+    const base = prepared({ packet:packet({ chance:.07, target:.50 }) });
+    const setPiece = deriveAuthoritativeSetPiece(base);
+    const defenders = base.defenders;
+    const neutralPacket = packet({ chance:.07, assist:.99, shot:.50, finish:.50 });
+
+    const topCorner = resolveDirectFreeKickOutcome({
+      setPiece,
+      shooter:player('fk-taker', 'CAM', 90),
+      defenders,
+      packet:neutralPacket,
+      intent:{ attack:{ aimX:.82, aimY:.84, power:.70, timing:.96 } },
+    });
+    const central = resolveDirectFreeKickOutcome({
+      setPiece,
+      shooter:player('fk-taker', 'CAM', 90),
+      defenders,
+      packet:neutralPacket,
+      intent:{ attack:{ aimX:0, aimY:.62, power:.70, timing:.96 } },
+    });
+
+    expect(isPlayableTopCornerTarget(topCorner.presentation.target)).toBe(true);
+    expect(topCorner.finish).toBe('goal');
+    expect(topCorner.presentation.wallCleared).toBe(true);
+    expect(isPlayableTopCornerTarget(central.presentation.target)).toBe(false);
+    expect(central.goal).toBe(false);
+    expect(['saved','blocked']).toContain(central.finish);
+  });
+
+  it('projects penalties and free kicks into attacking-only geometry with the free-kick wall intact', () => {
     const penaltyPrepared = prepared({ packet:packet({ chance:.01 }) });
     penaltyPrepared.setPiece = deriveAuthoritativeSetPiece(penaltyPrepared);
     penaltyPrepared.shooter = penaltyPrepared.attackers.find(item => item.id === penaltyPrepared.setPiece.takerId);
@@ -200,11 +260,15 @@ describe('Phase 4 authoritative set-piece domain', () => {
     const penalty = buildPlayableMoment(penaltyPrepared, 'home');
     const freeKick = buildPlayableMoment(freeKickPrepared, 'home');
 
+    expect(penalty.mode).toBe('attack');
     expect(penalty.geometry.staging.variant).toBe('penalty');
     expect(penalty.geometry.distance).toBe(11);
     expect(penalty.geometry.wall).toBeNull();
+    expect(penalty.geometry.legalActions).toEqual({ attack:['aim','power','timing'] });
+    expect(freeKick.mode).toBe('attack');
     expect(freeKick.geometry.staging.variant).toBe('direct_free_kick');
     expect(freeKick.geometry.wall.members.map(member => member.id)).toEqual(freeKickPrepared.setPiece.wall.members.map(member => member.id));
     expect(freeKick.geometry.continuousLocomotion).toBe(false);
+    expect(freeKick.geometry.legalActions).toEqual({ attack:['aim','power','timing'] });
   });
 });
