@@ -21,7 +21,6 @@ import './touchline-ledger-polish.css';
 import './live-broadcast-tactical.css';
 
 import { mount } from 'svelte';
-import { installLiveBroadcastMotionSmoother } from './game/liveBroadcastMotionSmoother.js';
 import { navigateTo } from './ui/helpers.js';
 import EntryScreen from './lib/ui/EntryScreenClean.svelte';
 import CareerMenu from './lib/ui/CareerMenu.svelte';
@@ -49,12 +48,10 @@ import './ui/squad_tactics_offers.js';
 import './ui/inbox.js';
 import './ui/accessibilityEnhancements.js';
 
-// The authoritative broadcast model may retarget coordinates aggressively to
-// keep its fixed 90-second regulation cadence. Keep those hidden catch-up
-// targets separate from what the manager actually sees: this presentation
-// adapter preserves tactical shape and uses a deliberate scene cut when two
-// authoritative snapshots cannot be joined honestly as one football action.
-installLiveBroadcastMotionSmoother();
+// The live-match player/ball animation has been retired. MatchScreen still
+// consumes the authoritative ledger presentation sequence so commentary can be
+// paced and readable, but main.js no longer installs a DOM coordinate smoother
+// or any other animation-only adapter.
 
 // src/shell.html has two inline onclick="navigateTo(...)" handlers, which
 // resolve against the global scope rather than this module's. Everything else
