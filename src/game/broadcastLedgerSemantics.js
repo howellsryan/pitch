@@ -91,13 +91,13 @@ function contestPresentation(record, names) {
   if (record.outcome === 'turnover') return {
     action:'DUEL LOST · POSSESSION TURNS OVER',
     detail:defender
-      ? `${defender} wins the duel from ${actor}. The defending side can now transition before the shape resets.`
+      ? `${defender} wins the duel from ${actor}. That creates a transition opportunity before the shape resets.`
       : `${actor} is dispossessed. The opposition have a transition opportunity.`,
   };
   if (record.outcome === 'foul_won') return {
     action:'FOUL · FREE KICK WON',
     detail:defender
-      ? `${actor} draws the foul from ${defender}. The attack stops, but possession is secured from the restart.`
+      ? `${actor} draws the foul from ${defender}. The attack stops, but possession is secured for a controlled restart.`
       : `${actor} wins a free kick and gives the team a controlled restart.`,
   };
   if (record.outcome === 'corner_won' || record.cornerWon) return {
