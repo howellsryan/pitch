@@ -4,6 +4,8 @@ export const MATCH_SET_PIECE_VERSION = 1;
 
 const PENALTY_XG = .76;
 const WALL_DISTANCE_METRES = 9.15;
+const PLAYABLE_TOP_CORNER_X = .68;
+const PLAYABLE_TOP_CORNER_Y = .72;
 
 function setPieceClamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -178,16 +180,6 @@ function normalizedAttack(intent) {
   };
 }
 
-function normalizedKeeper(intent) {
-  const keeperIntent = intent?.goalkeeper;
-  if (!keeperIntent) return null;
-  return {
-    x:setPieceClamp(Number(keeperIntent.x) || 0, -1, 1),
-    y:setPieceClamp(Number.isFinite(Number(keeperIntent.y)) ? Number(keeperIntent.y) : .5, 0, 1),
-    timing:setPieceClamp(Number.isFinite(Number(keeperIntent.timing)) ? Number(keeperIntent.timing) : .65, 0, 1),
-  };
-}
-
 function setPieceTrajectory({ attack, packet, technique, pressure = 0, type }) {
   const ability = setPieceClamp((technique - 45) / 54, 0, 1);
   const timing = setPieceClamp(attack.timing, 0, 1);
@@ -210,6 +202,23 @@ function automaticKeeper(target, packet, keeping, { penalty = false } = {}) {
     x:setPieceClamp(target.x + (Number(packet.shot) - .5) * 2 * error, -1, 1),
     y:setPieceClamp(target.y + (Number(packet.finish) - .5) * error * .62, 0, 1),
     timing:setPieceClamp(.48 + ability * .42, .4, .93),
+  };
+}
+
+/**
+ * The playable penalty keeper commits before the shot is known. The direction
+ * is derived only from the fixed packet, never from the user's chosen target,
+ * so the taker is genuinely trying to send the ball away from an RNG dive.
+ */
+export function playablePenaltyKeeperDive(packet, keeping = 75) {
+  const roll = setPieceClamp(Number(packet?.defender) || 0, 0, .999999);
+  const heightRoll = setPieceClamp(Number(packet?.outcome) || 0, 0, .999999);
+  const ability = setPieceClamp((Number(keeping) - 35) / 64, 0, 1);
+  const x = roll < .42 ? -.78 : roll > .58 ? .78 : 0;
+  return {
+    x,
+    y:setPieceRound(.34 + heightRoll * .38, 4),
+    timing:setPieceRound(setPieceClamp(.50 + ability * .40, .42, .92), 4),
   };
 }
 
@@ -238,6 +247,9 @@ export function resolvePenaltyOutcome({ setPiece, shooter, defenders = [], packe
   const keeping = keeperRating(defenders);
   const attack = normalizedAttack(intent);
 
+  // Automatic/Quick Sim penalties keep the established calibrated conversion
+  // model. The RNG-dive interaction below applies only when the user is taking
+  // the playable penalty, so this presentation rule cannot rebalance the engine.
   if (!attack) {
     const missChance = setPieceClamp(.105 - (shooting - 75) * .0022, .045, .17);
     if (Number(packet.shot) < missChance) {
@@ -275,13 +287,19 @@ export function resolvePenaltyOutcome({ setPiece, shooter, defenders = [], packe
     };
   }
 
-  const keeperIntent = normalizedKeeper(intent) ?? automaticKeeper(target, packet, keeping, { penalty:true });
+  const keeperIntent = playablePenaltyKeeperDive(packet, keeping);
   const saveResult = interactiveKeeperSave({ target, keeperIntent, keeping, power:attack.power, penalty:true });
   return {
     setPieceType:'penalty', finish:saveResult.save ? 'saved' : 'goal', onTarget:true, goal:!saveResult.save,
     shooting:setPieceRound(shooting), pressure:0, goalkeeping:setPieceRound(keeping),
     restart:saveResult.save ? 'keeper_possession' : 'kickoff',
-    presentation:{ target, blockerId:null, keeper:saveResult.keeper, contact:saveResult.save ? 'save' : 'goal' },
+    presentation:{
+      target,
+      blockerId:null,
+      keeper:saveResult.keeper,
+      keeperDiveRng:true,
+      contact:saveResult.save ? 'save' : 'goal',
+    },
   };
 }
 
@@ -307,6 +325,13 @@ function freeKickBlockThreshold(setPiece, target, technique) {
   return setPieceClamp(.14 + sizeEffect + distanceEffect + heightExposure - skillEffect, .08, .34);
 }
 
+export function isPlayableTopCornerTarget(target) {
+  return Math.abs(Number(target?.x ?? 0)) >= PLAYABLE_TOP_CORNER_X
+    && Number(target?.y ?? 0) >= PLAYABLE_TOP_CORNER_Y
+    && Math.abs(Number(target?.x ?? 0)) <= 1
+    && Number(target?.y ?? 0) <= 1;
+}
+
 export function resolveDirectFreeKickOutcome({ setPiece, shooter, defenders = [], packet, intent = null } = {}) {
   if (setPiece?.kind !== 'direct_free_kick') throw new Error('Free-kick resolver requires a direct free kick');
   const technique = freeKickTechnique(shooter);
@@ -317,15 +342,6 @@ export function resolveDirectFreeKickOutcome({ setPiece, shooter, defenders = []
     : targetFromAutomaticPacket(packet, { yBase:.60, yRange:.42 });
 
   const blockThreshold = freeKickBlockThreshold(setPiece, target, technique);
-  if (Number(packet.assist) < blockThreshold) {
-    const blocker = nearestWallMember(setPiece, target.x) ?? setPiece.wall?.members?.[0] ?? null;
-    return {
-      setPieceType:'direct_free_kick', finish:'blocked', onTarget:false, goal:false,
-      shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping),
-      restart:'defensive_restart',
-      presentation:{ target, blockerId:blocker?.id ?? null, keeper:null, contact:'block' },
-    };
-  }
 
   if (attack) {
     const insideGoal = Math.abs(target.x) <= 1 && target.y >= 0 && target.y <= 1;
@@ -333,16 +349,58 @@ export function resolveDirectFreeKickOutcome({ setPiece, shooter, defenders = []
       return {
         setPieceType:'direct_free_kick', finish:'missed', onTarget:false, goal:false,
         shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping), restart:'goal_kick',
-        presentation:{ target, blockerId:null, keeper:null, contact:'miss' },
+        presentation:{ target, blockerId:null, keeper:null, contact:'miss', topCornerRequired:true },
       };
     }
-    const keeperIntent = normalizedKeeper(intent) ?? automaticKeeper(target, packet, keeping);
+
+    // A correctly executed playable free kick has one clear success condition:
+    // find either top corner. That shot is treated as clearing the wall and
+    // beating the keeper. Everything else can be blocked or saved, never scored.
+    if (isPlayableTopCornerTarget(target)) {
+      const keeperIntent = automaticKeeper(target, packet, keeping);
+      return {
+        setPieceType:'direct_free_kick', finish:'goal', onTarget:true, goal:true,
+        shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping),
+        restart:'kickoff',
+        presentation:{
+          target,
+          blockerId:null,
+          keeper:{ x:setPieceRound(keeperIntent.x, 4), y:setPieceRound(keeperIntent.y, 4), timing:setPieceRound(keeperIntent.timing, 4), reach:setPieceRound(.44, 4) },
+          contact:'goal',
+          topCorner:true,
+          wallCleared:true,
+        },
+      };
+    }
+
+    if (Number(packet.assist) < blockThreshold) {
+      const blocker = nearestWallMember(setPiece, target.x) ?? setPiece.wall?.members?.[0] ?? null;
+      return {
+        setPieceType:'direct_free_kick', finish:'blocked', onTarget:false, goal:false,
+        shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping),
+        restart:'defensive_restart',
+        presentation:{ target, blockerId:blocker?.id ?? null, keeper:null, contact:'block', topCornerRequired:true },
+      };
+    }
+
+    const keeperIntent = automaticKeeper(target, packet, keeping);
     const saveResult = interactiveKeeperSave({ target, keeperIntent, keeping, power:attack.power });
     return {
-      setPieceType:'direct_free_kick', finish:saveResult.save ? 'saved' : 'goal', onTarget:true, goal:!saveResult.save,
+      setPieceType:'direct_free_kick', finish:'saved', onTarget:true, goal:false,
       shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping),
-      restart:saveResult.save ? 'keeper_possession' : 'kickoff',
-      presentation:{ target, blockerId:null, keeper:saveResult.keeper, contact:saveResult.save ? 'save' : 'goal' },
+      restart:'keeper_possession',
+      presentation:{ target, blockerId:null, keeper:saveResult.keeper, contact:'save', topCornerRequired:true },
+    };
+  }
+
+  // Automatic/Quick Sim free kicks keep the established calibrated outcome.
+  if (Number(packet.assist) < blockThreshold) {
+    const blocker = nearestWallMember(setPiece, target.x) ?? setPiece.wall?.members?.[0] ?? null;
+    return {
+      setPieceType:'direct_free_kick', finish:'blocked', onTarget:false, goal:false,
+      shooting:setPieceRound(technique), pressure:setPieceRound(blockThreshold * 100), goalkeeping:setPieceRound(keeping),
+      restart:'defensive_restart',
+      presentation:{ target, blockerId:blocker?.id ?? null, keeper:null, contact:'block' },
     };
   }
 
@@ -401,7 +459,7 @@ export function buildSetPiecePlayableGeometry(setPiece) {
       keeperDepth,
       defenderRelationship:setPiece.kind === 'penalty' ? 'none' : 'wall',
     },
-    legalActions:{ attack:['aim', 'power', 'timing'], goalkeeper:['position', 'timing'] },
+    legalActions:{ attack:['aim', 'power', 'timing'] },
     continuousLocomotion:false,
     shooter:{ x:channelX, y:0, z:distance },
     goalkeeper:{ x:0, y:0, z:keeperDepth },
