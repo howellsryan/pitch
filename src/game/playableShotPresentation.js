@@ -19,6 +19,8 @@ function numeric(value, fallback = 0) {
 }
 
 export function playableShotPresentationScenario(moment = {}) {
+  if (moment?.interactionType === 'continuation') return 'legacy_continuation';
+  if (moment?.interactionType === 'contact') return 'legacy_contact';
   if (
     moment?.interactionType === 'shootout'
     || moment?.kickId
@@ -39,7 +41,7 @@ export function playableShotPresentationScenario(moment = {}) {
 export function playableShooterDirection(moment = {}, progress = 0) {
   const scenario = playableShotPresentationScenario(moment);
   const beforeContact = 1 - phase(progress, .05, .43);
-  if (scenario === 'penalty' || scenario === 'shootout') {
+  if (scenario !== 'open_play' && scenario !== 'direct_free_kick') {
     return { offsetX:0, offsetY:0, offsetZ:0, yaw:0 };
   }
 
@@ -85,8 +87,8 @@ export function playableDefenderDirection(moment = {}, progress = 0) {
 
 /**
  * Scenario-aware fixed camera composition. It remains fixed during input/reveal,
- * so pointer-to-goal raycasting stays stable. Penalty/shootout values intentionally
- * match the accepted workshop framing.
+ * so pointer-to-goal raycasting stays stable. Penalty/shootout and compatibility
+ * values intentionally match the accepted workshop/legacy framing.
  */
 export function playableShotCameraComposition(moment = {}, world = {}, aspect = 1) {
   const scenario = playableShotPresentationScenario(moment);
