@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PLAYABLE_KEY_MOMENTS_FLAGS,
   createPlayableMatchSession,
   evaluatePlayableMomentSelection,
   isPlayableKeyEventMoment,
@@ -52,21 +53,41 @@ function shotMoment(overrides = {}) {
   };
 }
 
-describe('Play Key Moments event policy', () => {
-  it('allows open-play shots and goalkeeper attempts', () => {
+describe('Play Key Moments attacking-only event policy', () => {
+  it('allows user open-play shots but disables goalkeeper mode entirely', () => {
+    expect(PLAYABLE_KEY_MOMENTS_FLAGS.goalkeeper).toBe(false);
     expect(playableKeyEventType(shotMoment())).toBe('shot');
-    expect(isPlayableKeyEventMoment(shotMoment({ mode:'goalkeeper' }))).toBe(true);
+    expect(isPlayableKeyEventMoment(shotMoment({
+      mode:'goalkeeper', attackingTeamId:'away', defendingTeamId:'home',
+    }))).toBe(false);
   });
 
-  it('allows direct free kicks and penalties as shooting events', () => {
+  it('allows user direct free kicks and penalties as explicit attacking events', () => {
     const freeKick = shotMoment({ setPiece:{ kind:'direct_free_kick' } });
     const penalty = shotMoment({ setPiece:{ kind:'penalty' } });
     expect(playableKeyEventType(freeKick)).toBe('free_kick');
-    expect(playableKeyEventType(penalty)).toBe('shot');
+    expect(playableKeyEventType(penalty)).toBe('penalty');
   });
 
-  it('allows shootout penalties through the same shooting policy', () => {
-    expect(playableKeyEventType(shotMoment({ interactionType:'shootout', route:'penalty_shootout' }))).toBe('shot');
+  it('allows only the user taking a shootout penalty', () => {
+    expect(playableKeyEventType(shotMoment({ interactionType:'shootout', route:'penalty_shootout' }))).toBe('penalty');
+    expect(playableKeyEventType(shotMoment({
+      interactionType:'shootout', route:'penalty_shootout', mode:'goalkeeper',
+      attackingTeamId:'away', defendingTeamId:'home',
+    }))).toBeNull();
+  });
+
+  it('rejects every opponent attack before probability or pacing is considered', () => {
+    const opponentChance = shotMoment({
+      mode:'goalkeeper', attackingTeamId:'away', defendingTeamId:'home',
+      shooterId:'away-st', goalkeeperId:'home-gk',
+    });
+    expect(evaluatePlayableMomentSelection({ moment:opponentChance, session:session() })).toEqual({
+      selected:false,
+      reason:'not_user_attack',
+      probability:0,
+      roll:1,
+    });
   });
 
   it('rejects continuation passes, crosses and final-ball interactions', () => {
@@ -80,13 +101,13 @@ describe('Play Key Moments event policy', () => {
     });
   });
 
-  it('rejects contact and defending interactions even when they carry shooter context', () => {
+  it('rejects contact interactions even when they carry shooter context', () => {
     const contact = shotMoment({ interactionType:'contact', contactType:'tackle' });
     expect(playableKeyEventType(contact)).toBeNull();
     expect(evaluatePlayableMomentSelection({ moment:contact, session:session() }).reason).toBe('event_type_disabled');
   });
 
   it('does not reinterpret generic non-shooting actions as key events', () => {
-    expect(playableKeyEventType({ mode:'attack', phase:50, actorId:'home-cm', route:'circulation' })).toBeNull();
+    expect(playableKeyEventType({ mode:'attack', attackingTeamId:'home', phase:50, actorId:'home-cm', route:'circulation' })).toBeNull();
   });
 });
