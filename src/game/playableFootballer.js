@@ -1,10 +1,11 @@
 // Original, generated football kit/skin geometry. One skin, shared skeleton
 // contract, no asset downloads, manual editor or frame-dependent animation.
-export function createPlayableFootballer(THREE, { shirt, shorts, skin, socks = shirt, boots, gloves, hair, number = 9 }) {
+export function createPlayableFootballer(THREE, { shirt, shorts, skin, socks = shirt, boots, gloves, hair, number = 9, numberColor = null }) {
   const root = new THREE.Group();
   const positions = [], indices = [], weights = [], skinIndices = [], groups = [];
   const bones = [], bindings = [];
   const palette = [shirt, shorts, skin, socks, boots, gloves ?? skin, hair];
+  const trim = new THREE.MeshStandardMaterial({ color:numberColor ?? (shirt.color.getHSL({}).l > .55 ? 0x17242b : 0xf6f4e9), roughness:1 });
   const vec = p => new THREE.Vector3(p.x, p.y, p.z);
   const point = (x, y, z = 0) => ({ x, y, z });
   function bone(name, start, end) {
@@ -105,6 +106,16 @@ export function createPlayableFootballer(THREE, { shirt, shorts, skin, socks = s
   detail(new THREE.SphereGeometry(1, 8, 6), skin, 'head', point(0,-.015,.094), [.018,.027,.025]);
   for (const sign of [-1,1]) detail(new THREE.SphereGeometry(1,8,6), skin, 'head', point(sign*.103,0,0), [.018,.03,.022]);
 
+  const collar = detail(new THREE.TorusGeometry(.072, .012, 6, 20), trim, 'chest', point(0,.155,0));
+  collar.userData.collar = true;
+  for (const side of ['left', 'right']) {
+    const cuff = detail(new THREE.CylinderGeometry(.064,.065,.025,12), trim, side + 'Shoulder', point(0,-.17,0));
+    cuff.userData.limb = side + 'Elbow';
+  }
+  // A small chest panel distinguishes the front of the shirt.
+  const chestPanel = detail(new THREE.PlaneGeometry(.045,.055), trim, 'chest', point(-.105,-.01,.143));
+  chestPanel.userData.front = true;
+
   // Small generated kit number. Canvas is optional for headless mesh inspection.
   let numberTexture = null;
   let numberMaterial = null;
@@ -113,7 +124,7 @@ export function createPlayableFootballer(THREE, { shirt, shorts, skin, socks = s
     canvas.width = 128; canvas.height = 128;
     const context = canvas.getContext('2d');
     if (context) {
-      context.fillStyle = shirt.color.getHSL({}).l > .55 ? '#17242b' : '#f6f4e9';
+      context.fillStyle = numberColor ?? (shirt.color.getHSL({}).l > .55 ? '#17242b' : '#f6f4e9');
       context.font = 'bold 94px sans-serif'; context.textAlign = 'center';
       context.fillText(String(number),64,102);
       numberTexture = new THREE.CanvasTexture(canvas);
@@ -142,12 +153,30 @@ export function createPlayableFootballer(THREE, { shirt, shorts, skin, socks = s
         direction.copy(vec(joints.crown)).sub(vec(joints.pelvis)).normalize();
         a.mesh.quaternion.setFromUnitVectors(up, direction);
         offset.applyQuaternion(a.mesh.quaternion);
+      } else if (a.joint.endsWith('Ankle')) {
+        // The solved toe is the foot's facing direction. Previously boots kept
+        // their identity rotation and pointed backwards on the striker.
+        const toe = joints[a.joint.replace('Ankle', 'Toe')];
+        direction.copy(vec(toe)).sub(vec(joints[a.joint])).normalize();
+        a.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), direction);
+        offset.copy(vec(a.offset)).applyQuaternion(a.mesh.quaternion);
+      } else if (a.joint.endsWith('Wrist')) {
+        const elbow = joints[a.joint.replace('Wrist', 'Elbow')];
+        direction.copy(vec(joints[a.joint])).sub(vec(elbow)).normalize();
+        a.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0), direction);
+        offset.copy(vec(a.offset)).applyQuaternion(a.mesh.quaternion);
+      } else if (a.mesh.userData.limb) {
+        direction.copy(vec(joints[a.mesh.userData.limb])).sub(vec(joints[a.joint])).normalize();
+        a.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0), direction);
+        offset.copy(vec(a.offset)).applyQuaternion(a.mesh.quaternion);
       } else a.mesh.quaternion.identity();
       a.mesh.position.add(offset);
+      if (a.mesh.userData.collar) a.mesh.rotateX(Math.PI / 2);
       if (a.mesh.userData.back) a.mesh.rotateY(forward > 0 ? Math.PI : 0);
+      if (a.mesh.userData.front) a.mesh.rotateY(forward < 0 ? Math.PI : 0);
     }
     root.updateMatrixWorld(true);
     body.skeleton.update();
   }
-  return { root, body, pose, dispose() { body.skeleton.dispose(); numberTexture?.dispose(); numberMaterial?.dispose(); } };
+  return { root, body, pose, dispose() { trim.dispose(); body.skeleton.dispose(); numberTexture?.dispose(); numberMaterial?.dispose(); } };
 }

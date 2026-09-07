@@ -82,9 +82,9 @@ export function buildPlayableScenePlan({
   };
 }
 
-export async function mountPlayableSceneRenderer(canvas, moment, plan) {
+export async function mountPlayableSceneRenderer(canvas, moment, plan, appearance = null) {
   if (!plan?.enabled) throw new Error('PLAYABLE_PRESENTATION_DISABLED');
-  const options = { quality:plan.quality, presentationVersion:plan.version, scenario:plan.scenario, camera:plan.camera };
+  const options = { appearance, quality:plan.quality, presentationVersion:plan.version, scenario:plan.scenario, camera:plan.camera };
   if (plan.rendererId === 'three-continuation-legacy') {
     const module = await import('./playableMomentsContinuationRenderer.js');
     return module.mountThreePlayableContinuation(canvas, moment, options);

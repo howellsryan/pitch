@@ -34,7 +34,7 @@ Examples of the intended language:
 - regulation clock;
 - match progress;
 - current tactical phase;
-- a large `WHAT IS HAPPENING` commentary card;
+- a shared, accessible `MatchCommentary` reader with phase, action and supporting detail;
 - possession share;
 - pause, skip and tactics controls;
 - authoritative goal event cards;
@@ -48,7 +48,7 @@ There is no visible pitch, player marker or ball animation in `Watch Match`.
 - `broadcastSimulation.js` remains temporarily as a **commentary sequencing adapter**. Its scene stages provide readable pacing within one authoritative ledger action; they are no longer rendered as footballer coordinates.
 - `broadcastLedgerSemantics.js` owns text-first descriptions of route, contest and shot meaning. It may explain tactical intent implied by the authoritative route, but it must not invent a different action or result.
 - `broadcastFrameSemantics.js` passes the ledger description through to the UI. The previous bug where semantic action titles were calculated but discarded has been fixed.
-- `live-broadcast-tactical.css` now collapses the old pitch DOM and promotes the commentary card to the primary match surface.
+- `MatchCommentary.svelte` owns the text-first reading surface. The old pitch DOM is removed; `live-broadcast-tactical.css` styles the score, possession and controls.
 - `liveBroadcastMotionSmoother.js` and its tests have been removed. No DOM coordinate smoother is installed at application boot.
 - `ui/renderers.js` owns refresh routing for persisted playable/shootout sessions.
 
@@ -66,7 +66,7 @@ There is no visible pitch, player marker or ball animation in `Watch Match`.
 
 Automated checks cover:
 
-- animated pitch primitives are hidden from the live-match presentation;
+- animated pitch primitives are removed from the live-match presentation;
 - the goal event card remains visible even though the pitch is retired;
 - the old DOM motion smoother is not imported or installed;
 - route semantics distinguish build-up, direct progression, space attacks, carries and wide deliveries;

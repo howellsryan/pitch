@@ -13,6 +13,7 @@
   let {
     moment,
     resolution = null,
+    appearance = null,
     busy = false,
     onsubmit = () => {},
     onsimulate = () => {},
@@ -189,7 +190,7 @@
     loadStartedAt = window.performance.now();
     diagnostic('load_start');
     try {
-      controller = await mountPlayableSceneRenderer(canvas, moment, scenePlan);
+      controller = await mountPlayableSceneRenderer(canvas, moment, scenePlan, appearance);
       controller.render({ moment, resolution, progress:resolution ? 1 : 0 });
       diagnostic('renderer_ready', { durationMs:window.performance.now() - loadStartedAt });
     } catch (error) {

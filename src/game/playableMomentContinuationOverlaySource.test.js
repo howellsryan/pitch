@@ -20,7 +20,7 @@ describe('Phase 5 continuation overlay authority boundary', () => {
     const mount = functionSource(overlay, 'mountRenderer', 2400);
     const adapter = functionSource(director, 'mountPlayableSceneRenderer', 1800);
     expect(overlay).toContain("moment?.interactionType === 'continuation'");
-    expect(mount).toContain('mountPlayableSceneRenderer(canvas, moment, scenePlan)');
+    expect(mount).toContain('mountPlayableSceneRenderer(canvas, moment, scenePlan, appearance)');
     expect(adapter).toContain("plan.rendererId === 'three-continuation-legacy'");
     expect(adapter).toContain("await import('./playableMomentsContinuationRenderer.js')");
     expect(adapter).toContain('mountThreePlayableContinuation');

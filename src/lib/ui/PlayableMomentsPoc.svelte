@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import MatchCommentary from './MatchCommentary.svelte';
+  import { resolvePlayableAppearance } from '../../game/matchKits.js';
   import {
     MATCH_PHASES,
     buildLiveMatchState,
@@ -34,14 +36,27 @@
   let lifecycleResult = $state('');
   let animationFrame = 0;
   let animationStarted = null;
-  let currentProgress = 0;
+  let currentProgress = $state(0);
+  let playbackPaused = $state(false);
+  let playbackRate = $state(1);
+  let phoneWidth = $state(false);
+  let broadcastPreview = $state(false);
+  let broadcastSample = $state('build');
+  let whiteKit = $state(false);
+  const broadcastSamples = {
+    build:{ phase:'Building from the back', action:'Drawing the press', detail:'The goalkeeper finds the centre-back. The midfield drops short, inviting the opposition forward before looking for space behind them.' },
+    chance:{ phase:'Ball in behind', action:'A run beyond the defence', detail:'The winger times the run as the midfielder turns. A first-time pass opens the channel — the striker arrives in the box.' },
+    goal:{ phase:'Chance converted', action:'A finish into the far corner', detail:'The low cross reaches the striker, who opens their body and places the ball beyond the goalkeeper.', goal:{ playerName:'Alex Morgan', minute:64, teamName:'Home XI' } },
+  };
+  const reviewAppearance = $derived(resolvePlayableAppearance(null, { primaryColor:whiteKit ? '#FFFFFF' : '#B92C42' }, { primaryColor:'#274B7C' }));
+  const passage = $derived(broadcastSamples[broadcastSample]);
 
   let source = $state('synthetic');
-  let syntheticScenario = $state('shot');
+  let syntheticScenario = $state('penalty');
   let syntheticAttempt = $state(0);
-  let currentMoment = $state(createPocAttackingMoment('shot', 0));
+  let currentMoment = $state(createPocAttackingMoment('penalty', 0));
   let resolution = $state(null);
-  let status = $state(pocScenarioHint('shot'));
+  let status = $state(pocScenarioHint('penalty'));
   let selectedLane = $state(0);
   let selectedHeight = $state(.55);
   let pointerStart = null;
@@ -134,7 +149,7 @@
     frameTimes = [];
     try {
       const module = await import('../../game/playableMomentsThreeRenderer.js');
-      controller = await module.mountThreePlayablePoc(canvas, currentMoment);
+      controller = await module.mountThreePlayablePoc(canvas, currentMoment, { appearance:reviewAppearance });
       metrics = {
         loadMs:controller.loadMs,
         initMs:controller.initMs,
@@ -154,6 +169,7 @@
   function startAnimation(nextResolution) {
     resolution = nextResolution;
     animationStarted = window.performance.now();
+    playbackPaused = false;
     currentProgress = reducedMotion ? 1 : 0;
     if (reducedMotion) controller?.render?.({ moment:currentMoment, resolution, progress:1 });
   }
@@ -172,12 +188,38 @@
     const previous = animationLoop.previousTime;
     if (previous != null) updateMetrics(now - previous);
     animationLoop.previousTime = now;
-    if (animationStarted != null && !reducedMotion) {
-      currentProgress = Math.min(1, (now - animationStarted) / 1650);
+    if (animationStarted != null && !reducedMotion && !playbackPaused && !broadcastPreview) {
+      const delta = previous == null ? 0 : Math.min(100, Math.max(0, now - previous));
+      currentProgress = Math.min(1, currentProgress + delta * playbackRate / 2050);
       if (currentProgress >= 1) animationStarted = null;
     }
-    controller?.render?.({ moment:currentMoment, resolution, progress:currentProgress });
+    if (!broadcastPreview) controller?.render?.({ moment:currentMoment, resolution, progress:currentProgress });
     animationFrame = window.requestAnimationFrame(animationLoop);
+  }
+
+  function seekProgress(event) {
+    if (!resolution) return;
+    playbackPaused = true;
+    currentProgress = Math.max(0, Math.min(1, Number(event.currentTarget.value)));
+    controller?.render?.({ moment:currentMoment, resolution, progress:currentProgress });
+  }
+
+  function replay() {
+    if (!resolution) return;
+    // Replay the same receipt; no resolver call and no new RNG attempt.
+    currentProgress = 0;
+    playbackPaused = false;
+    animationStarted = window.performance.now();
+  }
+
+  function togglePlayback() {
+    if (currentProgress >= 1) replay();
+    else { playbackPaused = !playbackPaused; animationStarted ??= window.performance.now(); }
+  }
+
+  async function toggleKit() {
+    whiteKit = !whiteKit;
+    await mountRenderer();
   }
 
   function syntheticResolve(intent) {
@@ -187,6 +229,9 @@
   }
 
   function resetSynthetic(scenario = syntheticScenario, attempt = 0) {
+    broadcastPreview = false;
+    pointerStart = null;
+    playbackPaused = false;
     source = 'synthetic';
     syntheticScenario = scenario;
     syntheticAttempt = attempt;
@@ -205,6 +250,10 @@
   }
 
   function startAuthoritativeFixture() {
+    broadcastPreview = false;
+    pointerStart = null;
+    playbackPaused = false;
+    animationStarted = null;
     source = 'authoritative';
     fixture = createPocFixture();
     liveState = fixture.state;
@@ -313,7 +362,7 @@
   }
 
   function pointerUp(event) {
-    if (!pointerStart || (source === 'authoritative' && !pendingContinuation)) return;
+    if (broadcastPreview || !pointerStart || (source === 'authoritative' && !pendingContinuation)) return;
     const point = event.changedTouches?.[0] ?? event;
     const bounds = canvas.getBoundingClientRect();
     const goalTarget = controller?.goalIntentFromClientPoint?.(point.clientX, point.clientY) ?? null;
@@ -339,7 +388,7 @@
     try {
       const module = await import('../../game/playableMomentsThreeRenderer.js');
       for (let index = 0; index < 20; index += 1) {
-        const temporary = await module.mountThreePlayablePoc(canvas, currentMoment);
+        const temporary = await module.mountThreePlayablePoc(canvas, currentMoment, { appearance:reviewAppearance });
         temporary.render({ moment:currentMoment, resolution, progress:currentProgress });
         temporary.dispose();
         completed += 1;
@@ -368,14 +417,14 @@
   });
 </script>
 
-<div class="poc-shell" role="dialog" aria-modal="true" aria-label="Playable Key Moments proof of concept">
+<div class="poc-shell" class:phone={phoneWidth} role="dialog" aria-modal="true" aria-label="Playable Key Moments proof of concept">
   <header class="poc-header">
     <div>
-      <div class="eyebrow">DEV-ONLY · ATTACKING KEY MOMENTS</div>
-      <h1>Playable Key Moments</h1>
-      <p>Three.js · attacking shots only · authoritative outcome rules · no career writeback</p>
+      <div class="eyebrow">PITCH / PRESENTATION WORKSHOP</div>
+      <h1>Matchday, in focus.</h1>
+      <p>Refine one moment. Replay the same outcome. No career changes.</p>
     </div>
-    <button class="ghost" type="button" onclick={closePoc}>Close POC</button>
+    <div class="header-actions"><button class="ghost" type="button" aria-pressed={phoneWidth} onclick={() => phoneWidth = !phoneWidth}>{phoneWidth ? 'Full width' : '390px view'}</button><button class="ghost" type="button" onclick={closePoc}>Close POC</button></div>
   </header>
 
   <section class="toolbar" aria-label="POC mode controls">
@@ -388,16 +437,30 @@
       {#each POC_ATTACKING_SCENARIOS as scenario (scenario.id)}
         <button
           type="button"
-          class:active={source === 'synthetic' && syntheticScenario === scenario.id}
+          class:active={!broadcastPreview && source === 'synthetic' && syntheticScenario === scenario.id}
+          aria-pressed={!broadcastPreview && source === 'synthetic' && syntheticScenario === scenario.id}
           onclick={() => resetSynthetic(scenario.id)}
         >{scenario.label}</button>
       {/each}
       <button type="button" class:active={source === 'authoritative'} onclick={startAuthoritativeFixture}>Real fixture</button>
+      <button type="button" class:active={broadcastPreview} aria-pressed={broadcastPreview} onclick={() => broadcastPreview = true}>Broadcast preview</button>
     </div>
   </section>
 
   <main class="poc-main">
     <section class="stage-card">
+      {#if broadcastPreview}
+        <div class="broadcast-preview">
+          <div class="preview-score"><span>Home XI</span><strong>{broadcastSample === 'goal' ? '1' : '0'} — 0</strong><span>Away XI</span></div>
+          <MatchCommentary {...passage} minute="64" />
+          <div class="preview-stories" aria-label="Broadcast examples">
+            <button type="button" aria-pressed={broadcastSample === 'build'} onclick={() => broadcastSample = 'build'}>Build-up</button>
+            <button type="button" aria-pressed={broadcastSample === 'chance'} onclick={() => broadcastSample = 'chance'}>Chance</button>
+            <button type="button" aria-pressed={broadcastSample === 'goal'} onclick={() => broadcastSample = 'goal'}>Goal</button>
+          </div>
+        </div>
+      {/if}
+      <div class:hidden={broadcastPreview}>
       <div class="score-strip">
         <span>{source === 'authoritative' ? `${liveState?.hGoals ?? 0} — ${liveState?.aGoals ?? 0}` : 'ATTACKING HARNESS'}</span>
         <strong>{source === 'synthetic' ? currentScenarioLabel.toUpperCase() : 'REAL ATTACK'}</strong>
@@ -425,6 +488,16 @@
           <div class="stage-message">Moment committed. Continue when ready.</div>
         {/if}
       </div>
+      <div class="replay-tools" aria-label="Replay inspection">
+        <div class="replay-actions">
+          <button type="button" onclick={togglePlayback} disabled={!resolution || reducedMotion}>{playbackPaused ? 'Resume' : currentProgress >= 1 ? 'Replay' : 'Pause'}</button>
+          <button type="button" onclick={replay} disabled={!resolution || reducedMotion}>Replay same shot</button>
+          <label>Speed <select bind:value={playbackRate} disabled={reducedMotion}><option value={1}>1×</option><option value={.5}>0.5×</option><option value={.25}>0.25×</option></select></label>
+        </div>
+        <label class="timeline-label" for="poc-timeline">Shot timeline <output>{Math.round(currentProgress * 100)}%</output></label>
+        <input id="poc-timeline" type="range" min="0" max="1" step="0.001" value={currentProgress} oninput={seekProgress} disabled={!resolution} />
+        <div class="contact-markers"><span>Approach</span><span>43% · Strike</span><span>70% · Save</span><span>Settle</span></div>
+      </div>
       <p class="status" aria-live="polite">{status}</p>
       <div class="stage-actions">
         <button
@@ -448,9 +521,13 @@
           <button type="button" onclick={startAuthoritativeFixture}>Restart fixture</button>
         {/if}
       </div>
+      </div>
     </section>
 
     <aside class="panel">
+      <h2>Visual inspection</h2>
+      <p>Start with the penalty. Inspect the planted foot, boot contact, goalkeeper reach and landing at slow speed. Change the kit to check number contrast.</p>
+      <button type="button" aria-pressed={whiteKit} onclick={toggleKit} disabled={rendererLoading}>{whiteKit ? 'Use red kit' : 'Use white kit'}</button>
       <h2>How this scenario works</h2>
       {#if source === 'synthetic' && syntheticScenario === 'penalty'}
         <p>The goalkeeper commits left, centre or right from a deterministic RNG packet that is independent of your chosen aim. Pick your placement and try to send the ball away from the dive.</p>
@@ -512,13 +589,36 @@
 </div>
 
 <style>
+  .poc-shell.phone { width:min(390px, 100%); right:auto; left:50%; transform:translateX(-50%); container-type:inline-size; }
+  .phone .poc-main { grid-template-columns:minmax(0,1fr); padding:10px; }
+  .phone .poc-header { padding:14px 12px; flex-wrap:wrap; }
+  .phone .toolbar { padding:10px; }
+  .phone .panel { max-height:none; }
+  .phone canvas { height:390px; min-height:300px; }
+  .phone .stage { min-height:390px; }
+  .phone .poc-header p { font-size:12px; }
+  .phone .score-strip { gap:6px; font-size:10px; }
+  .header-actions { display:flex; flex-wrap:wrap; gap:6px; }
+  .hidden { display:none; }
+  .broadcast-preview { padding:20px 14px; }
+  .preview-score { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 4px 24px; font-size:13px; }
+  .preview-score strong { font:700 42px/1 var(--font-display); }
+  .preview-stories { display:flex; gap:8px; margin-top:16px; }
+  .replay-tools { padding:14px; border-bottom:1px solid rgba(255,255,255,.1); }
+  .replay-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .replay-actions label { display:flex; align-items:center; gap:6px; font-size:12px; }
+  select { min-height:44px; color:inherit; background:#13251b; border:1px solid #41574a; border-radius:6px; padding:6px; font:inherit; }
+  .timeline-label { display:flex; justify-content:space-between; font:400 11px/1.4 var(--font-mono); margin-top:14px; color:#a9b9af; }
+  input[type=range] { width:100%; min-height:32px; accent-color:var(--color-live); }
+  .contact-markers { display:flex; justify-content:space-between; gap:6px; color:#a9b9af; font:400 9px/1.4 var(--font-mono); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
   :global(body) { overflow:hidden; }
-  .poc-shell { position:fixed; inset:0; z-index:10000; overflow:auto; background:#07110c; color:#f4f7f5; font-family:Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  .poc-shell { position:fixed; inset:0; z-index:10000; overflow:auto; background:#07110c; color:#f4f7f5; font-family:var(--font-body); }
   .poc-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:18px clamp(16px, 3vw, 36px); border-bottom:1px solid rgba(255,255,255,.1); background:rgba(5,17,11,.96); }
   .eyebrow { font-size:11px; font-weight:800; letter-spacing:.14em; color:#78d79f; }
-  h1 { margin:3px 0 2px; font-size:clamp(22px, 4vw, 34px); line-height:1.05; }
+  h1 { font-family:var(--font-display); font-weight:700; margin:3px 0 2px; font-size:clamp(22px, 4vw, 34px); line-height:1.05; }
   .poc-header p, .panel p { margin:0; color:#a9b9af; font-size:13px; }
-  button { border:1px solid rgba(255,255,255,.14); border-radius:9px; padding:9px 12px; background:#13251b; color:#eef5f0; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  button { min-height:44px; border:1px solid rgba(255,255,255,.14); border-radius:9px; padding:9px 12px; background:#13251b; color:#eef5f0; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
   button:hover { background:#1a3224; }
   button.active, button.primary { border-color:#67d996; background:#1d7044; }
   button:disabled { opacity:.45; cursor:not-allowed; }

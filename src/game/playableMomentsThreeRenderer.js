@@ -1,6 +1,7 @@
 import { PLAYABLE_POC_RENDERERS, samplePlayablePocMotion, sceneWorldFromMoment } from './playableMomentsPocScene.js';
 
 import { createPlayableFootballer } from './playableFootballer.js';
+import { resolvePlayableAppearance } from './matchKits.js';
 import { sampleFootballStance } from './playableFootballMotion.js';
 import { createPlayableFootballStage, framePlayableCamera } from './playableFootballStage.js';
 
@@ -47,18 +48,19 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
   scene.add(sun.target);
   scene.add(sun);
 
+  const appearance = options.appearance ?? resolvePlayableAppearance(initialMoment);
   const materials = {
     grass:new THREE.MeshStandardMaterial({ color:0x176b3a, roughness:.96 }),
     line:new THREE.MeshStandardMaterial({ color:0xe8f1e9, roughness:.75 }),
     goal:new THREE.MeshStandardMaterial({ color:0xf2f5f3, roughness:.55 }),
-    home:new THREE.MeshStandardMaterial({ color:0xd7eef9, roughness:.72 }),
-    away:new THREE.MeshStandardMaterial({ color:0xf25b4b, roughness:.72 }),
+    home:new THREE.MeshStandardMaterial({ color:appearance.attack.color, roughness:.92 }),
+    away:new THREE.MeshStandardMaterial({ color:appearance.defence.color, roughness:.92 }),
     skinHome:new THREE.MeshStandardMaterial({ color:0xb98262, roughness:.88 }),
     skinAway:new THREE.MeshStandardMaterial({ color:0x8f5e43, roughness:.88 }),
     skinKeeper:new THREE.MeshStandardMaterial({ color:0xc58e69, roughness:.88 }),
-    shorts:new THREE.MeshStandardMaterial({ color:0x152033, roughness:.8 }),
-    awayShorts:new THREE.MeshStandardMaterial({ color:0xf1eee9, roughness:.78 }),
-    keeper:new THREE.MeshStandardMaterial({ color:0xf7c948, roughness:.72 }),
+    shorts:new THREE.MeshStandardMaterial({ color:appearance.attack.shorts, roughness:.92 }),
+    awayShorts:new THREE.MeshStandardMaterial({ color:appearance.defence.shorts, roughness:.92 }),
+    keeper:new THREE.MeshStandardMaterial({ color:appearance.keeper.color, roughness:.92 }),
     keeperShorts:new THREE.MeshStandardMaterial({ color:0x1a2943, roughness:.78 }),
     hair:new THREE.MeshStandardMaterial({ color:0x241914, roughness:.92 }),
     boots:new THREE.MeshStandardMaterial({ color:0x101315, roughness:.62 }),
@@ -84,7 +86,8 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
     return createPlayableFootballer(THREE, {
       shirt:kitMaterial, shorts:shortsMaterial, skin:skinMaterial,
       boots:materials.boots, gloves:keeper ? materials.gloves : null,
-      hair:materials.hair, number:keeper ? 1 : kitMaterial === materials.home ? 9 : 4,
+      hair:materials.hair, number:keeper ? appearance.keeper.number : kitMaterial === materials.home ? appearance.attack.number : appearance.defence.number,
+      numberColor:keeper ? appearance.keeper.numberColor : kitMaterial === materials.home ? appearance.attack.numberColor : appearance.defence.numberColor,
     });
   }
 

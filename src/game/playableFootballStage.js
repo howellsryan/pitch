@@ -71,16 +71,68 @@ export function createPlayableFootballStage(THREE, parent, world, materials) {
   netGeometry.setAttribute('position',new THREE.Float32BufferAttribute(netPositions,3));
   const netMaterial=new THREE.LineBasicMaterial({color:0xe3e5dc,transparent:true,opacity:.48});
   owned.push(netMaterial);root.add(new THREE.LineSegments(netGeometry,netMaterial));
-  // Restrained stadium backdrop, bounded instances instead of crowd meshes.
+  // A compact three-sided ground: all seats and spectators are instanced.
+  // Fixed arithmetic gives repeatable variation without touching match RNG.
   box(48,1.05,.25,0,.525,-4.6,boardMat);
-  for(let row=0;row<5;row++) box(48,.42,1.2,0,.65+row*.48,-6-row*1.2,standMat);
-  const seats=new THREE.InstancedMesh(new THREE.BoxGeometry(.33,.30,.34),seatMat,5*90);
+  for (const side of [-1, 1]) box(.25,1.05,42,side*24,.525,15,boardMat);
+  const rows=12, columns=90;
+  for(let row=0;row<rows;row++) box(48,.42,1.05,0,.65+row*.48,-6-row*1.05,standMat);
+  const seats=new THREE.InstancedMesh(new THREE.BoxGeometry(.33,.30,.34),seatMat,rows*columns);
+  const crowdMaterial=material({color:0xffffff,roughness:1});
+  const crowd=new THREE.InstancedMesh(new THREE.CapsuleGeometry(.105,.19,2,5),crowdMaterial,rows*columns);
   const transform=new THREE.Matrix4();
-  for(let row=0;row<5;row++)for(let i=0;i<90;i++) {
-    transform.makeTranslation(-23+i*.52,.98+row*.48,-6-row*1.2);
-    seats.setMatrixAt(row*90+i,transform);
+  const colors=[0x263b45,0xb3b9ae,0x706c60,0x334c41,0x9d5551,0x4d657d];
+  for(let row=0;row<rows;row++)for(let i=0;i<columns;i++) {
+    const id=row*columns+i, aisle=i%18===0;
+    const x=-23+i*.52,y=.98+row*.48,z=-6-row*1.05;
+    transform.makeTranslation(x,y,z);
+    seats.setMatrixAt(id,transform);
+    // Aisles remain visibly empty; crowd instances hidden below the ground.
+    transform.makeTranslation(x,aisle?-2:y+.31,z+.02);
+    crowd.setMatrixAt(id,transform);
+    crowd.setColorAt(id,new THREE.Color(colors[(i*7+row*13)%colors.length]));
   }
-  root.add(seats);
+  root.add(seats,crowd);
+  const roofMat=material({color:0x25353e,roughness:.78,metalness:.25});
+  const fascia=material({color:0xe3e6dc,roughness:.8});
+  const lamp=material({color:0xfaf2d8,emissive:0xffedc7,emissiveIntensity:1.4});
+  box(50,.22,12,0,7.8,-11.5,roofMat);
+  box(50,.55,.18,0,7.6,-5.6,fascia);
+  for(const x of [-22,-11,0,11,22]) {
+    box(.16,7,.16,x,3.5,-16.8,roofMat);
+    box(2.2,.16,.35,x,7.28,-5.8,lamp);
+  }
+  // Side wings frame the goal without crowding the aiming surface.
+  for(const side of [-1,1]) {
+    for(let row=0;row<6;row++) box(1.1,.42,28,side*(25+row*1.1),.65+row*.48,10,standMat);
+    box(8,.2,30,side*28,4.5,10,roofMat);
+  }
+  // Original signage is baked once; no per-frame canvas uploads.
+  if(typeof document !== 'undefined') {
+    const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=64;
+    const context=canvas.getContext('2d');
+    if(context) {
+      context.fillStyle='#172b2b';context.fillRect(0,0,1024,64);
+      context.fillStyle='#e3e6dc';context.font='600 27px sans-serif';context.textAlign='center';
+      for(let i=0;i<4;i++)context.fillText('P I T C H',128+i*256,43);
+      const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+      const sign=material({map:texture,roughness:1});
+      const panel=new THREE.Mesh(new THREE.PlaneGeometry(42,.88),sign);
+      panel.position.set(0,.56,-4.44);root.add(panel);
+      owned.push(texture);
+    }
+  }
+  // The penalty arc is the part of a 9.15 m circle outside the penalty area.
+  const arc=[];
+  const angle=Math.acos(5.5/9.15);
+  for(let i=0;i<48;i++)for(const t of [i/48,(i+1)/48]) {
+    const theta=-angle+t*angle*2;
+    arc.push(Math.sin(theta)*9.15,.014,11+Math.cos(theta)*9.15);
+  }
+  const arcGeometry=new THREE.BufferGeometry();
+  arcGeometry.setAttribute('position',new THREE.Float32BufferAttribute(arc,3));
+  const arcMaterial=new THREE.LineBasicMaterial({color:0xe8f1e9});owned.push(arcMaterial);
+  root.add(new THREE.LineSegments(arcGeometry,arcMaterial));
   const original=Float32Array.from(netPositions);
   return {
     root,

@@ -44,7 +44,27 @@ export function solveFootballLimb(start, target, upper, lower, pole, floor = nul
 function curve(t, keys) {
   if (t <= keys[0][0]) return keys[0][1];
   for (let i = 1; i < keys.length; i++) {
-    if (t <= keys[i][0]) return mix(keys[i - 1][1], keys[i][1], phase(t, keys[i - 1][0], keys[i][0]));
+    if (t <= keys[i][0]) {
+      const duration = keys[i][0] - keys[i - 1][0];
+      const u = (t - keys[i - 1][0]) / duration;
+      const point = {};
+      for (const axis of ['x', 'y', 'z']) {
+        const slope = index => (keys[index + 1][1][axis] - keys[index][1][axis]) / (keys[index + 1][0] - keys[index][0]);
+        const tangent = index => {
+          if (index === 0 || index === keys.length - 1) return 0;
+          const before = slope(index - 1), after = slope(index);
+          // Flat contact intervals and direction reversals stay planted. Other
+          // keys carry velocity through instead of stopping the boot at every
+          // intermediate pose. Harmonic tangents avoid ground overshoot.
+          return before * after <= 0 ? 0 : 2 * before * after / (before + after);
+        };
+        point[axis] = (2*u**3 - 3*u*u + 1)*keys[i-1][1][axis]
+          + (u**3 - 2*u*u + u)*duration*tangent(i-1)
+          + (-2*u**3 + 3*u*u)*keys[i][1][axis]
+          + (u**3 - u*u)*duration*tangent(i);
+      }
+      return point;
+    }
   }
   return keys.at(-1)[1];
 }

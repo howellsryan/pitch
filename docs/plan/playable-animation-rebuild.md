@@ -53,3 +53,20 @@ The hosted browser failed to create WebGL on the unchanged commit preview (`3950
 - UI emoji audit and standard 3,000-match balance envelope passed. Final lint, accent and pinned workflow checks are recorded in the PR handoff.
 - The existing large-main-chunk Vite warning remains; new renderer/character code is lazy. No browser/E2E suite was added.
 - CI and Cloudflare status must be checked on the pushed commit separately; live WebGL/device approval remains outstanding as described above.
+
+
+## Penalty presentation workshop — 7 September 2026
+
+Scope: PR #35 Pitch only. Watch Match stays text-first; polish the existing penalty scene before extending the visual treatment to more scenarios.
+
+- Shared live/POC commentary reader uses existing typography and theme tokens, readable action/detail hierarchy and the existing authoritative goal-notice gate. Removed the retired hidden player/ball DOM; score, possession and match controls stay in MatchScreen.
+- Shot presentation reuses match kit clash resolution, contrast-aware numbers and team-side mapping. Explicit shirt numbers are supported, with stable presentation defaults where squad numbers do not exist. Appearance metadata never changes persisted moments.
+- Original generated collars, cuffs and chest panels; boots follow solved toes and gloves follow forearms. Monotone motion interpolation carries velocity through intermediate poses while retaining flat planted-foot intervals.
+- Instanced seats/crowd, end canopy, side terraces, original signage and penalty arc give the goal a fuller stadium setting. No asset downloads, dependencies or manual modelling workflow added.
+- Existing POC now starts with penalties and supports same-result replay, pause, quarter/half speed, timeline scrubbing, a 390px inspection container, white-kit comparison and shared broadcast examples. Reduced-motion users can inspect frames manually without autoplay.
+
+Review: checked the working diff for authority boundaries, team-side/white-kit handling, seek/replay determinism, attachment orientation and disposal. Fixed a front-facing chest panel orientation issue during review. No match outcome, save format or career progression changes.
+
+Verification: 150 Vitest files / 1,149 tests (single worker, unchanged timeouts), UI emoji audit, standard and deep balance checks, accent checks, lint and production build. Offline renders inspected actual Three.js skinning and camera composition at approach, strike and save, including 960×600 and 390×390 frames. A parallel full-suite rerun hit the existing statistical regression test’s five-second timeout; the final run uses one worker without relaxing the gate. Expanded stage geometry is about 75k visible triangles in that inspection (previously 12k); it uses instancing but requires device performance measurement.
+
+Remaining visual gate: hosted browser cannot create WebGL and blocks the local Vite origin. Software renders do not verify GPU lighting, textures, shadows, frame rate or a physical phone. The 390px POC container is a layout inspection aid, not device certification. This is a reviewable first presentation pass, not a claim of lifelike motion or release approval. Validate the deployed penalty on a WebGL-capable phone and desktop before accepting the final visual quality.

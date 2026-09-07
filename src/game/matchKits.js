@@ -1,4 +1,4 @@
-import { hexToRgb, relativeLuminance, resolveAccent, textOn } from '../lib/theme.mjs';
+import { contrastRatio, hexToRgb, relativeLuminance, resolveAccent, textOn } from '../lib/theme.mjs';
 
 const HOME_FALLBACK = '#D7263D';
 const AWAY_FALLBACK = '#F3F0E7';
@@ -31,4 +31,26 @@ export function resolveMatchKits(homeTeam, awayTeam) {
   }
 
   return { home, away, clashResolved:clashes };
+}
+
+/** Presentation metadata only; never decorate or mutate a persisted moment. */
+export function resolvePlayableAppearance(moment, homeTeam, awayTeam, homePlayers = [], awayPlayers = []) {
+  const kits = resolveMatchKits(homeTeam, awayTeam);
+  const attacksAway = moment?.attackingTeamId != null && moment.attackingTeamId === awayTeam?.id;
+  const attack = attacksAway ? kits.away : kits.home;
+  const defence = attacksAway ? kits.home : kits.away;
+  const players = attacksAway ? awayPlayers : homePlayers;
+  const shooter = (players ?? []).find(player => player.id === moment?.shooterId);
+  // No persistent squad-number system exists yet: use an explicit number if
+  // supplied, otherwise the stable striker/keeper presentation defaults.
+  const number = Number(shooter?.shirtNumber);
+  const keeperColor = ['#F7C948', '#986FE3', '#34CBB6'].sort((a, b) => {
+    const score = color => Math.min(...[attack.color, defence.color].map(kitColor => contrastRatio(hexToRgb(color), hexToRgb(kitColor))));
+    return score(b) - score(a);
+  })[0];
+  return {
+    attack:{ ...attack, shorts:'#17212A', number:Number.isInteger(number) && number > 0 && number < 100 ? number : 9 },
+    defence:{ ...defence, shorts:'#E7EAE3', number:4 },
+    keeper:{ color:keeperColor, numberColor:textOn(hexToRgb(keeperColor)), shorts:'#17212A', number:1 },
+  };
 }
