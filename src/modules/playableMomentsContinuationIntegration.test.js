@@ -49,147 +49,82 @@ function fixture(seed) {
   return { home, away, liveState };
 }
 
-function fullAutomatic(seed) {
-  const state = fixture(seed);
-  const result = simulateMatchSegment(state.home, state.away, state.liveState, 1, 120, 'home');
-  return { ...state, result };
+function stateContract(state) {
+  return {
+    actionLedger:state.actionLedger,
+    hGoals:state.hGoals,
+    aGoals:state.aGoals,
+    hPhases:state.hPhases,
+    aPhases:state.aPhases,
+    rngState:state.rngState,
+    hFitness:[...state.hFitness.entries()],
+    aFitness:[...state.aFitness.entries()],
+  };
 }
 
-function runAutomaticOnePhaseAtATime(seed) {
-  const state = fixture(seed);
-  let liveState = state.liveState;
+function runAutomatic(seed) {
+  const current = fixture(seed);
+  const result = simulateMatchSegment(current.home, current.away, current.liveState, 1, 120, current.home.id);
+  return { ...current, result };
+}
+
+function runSuspensionAware(seed) {
+  const current = fixture(seed);
+  let state = current.liveState;
   let events = [];
-  for (let phase = 1; phase <= 120; phase += 1) {
-    const step = simulateMatchSegment(state.home, state.away, liveState, phase, phase, 'home');
-    liveState = step.updatedState;
-    events = [...events, ...step.segEvents];
-  }
-  return { ...state, liveState, events };
-}
+  const offered = [];
 
-function findSuspendedContinuation(seed, { favorable = false } = {}) {
-  const state = fixture(seed);
-  let liveState = state.liveState;
   for (let phase = 1; phase <= 120; phase += 1) {
     const step = simulateMatchSegment(
-      state.home,
-      state.away,
-      liveState,
+      current.home,
+      current.away,
+      state,
       phase,
       phase,
-      'home',
-      { suspend:true, controlledTeamId:'home' },
+      current.home.id,
+      { suspend:true, controlledTeamId:current.home.id },
     );
-    if (step.pendingPlayableMoment) {
-      const prepared = step.playableContinuation.preparedAction;
-      const isContinuation = step.pendingPlayableMoment.interactionType === 'continuation';
-      const packet = prepared?.packet;
-      const suitable = isContinuation && (!favorable || (packet.execution < .26 && packet.chance < .12));
-      if (suitable) return { ...state, liveState, phase, step };
 
+    if (step.pendingPlayableMoment) {
+      offered.push(step.pendingPlayableMoment);
       const resumed = resumePlayableMatchPhase(
-        state.home,
-        state.away,
-        liveState,
+        current.home,
+        current.away,
+        state,
         step.playableContinuation,
         null,
-        'home',
+        current.home.id,
       );
-      liveState = resumed.updatedState;
-      continue;
+      state = resumed.updatedState;
+      events = [...events, ...resumed.segEvents];
+    } else {
+      state = step.updatedState;
+      events = [...events, ...step.segEvents];
     }
-    liveState = step.updatedState;
   }
-  return null;
+
+  return { ...current, state, events, offered };
 }
 
-function findAnySuspendedContinuation(prefix = 'phase5-auto') {
-  for (let index = 0; index < 48; index += 1) {
-    const found = findSuspendedContinuation(`${prefix}-${index}`);
-    if (found) return found;
-  }
-  throw new Error('No deterministic Phase 5 continuation pause found');
-}
+describe('retired continuation interactions in the authoritative match engine', () => {
+  it('keeps whole-match and suspension-aware automatic simulation identical', () => {
+    const seed = 'phase5-retired-continuations';
+    const automatic = runAutomatic(seed);
+    const suspensionAware = runSuspensionAware(seed);
 
-function findFavorableSuspendedContinuation() {
-  for (let index = 0; index < 48; index += 1) {
-    const found = findSuspendedContinuation(`phase5-interactive-${index}`, { favorable:true });
-    if (found) return found;
-  }
-  throw new Error('No deterministic favorable Phase 5 continuation found');
-}
-
-describe('Phase 5 continuation actions in the authoritative match engine', () => {
-  it('keeps whole-match and one-phase automatic simulation identical while continuation-eligible phases keep the Phase 4 ledger shape', () => {
-    const paused = findAnySuspendedContinuation();
-    const automatic = fullAutomatic(paused.liveState.seed);
-    const segmented = runAutomaticOnePhaseAtATime(paused.liveState.seed);
-
-    expect(paused.step.pendingPlayableMoment.interactionType).toBe('continuation');
-    expect(automatic.result.updatedState.actionLedger.some(record => record.continuationType)).toBe(false);
-    expect(segmented.liveState.actionLedger).toEqual(automatic.result.updatedState.actionLedger);
-    expect(segmented.liveState.rngState).toBe(automatic.result.updatedState.rngState);
-    expect(segmented.liveState.hGoals).toBe(automatic.result.updatedState.hGoals);
-    expect(segmented.liveState.aGoals).toBe(automatic.result.updatedState.aGoals);
+    expect(stateContract(suspensionAware.state)).toEqual(stateContract(automatic.result.updatedState));
+    expect(suspensionAware.events).toEqual(automatic.result.segEvents);
   });
 
-  it('suspends before pass execution and null-intent resume exactly matches the automatic Phase 4-shaped phase', () => {
-    const suspended = findAnySuspendedContinuation('phase5-resume');
-    const pending = suspended.step.pendingPlayableMoment;
-    const prepared = suspended.step.playableContinuation.preparedAction;
-    expect(pending.interactionType).toBe('continuation');
-    expect(prepared.outcome).toBeNull();
-    expect(prepared.chance).toBeNull();
-    expect(prepared.shooter).toBeNull();
-
-    const autoPhase = simulateMatchSegment(
-      suspended.home, suspended.away, suspended.liveState,
-      suspended.phase, suspended.phase, 'home',
-    );
-    const resumed = resumePlayableMatchPhase(
-      suspended.home, suspended.away, suspended.liveState,
-      suspended.step.playableContinuation, null, 'home',
-    );
-
-    expect(resumed.playableResolution.moment.continuationAction).toEqual(pending.continuationAction);
-    expect(resumed.playableResolution.record).toEqual(autoPhase.updatedState.actionLedger.at(-1));
-    expect(resumed.playableResolution.record.continuationType).toBeUndefined();
-    expect(resumed.updatedState.actionLedger).toEqual(autoPhase.updatedState.actionLedger);
-    expect(resumed.updatedState.rngState).toBe(autoPhase.updatedState.rngState);
-  });
-
-  it('commits one interactive continuation phase and only the authorized receiver can become its downstream shooter', () => {
-    const suspended = findFavorableSuspendedContinuation();
-    const pending = suspended.step.pendingPlayableMoment;
-    const zone = pending.continuationAction.targetZone;
-    const beforeCount = suspended.liveState.actionLedger.length;
-    const resumed = resumePlayableMatchPhase(
-      suspended.home,
-      suspended.away,
-      suspended.liveState,
-      suspended.step.playableContinuation,
-      {
-        continuation:{
-          targetX:zone.x,
-          targetY:zone.y,
-          weight:pending.continuationType === 'through_ball' ? .76 : .68,
-          timing:.96,
-          receiverId:'invented-player',
-        },
-      },
-      'home',
-    );
-
-    const record = resumed.playableResolution.record;
-    expect(resumed.updatedState.actionLedger).toHaveLength(beforeCount + 1);
-    expect(record.continuation.receiverId).toBe(pending.receiverId);
-    expect(record.continuation.receiverId).not.toBe('invented-player');
-    expect(record.continuation.success).toBe(true);
-    if (record.shotId) {
-      expect(record.shotId).toBe(pending.receiverId);
-      expect(record.assistId).toBe(pending.actorId);
-      expect(record.xg).toBeGreaterThan(0);
+  it('never surfaces final-pass continuations as user-playable moments', () => {
+    const seen = [];
+    for (let index = 0; index < 12; index += 1) {
+      seen.push(...runSuspensionAware(`phase5-no-continuation-${index}`).offered);
     }
-    expect(resumed.updatedState.rngState).toBe(suspended.step.playableContinuation.rngState);
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every(moment => moment.mode === 'attack')).toBe(true);
+    expect(seen.some(moment => moment.interactionType === 'continuation')).toBe(false);
+    expect(seen.some(moment => moment.interactionType === 'contact')).toBe(false);
   });
 });
