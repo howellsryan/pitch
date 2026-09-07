@@ -123,7 +123,7 @@ if (matchMount) {
     // the entry route makes its no-save retry lifecycle race the fresh-career
     // slot reset/writes. Navigation adds `.active` only when Match is entered,
     // after which the component stays mounted for Squad → Match refreshes.
-    matchObserver = new MutationObserver(() => {
+    matchObserver = new globalThis.MutationObserver(() => {
       if (matchMount.classList.contains('active')) mountMatchScreen();
     });
     matchObserver.observe(matchMount, { attributes:true, attributeFilter:['class'] });
