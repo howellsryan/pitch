@@ -458,7 +458,14 @@ function automaticKeeperIntent({ target, packet, keeping }) {
   };
 }
 
-export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [], xg, packet, intent = {} }) {
+export function isPlayableShotTopCornerTarget(target) {
+  return Math.abs(Number(target?.x ?? 0)) >= .68
+    && Number(target?.y ?? 0) >= .72
+    && Math.abs(Number(target?.x ?? 0)) <= 1
+    && Number(target?.y ?? 0) <= 1;
+}
+
+export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [], xg, packet, intent = {}, route = null }) {
   const shotDef = TACTICAL_ACTION_DEFS.shot;
   const shooting = actionWeightedDetailed(shooter, shotDef.execution);
   const pressure = actionWeightedDetailed(defender, shotDef.counter);
@@ -467,13 +474,16 @@ export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [
   const normalizedIntent = normalizePlayableIntent(intent);
   const attack = normalizedIntent.attack ?? automaticAttackIntent(packet, xg, shooting);
   const target = playableTrajectory({ attack, packet, shooting, pressure });
-  const blockChance = actionClamp(.055 + (pressure - 68) * .0032 - xg * .06 - attack.power * .02, .02, .22);
+  const oneOnOne = route === 'pass_into_space' && Number(xg) >= .20;
+  const longShot = Number(xg) <= .12;
+  const rawBlockChance = actionClamp(.055 + (pressure - 68) * .0032 - xg * .06 - attack.power * .02, .02, .22);
+  const blockChance = oneOnOne ? rawBlockChance * .45 : rawBlockChance;
 
   if (packet.outcome < blockChance) {
     return {
       finish:'blocked', onTarget:false, goal:false,
       shooting:actionRound(shooting), pressure:actionRound(pressure), goalkeeping:actionRound(keeping),
-      presentation:{ target, blockerId:defender?.id ?? null, keeper:null, contact:'block' },
+      presentation:{ target, blockerId:defender?.id ?? null, keeper:null, contact:'block', oneOnOne, longShot },
     };
   }
 
@@ -482,18 +492,26 @@ export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [
     return {
       finish:'missed', onTarget:false, goal:false,
       shooting:actionRound(shooting), pressure:actionRound(pressure), goalkeeping:actionRound(keeping),
-      presentation:{ target, blockerId:null, keeper:null, contact:'miss' },
+      presentation:{ target, blockerId:null, keeper:null, contact:'miss', oneOnOne, longShot },
     };
   }
 
-  const keeperIntent = normalizedIntent.goalkeeper ?? automaticKeeperIntent({ target, packet, keeping });
+  const keeperIntent = automaticKeeperIntent({ target, packet, keeping });
   const keeperAbility = actionClamp((keeping - 35) / 64, 0, 1);
-  const reach = actionClamp(.22 + keeperAbility * .24 + keeperIntent.timing * .12, .22, .58);
+  const baseReach = actionClamp(.22 + keeperAbility * .24 + keeperIntent.timing * .12, .22, .58);
+  const reach = oneOnOne ? actionClamp(baseReach * .68, .15, .42) : baseReach;
   const dx = target.x - keeperIntent.x;
   const dy = (target.y - keeperIntent.y) * 1.18;
   const distance = Math.sqrt(dx * dx + dy * dy);
   const powerPenalty = actionClamp((attack.power - .72) * .16, -.04, .05);
-  const save = distance <= actionClamp(reach - powerPenalty, .18, .62);
+  const topCorner = isPlayableShotTopCornerTarget(target);
+
+  // Long-range playable attempts have a clear skill gate: the resolved ball
+  // must reach a top corner. Other on-target long shots are saved; a successful
+  // top-corner trajectory scores once it has cleared the initial block check.
+  const save = longShot
+    ? !topCorner
+    : distance <= actionClamp(reach - powerPenalty, oneOnOne ? .12 : .18, oneOnOne ? .46 : .62);
   const finish = save ? 'saved' : 'goal';
   const goalkeeperIntervention = classifyGoalkeeperIntervention({
     finish,
@@ -523,6 +541,11 @@ export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [
         intervention:goalkeeperIntervention,
       },
       contact:save ? 'save' : 'goal',
+      oneOnOne,
+      oneOnOneEasier:oneOnOne,
+      longShot,
+      topCornerRequired:longShot,
+      topCorner,
       ...(goalkeeperIntervention ? { goalkeeperIntervention } : {}),
     },
   };
@@ -764,17 +787,16 @@ function buildContinuationPlayableMoment(prepared, controlledTeamId) {
 }
 
 export function buildPlayableMoment(prepared, controlledTeamId) {
+  // Product boundary: Play Key Moments is now attacking attempts only. The
+  // engine still resolves defending/contact/continuation football, but it never
+  // constructs those as user-facing interruptions.
+  if (!prepared || !controlledTeamId || prepared.teamId !== controlledTeamId) return null;
+
   const setPieceMoment = buildSetPiecePlayableMoment(prepared, controlledTeamId, PLAYABLE_MOMENT_VERSION);
   if (setPieceMoment) return setPieceMoment;
-  const contactMoment = previewPlayableContact(prepared, controlledTeamId, PLAYABLE_MOMENT_VERSION)?.moment ?? null;
-  if (contactMoment) return contactMoment;
-  const continuationMoment = buildContinuationPlayableMoment(prepared, controlledTeamId);
-  if (continuationMoment) return continuationMoment;
-  if (!prepared?.chance || !prepared?.shooter || !controlledTeamId) return null;
-  const mode = prepared.teamId === controlledTeamId
-    ? 'attack'
-    : prepared.opponentTeamId === controlledTeamId ? 'goalkeeper' : null;
-  if (!mode) return null;
+  if (prepared.contactAction || prepared.continuationAction) return null;
+  if (!prepared.chance || !prepared.shooter) return null;
+
   const keeper = actionGoalkeeper(prepared.defenders);
   if (!keeper) return null;
   const staging = derivePlayableMomentStaging(prepared);
@@ -792,7 +814,7 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
     version:PLAYABLE_MOMENT_VERSION,
     phase:prepared.phase,
     minute:prepared.minute,
-    mode,
+    mode:'attack',
     attackingTeamId:prepared.teamId,
     defendingTeamId:prepared.opponentTeamId,
     shooterId:prepared.shooter.id,
@@ -808,7 +830,7 @@ export function buildPlayableMoment(prepared, controlledTeamId) {
       channel:staging.channel,
       distance:staging.distance,
       staging,
-      legalActions:{ attack:['aim', 'power', 'timing'], goalkeeper:['position', 'timing'] },
+      legalActions:{ attack:['aim', 'power', 'timing'] },
       continuousLocomotion:false,
       shooter:{ x:channelX, y:0, z:staging.distance },
       goalkeeper:{ x:0, y:0, z:staging.keeperDepth },
@@ -956,7 +978,7 @@ export function commitAuthoritativePhase(prepared, { intent = null } = {}) {
   } = prepared;
   const shot = chance && shooter
     ? intent
-      ? resolveInteractiveShotOutcome({ shooter, defender:pressureDefender, defenders, xg, packet, intent })
+      ? resolveInteractiveShotOutcome({ shooter, defender:pressureDefender, defenders, xg, packet, intent, route })
       : resolveShotOutcome({ shooter, defender:pressureDefender, defenders, xg, packet })
     : null;
 
