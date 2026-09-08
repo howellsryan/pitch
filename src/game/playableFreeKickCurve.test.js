@@ -82,8 +82,8 @@ describe('playable direct-free-kick swipe curl', () => {
     expect(new Set([insideShot.presentation.kickStyle, outsideShot.presentation.kickStyle]))
       .toEqual(new Set(['inside','outside']));
 
-    const insideApproach = samplePlayablePocMotion(moment, { shot:insideShot }, .30);
-    const outsideApproach = samplePlayablePocMotion(moment, { shot:outsideShot }, .30);
+    const insideApproach = samplePlayablePocMotion(moment, { shot:insideShot }, .15);
+    const outsideApproach = samplePlayablePocMotion(moment, { shot:outsideShot }, .15);
     const insideFollow = samplePlayablePocMotion(moment, { shot:insideShot }, .56);
     const outsideFollow = samplePlayablePocMotion(moment, { shot:outsideShot }, .56);
     const insideContact = samplePlayablePocMotion(moment, { shot:insideShot }, .43);
