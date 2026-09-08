@@ -87,9 +87,18 @@ export function resolvePresentationQuality(preferences, capabilities = {}) {
 
 export function presentationQualityProfile(tier = 'medium') {
   const profiles = {
-    low:{ tier:'low', targetFps:30, maxPixelRatio:1, antialias:false, shadows:false, geometryDetail:.65, atmosphere:false },
-    medium:{ tier:'medium', targetFps:45, maxPixelRatio:1.25, antialias:true, shadows:true, geometryDetail:.85, atmosphere:true },
-    high:{ tier:'high', targetFps:60, maxPixelRatio:1.5, antialias:true, shadows:true, geometryDetail:1, atmosphere:true },
+    low:{
+      tier:'low', targetFps:30, maxPixelRatio:1, antialias:false, shadows:false,
+      shadowMapSize:512, geometryDetail:.62, atmosphere:false, crowdDensity:.62,
+    },
+    medium:{
+      tier:'medium', targetFps:45, maxPixelRatio:1.5, antialias:true, shadows:true,
+      shadowMapSize:1024, geometryDetail:.86, atmosphere:true, crowdDensity:.86,
+    },
+    high:{
+      tier:'high', targetFps:60, maxPixelRatio:2, antialias:true, shadows:true,
+      shadowMapSize:2048, geometryDetail:1, atmosphere:true, crowdDensity:1,
+    },
   };
   return { ...(profiles[tier] ?? profiles.medium) };
 }
