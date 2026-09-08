@@ -1,6 +1,6 @@
 import { describeBroadcastLedgerRecord } from './broadcastLedgerSemantics.js';
 
-export const LIVE_MATCH_STORY_VERSION = 2;
+export const LIVE_MATCH_STORY_VERSION = 3;
 export const LIVE_MATCH_READER_TIMING = Object.freeze({
   secondBeatMs:1500,
   consequenceMs:3300,
@@ -169,7 +169,7 @@ function consequenceSentence(record, playersById) {
       : 'The defence turns the danger behind and the pressure continues from a corner.';
   }
   if (record.outcome === 'chance_created') {
-    return `The move has opened a shooting chance now, with the defence no longer fully set.`;
+    return 'The move has opened a shooting chance now, with the defence no longer fully set.';
   }
   if (record.outcome === 'progress') {
     return `${actor} gets beyond the first pressure and the attack can continue closer to goal.`;
@@ -246,12 +246,15 @@ function enqueueEvent(state, event) {
   state.queue.push(event);
 }
 
+function activateEvent(state, event, nowMs) {
+  event.startedAt = nowMs;
+  state.current = event;
+  state.lastPresentedRecord = event.record;
+}
+
 function promoteNext(state, nowMs) {
   if (state.current || !state.queue.length) return;
-  const next = state.queue.shift();
-  next.startedAt = nowMs;
-  state.current = next;
-  state.lastPresentedRecord = next.record;
+  activateEvent(state, state.queue.shift(), nowMs);
 }
 
 function maybePreemptRoutine(state, nowMs) {
@@ -261,9 +264,29 @@ function maybePreemptRoutine(state, nowMs) {
   const importantIndex = state.queue.findIndex(event => event.priority >= 80);
   if (importantIndex < 0) return;
   const [important] = state.queue.splice(importantIndex, 1);
-  important.startedAt = nowMs;
-  state.current = important;
-  state.lastPresentedRecord = important.record;
+  activateEvent(state, important, nowMs);
+}
+
+function maybePreemptForGoal(state, nowMs, force = false) {
+  if (state.current?.record?.finish === 'goal') return;
+  const goalIndex = state.queue.findIndex(event => event.record?.finish === 'goal');
+  if (goalIndex < 0) return;
+  if (!force && state.current) {
+    const age = nowMs - state.current.startedAt;
+    if (age < LIVE_MATCH_READER_TIMING.secondBeatMs) return;
+  }
+  const [goal] = state.queue.splice(goalIndex, 1);
+  activateEvent(state, goal, nowMs);
+}
+
+function reconcileMatchEnd(state, nowMs) {
+  // Full time must never wait for stale routine commentary. Keep only an
+  // authoritative goal passage that still needs to reach its terminal beat.
+  state.queue = state.queue.filter(event => event.record?.finish === 'goal');
+  if (state.current?.record?.finish !== 'goal') {
+    state.current = null;
+    maybePreemptForGoal(state, nowMs, true);
+  }
 }
 
 function completeAt(event) {
@@ -322,6 +345,13 @@ export function createLiveMatchStoryState() {
   };
 }
 
+export function resetLiveMatchStoryForHalfTime(state) {
+  if (!state) return;
+  state.current = null;
+  state.queue.length = 0;
+  state.lastPresentedRecord = null;
+}
+
 /**
  * Human-paced text commentary reader.
  *
@@ -338,6 +368,7 @@ export function advanceLiveMatchStory(state, {
   stage = 'route',
   playersById = new Map(),
   nowMs = 0,
+  matchComplete = false,
 } = {}) {
   const story = state ?? createLiveMatchStoryState();
   story.nowMs = Math.max(story.nowMs, Number(nowMs) || 0);
@@ -356,7 +387,9 @@ export function advanceLiveMatchStory(state, {
   }
 
   maybeAdvanceReader(story, story.nowMs);
+  maybePreemptForGoal(story, story.nowMs, matchComplete);
   maybePreemptRoutine(story, story.nowMs);
+  if (matchComplete) reconcileMatchEnd(story, story.nowMs);
   maybeAdvanceReader(story, story.nowMs);
 
   return visibleStory(story.current, story.nowMs);
