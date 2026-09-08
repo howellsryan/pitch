@@ -37,12 +37,19 @@ describe('Phase 8 presentation preferences', () => {
     });
   });
 
-  it('resolves bounded quality tiers without touching football data', () => {
+  it('resolves bounded quality tiers that spend more budget on visible fidelity without touching football data', () => {
     expect(resolvePresentationQuality({ quality:'auto' }, { deviceMemory:2, hardwareConcurrency:8, devicePixelRatio:1, webgl:true })).toBe('low');
     expect(resolvePresentationQuality({ quality:'auto' }, { deviceMemory:8, hardwareConcurrency:8, devicePixelRatio:2, webgl:true })).toBe('high');
     expect(resolvePresentationQuality({ quality:'auto' }, { deviceMemory:4, hardwareConcurrency:4, devicePixelRatio:3, webgl:true })).toBe('medium');
-    expect(presentationQualityProfile('low')).toMatchObject({ targetFps:30, maxPixelRatio:1, shadows:false });
-    expect(presentationQualityProfile('high')).toMatchObject({ targetFps:60, maxPixelRatio:1.5, shadows:true });
+    expect(presentationQualityProfile('low')).toMatchObject({
+      targetFps:30, maxPixelRatio:1, shadows:false, shadowMapSize:512, atmosphere:false,
+    });
+    expect(presentationQualityProfile('medium')).toMatchObject({
+      targetFps:45, maxPixelRatio:1.5, shadows:true, shadowMapSize:1024, atmosphere:true,
+    });
+    expect(presentationQualityProfile('high')).toMatchObject({
+      targetFps:60, maxPixelRatio:2, shadows:true, shadowMapSize:2048, atmosphere:true, geometryDetail:1, crowdDensity:1,
+    });
   });
 
   it('honours explicit motion preference ahead of the system setting', () => {
@@ -74,7 +81,7 @@ describe('Phase 8 pure scene director', () => {
       version:1,
       scenario:'penalty',
       rendererId:'three-shot',
-      quality:{ tier:'low', targetFps:30, shadows:false },
+      quality:{ tier:'low', targetFps:30, shadows:false, shadowMapSize:512 },
       reducedMotion:true,
       audio:{ enabled:false },
       replay:{ enabled:false, maxReplays:3 },
