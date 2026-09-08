@@ -100,9 +100,11 @@ export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTe
 function beginHalfTime(sim) {
   sim.halftimePending = false; sim.mode = 'half-time'; sim.action = 'HALF TIME';
   sim.ball.ownerId = null; sim.ball.flight = null; sim.ball.shooting = false;
-  // Presentation normally runs faster than wall time. Scale this hold so half
-  // time is an intentional real pause rather than disappearing in one frame.
-  sim.halftimeHoldUntil = sim.clock + LEDGER_HALFTIME_HOLD_MS * LEDGER_PRESENTATION_TIME_SCALE;
+  // Ledger presentation normally runs faster than wall time. Scale only that
+  // path so the current Watch Match gets a real four-second break without
+  // changing the retired/non-ledger simulator's real-time timing semantics.
+  const timeScale = sim.ledgerDriven ? LEDGER_PRESENTATION_TIME_SCALE : 1;
+  sim.halftimeHoldUntil = sim.clock + LEDGER_HALFTIME_HOLD_MS * timeScale;
   sim.nextActionAt = Number.POSITIVE_INFINITY;
   for (const player of sim.players) {
     Object.assign(player, { targetX:player.x, targetY:player.y, vx:player.vx * .25, vy:player.vy * .25, pressing:false, receiving:false, rushing:false });
