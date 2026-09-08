@@ -448,8 +448,21 @@ function playableTrajectory({ attack, packet, shooting, pressure }) {
   };
 }
 
-function automaticKeeperIntent({ target, packet, keeping }) {
+function automaticKeeperIntent({ target, packet, keeping, oneOnOne = false }) {
   const ability = actionClamp((keeping - 35) / 64, 0, 1);
+  if (oneOnOne) {
+    // In a 1v1 the keeper commits from the already-allocated RNG packet rather
+    // than reading the player's chosen target. A shot placed outside the real
+    // reach therefore scores; keeper quality still expands the reachable area.
+    const commitment = actionClamp(packet.defender, 0, .999999);
+    const side = commitment < .40 ? -1 : commitment > .60 ? 1 : 0;
+    const lateralJitter = (actionClamp(packet.actor, 0, 1) - .5) * (.20 - ability * .06);
+    return {
+      x:actionClamp(side * (.42 + ability * .16) + lateralJitter, -.85, .85),
+      y:actionClamp(.30 + actionClamp(packet.target, 0, 1) * .16 + ability * .05, .24, .55),
+      timing:actionClamp(.48 + ability * .34, .42, .86),
+    };
+  }
   const error = .62 - ability * .46;
   return {
     x:actionClamp(target.x + (packet.finish - .5) * 2 * error, -1, 1),
@@ -477,7 +490,7 @@ export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [
   const oneOnOne = route === 'pass_into_space' && Number(xg) >= .20;
   const longShot = Number(xg) <= .12;
   const rawBlockChance = actionClamp(.055 + (pressure - 68) * .0032 - xg * .06 - attack.power * .02, .02, .22);
-  const blockChance = oneOnOne ? rawBlockChance * .45 : rawBlockChance;
+  const blockChance = oneOnOne ? rawBlockChance * .25 : rawBlockChance;
 
   if (packet.outcome < blockChance) {
     return {
@@ -496,7 +509,7 @@ export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [
     };
   }
 
-  const keeperIntent = automaticKeeperIntent({ target, packet, keeping });
+  const keeperIntent = automaticKeeperIntent({ target, packet, keeping, oneOnOne });
   const keeperAbility = actionClamp((keeping - 35) / 64, 0, 1);
   const baseReach = actionClamp(.22 + keeperAbility * .24 + keeperIntent.timing * .12, .22, .58);
   const reach = oneOnOne ? actionClamp(baseReach * .68, .15, .42) : baseReach;
@@ -507,8 +520,8 @@ export function resolveInteractiveShotOutcome({ shooter, defender, defenders = [
   const topCorner = isPlayableShotTopCornerTarget(target);
 
   // Long-range playable attempts have a clear skill gate: the resolved ball
-  // must reach a top corner. Other on-target long shots are saved; a successful
-  // top-corner trajectory scores once it has cleared the initial block check.
+  // must reach a top corner. In a 1v1 an on-target shot scores whenever its
+  // resolved trajectory beats the keeper's committed position and real reach.
   const save = longShot
     ? !topCorner
     : distance <= actionClamp(reach - powerPenalty, oneOnOne ? .12 : .18, oneOnOne ? .46 : .62);
