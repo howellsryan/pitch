@@ -44,7 +44,8 @@ describe('Phase 8 playable overlay source contracts', () => {
     expect(source).toContain('aria-label="Horizontal target"');
     expect(source).toContain('aria-label="Vertical target"');
     expect(source).toContain('function accessibleIntent()');
-    expect(source).toContain('onpointercancel={() => { pointerStart = null; }}');
+    expect(source).toContain('function resetPointerGesture()');
+    expect(source).toContain('onpointercancel={resetPointerGesture}');
   });
 
   it('exposes bounded quality/audio controls and an explicit replay skip', () => {
