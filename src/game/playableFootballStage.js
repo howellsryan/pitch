@@ -11,10 +11,14 @@ export function framePlayableCamera(camera, world, aspect) {
   camera.updateProjectionMatrix();
 }
 
-export function createPlayableFootballStage(THREE, parent, world, materials) {
+export function createPlayableFootballStage(THREE, parent, world, materials, quality = {}) {
   const root = new THREE.Group();
   parent.add(root);
   const owned = [];
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
+  const detail = clamp(quality.geometryDetail ?? .86, .5, 1);
+  const crowdDensity = clamp(quality.crowdDensity ?? detail, .5, 1);
+  const netStep = detail >= .98 ? .14 : detail >= .8 ? .18 : .24;
   function material(options) { const m = new THREE.MeshStandardMaterial(options); owned.push(m); return m; }
   const turfA = material({ color:0x397345, roughness:1 });
   const turfB = material({ color:0x427e4c, roughness:1 });
@@ -54,15 +58,15 @@ export function createPlayableFootballStage(THREE, parent, world, materials) {
   tube([-half,h,0],[half,h,0]);
   const netPositions=[];
   const segment=(a,b)=>netPositions.push(...a,...b);
-  for(let x=-half; x<=half+.001; x+=.18) {
+  for(let x=-half; x<=half+.001; x+=netStep) {
     segment([x,0,-depth],[x,h*.88,-depth]);
     segment([x,h*.88,-depth],[x,h,0]);
   }
-  for(let y=0;y<=h*.88;y+=.18) {
+  for(let y=0;y<=h*.88;y+=netStep) {
     segment([-half,y,-depth],[half,y,-depth]);
     for(const side of [-1,1]) segment([side*half,y,0],[side*half,y,-depth]);
   }
-  for(let z=-depth;z<=0;z+=.18) {
+  for(let z=-depth;z<=0;z+=netStep) {
     const height=h*(1+.12*z/depth);
     segment([-half,height,z],[half,height,z]);
     for(const side of [-1,1])segment([side*half,0,z],[side*half,height,z]);
@@ -71,20 +75,23 @@ export function createPlayableFootballStage(THREE, parent, world, materials) {
   netGeometry.setAttribute('position',new THREE.Float32BufferAttribute(netPositions,3));
   const netMaterial=new THREE.LineBasicMaterial({color:0xe3e5dc,transparent:true,opacity:.48});
   owned.push(netMaterial);root.add(new THREE.LineSegments(netGeometry,netMaterial));
-  // A compact three-sided ground: all seats and spectators are instanced.
-  // Fixed arithmetic gives repeatable variation without touching match RNG.
+  // A compact three-sided ground. Quality tiers vary only generated instance
+  // density and net resolution; they never alter football geometry or outcome.
   box(48,1.05,.25,0,.525,-4.6,boardMat);
   for (const side of [-1, 1]) box(.25,1.05,42,side*24,.525,15,boardMat);
-  const rows=12, columns=90;
+  const rows=Math.round(6+8*crowdDensity), columns=Math.round(54+46*crowdDensity);
   for(let row=0;row<rows;row++) box(48,.42,1.05,0,.65+row*.48,-6-row*1.05,standMat);
   const seats=new THREE.InstancedMesh(new THREE.BoxGeometry(.33,.30,.34),seatMat,rows*columns);
   const crowdMaterial=material({color:0xffffff,roughness:1});
-  const crowd=new THREE.InstancedMesh(new THREE.CapsuleGeometry(.105,.19,2,5),crowdMaterial,rows*columns);
+  const crowdSegments = detail >= .98 ? 6 : detail >= .8 ? 5 : 4;
+  const crowd=new THREE.InstancedMesh(new THREE.CapsuleGeometry(.105,.19,2,crowdSegments),crowdMaterial,rows*columns);
   const transform=new THREE.Matrix4();
   const colors=[0x263b45,0xb3b9ae,0x706c60,0x334c41,0x9d5551,0x4d657d];
+  const spacing=46/Math.max(1,columns-1);
+  const aisleEvery=Math.max(14,Math.round(columns/5));
   for(let row=0;row<rows;row++)for(let i=0;i<columns;i++) {
-    const id=row*columns+i, aisle=i%18===0;
-    const x=-23+i*.52,y=.98+row*.48,z=-6-row*1.05;
+    const id=row*columns+i, aisle=i%aisleEvery===0;
+    const x=-23+i*spacing,y=.98+row*.48,z=-6-row*1.05;
     transform.makeTranslation(x,y,z);
     seats.setMatrixAt(id,transform);
     // Aisles remain visibly empty; crowd instances hidden below the ground.
@@ -95,7 +102,7 @@ export function createPlayableFootballStage(THREE, parent, world, materials) {
   root.add(seats,crowd);
   const roofMat=material({color:0x25353e,roughness:.78,metalness:.25});
   const fascia=material({color:0xe3e6dc,roughness:.8});
-  const lamp=material({color:0xfaf2d8,emissive:0xffedc7,emissiveIntensity:1.4});
+  const lamp=material({color:0xfaf2d8,emissive:0xffedc7,emissiveIntensity:quality.atmosphere === false ? .5 : 1.4});
   box(50,.22,12,0,7.8,-11.5,roofMat);
   box(50,.55,.18,0,7.6,-5.6,fascia);
   for(const x of [-22,-11,0,11,22]) {
@@ -109,12 +116,13 @@ export function createPlayableFootballStage(THREE, parent, world, materials) {
   }
   // Original signage is baked once; no per-frame canvas uploads.
   if(typeof document !== 'undefined') {
-    const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=64;
+    const canvas=document.createElement('canvas');
+    canvas.width=detail >= .98 ? 1536 : detail >= .8 ? 1024 : 768;canvas.height=64;
     const context=canvas.getContext('2d');
     if(context) {
-      context.fillStyle='#172b2b';context.fillRect(0,0,1024,64);
+      context.fillStyle='#172b2b';context.fillRect(0,0,canvas.width,canvas.height);
       context.fillStyle='#e3e6dc';context.font='600 27px sans-serif';context.textAlign='center';
-      for(let i=0;i<4;i++)context.fillText('P I T C H',128+i*256,43);
+      for(let i=0;i<4;i++)context.fillText('P I T C H',(i+.5)*canvas.width/4,43);
       const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
       const sign=material({map:texture,roughness:1});
       const panel=new THREE.Mesh(new THREE.PlaneGeometry(42,.88),sign);
@@ -125,7 +133,8 @@ export function createPlayableFootballStage(THREE, parent, world, materials) {
   // The penalty arc is the part of a 9.15 m circle outside the penalty area.
   const arc=[];
   const angle=Math.acos(5.5/9.15);
-  for(let i=0;i<48;i++)for(const t of [i/48,(i+1)/48]) {
+  const arcSegments = detail >= .98 ? 64 : detail >= .8 ? 48 : 36;
+  for(let i=0;i<arcSegments;i++)for(const t of [i/arcSegments,(i+1)/arcSegments]) {
     const theta=-angle+t*angle*2;
     arc.push(Math.sin(theta)*9.15,.014,11+Math.cos(theta)*9.15);
   }
