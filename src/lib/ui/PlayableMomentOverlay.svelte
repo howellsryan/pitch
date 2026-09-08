@@ -82,6 +82,11 @@
     return 'contact';
   }
 
+  function qualityLabel(value) {
+    const text = String(value ?? 'auto');
+    return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+  }
+
   const headline = $derived(isContinuation
     ? continuationType === 'through_ball' ? 'PLAY THE THROUGH BALL'
       : continuationType === 'cutback' ? 'PLAY THE CUTBACK'
@@ -100,22 +105,22 @@
           : moment?.mode === 'goalkeeper' ? 'DEFEND THE CHANCE' : 'TAKE THE CHANCE');
 
   const instruction = $derived(isContinuation
-    ? `Guide the ${continuationType === 'cross' ? 'delivery' : continuationType === 'cutback' ? 'cutback' : 'pass'} into the highlighted space for ${moment?.receiverName ?? 'the authorized receiver'}. Target, weight and timing matter, but passer, receiver and defender quality still decide execution.`
+    ? `Guide the ${continuationType === 'cross' ? 'delivery' : continuationType === 'cutback' ? 'cutback' : 'pass'} into space for ${moment?.receiverName ?? 'the receiver'}. Weight and timing matter, and the players’ passing, movement and defending still shape the outcome.`
     : isContact
       ? moment?.mode === 'goalkeeper'
-        ? `Read the ${contactName(contactType)} and choose the goalkeeper commitment. The contact type, attacker and incoming service are already authoritative; your positioning and timing work within the keeper’s real reach.`
-        : `Guide the ${contactName(contactType)} toward goal with placement, power and timing. The engine has already chosen the contact and attacker, while shooting, physical ability and pressure still control execution.`
+        ? `Read the ${contactName(contactType)} and choose your commitment. Positioning and timing matter, while the goalkeeper’s ability still controls the available reach.`
+        : `Guide the ${contactName(contactType)} toward goal. Placement and timing matter, while the attacker’s technique and defensive pressure still affect the finish.`
       : setPieceKind === 'penalty'
         ? moment?.mode === 'goalkeeper'
           ? 'Choose where to commit. Your read and timing matter, while goalkeeper quality still controls the available reach.'
-          : 'Pick your placement, power and timing. The taker’s shooting quality still controls execution, so a perfect gesture does not erase player ability.'
+          : 'Pick your placement and timing. The taker’s shooting quality still affects how accurately the strike is executed.'
         : setPieceKind === 'direct_free_kick'
           ? moment?.mode === 'goalkeeper'
-            ? 'Read the direct free kick and choose your commitment. The wall, taker quality and goalkeeper reach are already part of the authoritative situation.'
-            : 'Curve the path of your swipe to bend the free kick around or over the wall; where you lift your finger is still the intended destination. Placement, power, timing and taker technique all affect the final execution.'
+            ? 'Read the free kick and choose your commitment. The wall, the taker and the goalkeeper’s reach all matter.'
+            : 'Swipe in a curve to bend the ball around or over the wall. Lift where you want it to finish; power, timing and the taker’s technique still affect accuracy.'
           : moment?.mode === 'goalkeeper'
-            ? 'Choose where to commit the goalkeeper. Reading the chance matters, but goalkeeper quality still controls reach.'
-            : 'Place the shot. Your input matters, but the player’s shooting quality and the defensive pressure still control execution.');
+            ? 'Choose where to commit the goalkeeper. Your read matters, but goalkeeper quality still controls the available reach.'
+            : 'Aim the shot. Placement and timing matter, while the player’s shooting and defensive pressure still affect the finish.');
 
   const primaryAction = $derived(isContinuation
     ? continuationType === 'cross' ? 'Cross' : continuationType === 'cutback' ? 'Cut Back' : 'Play Pass'
@@ -151,12 +156,12 @@
 
   function resultCopy(value) {
     if (isContinuation) {
-      if (continuationResult?.success && continuationResult?.outcome === 'chance_created') return 'The continuation creates an authoritative downstream chance.';
-      if (continuationResult?.success) return 'The authorized continuation succeeds.';
+      if (continuationResult?.success && continuationResult?.outcome === 'chance_created') return 'The pass opens a shooting chance.';
+      if (continuationResult?.success) return 'The pass reaches its target.';
       if (continuationResult?.outcome === 'cleared') return 'The defence clears the delivery.';
       if (continuationResult?.outcome === 'intercepted') return 'The defender reads and intercepts the pass.';
-      if (continuationResult?.outcome === 'foul_won') return 'The continuation wins a foul.';
-      return 'The defence wins the continuation.';
+      if (continuationResult?.outcome === 'foul_won') return 'The move wins a foul.';
+      return 'The defence wins the ball.';
     }
     if (value === 'goal') return setPieceKind === 'penalty' ? 'Penalty converted.' : setPieceKind === 'direct_free_kick' ? 'Direct free kick converted.' : isContact ? `${contactName(contactType)} converted.` : 'Chance converted.';
     if (value === 'saved') {
@@ -197,8 +202,8 @@
     } catch (error) {
       const disabled = error?.message === 'PLAYABLE_PRESENTATION_DISABLED';
       rendererError = disabled
-        ? 'Interactive presentation is disabled for this scenario — resolving this same saved moment automatically.'
-        : `3D presentation unavailable — ${resolution ? 'showing the already-committed result without re-resolving it.' : 'resolving this same saved moment automatically.'} ${error?.message ?? error}`;
+        ? 'This interactive scene is unavailable here, so the saved moment will be simulated instead.'
+        : `3D presentation unavailable — ${resolution ? 'showing the result that is already locked in.' : 'simulating this saved moment instead.'} ${error?.message ?? error}`;
       if (resolution) diagnostic('renderer_fallback', { fallback:true, durationMs:window.performance.now() - loadStartedAt });
       await automaticFallback();
     } finally {
@@ -413,12 +418,12 @@
       <strong>{headline}</strong>
     </div>
     <div class="pm-header-tools">
-      <small>{isContinuation ? 'projected ' : ''}xG {Number(moment?.xg ?? 0).toFixed(2)}</small>
+      <small>xG {Number(moment?.xg ?? 0).toFixed(2)}</small>
       <button type="button" class="pm-tool" onclick={toggleAudio} aria-label={presentationPreferences.audioEnabled ? 'Mute playable moment sound' : 'Enable playable moment sound'}>
         {presentationPreferences.audioEnabled ? 'Sound on' : 'Muted'}
       </button>
       <button type="button" class="pm-tool" onclick={() => { void cycleQuality(); }} aria-label="Change playable moment visual quality">
-        {presentationPreferences.quality === 'auto' ? `Auto · ${scenePlan.quality.tier}` : scenePlan.quality.tier}
+        {presentationPreferences.quality === 'auto' ? `Auto · ${qualityLabel(scenePlan.quality.tier)}` : qualityLabel(scenePlan.quality.tier)}
       </button>
     </div>
   </header>
@@ -450,12 +455,12 @@
   <div class="pm-copy">
     {#if hasResolution}
       <strong>{resultCopy(finish)}</strong>
-      <span>The result above is already committed to the authoritative match state.</span>
+      <span>This result is locked in. Continue to return to the match.</span>
       {#if reducedMotion}
-        <span class="pm-pref-note">Reduced motion is active — the committed result is shown without replay animation.</span>
+        <span class="pm-pref-note">Reduced motion is active, so the result is shown without replay animation.</span>
       {/if}
     {:else if isContinuation}
-      <strong>{moment?.actorName ?? 'Passer'} → {moment?.receiverName ?? 'Authorized receiver'}</strong>
+      <strong>{moment?.actorName ?? 'Passer'} → {moment?.receiverName ?? 'Receiver'}</strong>
       <span>{instruction}</span>
     {:else}
       <strong>{moment?.shooterName ?? 'Attacker'} vs {moment?.goalkeeperName ?? 'Goalkeeper'}</strong>
@@ -496,26 +501,26 @@
 <style>
   .playable-moment { position:absolute; inset:0; z-index:120; display:flex; flex-direction:column; background:#07110c; color:#f5f8f6; font-family:var(--font-body, Inter, system-ui, sans-serif); }
   .pm-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:12px 14px; background:#0d1d14; border-bottom:1px solid rgba(255,255,255,.1); }
-  .pm-header > div:first-child { display:flex; flex-direction:column; gap:2px; min-width:0; }
-  .pm-header span, .pm-header small { font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:.08em; color:#8fb29f; }
-  .pm-header strong { font-family:var(--font-display, inherit); font-size:16px; letter-spacing:.04em; }
-  .pm-header-tools { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:5px; max-width:52%; }
-  .pm-tool { min-height:30px; padding:0 8px; border-radius:999px; font-size:9px; white-space:nowrap; }
+  .pm-header > div:first-child { display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .pm-header span, .pm-header small { font-family:var(--font-mono, monospace); font-size:11px; line-height:1.4; letter-spacing:.07em; color:#9bbdac; }
+  .pm-header strong { font-family:var(--font-display, inherit); font-size:18px; line-height:1.08; letter-spacing:.035em; text-wrap:balance; }
+  .pm-header-tools { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:6px; max-width:56%; }
+  .pm-tool { min-height:44px; padding:0 10px; border-radius:999px; font-size:11px; white-space:nowrap; }
   .pm-stage { position:relative; flex:1; min-height:300px; background:#08170f; touch-action:none; user-select:none; overflow:hidden; }
   .pm-stage canvas { display:block; width:100%; height:100%; min-height:300px; }
   .replaying .pm-stage::after { content:''; pointer-events:none; position:absolute; inset:0; box-shadow:inset 0 0 90px rgba(0,0,0,.45); }
-  .pm-replay-badge { position:absolute; z-index:3; top:12px; left:12px; padding:5px 8px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(5,15,10,.82); color:#d8eee2; font:800 9px var(--font-mono, monospace); letter-spacing:.08em; }
-  .pm-overlay-note { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); max-width:82%; padding:10px 12px; border-radius:8px; background:rgba(3,12,7,.9); text-align:center; font-size:12px; font-weight:700; }
+  .pm-replay-badge { position:absolute; z-index:3; top:12px; left:12px; padding:6px 9px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(5,15,10,.84); color:#d8eee2; font:800 10px/1.3 var(--font-mono, monospace); letter-spacing:.08em; }
+  .pm-overlay-note { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); max-width:82%; padding:11px 14px; border-radius:8px; background:rgba(3,12,7,.92); text-align:center; font-size:13px; line-height:1.45; font-weight:700; }
   .pm-warning { color:#ffd6a3; border:1px solid rgba(255,190,108,.35); }
-  .pm-result { position:absolute; top:18px; left:50%; transform:translateX(-50%); padding:8px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.2); background:rgba(8,19,13,.9); font-family:var(--font-display, inherit); font-weight:900; letter-spacing:.14em; font-size:18px; }
+  .pm-result { position:absolute; top:18px; left:50%; transform:translateX(-50%); padding:8px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.2); background:rgba(8,19,13,.92); font-family:var(--font-display, inherit); font-weight:900; letter-spacing:.12em; font-size:20px; }
   .pm-result.goal { background:#17673b; }
-  .pm-copy { display:flex; flex-direction:column; gap:3px; padding:10px 14px; background:#0d1d14; border-top:1px solid rgba(255,255,255,.08); }
-  .pm-copy strong { font-size:13px; }
-  .pm-copy span { color:#a9bbb0; font-size:11px; line-height:1.35; }
-  .pm-copy .pm-pref-note { color:#8fb29f; font-size:10px; }
+  .pm-copy { display:flex; flex-direction:column; gap:4px; padding:12px 14px; background:#0d1d14; border-top:1px solid rgba(255,255,255,.08); }
+  .pm-copy strong { font-size:15px; line-height:1.35; }
+  .pm-copy span { color:#b7c7bd; font-size:14px; line-height:1.5; text-wrap:pretty; }
+  .pm-copy .pm-pref-note { color:#9bbdac; font-size:11px; }
   .pm-accessible { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:0 14px 10px; background:#0d1d14; }
   .pm-choice { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
-  button { min-height:44px; border:1px solid rgba(255,255,255,.14); border-radius:9px; background:#14271c; color:#f1f7f3; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+  button { min-height:44px; border:1px solid rgba(255,255,255,.14); border-radius:9px; background:#14271c; color:#f1f7f3; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
   button.active { border-color:#6ad998; background:#1d5f3c; }
   button:disabled { opacity:.48; cursor:default; }
   .pm-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:10px 14px max(10px, env(safe-area-inset-bottom)); background:#08130d; border-top:1px solid rgba(255,255,255,.1); }
@@ -523,11 +528,14 @@
   button.primary { background:#1f7548; border-color:#66d898; }
   @media (max-width:520px) {
     .pm-header { gap:8px; padding:10px; }
-    .pm-header-tools { max-width:58%; }
-    .pm-header strong { font-size:14px; }
-    .pm-header-tools small { width:100%; text-align:right; }
+    .pm-header-tools { max-width:60%; gap:5px; }
+    .pm-header strong { font-size:16px; }
+    .pm-header span, .pm-header small { font-size:10px; }
+    .pm-tool { min-height:44px; font-size:11px; }
     .pm-accessible { grid-template-columns:1fr; padding-inline:10px; }
     .pm-stage { min-height:42vh; }
+    .pm-copy { padding-inline:12px; }
+    .pm-copy span { font-size:14px; }
     button { min-height:46px; }
     .pm-actions { padding-inline:10px; }
   }
