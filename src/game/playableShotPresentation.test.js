@@ -129,30 +129,40 @@ describe('active key-moment presentation direction', () => {
     expect(pen.position).toMatchObject({ x:.65, y:3.9, z:17.4 });
   });
 
-  it('adds free-kick rise and bend only between fixed launch and terminal contact', () => {
+  it('renders signed free-kick curl only between fixed launch and terminal contact', () => {
     const moment = freeKick();
-    const resolution = {
-      shot:{ finish:'goal', presentation:{ target:{ x:.72, y:.82 } } },
+    const positive = {
+      shot:{ finish:'goal', presentation:{ target:{ x:.72, y:.82 }, curve:.70 } },
+    };
+    const negative = {
+      shot:{ finish:'goal', presentation:{ target:{ x:.72, y:.82 }, curve:-.70 } },
+    };
+    const straight = {
+      shot:{ finish:'goal', presentation:{ target:{ x:.72, y:.82 }, curve:0 } },
     };
     const source = { x:1.2, y:.7, z:8, spinX:3 };
-    const launch = playablePresentedBall(moment, resolution, .43, source);
-    const middle = playablePresentedBall(moment, resolution, .62, source);
-    const terminal = playablePresentedBall(moment, resolution, .82, source);
+    const launch = playablePresentedBall(moment, positive, .43, source);
+    const positiveMiddle = playablePresentedBall(moment, positive, .62, source);
+    const negativeMiddle = playablePresentedBall(moment, negative, .62, source);
+    const straightMiddle = playablePresentedBall(moment, straight, .62, source);
+    const terminal = playablePresentedBall(moment, positive, .82, source);
 
     expect(launch).toEqual(source);
     expect(terminal).toEqual(source);
-    expect(middle.y).toBeGreaterThan(source.y + .15);
-    expect(middle.x).toBeLessThan(source.x - .1);
-    expect(middle.spinX).toBe(source.spinX);
+    expect(positiveMiddle.y).toBeGreaterThan(source.y + .15);
+    expect(positiveMiddle.x).toBeGreaterThan(source.x + .15);
+    expect(negativeMiddle.x).toBeLessThan(source.x - .15);
+    expect(straightMiddle.x).toBeCloseTo(source.x, 8);
+    expect(positiveMiddle.spinX).toBe(source.spinX);
 
-    const blocked = playablePresentedBall(moment, { shot:{ finish:'blocked', presentation:{ target:{ x:.72, y:.82 } } } }, .62, source);
+    const blocked = playablePresentedBall(moment, { shot:{ finish:'blocked', presentation:{ target:{ x:.72, y:.82 }, curve:.70 } } }, .62, source);
     expect(blocked).toEqual(source);
-    expect(playablePresentedBall(openPlay(), resolution, .62, source)).toEqual(source);
+    expect(playablePresentedBall(openPlay(), positive, .62, source)).toEqual(source);
   });
 
-  it('returns the free-kick envelope to goalkeeper contact for saves', () => {
+  it('returns the free-kick curve envelope to goalkeeper contact for saves', () => {
     const source = { x:-1.1, y:1.4, z:.6 };
-    const saved = { shot:{ finish:'saved', presentation:{ target:{ x:-.68, y:.7 } } } };
+    const saved = { shot:{ finish:'saved', presentation:{ target:{ x:-.68, y:.7 }, curve:-.8 } } };
     expect(playablePresentedBall(freeKick(), saved, .70, source)).toEqual(source);
   });
 
