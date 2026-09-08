@@ -13,7 +13,7 @@ export const POC_ATTACKING_SCENARIOS = Object.freeze([
   Object.freeze({ id:'shot', label:'Open-play shot', hint:'OPEN-PLAY SHOT · place the finish away from the goalkeeper' }),
   Object.freeze({ id:'one_on_one', label:'1v1', hint:'1V1 · the keeper has less effective reach, so good placement is rewarded' }),
   Object.freeze({ id:'long_shot', label:'Long shot', hint:'LONG SHOT · TOP CORNER ONLY TO SCORE' }),
-  Object.freeze({ id:'free_kick', label:'Free kick', hint:'DIRECT FREE KICK · CLEAR THE WALL AND HIT A TOP CORNER' }),
+  Object.freeze({ id:'free_kick', label:'Free kick', hint:'DIRECT FREE KICK · BEND YOUR SWIPE AROUND OR OVER THE WALL' }),
   Object.freeze({ id:'penalty', label:'Penalty', hint:'PENALTY · THE GOALKEEPER DIVE DIRECTION IS RNG · PICK YOUR SIDE' }),
 ]);
 
@@ -261,9 +261,11 @@ export function pocScenarioStatus(moment, shot) {
     return `${finish} — the goalkeeper committed ${dive} from the deterministic RNG packet.`;
   }
   if (scenario === 'free_kick') {
+    const curve = Number(shot?.presentation?.curve ?? 0);
+    const technique = shot?.presentation?.kickStyle ?? 'laces';
     return shot?.goal
-      ? 'GOAL — the resolved trajectory cleared the wall and reached a top corner.'
-      : `${finish} — playable direct free kicks only score when the resolved ball reaches a top corner.`;
+      ? `GOAL — ${technique} strike with ${Math.abs(curve).toFixed(2)} curl cleared the wall and beat the keeper.`
+      : `${finish} — the swipe supplied ${Math.abs(curve).toFixed(2)} curl; placement, wall clearance and goalkeeper reach all matter.`;
   }
   if (scenario === 'long_shot') {
     return shot?.goal
