@@ -48,7 +48,8 @@ export function playableShooterDirection(moment = {}, progress = 0) {
   const channel = clamp(numeric(moment?.geometry?.channel, 0), -1, 1);
   if (scenario === 'direct_free_kick') {
     // Central free kicks use a recognisable angled approach; wide free kicks
-    // approach from the open side. No curl control or football outcome is added.
+    // approach from the open side. Committed inside/outside technique is layered
+    // into the generated strike joints without moving the contact keyframe.
     const side = channel < -.08 ? 1 : -1;
     return {
       offsetX:side * (.62 + Math.abs(channel) * .22) * beforeContact,
@@ -133,9 +134,9 @@ export function playableShotCameraComposition(moment = {}, world = {}, aspect = 
 }
 
 /**
- * Give direct free kicks a readable rise/bend between the already-fixed launch
- * and terminal contact. The envelope is zero at both ends, including goalkeeper
- * contact, so saves/targets remain visually aligned with authoritative geometry.
+ * Render the curve already committed by the interactive free-kick resolver.
+ * The envelope is zero at launch and terminal contact, including saves, so the
+ * visual arc cannot change authoritative wall/keeper/goal contact positions.
  */
 export function playablePresentedBall(moment = {}, resolution = null, progress = 0, ball = {}) {
   if (playableShotPresentationScenario(moment) !== 'direct_free_kick') return { ...ball };
@@ -147,14 +148,14 @@ export function playablePresentedBall(moment = {}, resolution = null, progress =
   const flight = clamp((Number(progress) - .43) / Math.max(.0001, end - .43));
   if (flight <= 0 || flight >= 1) return { ...ball };
   const envelope = Math.sin(flight * Math.PI);
-  const targetX = clamp(numeric(shot?.presentation?.target?.x, 0), -1.25, 1.25);
-  const channel = clamp(numeric(moment?.geometry?.channel, 0), -1, 1);
-  const side = Math.sign(targetX || channel || 1);
-  const bend = (.20 + Math.min(.12, Math.abs(targetX) * .10)) * envelope;
+  const curve = clamp(numeric(shot?.presentation?.curve ?? shot?.presentation?.target?.curve, 0), -1, 1);
+  const curlAmount = Math.abs(curve);
+  const bend = curve * (.16 + curlAmount * .36) * envelope;
+  const lift = (.18 + curlAmount * .16) * envelope;
   return {
     ...ball,
-    x:numeric(ball?.x, 0) - side * bend,
-    y:numeric(ball?.y, .11) + .24 * envelope,
+    x:numeric(ball?.x, 0) + bend,
+    y:numeric(ball?.y, .11) + lift,
   };
 }
 
