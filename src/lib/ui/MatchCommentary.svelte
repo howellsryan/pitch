@@ -1,5 +1,106 @@
 <script>
+  import { onMount } from 'svelte';
+
   let { phase = 'Kick off', action = 'Teams set', detail = 'The players take their positions.', paused = false, minute = '0', goal = null } = $props();
+
+  let typedDetail = $state('');
+  let typingTarget = '';
+  let lastDetail = '';
+  let typingTimer = null;
+  let reducedMotion = $state(false);
+  let typing = $state(false);
+
+  function clearTypingTimer() {
+    if (typingTimer == null) return;
+    window.clearTimeout(typingTimer);
+    typingTimer = null;
+  }
+
+  function characterDelay(character, index, text) {
+    if (character === ' ') return 9;
+    if (character === ',' || character === ';' || character === ':') return 72;
+    if (character === '!' || character === '?') return 190;
+    if (character === '.') {
+      const previous = text[index - 1];
+      const next = text[index + 1];
+      return previous === '.' || next === '.' ? 52 : 155;
+    }
+    return 22;
+  }
+
+  function scheduleNextCharacter() {
+    clearTypingTimer();
+    if (paused || reducedMotion || typedDetail.length >= typingTarget.length) {
+      typing = false;
+      return;
+    }
+
+    typing = true;
+    const nextIndex = typedDetail.length;
+    const delay = characterDelay(typingTarget[nextIndex], nextIndex, typingTarget);
+    typingTimer = window.setTimeout(() => {
+      if (paused || reducedMotion) {
+        scheduleNextCharacter();
+        return;
+      }
+      typedDetail = typingTarget.slice(0, nextIndex + 1);
+      scheduleNextCharacter();
+    }, delay);
+  }
+
+  function acceptTarget(nextDetail) {
+    const next = String(nextDetail ?? '');
+    if (next === typingTarget) return;
+
+    const extendsCurrentPassage = next.startsWith(typingTarget) || next.startsWith(typedDetail);
+    typingTarget = next;
+    if (!extendsCurrentPassage) typedDetail = '';
+
+    if (reducedMotion) {
+      clearTypingTimer();
+      typedDetail = typingTarget;
+      typing = false;
+      return;
+    }
+    scheduleNextCharacter();
+  }
+
+  $effect(() => {
+    const next = String(detail ?? '');
+    if (next === lastDetail) return;
+    lastDetail = next;
+    acceptTarget(next);
+  });
+
+  $effect(() => {
+    if (paused) {
+      clearTypingTimer();
+      typing = false;
+    } else if (!reducedMotion && typedDetail.length < typingTarget.length) {
+      scheduleNextCharacter();
+    }
+  });
+
+  onMount(() => {
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const syncMotionPreference = () => {
+      reducedMotion = Boolean(query?.matches);
+      if (reducedMotion) {
+        clearTypingTimer();
+        typedDetail = typingTarget;
+        typing = false;
+      } else if (!paused && typedDetail.length < typingTarget.length) {
+        scheduleNextCharacter();
+      }
+    };
+
+    syncMotionPreference();
+    query?.addEventListener?.('change', syncMotionPreference);
+    return () => {
+      clearTypingTimer();
+      query?.removeEventListener?.('change', syncMotionPreference);
+    };
+  });
 </script>
 
 <section class="match-reader" aria-label="Match commentary">
@@ -7,10 +108,11 @@
     <span class:paused><i aria-hidden="true"></i>{paused ? 'Paused' : 'Live commentary'}</span>
     <span class="reader-minute">{minute}′</span>
   </div>
-  <div class="reader-passage" aria-live="polite" aria-atomic="true">
+  <div class="reader-passage">
     <p class="reader-phase">{phase}</p>
     <h2>{action}</h2>
-    <p class="reader-detail">{detail}</p>
+    <p class="reader-detail" aria-hidden="true">{typedDetail}{#if typing && !paused}<span class="reader-caret" aria-hidden="true"></span>{/if}</p>
+    <p class="reader-announcement" aria-live="polite" aria-atomic="true">{action}. {detail}</p>
   </div>
   {#if goal}
     <div class="reader-goal" role="status">
@@ -31,6 +133,8 @@
   .reader-phase { margin:0 0 12px; color:var(--color-tx-2); font:500 11px/1.5 var(--font-mono); letter-spacing:.085em; text-transform:uppercase; }
   h2 { margin:0 0 16px; max-width:26ch; font:700 clamp(29px, 5vw, 40px)/1.05 var(--font-display); letter-spacing:.005em; text-wrap:balance; }
   .reader-detail { margin:0; max-width:60ch; color:var(--color-tx-2); font:400 16px/1.68 var(--font-body); text-wrap:pretty; overflow-wrap:anywhere; }
+  .reader-caret { display:inline-block; width:.55ch; height:1em; margin-left:.12em; vertical-align:-.12em; background:currentColor; opacity:.72; }
+  .reader-announcement { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0, 0, 0, 0); white-space:nowrap; border:0; }
   .reader-goal { display:flex; gap:18px; align-items:center; margin:0 20px 20px; padding:16px; background:var(--color-raised); border-left:3px solid var(--color-live); border-radius:3px; }
   .reader-goal > span { color:var(--color-live); text-transform:uppercase; font:800 34px/1 var(--font-display); }
   .reader-goal strong { display:block; font:600 17px/1.3 var(--font-body); overflow-wrap:anywhere; }
