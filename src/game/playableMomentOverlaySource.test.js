@@ -37,13 +37,14 @@ describe('PlayableMomentOverlay lifecycle contracts', () => {
     expect(source).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)')");
   });
 
-  it('names penalties and direct free kicks without inventing a curl control', () => {
+  it('names penalties and direct free kicks while free-kick curl comes only from the swipe path', () => {
     expect(source).toContain('TAKE THE PENALTY');
     expect(source).toContain('FACE THE PENALTY');
     expect(source).toContain('TAKE THE FREE KICK');
     expect(source).toContain('DEFEND THE FREE KICK');
-    expect(source).toContain('There is no hidden curl control');
-    expect(source).not.toContain("curl:");
+    expect(source).toContain('Curve the path of your swipe');
+    expect(source).toContain('path:pointerPath');
+    expect(source).toContain('curve:0');
   });
 });
 
