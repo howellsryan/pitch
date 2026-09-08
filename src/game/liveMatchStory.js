@@ -34,22 +34,34 @@ function joinStory(sentences) {
   return sentences.map(cleanSentence).filter(Boolean).join(' ');
 }
 
+function phraseFor(record, options) {
+  if (!Array.isArray(options) || !options.length) return '';
+  const phase = Math.abs(Math.trunc(Number(record?.phase) || 0));
+  return options[phase % options.length];
+}
+
 function continuityLead(state, record) {
   const previous = state.lastPresentedRecord;
-  if (!previous) return 'The match settles into its next meaningful passage of play.';
+  if (!previous) return phraseFor(record, [
+    'Both sides settle into shape as the next attack develops.',
+    'The game opens up again as possession moves into the next attack.',
+  ]);
   if (previous.teamId === record.teamId) {
     if (previous.outcome === 'retain' || previous.outcome === 'progress' || previous.outcome === 'chance_created') {
-      return 'The same side keep the initiative and continue the spell of pressure.';
+      return phraseFor(record, [
+        'They keep the pressure on and work the next phase of the attack.',
+        'The same side stay on the front foot and keep the move alive.',
+      ]);
     }
     if (previous.outcome === 'corner_won' || previous.cornerWon) {
-      return 'The pressure is still being sustained around the final third.';
+      return 'The pressure stays on around the penalty area.';
     }
-    return 'They regain control and look to build the next attack.';
+    return 'They recover the ball and start forward again.';
   }
   if (previous.outcome === 'intercepted' || previous.outcome === 'turnover') {
-    return 'Possession changes hands and the game starts moving the other way.';
+    return 'Possession changes hands and the game turns the other way.';
   }
-  return 'The other side now take over and begin their own spell with the ball.';
+  return 'The other side take over and start to build.';
 }
 
 function routeOpening(record, playersById, state) {
@@ -64,7 +76,7 @@ function routeOpening(record, playersById, state) {
       action:`${taker} steps up from the spot`,
       sentences:[
         continuity,
-        `A foul has handed the attacking side a penalty and ${taker} takes responsibility as the goalkeeper waits on the line`,
+        `The referee points to the spot. ${taker} takes responsibility while the goalkeeper waits on the line`,
       ],
     };
   }
@@ -76,7 +88,7 @@ function routeOpening(record, playersById, state) {
       action:`${taker} stands over a dangerous free kick`,
       sentences:[
         continuity,
-        `The foul gives ${taker} a direct sight of goal and the defence sets its wall between ball and goalkeeper`,
+        `The foul gives ${taker} a sight of goal. The defence forms its wall and the goalkeeper checks the angles`,
       ],
     };
   }
@@ -89,8 +101,11 @@ function routeOpening(record, playersById, state) {
         sentences:[
           continuity,
           target && target !== actor
-            ? `${actor} recycles the ball toward ${target}, keeping possession rather than forcing the next pass`
-            : `${actor} slows the move down and keeps the ball moving while a route forward develops`,
+            ? phraseFor(record, [
+              `${actor} recycles possession through ${target}, waiting for a better route forward`,
+              `${actor} finds ${target} and the ball keeps moving while the defence holds its shape`,
+            ])
+            : `${actor} slows the move down and waits for space to open ahead`,
         ],
       };
     case 'direct_pass':
@@ -100,8 +115,11 @@ function routeOpening(record, playersById, state) {
         sentences:[
           continuity,
           target && target !== actor
-            ? `${actor} spots ${target} ahead and tries to bypass the pressure with an early forward ball`
-            : `${actor} chooses the direct route and tries to break a defensive line before it can settle`,
+            ? phraseFor(record, [
+              `${actor} spots ${target} ahead and tries to break the pressure with an early forward pass`,
+              `${actor} goes forward quickly, looking to find ${target} before the defence can reset`,
+            ])
+            : `${actor} goes direct and tries to break a defensive line before it can settle`,
         ],
       };
     case 'pass_into_space':
@@ -111,8 +129,11 @@ function routeOpening(record, playersById, state) {
         sentences:[
           continuity,
           target
-            ? `${target} starts the run beyond the defensive line and ${actor} tries to time the pass into the space ahead`
-            : `${actor} sees the space beyond the back line and tries to exploit it before the defence can drop`,
+            ? phraseFor(record, [
+              `${target} makes the run beyond the defensive line and ${actor} tries to slide the pass into the space ahead`,
+              `${target} breaks beyond the line as ${actor} looks to release the pass at the right moment`,
+            ])
+            : `${actor} sees the gap behind the back line and tries to exploit it before the defence can drop`,
         ],
       };
     case 'carry':
@@ -121,7 +142,10 @@ function routeOpening(record, playersById, state) {
         action:`${actor} drives at the defence`,
         sentences:[
           continuity,
-          `${actor} carries the ball forward, trying to commit a defender before choosing the next pass or shot`,
+          phraseFor(record, [
+            `${actor} carries the ball forward and tries to draw a defender out of position`,
+            `${actor} drives into space with the defence backing off and a decision approaching`,
+          ]),
         ],
       };
     case 'wide_delivery':
@@ -131,8 +155,11 @@ function routeOpening(record, playersById, state) {
         sentences:[
           continuity,
           target
-            ? `${actor} reaches a crossing position and shapes the delivery toward ${target} as runners arrive in the area`
-            : `${actor} works the attack wide and prepares to send the ball into a crowded penalty area`,
+            ? phraseFor(record, [
+              `${actor} reaches a crossing position and shapes the delivery toward ${target} as runners attack the area`,
+              `${actor} has room to deliver from wide, with ${target} moving between the defenders`,
+            ])
+            : `${actor} works the attack wide and prepares to send the ball into the penalty area`,
         ],
       };
     default: {
@@ -152,41 +179,41 @@ function consequenceSentence(record, playersById) {
 
   if (record.outcome === 'intercepted') {
     return defender
-      ? `But ${defender} reads the idea and cuts the pass out before the move can develop further.`
-      : 'But the pass is read and intercepted, bringing that attacking move to an end.';
+      ? `${defender} reads it well and cuts the pass out before the move can develop.`
+      : 'The pass is read and intercepted before the move can develop.';
   }
   if (record.outcome === 'turnover') {
     return defender
-      ? `${defender} wins the duel from ${actor}, and the attack is stopped with space available for the transition.`
-      : `${actor} is dispossessed and the attacking spell breaks down.`;
+      ? `${defender} wins the duel from ${actor}, stopping the attack and opening the transition.`
+      : `${actor} is dispossessed and the attacking move breaks down.`;
   }
   if (record.outcome === 'foul_won' && !record.setPieceType) {
-    return `${actor} is stopped illegally, so the attacking side keep the ball from the resulting free kick.`;
+    return `${actor} is stopped illegally and wins the free kick.`;
   }
   if (record.outcome === 'corner_won' || record.cornerWon) {
     return defender
-      ? `${defender} gets enough on the danger to turn it behind, but the pressure continues with a corner.`
-      : 'The defence turns the danger behind and the pressure continues from a corner.';
+      ? `${defender} gets enough on the danger to turn it behind. Corner.`
+      : 'The defence turns the danger behind. Corner.';
   }
   if (record.outcome === 'chance_created') {
-    return 'The move has opened a shooting chance now, with the defence no longer fully set.';
+    return 'The move opens a shooting chance with the defence no longer set.';
   }
   if (record.outcome === 'progress') {
-    return `${actor} gets beyond the first pressure and the attack can continue closer to goal.`;
+    return `${actor} gets beyond the first pressure and carries the attack closer to goal.`;
   }
   if (record.outcome === 'retain') {
-    return `${actor} keeps possession and the move remains alive.`;
+    return `${actor} keeps possession and the move stays alive.`;
   }
-  return 'The contest stays alive as both sides adjust around the ball.';
+  return 'The ball stays in play as both sides adjust.';
 }
 
 function finishSentence(record, playersById) {
   const shooter = playerName(playersById, record.shotId, 'The attacker');
-  if (record.finish === 'goal') return `${shooter} takes the chance... GOAL! The move ends with the ball in the net.`;
-  if (record.finish === 'saved') return `${shooter} gets the shot on target... SAVE! The goalkeeper gets there and keeps it out.`;
-  if (record.finish === 'missed') return `${shooter} takes the shot... but it is off target and the pressure comes to an end.`;
-  if (record.finish === 'blocked' && record.cornerWon) return `${shooter} lets the shot go... BLOCKED! It turns behind and the attack earns a corner.`;
-  if (record.finish === 'blocked') return `${shooter} shoots... BLOCKED! The defence gets in the way before it can reach goal.`;
+  if (record.finish === 'goal') return `${shooter} takes the chance... GOAL! A composed finish to the move.`;
+  if (record.finish === 'saved') return `${shooter} gets the shot away... SAVE! The goalkeeper keeps it out.`;
+  if (record.finish === 'missed') return `${shooter} takes the shot... wide of the target.`;
+  if (record.finish === 'blocked' && record.cornerWon) return `${shooter} shoots... BLOCKED! It turns behind for a corner.`;
+  if (record.finish === 'blocked') return `${shooter} shoots... BLOCKED! The defence gets in the way.`;
   return null;
 }
 
@@ -313,7 +340,7 @@ function visibleStory(event, nowMs) {
     return {
       phaseLabel:'Opening exchanges',
       action:'The match is beginning to take shape',
-      detail:'Both teams are feeling their way into the game and waiting for the first meaningful passage to develop.',
+      detail:'Both teams settle into the game, looking for the first opening.',
     };
   }
 
