@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceBroadcastSimulation, createBroadcastSimulation, isOnside, replaceBroadcastLineups, updateBroadcastSimulation } from './broadcastSimulation.js';
+import { advanceBroadcastSimulation, createBroadcastSimulation, isOnside, LEDGER_HALFTIME_HOLD_MS, replaceBroadcastLineups, updateBroadcastSimulation } from './broadcastSimulation.js';
 
 const positions = ['GK','RB','CB','CB','LB','CM','CDM','CM','RW','ST','LW'];
 const side = prefix => positions.map((position, index) => ({ id:`${prefix}-${index}`, position }));
@@ -104,12 +104,25 @@ describe('broadcast simulation', () => {
     expect(shotY).toBeLessThanOrEqual(33);
   });
 
-  it('holds half time, swaps ends, and gives the second kickoff to the other team', () => {
+  it('holds half time for the real broadcast pause, swaps ends, and gives the second kickoff to the other team', () => {
     const sim = create();
     updateBroadcastSimulation(sim, { phase:60, possessionTeamId:'home' });
     expect(sim.mode).toBe('half-time');
     expect(sim.action).toBe('HALF TIME');
-    for (let i = 0; i < 65; i++) advanceBroadcastSimulation(sim, 33);
+
+    let elapsed = 0;
+    while (elapsed < LEDGER_HALFTIME_HOLD_MS - 50) {
+      advanceBroadcastSimulation(sim, 50);
+      elapsed += 50;
+      expect(sim.mode).toBe('half-time');
+      expect(sim.halftimeCompleted).toBe(false);
+    }
+    while (!sim.halftimeCompleted && elapsed < LEDGER_HALFTIME_HOLD_MS + 200) {
+      advanceBroadcastSimulation(sim, 50);
+      elapsed += 50;
+    }
+
+    expect(elapsed).toBeGreaterThanOrEqual(LEDGER_HALFTIME_HOLD_MS - 50);
     expect(sim.halftimeCompleted).toBe(true);
     expect(sim.endsSwapped).toBe(true);
     expect(sim.possessionTeamId).toBe('away');
@@ -139,8 +152,7 @@ describe('broadcast simulation', () => {
 
   it('waits for most players to fill the penalty area before taking a corner', () => {
     const sim = create(); const carrier = sim.players.find(player => player.id === 'h-9');
-    Object.assign(carrier, { x:50, y:20 });
-    Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:20 });
+    Object.assign(carrier, { x:50, y:20 }); Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:20 });
     Object.assign(sim.players.find(player => player.id === 'a-1'), { x:52, y:21 });
     Object.assign(sim, { mode:'live', nextActionAt:0, sequenceSinceRestart:4, outcomeIndex:1 });
     advanceBroadcastSimulation(sim, 33);
