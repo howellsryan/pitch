@@ -1,7 +1,11 @@
 import { LEDGER_PRESENTATION_TIME_SCALE } from './broadcastSimulation.js';
-import { advanceLiveMatchStory, createLiveMatchStoryState } from './liveMatchStory.js';
+import {
+  advanceLiveMatchStory,
+  createLiveMatchStoryState,
+  resetLiveMatchStoryForHalfTime,
+} from './liveMatchStory.js';
 
-export const BROADCAST_FRAME_SEMANTICS_VERSION = 6;
+export const BROADCAST_FRAME_SEMANTICS_VERSION = 7;
 
 const storyStateBySimulation = new WeakMap();
 
@@ -27,8 +31,8 @@ function commentaryClockMs(simulation) {
  *
  * The two flags written onto the simulation are presentation-only handshakes:
  * - commentaryGoalReady means the reader has reached its terminal "GOAL!" beat.
- * - commentaryBusy means a selected passage or queued key event still deserves
- *   to finish before the full-time screen replaces the commentary reader.
+ * - commentaryBusy means an authoritative goal passage still deserves to finish
+ *   before full time, or normal in-match commentary is still being read.
  * Neither flag changes RNG, score, ledger records or any football outcome.
  */
 export function describeBroadcastFrame(frame, simulation) {
@@ -43,16 +47,39 @@ export function describeBroadcastFrame(frame, simulation) {
   }
 
   const state = storyStateFor(simulation);
+
+  if (frame?.mode === 'half-time') {
+    // Half time comes from the authoritative phase boundary. Clear any routine
+    // first-half backlog so second-half commentary cannot replay stale passages.
+    resetLiveMatchStoryForHalfTime(state);
+    simulation.commentaryBusy = false;
+    return {
+      phaseLabel:'Half time',
+      action:'HALF TIME',
+      detail:'The first half is complete. Play is paused before the teams return for the second half.',
+    };
+  }
+
   const playersById = new Map((simulation.players ?? []).map(player => [player.id, player]));
   const scene = simulation.activePhase;
+  const matchComplete = Number(simulation.phase) >= 120;
   const presentation = advanceLiveMatchStory(state, {
     record:scene?.record ?? null,
     stage:scene?.stage ?? 'acquire',
     playersById,
     nowMs:commentaryClockMs(simulation),
+    matchComplete,
   });
 
-  simulation.commentaryBusy = Boolean(state.current || state.queue.length);
-  if (presentation.action?.startsWith('GOAL!')) simulation.commentaryGoalReady = true;
+  const goalReady = presentation.action?.startsWith('GOAL!');
+  if (goalReady) simulation.commentaryGoalReady = true;
+
+  // Once phase 120 has finished, stale routine text must never prevent the
+  // full-time screen. The only commentary allowed to hold closure is a real
+  // authoritative goal passage that has not yet reached its GOAL terminal beat.
+  simulation.commentaryBusy = matchComplete
+    ? Boolean(state.current?.record?.finish === 'goal' && !goalReady)
+    : Boolean(state.current || state.queue.length);
+
   return presentation;
 }
