@@ -31,6 +31,7 @@
   let replayActive = $state(false);
   let controller = $state.raw(null);
   let pointerStart = null;
+  let pointerPath = [];
   let animationFrame = null;
   let animationStarted = null;
   let animationProgress = 0;
@@ -111,7 +112,7 @@
         : setPieceKind === 'direct_free_kick'
           ? moment?.mode === 'goalkeeper'
             ? 'Read the direct free kick and choose your commitment. The wall, taker quality and goalkeeper reach are already part of the authoritative situation.'
-            : 'Aim around or over the authoritative wall using placement, power and timing. There is no hidden curl control; player shooting and passing quality still govern execution.'
+            : 'Curve the path of your swipe to bend the free kick around or over the wall; where you lift your finger is still the intended destination. Placement, power, timing and taker technique all affect the final execution.'
           : moment?.mode === 'goalkeeper'
             ? 'Choose where to commit the goalkeeper. Reading the chance matters, but goalkeeper quality still controls reach.'
             : 'Place the shot. Your input matters, but the player’s shooting quality and the defensive pressure still control execution.');
@@ -314,20 +315,41 @@
       void submitIntent({ goalkeeper:{ x:selectedLane * .78, y:selectedHeight, timing:.82 } });
       return;
     }
-    void submitIntent({ attack:{ aimX:selectedLane * .78, aimY:selectedHeight, power:.74, timing:.82 } });
+    void submitIntent({ attack:{ aimX:selectedLane * .78, aimY:selectedHeight, power:.74, timing:.82, curve:0 } });
   }
 
   function pointerDown(event) {
     if (resolution || busy || rendererLoading) return;
     pointerStart = { x:event.clientX, y:event.clientY, at:window.performance.now() };
+    pointerPath = [{ x:event.clientX, y:event.clientY }];
     event.currentTarget?.setPointerCapture?.(event.pointerId);
+  }
+
+  function pointerMove(event) {
+    if (!pointerStart || resolution || busy || rendererLoading) return;
+    const next = { x:event.clientX, y:event.clientY };
+    const last = pointerPath.at(-1) ?? pointerStart;
+    if (Math.hypot(next.x - last.x, next.y - last.y) < 4) return;
+    if (pointerPath.length >= 24) pointerPath.splice(1, 1);
+    pointerPath.push(next);
+  }
+
+  function resetPointerGesture() {
+    pointerStart = null;
+    pointerPath = [];
   }
 
   function pointerUp(event) {
     if (!pointerStart || resolution || busy || rendererLoading) return;
     const bounds = canvas?.getBoundingClientRect?.();
-    if (!bounds) return;
+    if (!bounds) {
+      resetPointerGesture();
+      return;
+    }
     const durationMs = window.performance.now() - pointerStart.at;
+    const finalPoint = { x:event.clientX, y:event.clientY };
+    const lastPoint = pointerPath.at(-1);
+    if (!lastPoint || Math.hypot(finalPoint.x - lastPoint.x, finalPoint.y - lastPoint.y) > 1) pointerPath.push(finalPoint);
 
     if (isContinuation) {
       const target = controller?.continuationIntentFromClientPoint?.(event.clientX, event.clientY) ?? null;
@@ -343,7 +365,7 @@
           },
         });
       }
-      pointerStart = null;
+      resetPointerGesture();
       return;
     }
 
@@ -351,12 +373,13 @@
     const intent = gestureToPlayableIntent({
       mode:moment?.mode ?? 'attack',
       start:pointerStart,
-      end:{ x:event.clientX, y:event.clientY },
+      end:finalPoint,
       bounds,
       durationMs,
       goalTarget,
+      path:pointerPath,
     });
-    pointerStart = null;
+    resetPointerGesture();
     if (intent) void submitIntent(intent);
   }
 
@@ -405,8 +428,9 @@
     role="group"
     aria-label={isContinuation ? 'Continuation interaction surface' : isContact ? 'Contact interaction surface' : moment?.mode === 'goalkeeper' ? 'Goalkeeper interaction surface' : 'Shot interaction surface'}
     onpointerdown={pointerDown}
+    onpointermove={pointerMove}
     onpointerup={pointerUp}
-    onpointercancel={() => { pointerStart = null; }}
+    onpointercancel={resetPointerGesture}
   >
     <canvas bind:this={canvas} aria-label="Playable football 3D scene"></canvas>
     {#if replayActive}
@@ -440,7 +464,7 @@
   </div>
 
   {#if !hasResolution}
-    <div class="pm-accessible" aria-label={isContinuation ? 'Accessible continuation controls' : isContact ? 'Accessible contact controls' : 'Accessible aim controls'}>
+    <div class="pm-accessible" aria-label={isContinuation ? 'Accessible continuation controls' : isContact ? 'Contact interaction surface' : 'Accessible aim controls'}>
       <div class="pm-choice" aria-label="Horizontal target">
         <button type="button" class:active={selectedLane === -1} onclick={() => { selectedLane = -1; }}>Left</button>
         <button type="button" class:active={selectedLane === 0} onclick={() => { selectedLane = 0; }}>Centre</button>
