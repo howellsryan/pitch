@@ -412,6 +412,7 @@ export function normalizePlayableIntent(input = {}) {
       aimY:playableIntentAxis(attackInput.aimY, .45, -.2, 1.2),
       power:playableIntentAxis(attackInput.power, .65, 0, 1),
       timing:playableIntentAxis(attackInput.timing, .65, 0, 1),
+      curve:playableIntentAxis(attackInput.curve, 0, -1, 1),
     } : null,
     goalkeeper:keeperInput ? {
       x:playableIntentAxis(keeperInput.x, 0, -1, 1),
