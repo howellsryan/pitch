@@ -25,16 +25,24 @@ describe('PlayableMomentOverlay lifecycle contracts', () => {
   it('falls back by simulating the same saved pending moment rather than manufacturing a presentation result', () => {
     const mount = functionSource('mountRenderer', 2200);
     const fallback = functionSource('automaticFallback', 900);
-    expect(mount).toContain('resolving this same saved moment automatically');
+    expect(mount).toContain('simulating this saved moment instead');
     expect(mount).toContain('await automaticFallback()');
     expect(fallback).toContain('await onsimulate()');
-    expect(source).toContain('The result above is already committed to the authoritative match state.');
+    expect(source).toContain('This result is locked in. Continue to return to the match.');
+    expect(source).not.toContain('authoritative match state');
   });
 
-  it('keeps keyboard/tap controls at the repository touch-target floor and honours reduced motion', () => {
-    expect(source).toContain('min-height:44px');
+  it('keeps every playable control at the repository touch-target floor and honours reduced motion', () => {
+    expect(source).toContain('.pm-tool { min-height:44px');
+    expect(source).toContain('button { min-height:44px');
     expect(source).toContain("prefers-reduced-motion: reduce");
     expect(source).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)')");
+  });
+
+  it('keeps primary explanatory copy comfortably readable on the playable surface', () => {
+    expect(source).toContain('.pm-copy strong { font-size:15px');
+    expect(source).toContain('.pm-copy span { color:#b7c7bd; font-size:14px');
+    expect(source).not.toContain('.pm-copy span { color:#a9bbb0; font-size:11px');
   });
 
   it('names penalties and direct free kicks while free-kick curl comes only from the swipe path', () => {
@@ -42,7 +50,7 @@ describe('PlayableMomentOverlay lifecycle contracts', () => {
     expect(source).toContain('FACE THE PENALTY');
     expect(source).toContain('TAKE THE FREE KICK');
     expect(source).toContain('DEFEND THE FREE KICK');
-    expect(source).toContain('Curve the path of your swipe');
+    expect(source).toContain('Swipe in a curve');
     expect(source).toContain('path:pointerPath');
     expect(source).toContain('curve:0');
   });
