@@ -39,11 +39,11 @@ describe('human-paced live-match commentary reader', () => {
     const opening = readAt(sim, 0);
     expect(opening.phaseLabel).toBe('Progression · run in behind');
     expect(opening.action).toBe('Mason Vale tries to release Rico Lane');
-    expect(opening.detail).toContain('next meaningful passage');
-    expect(opening.detail).not.toContain('Rico Lane starts the run');
+    expect(opening.detail).toContain('Both sides settle into shape');
+    expect(opening.detail).not.toContain('Rico Lane makes the run');
 
     const secondBeat = readAt(sim, 1700);
-    expect(secondBeat.detail).toContain('Rico Lane starts the run beyond the defensive line');
+    expect(secondBeat.detail).toContain('Rico Lane makes the run beyond the defensive line');
     expect(secondBeat.detail.length).toBeGreaterThan(opening.detail.length);
     expect(sim.activePhase).toEqual(before.activePhase);
   });
@@ -55,7 +55,7 @@ describe('human-paced live-match commentary reader', () => {
 
     sim.activePhase.stage = 'chance';
     const developing = readAt(sim, 3600);
-    expect(developing.detail).toContain('opened a shooting chance');
+    expect(developing.detail).toContain('opens a shooting chance');
     expect(JSON.stringify(developing)).not.toMatch(/GOAL!/);
 
     const goal = readAt(sim, 5600);
@@ -64,7 +64,7 @@ describe('human-paced live-match commentary reader', () => {
     expect(sim.commentaryGoalReady).toBe(true);
   });
 
-  it('keeps what the user is reading when a routine internal phase arrives', () => {
+  it('does not let a routine internal phase replace the passage the user is reading', () => {
     const sim = simulation('route');
     const first = readAt(sim, 1800);
 
@@ -107,10 +107,10 @@ describe('human-paced live-match commentary reader', () => {
     const opening = readAt(sim, 0);
     expect(opening.phaseLabel).toBe('Direct free kick · shooting range');
     expect(opening.action).toBe('Kai Stone stands over a dangerous free kick');
-    expect(opening.detail).not.toContain('sets its wall');
+    expect(opening.detail).not.toContain('forms its wall');
 
     const setup = readAt(sim, 1700);
-    expect(setup.detail).toContain('sets its wall between ball and goalkeeper');
+    expect(setup.detail).toContain('forms its wall and the goalkeeper checks the angles');
   });
 
   it('gives half time its own authoritative update and clears stale first-half commentary', () => {
@@ -133,7 +133,7 @@ describe('human-paced live-match commentary reader', () => {
       record:{ phase:61, minute:46, teamId:'away', opponentTeamId:'home', route:'carry', actorId:'d1', outcome:'progress' },
     };
     const secondHalf = readAt(sim, 2200, { mode:'live' });
-    expect(secondHalf.detail).not.toContain('Rico Lane starts the run');
+    expect(secondHalf.detail).not.toContain('Rico Lane makes the run');
   });
 
   it('prioritises an authoritative goal passage before the separate goal notice can unlock', () => {
@@ -195,7 +195,7 @@ describe('human-paced live-match commentary reader', () => {
       { clock:0, phase:61, players, activePhase:null },
     );
     expect(presentation.action).toBe('The match is beginning to take shape');
-    expect(presentation.detail).toContain('feeling their way into the game');
+    expect(presentation.detail).toContain('settle into the game');
     expect(JSON.stringify(presentation)).not.toContain('TEAMS RESETTING');
   });
 });
