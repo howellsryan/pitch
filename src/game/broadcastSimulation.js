@@ -4,6 +4,7 @@ const FORWARDS = new Set(['ST', 'CF', 'RW', 'LW', 'CAM']);
 const DEFENDERS = new Set(['CB', 'RB', 'LB']);
 const WIDE = new Set(['RB', 'LB', 'RW', 'LW', 'RM', 'LM']);
 export const LEDGER_PRESENTATION_TIME_SCALE = 64;
+export const LEDGER_HALFTIME_HOLD_MS = 4000;
 
 function clamp(value, min = 3, max = 97) { return Math.max(min, Math.min(max, value)); }
 function hash(value) { let h = 2166136261; for (const c of String(value)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -99,7 +100,10 @@ export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTe
 function beginHalfTime(sim) {
   sim.halftimePending = false; sim.mode = 'half-time'; sim.action = 'HALF TIME';
   sim.ball.ownerId = null; sim.ball.flight = null; sim.ball.shooting = false;
-  sim.halftimeHoldUntil = sim.clock + 1800; sim.nextActionAt = Number.POSITIVE_INFINITY;
+  // Presentation normally runs faster than wall time. Scale this hold so half
+  // time is an intentional real pause rather than disappearing in one frame.
+  sim.halftimeHoldUntil = sim.clock + LEDGER_HALFTIME_HOLD_MS * LEDGER_PRESENTATION_TIME_SCALE;
+  sim.nextActionAt = Number.POSITIVE_INFINITY;
   for (const player of sim.players) {
     Object.assign(player, { targetX:player.x, targetY:player.y, vx:player.vx * .25, vy:player.vy * .25, pressing:false, receiving:false, rushing:false });
   }
@@ -677,7 +681,6 @@ export function snapshotBroadcastSimulation(sim) {
     ball: { x: sim.ball.x, y: sim.ball.y, shooting: sim.ball.shooting },
   };
 }
-
 
 const ROUTE_LABELS = {
   circulation: 'Build up · retain possession', direct_pass: 'Progression · direct ball',
