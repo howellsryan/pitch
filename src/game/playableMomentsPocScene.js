@@ -90,7 +90,43 @@ export function createSyntheticPlayableMoment(mode = 'attack', attempt = 0) {
   };
 }
 
-export function gestureToPlayableIntent({ mode, start, end, bounds, durationMs = 520, goalTarget = null } = {}) {
+/**
+ * Convert the shape of a swipe into signed curl. The final pointer location is
+ * still the shot destination; this only measures how far the finger bowed away
+ * from the straight start-to-end chord. Mirrored swipe arcs produce mirrored
+ * values, while an old/tap-style gesture with no path remains exactly zero.
+ */
+export function gestureCurveFromPath({ path = [], start, end, bounds } = {}) {
+  if (!start || !end || !bounds?.width || !bounds?.height) return 0;
+  const dx = Number(end.x) - Number(start.x);
+  const dy = Number(end.y) - Number(start.y);
+  const lengthSquared = dx * dx + dy * dy;
+  const length = Math.sqrt(lengthSquared);
+  if (length < 12) return 0;
+  const points = Array.isArray(path) && path.length > 2 ? path : [];
+  if (!points.length) return 0;
+
+  let weightedDeviation = 0;
+  let weightTotal = 0;
+  for (const point of points) {
+    const px = Number(point?.x) - Number(start.x);
+    const py = Number(point?.y) - Number(start.y);
+    if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+    const along = clamp((px * dx + py * dy) / lengthSquared, 0, 1);
+    if (along <= .04 || along >= .96) continue;
+    const weight = Math.sin(along * Math.PI);
+    // Signed perpendicular distance from the straight swipe chord.
+    const deviation = (px * dy - py * dx) / length;
+    weightedDeviation += deviation * weight;
+    weightTotal += weight;
+  }
+  if (!weightTotal) return 0;
+  const averageDeviation = weightedDeviation / weightTotal;
+  const fullCurvePixels = Math.max(18, Math.min(Number(bounds.width), Number(bounds.height)) * .075);
+  return Number(clamp(averageDeviation / fullCurvePixels, -1, 1).toFixed(4));
+}
+
+export function gestureToPlayableIntent({ mode, start, end, bounds, durationMs = 520, goalTarget = null, path = [] } = {}) {
   if (!start || !end || !bounds?.width || !bounds?.height) return null;
   const fallbackX = clamp(((end.x - bounds.left) / bounds.width - .5) * 2, -1.25, 1.25);
   const fallbackY = clamp(1 - ((end.y - bounds.top) / bounds.height), -.2, 1.2);
@@ -101,6 +137,7 @@ export function gestureToPlayableIntent({ mode, start, end, bounds, durationMs =
   const distance = Math.sqrt(dx * dx + dy * dy);
   const power = clamp(distance / (bounds.height * .58), .18, 1);
   const timing = clamp(1 - Math.abs(Number(durationMs) - 480) / 900, .2, 1);
+  const curve = gestureCurveFromPath({ path, start, end, bounds });
 
   if (mode === 'goalkeeper') {
     return {
@@ -111,7 +148,7 @@ export function gestureToPlayableIntent({ mode, start, end, bounds, durationMs =
       },
     };
   }
-  return { attack:{ aimX:normalizedX, aimY:normalizedY, power, timing } };
+  return { attack:{ aimX:normalizedX, aimY:normalizedY, power, timing, curve } };
 }
 
 function syntheticAttack(intent = {}) {
@@ -121,6 +158,7 @@ function syntheticAttack(intent = {}) {
     aimY:clamp(numeric(attack.aimY, .50), -.2, 1.2),
     power:clamp(numeric(attack.power, .72), 0, 1),
     timing:clamp(numeric(attack.timing, .82), 0, 1),
+    curve:clamp(numeric(attack.curve, 0), -1, 1),
   };
 }
 
@@ -474,7 +512,10 @@ export function samplePlayablePocMotion(moment, resolution, progress = 0) {
     ballMotionProgress = (isContact ? .5 : 0) + flight;
   }
 
-  shooterPose.joints = sampleFootballStrike(world, progress, isContact ? shooterPose.contactType : null);
+  const strikeOptions = moment?.setPiece?.kind === 'direct_free_kick' && shot?.presentation
+    ? { style:shot.presentation.kickStyle ?? 'laces', curve:Number(shot.presentation.curve ?? 0) }
+    : null;
+  shooterPose.joints = sampleFootballStrike(world, progress, isContact ? shooterPose.contactType : null, strikeOptions);
   const handContact = {
     x:keeperTargetX,
     y:isSmother ? .20 : isSpread ? clamp(keeperTargetY * .68, .22, .68) : clamp(keeperTargetY, .32, world.goalHeight * .96),
