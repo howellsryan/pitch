@@ -231,7 +231,7 @@ describe('playable moment intent and spatial coherence', () => {
       goalkeeper:{ x:-4, y:8, timing:3 },
     })).toEqual({
       version:2,
-      attack:{ aimX:1.25, aimY:-.2, power:1, timing:0 },
+      attack:{ aimX:1.25, aimY:-.2, power:1, timing:0, curve:0 },
       goalkeeper:{ x:-1, y:1, timing:1 },
       continuation:null,
     });
