@@ -27,13 +27,15 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
   const loadStarted = window.performance.now();
   const THREE = await import(/* @vite-ignore */ CANDIDATE.moduleUrl);
   const moduleReady = window.performance.now();
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:options.quality?.antialias ?? true, alpha:false, powerPreference:'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, options.quality?.maxPixelRatio ?? 1.5));
+  const quality = options.quality ?? {};
+  const visualDetail = Math.max(.5, Math.min(1, Number(quality.geometryDetail ?? .86)));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:quality.antialias ?? true, alpha:false, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.maxPixelRatio ?? 1.5));
   if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.shadowMap.enabled = options.quality?.shadows ?? true;
+  renderer.shadowMap.enabled = quality.shadows ?? true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = 1.08;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x718d96);
@@ -41,13 +43,15 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
   const camera = new THREE.PerspectiveCamera(46, 1, .1, 80);
   const raycaster = new THREE.Raycaster();
   const goalPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  let environmentTarget = null;
 
-  const hemi = new THREE.HemisphereLight(0xd9edff, 0x455139, 1.5);
+  const hemi = new THREE.HemisphereLight(0xd9edff, 0x455139, quality.atmosphere === false ? 1.35 : 1.12);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffedce, 2.5);
+  const sun = new THREE.DirectionalLight(0xffedce, quality.atmosphere === false ? 2.35 : 2.55);
   sun.position.set(-6, 12, 10);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.castShadow = Boolean(quality.shadows ?? true);
+  const shadowMapSize = Math.max(256, Number(quality.shadowMapSize ?? 1024));
+  sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
   Object.assign(sun.shadow.camera, { left:-13, right:13, top:22, bottom:-12, far:55 });
   sun.shadow.normalBias = .025;
   sun.shadow.bias = -.00015;
@@ -55,25 +59,61 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
   scene.add(sun.target);
   scene.add(sun);
 
+  if (quality.atmosphere !== false) {
+    const fill = new THREE.DirectionalLight(0xb9d9ff, quality.tier === 'high' ? .72 : .52);
+    fill.position.set(7, 5.5, -4);
+    fill.castShadow = false;
+    scene.add(fill);
+
+    // Generate a tiny HDR-like lighting panorama at runtime. PMREM turns the
+    // broad sky/horizon/ground values into soft image-based lighting for the
+    // PBR materials, without an asset download or any effect on match data.
+    if (typeof document !== 'undefined') {
+      const skyCanvas = document.createElement('canvas');
+      skyCanvas.width = quality.tier === 'high' ? 768 : 512;
+      skyCanvas.height = skyCanvas.width / 2;
+      const context = skyCanvas.getContext('2d');
+      if (context) {
+        const gradient = context.createLinearGradient(0, 0, 0, skyCanvas.height);
+        gradient.addColorStop(0, '#5c7485');
+        gradient.addColorStop(.42, '#a9b9bd');
+        gradient.addColorStop(.56, '#d0c6a8');
+        gradient.addColorStop(.60, '#58715a');
+        gradient.addColorStop(1, '#183b28');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, skyCanvas.width, skyCanvas.height);
+        const source = new THREE.CanvasTexture(skyCanvas);
+        source.colorSpace = THREE.SRGBColorSpace;
+        source.mapping = THREE.EquirectangularReflectionMapping;
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        environmentTarget = pmrem.fromEquirectangular(source);
+        scene.environment = environmentTarget.texture;
+        if ('environmentIntensity' in scene) scene.environmentIntensity = quality.tier === 'high' ? .78 : .62;
+        source.dispose();
+        pmrem.dispose();
+      }
+    }
+  }
+
   const appearance = options.appearance ?? resolvePlayableAppearance(initialMoment);
   const materials = {
     grass:new THREE.MeshStandardMaterial({ color:0x176b3a, roughness:.96 }),
     line:new THREE.MeshStandardMaterial({ color:0xe8f1e9, roughness:.75 }),
-    goal:new THREE.MeshStandardMaterial({ color:0xf2f5f3, roughness:.55 }),
-    home:new THREE.MeshStandardMaterial({ color:appearance.attack.color, roughness:.92 }),
-    away:new THREE.MeshStandardMaterial({ color:appearance.defence.color, roughness:.92 }),
-    skinHome:new THREE.MeshStandardMaterial({ color:0xb98262, roughness:.88 }),
-    skinAway:new THREE.MeshStandardMaterial({ color:0x8f5e43, roughness:.88 }),
-    skinKeeper:new THREE.MeshStandardMaterial({ color:0xc58e69, roughness:.88 }),
+    goal:new THREE.MeshStandardMaterial({ color:0xf2f5f3, roughness:.55, metalness:.05 }),
+    home:new THREE.MeshStandardMaterial({ color:appearance.attack.color, roughness:.90 }),
+    away:new THREE.MeshStandardMaterial({ color:appearance.defence.color, roughness:.90 }),
+    skinHome:new THREE.MeshStandardMaterial({ color:0xb98262, roughness:.86 }),
+    skinAway:new THREE.MeshStandardMaterial({ color:0x8f5e43, roughness:.86 }),
+    skinKeeper:new THREE.MeshStandardMaterial({ color:0xc58e69, roughness:.86 }),
     shorts:new THREE.MeshStandardMaterial({ color:appearance.attack.shorts, roughness:.92 }),
     awayShorts:new THREE.MeshStandardMaterial({ color:appearance.defence.shorts, roughness:.92 }),
-    keeper:new THREE.MeshStandardMaterial({ color:appearance.keeper.color, roughness:.92 }),
+    keeper:new THREE.MeshStandardMaterial({ color:appearance.keeper.color, roughness:.90 }),
     keeperShorts:new THREE.MeshStandardMaterial({ color:0x1a2943, roughness:.78 }),
     hair:new THREE.MeshStandardMaterial({ color:0x241914, roughness:.92 }),
-    boots:new THREE.MeshStandardMaterial({ color:0x101315, roughness:.62 }),
-    gloves:new THREE.MeshStandardMaterial({ color:0xf4f6f7, roughness:.55 }),
+    boots:new THREE.MeshStandardMaterial({ color:0x101315, roughness:.56 }),
+    gloves:new THREE.MeshStandardMaterial({ color:0xf4f6f7, roughness:.48 }),
     eyes:new THREE.MeshStandardMaterial({ color:0x1a1715, roughness:.8 }),
-    ball:new THREE.MeshStandardMaterial({ color:0xffffff, roughness:.6 }),
+    ball:new THREE.MeshStandardMaterial({ color:0xffffff, roughness:.52 }),
     cue:new THREE.MeshBasicMaterial({ color:0x77e7ff, transparent:true, opacity:.88, depthTest:false }),
     cueCore:new THREE.MeshBasicMaterial({ color:0xd8f9ff, transparent:true, opacity:.82, depthTest:false }),
     special:new THREE.MeshBasicMaterial({ color:0xffd86b, transparent:true, opacity:.72, depthTest:false }),
@@ -110,8 +150,9 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
     model.root.visible = false;
   }
 
-  const ball = mesh(new THREE.SphereGeometry(.11, 20, 14), materials.ball);
-  const panelMaterial = new THREE.MeshStandardMaterial({ color:0x182b34, roughness:.65 });
+  const ballSegments = visualDetail >= .98 ? [28, 20] : visualDetail >= .8 ? [22, 16] : [16, 12];
+  const ball = mesh(new THREE.SphereGeometry(.11, ballSegments[0], ballSegments[1]), materials.ball);
+  const panelMaterial = new THREE.MeshStandardMaterial({ color:0x182b34, roughness:.58 });
   materials.ballPanels = panelMaterial;
   const ico = new THREE.IcosahedronGeometry(1, 0);
   const panelDirections = new Map();
@@ -120,7 +161,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
     panelDirections.set(normal.toArray().map(n => n.toFixed(3)).join(','), normal);
   }
   for (const normal of panelDirections.values()) {
-    const patch = new THREE.CircleGeometry(.032, 5);
+    const patch = new THREE.CircleGeometry(.032, visualDetail >= .98 ? 6 : 5);
     for (let i = 0; i < patch.attributes.position.count; i++) {
       const vertex = new THREE.Vector3().fromBufferAttribute(patch.attributes.position, i);
       vertex.z = .11; vertex.normalize().multiplyScalar(.111);
@@ -167,7 +208,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
     if (currentWorld && JSON.stringify(currentWorld) === JSON.stringify(world)) return world;
     currentWorld = world;
     stage?.dispose();
-    stage = createPlayableFootballStage(THREE, worldRoot, world, materials);
+    stage = createPlayableFootballStage(THREE, worldRoot, world, materials, quality);
     return world;
   }
 
@@ -230,7 +271,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
   function resize() {
     const width = Math.max(1, canvas.clientWidth || canvas.width || 1);
     const height = Math.max(1, canvas.clientHeight || canvas.height || 1);
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, options.quality?.maxPixelRatio ?? 1.5);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, quality.maxPixelRatio ?? 1.5);
     const targetWidth = Math.floor(width * pixelRatio);
     const targetHeight = Math.floor(height * pixelRatio);
     if (canvas.width !== targetWidth || canvas.height !== targetHeight) renderer.setSize(width, height, false);
@@ -296,6 +337,7 @@ export async function mountThreePlayablePoc(canvas, initialMoment, options = {})
       [shooter, keeper, defender, ...wallModels].forEach(model => model.dispose());
       scene.traverse(object => object.geometry?.dispose?.());
       Object.values(materials).forEach(disposeMaterial);
+      environmentTarget?.dispose?.();
       renderer.dispose();
       renderer.forceContextLoss?.();
     },
