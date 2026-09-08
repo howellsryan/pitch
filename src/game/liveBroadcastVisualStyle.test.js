@@ -26,13 +26,25 @@ describe('live match text-first tactical presentation', () => {
     expect(screen).toContain('<MatchCommentary');
   });
 
-  it('exposes the actual commentary text as one polite atomic passage', () => {
+  it('types visual commentary progressively while keeping assistive announcements atomic', () => {
     expect(reader).toContain('aria-label="Match commentary"');
+    expect(reader).toContain('typedDetail = $state');
+    expect(reader).toContain('typingTarget =');
+    expect(reader).toContain('characterDelay(');
+    expect(reader).toContain('next.startsWith(typingTarget) || next.startsWith(typedDetail)');
+    expect(reader).toContain('aria-hidden="true">{typedDetail}');
+    expect(reader).toContain('reader-announcement');
     expect(reader).toContain('aria-live="polite" aria-atomic="true"');
-    expect(reader).toContain('<h2>{action}</h2>');
-    expect(reader).toContain('{detail}</p>');
+    expect(reader).toContain('{action}. {detail}');
     expect(css).toContain("content: 'POSSESSION SHARE'");
     expect(css).toContain('overflow-y: auto');
+  });
+
+  it('freezes progressive commentary while paused and honours reduced motion', () => {
+    expect(reader).toContain('if (paused || reducedMotion || typedDetail.length >= typingTarget.length)');
+    expect(reader).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)')");
+    expect(reader).toContain('typedDetail = typingTarget');
+    expect(reader).toContain('reader-caret');
   });
 
   it('keeps the primary live commentary and score context readable on phone-sized layouts', () => {
