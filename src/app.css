@@ -77,10 +77,10 @@
 
   /* ── Type stacks ─────────────────────────────────────────────────────
      Three families, the stated maximum. Display is condensed and sporty for
-     scores, big numerals and screen titles; body is a crisp grotesk that
-     holds up at 11–13px; mono is for anything tabular, where column
-     alignment matters more than character. Fallbacks are metric-close
-     because PNG/PDF export and first paint both show them. */
+     scores, big numerals and screen titles; body is a crisp grotesk for dense
+     football UI; mono is for tabular/meta information where alignment matters
+     more than character. Fallbacks are metric-close because PNG/PDF export and
+     first paint both show them. */
   --font-display:  "Big Shoulders Display", "Arial Narrow", sans-serif;
   --font-body:     "Familjen Grotesk", system-ui, sans-serif;
   --font-mono:     "IBM Plex Mono", ui-monospace, monospace;
@@ -125,23 +125,6 @@
   box-sizing: border-box !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
-}
-
-/**
- * The authoritative live broadcast can advance several hidden choreography
- * steps inside one 750ms match-phase budget. The DOM must never expose those
- * internal catch-up jumps as teleporting players or a teleporting ball.
- * MatchScreen already updates coordinates at roughly 30fps, so a short linear
- * transition continuously retargets from the element's current rendered
- * position to the newest authoritative presentation position. This is a
- * display-only interpolation layer: match time, events, RNG and score remain
- * untouched.
- */
-.broadcast-player {
-  transition: left 180ms linear, top 180ms linear;
-}
-.broadcast-ball {
-  transition: left 90ms linear, top 90ms linear;
 }
 
 /**
