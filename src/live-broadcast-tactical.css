@@ -1,31 +1,31 @@
 /* The commentary component owns the passage. MatchScreen owns score and controls. */
 #screen-match .live-wrap {
-  width: min(100%, 760px);
+  width: min(100%, 780px);
   margin-inline: auto;
   gap: 12px;
   overflow-y: auto;
   padding: 20px 16px 24px;
 }
-#screen-match .broadcast-label { font-size: 10px; letter-spacing: .16em; }
+#screen-match .broadcast-label { font-size: 11px; letter-spacing: .14em; }
 #screen-match .score-bug { padding: 12px 0 16px; gap: 16px; }
 #screen-match .sb-team { min-width: 0; }
-#screen-match .sb-name { font: 500 13px/1.4 var(--font-body); color: var(--color-tx); overflow-wrap: anywhere; }
+#screen-match .sb-name { font: 500 14px/1.4 var(--font-body); color: var(--color-tx); overflow-wrap: anywhere; }
 #screen-match .sb-team:first-child .sb-crest { border-bottom: 2px solid var(--match-home); }
 #screen-match .sb-team:last-child .sb-crest { border-bottom: 2px solid var(--match-away); }
 #screen-match .sb-crest { padding-bottom: 10px; margin: 0 auto 8px; width: 40px; }
 #screen-match .sb-score { font: 700 48px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 #screen-match .sb-clock { margin-top: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
-#screen-match .sb-status { margin-top: 5px; font-size: 9px; }
+#screen-match .sb-status { margin-top: 5px; font-size: 10px; letter-spacing: .06em; }
 #screen-match .progress-wrap { flex-shrink: 0; height: 2px; margin: 0 0 4px; }
-#screen-match .momentum { position: relative; margin-top: 8px; padding-top: 24px; font-size: 11px; color: var(--color-tx-2); }
-#screen-match .momentum::before { content: 'POSSESSION SHARE'; position: absolute; top: 0; left: 0; font: 500 9px/1.4 var(--font-mono); letter-spacing: .1em; color: var(--color-tx-2); }
+#screen-match .momentum { position: relative; margin-top: 8px; padding-top: 25px; font-size: 12px; color: var(--color-tx-2); }
+#screen-match .momentum::before { content: 'POSSESSION SHARE'; position: absolute; top: 0; left: 0; font: 500 10px/1.4 var(--font-mono); letter-spacing: .09em; color: var(--color-tx-2); }
 #screen-match .momentum > div { background: var(--match-away); height: 4px; }
 #screen-match .momentum i { background: var(--match-home); }
-#screen-match .live-controls { width: min(100%, 760px); margin-inline: auto; }
+#screen-match .live-controls { width: min(100%, 780px); margin-inline: auto; }
 #screen-match .live-controls .ctrl-btn { min-height: 44px; }
 @media (max-width: 520px) {
   #screen-match .live-wrap { gap: 10px; padding: 14px 12px 20px; }
   #screen-match .score-bug { gap: 10px; }
-  #screen-match .sb-name { font-size: 12px; }
+  #screen-match .sb-name { font-size: 13px; }
   #screen-match .sb-score { font-size: 42px; }
 }
