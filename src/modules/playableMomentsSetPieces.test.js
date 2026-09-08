@@ -215,33 +215,63 @@ describe('Phase 4 authoritative set-piece domain', () => {
     expect(goal.restart).toBe('kickoff');
   });
 
-  it('makes top corners the only playable direct-free-kick scoring zone', () => {
+  it('keeps a well-executed top-corner free kick in the scoring zone despite execution spread', () => {
     const base = prepared({ packet:packet({ chance:.07, target:.50 }) });
     const setPiece = deriveAuthoritativeSetPiece(base);
-    const defenders = base.defenders;
-    const neutralPacket = packet({ chance:.07, assist:.99, shot:.50, finish:.50 });
-
-    const topCorner = resolveDirectFreeKickOutcome({
+    const difficultPacket = packet({ chance:.07, assist:.01, shot:0, finish:0 });
+    const shot = resolveDirectFreeKickOutcome({
       setPiece,
       shooter:player('fk-taker', 'CAM', 90),
-      defenders,
-      packet:neutralPacket,
-      intent:{ attack:{ aimX:.82, aimY:.84, power:.70, timing:.96 } },
-    });
-    const central = resolveDirectFreeKickOutcome({
-      setPiece,
-      shooter:player('fk-taker', 'CAM', 90),
-      defenders,
-      packet:neutralPacket,
-      intent:{ attack:{ aimX:0, aimY:.62, power:.70, timing:.96 } },
+      defenders:base.defenders,
+      packet:difficultPacket,
+      intent:{ attack:{ aimX:.82, aimY:.84, power:.70, timing:.96, curve:-.55 } },
     });
 
-    expect(isPlayableTopCornerTarget(topCorner.presentation.target)).toBe(true);
-    expect(topCorner.finish).toBe('goal');
-    expect(topCorner.presentation.wallCleared).toBe(true);
-    expect(isPlayableTopCornerTarget(central.presentation.target)).toBe(false);
-    expect(central.goal).toBe(false);
-    expect(['saved','blocked']).toContain(central.finish);
+    expect(isPlayableTopCornerTarget(shot.presentation.target)).toBe(true);
+    expect(shot.finish).toBe('goal');
+    expect(shot.presentation.wallCleared).toBe(true);
+    expect(shot.presentation.curve).toBe(-.55);
+  });
+
+  it('allows a curved on-target free kick outside the exact top-corner gate to clear the wall and beat a committed keeper', () => {
+    const base = prepared({ packet:packet({ chance:.07, target:.50 }) });
+    const setPiece = deriveAuthoritativeSetPiece(base);
+    const curved = resolveDirectFreeKickOutcome({
+      setPiece,
+      shooter:player('fk-taker', 'CAM', 90),
+      defenders:base.defenders,
+      packet:packet({ chance:.07, assist:.99, shot:.50, finish:.50, defender:.10, actor:.50, target:.50 }),
+      intent:{ attack:{ aimX:.56, aimY:.66, power:.72, timing:.98, curve:.65 } },
+    });
+
+    expect(isPlayableTopCornerTarget(curved.presentation.target)).toBe(false);
+    expect(curved.presentation.wallCleared).toBe(true);
+    expect(curved.presentation.curve).toBe(.65);
+    expect(['inside','outside']).toContain(curved.presentation.kickStyle);
+    expect(curved.finish).toBe('goal');
+  });
+
+  it('maps mirrored free-kick curl to different inside and outside strike techniques', () => {
+    const base = prepared({ packet:packet({ chance:.07, target:.50 }) });
+    const setPiece = deriveAuthoritativeSetPiece(base);
+    const resolverPacket = packet({ chance:.07, assist:.99, shot:.50, finish:.50, defender:.50, actor:.50, target:.50 });
+    const leftCurl = resolveDirectFreeKickOutcome({
+      setPiece,
+      shooter:player('fk-taker', 'CAM', 90),
+      defenders:base.defenders,
+      packet:resolverPacket,
+      intent:{ attack:{ aimX:.56, aimY:.66, power:.72, timing:.98, curve:-.65 } },
+    });
+    const rightCurl = resolveDirectFreeKickOutcome({
+      setPiece,
+      shooter:player('fk-taker', 'CAM', 90),
+      defenders:base.defenders,
+      packet:resolverPacket,
+      intent:{ attack:{ aimX:.56, aimY:.66, power:.72, timing:.98, curve:.65 } },
+    });
+
+    expect(new Set([leftCurl.presentation.kickStyle, rightCurl.presentation.kickStyle])).toEqual(new Set(['inside','outside']));
+    expect(leftCurl.presentation.curve).toBe(-rightCurl.presentation.curve);
   });
 
   it('projects penalties and free kicks into attacking-only geometry with the free-kick wall intact', () => {
@@ -269,6 +299,6 @@ describe('Phase 4 authoritative set-piece domain', () => {
     expect(freeKick.geometry.staging.variant).toBe('direct_free_kick');
     expect(freeKick.geometry.wall.members.map(member => member.id)).toEqual(freeKickPrepared.setPiece.wall.members.map(member => member.id));
     expect(freeKick.geometry.continuousLocomotion).toBe(false);
-    expect(freeKick.geometry.legalActions).toEqual({ attack:['aim','power','timing'] });
+    expect(freeKick.geometry.legalActions).toEqual({ attack:['aim','power','timing','curve'] });
   });
 });
