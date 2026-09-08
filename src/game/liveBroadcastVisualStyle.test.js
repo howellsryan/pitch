@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(resolve(here, '../live-broadcast-tactical.css'), 'utf8');
+const appCss = readFileSync(resolve(here, '../app.css'), 'utf8');
 const screen = readFileSync(resolve(here, '../lib/ui/MatchScreen.svelte'), 'utf8');
 const reader = readFileSync(resolve(here, '../lib/ui/MatchCommentary.svelte'), 'utf8');
 const main = readFileSync(resolve(here, '../main.js'), 'utf8');
@@ -16,10 +17,12 @@ describe('live match text-first tactical presentation', () => {
       .toBeGreaterThan(main.indexOf("import './touchline-ledger-polish.css';"));
   });
 
-  it('removes the retired pitch from the DOM and accessibility tree', () => {
+  it('removes the retired pitch and its motion styling from the active presentation', () => {
     expect(screen).not.toContain('class="broadcast-pitch"');
     expect(screen).not.toContain('class="broadcast-ball"');
     expect(screen).not.toContain('broadcastFrame?.markers');
+    expect(appCss).not.toContain('.broadcast-player');
+    expect(appCss).not.toContain('.broadcast-ball');
     expect(screen).toContain('<MatchCommentary');
   });
 
@@ -30,6 +33,15 @@ describe('live match text-first tactical presentation', () => {
     expect(reader).toContain('{detail}</p>');
     expect(css).toContain("content: 'POSSESSION SHARE'");
     expect(css).toContain('overflow-y: auto');
+  });
+
+  it('keeps the primary live commentary and score context readable on phone-sized layouts', () => {
+    expect(reader).toContain('.reader-detail { margin:0; max-width:60ch; color:var(--color-tx-2); font:400 16px/1.68');
+    expect(reader).toContain('.reader-phase { margin:0 0 12px; color:var(--color-tx-2); font:500 11px/1.5');
+    expect(reader).toContain('h2 { font-size:clamp(27px, 8vw, 34px); }');
+    expect(css).toContain('.broadcast-label { font-size: 11px');
+    expect(css).toContain('.sb-status { margin-top: 5px; font-size: 10px');
+    expect(css).toContain('.sb-name { font-size: 13px; }');
   });
 
   it('keeps the goal notice driven by the existing reveal gate', () => {
