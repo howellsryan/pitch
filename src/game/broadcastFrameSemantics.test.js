@@ -13,6 +13,7 @@ const players = [
 function simulation(stage = 'route', extra = {}) {
   return {
     clock:0,
+    phase:42,
     players,
     activePhase:{
       stage,
@@ -60,6 +61,7 @@ describe('human-paced live-match commentary reader', () => {
     const goal = readAt(sim, 5600);
     expect(goal.action).toBe('GOAL! Kai Stone');
     expect(goal.detail).toContain('Kai Stone takes the chance... GOAL!');
+    expect(sim.commentaryGoalReady).toBe(true);
   });
 
   it('keeps what the user is reading when a routine internal phase arrives', () => {
@@ -78,6 +80,7 @@ describe('human-paced live-match commentary reader', () => {
   it('samples ordinary match flow instead of narrating every authoritative phase', () => {
     const sim = {
       clock:0,
+      phase:43,
       players,
       activePhase:{
         stage:'route',
@@ -87,6 +90,7 @@ describe('human-paced live-match commentary reader', () => {
     const skipped = readAt(sim, 0);
     expect(skipped.action).toBe('The match is beginning to take shape');
 
+    sim.phase = 48;
     sim.activePhase = {
       stage:'route',
       record:{ phase:48, minute:36, teamId:'home', opponentTeamId:'away', route:'direct_pass', actorId:'p1', targetId:'p2', outcome:'progress' },
@@ -109,10 +113,34 @@ describe('human-paced live-match commentary reader', () => {
     expect(setup.detail).toContain('sets its wall between ball and goalkeeper');
   });
 
-  it('queues a goal behind an important passage already being read instead of replacing it instantly', () => {
+  it('gives half time its own authoritative update and clears stale first-half commentary', () => {
+    const sim = simulation('route');
+    readAt(sim, 1800);
+
+    sim.phase = 60;
+    sim.activePhase = null;
+    const halfTime = readAt(sim, 2000, { mode:'half-time' });
+    expect(halfTime).toEqual({
+      phaseLabel:'Half time',
+      action:'HALF TIME',
+      detail:'The first half is complete. Play is paused before the teams return for the second half.',
+    });
+    expect(sim.commentaryBusy).toBe(false);
+
+    sim.phase = 61;
+    sim.activePhase = {
+      stage:'route',
+      record:{ phase:61, minute:46, teamId:'away', opponentTeamId:'home', route:'carry', actorId:'d1', outcome:'progress' },
+    };
+    const secondHalf = readAt(sim, 2200, { mode:'live' });
+    expect(secondHalf.detail).not.toContain('Rico Lane starts the run');
+  });
+
+  it('prioritises an authoritative goal passage before the separate goal notice can unlock', () => {
     const sim = simulation('chance', { finish:'saved' });
     const first = readAt(sim, 0);
 
+    sim.phase = 44;
     sim.activePhase = {
       stage:'chance',
       record:{
@@ -124,19 +152,47 @@ describe('human-paced live-match commentary reader', () => {
     const whileReading = readAt(sim, 1200);
     expect(whileReading.action).toBe(first.action);
     expect(JSON.stringify(whileReading)).not.toMatch(/GOAL!/);
+    expect(sim.commentaryGoalReady).not.toBe(true);
 
-    const nextPassage = readAt(sim, 8200);
-    expect(nextPassage.action).toBe('Jon Bell drives at the defence');
-    expect(JSON.stringify(nextPassage)).not.toMatch(/GOAL!/);
+    const goalPassage = readAt(sim, 1700);
+    expect(goalPassage.action).toBe('Jon Bell drives at the defence');
+    expect(JSON.stringify(goalPassage)).not.toMatch(/GOAL!/);
 
-    const goal = readAt(sim, 13800);
+    const goal = readAt(sim, 7200);
     expect(goal.action).toBe('GOAL! Jon Bell');
+    expect(goal.detail).toContain('Jon Bell takes the chance... GOAL!');
+    expect(sim.commentaryGoalReady).toBe(true);
+  });
+
+  it('drops stale routine commentary at phase 120 so only an unfinished goal can hold full time', () => {
+    const sim = simulation('route');
+    readAt(sim, 1800);
+    sim.phase = 120;
+    sim.activePhase = null;
+
+    const completed = readAt(sim, 2000, { mode:'live' });
+    expect(completed.action).toBe('The match is beginning to take shape');
+    expect(sim.commentaryBusy).toBe(false);
+  });
+
+  it('keeps a phase-120 goal as the only commentary allowed to delay full time', () => {
+    const sim = simulation('chance', { phase:120, minute:90, finish:'goal' });
+    sim.phase = 120;
+
+    const buildup = readAt(sim, 0);
+    expect(buildup.action).toBe('Mason Vale tries to release Rico Lane');
+    expect(sim.commentaryBusy).toBe(true);
+
+    const goal = readAt(sim, 5600);
+    expect(goal.action).toBe('GOAL! Kai Stone');
+    expect(sim.commentaryGoalReady).toBe(true);
+    expect(sim.commentaryBusy).toBe(false);
   });
 
   it('starts with football commentary rather than TEAMS RESETTING when no ledger scene is ready', () => {
     const presentation = describeBroadcastFrame(
       { phaseLabel:'Second half', action:'TEAMS RESETTING', carrierName:'Alex Keeper' },
-      { clock:0, players, activePhase:null },
+      { clock:0, phase:61, players, activePhase:null },
     );
     expect(presentation.action).toBe('The match is beginning to take shape');
     expect(presentation.detail).toContain('feeling their way into the game');
