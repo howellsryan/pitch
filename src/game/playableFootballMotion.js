@@ -110,49 +110,69 @@ function arm(j, side, hand, pole) {
   j[side + 'Wrist'] = solved.end;
 }
 
-export function sampleFootballStrike(world, progress, contactType = null) {
+/**
+ * Code-driven strike animation. Free kicks may pass a strike style derived from
+ * the committed swipe curve. The boot still reaches the exact same contact key
+ * at t=.43; only approach, backswing and post-contact follow-through differ.
+ */
+export function sampleFootballStrike(world, progress, contactType = null, strikeOptions = null) {
   const t = clamp(progress);
   const contact = world.contact ?? world.ball;
   const header = contactType?.includes('header');
+  const style = header ? 'laces' : strikeOptions?.style ?? 'laces';
+  const curl = clamp(Number(strikeOptions?.curve) || 0, -1, 1);
+  const curlAmount = Math.abs(curl);
+  const curveSide = Math.sign(curl) || 1;
+  const inside = style === 'inside';
+  const outside = style === 'outside';
+  const styleAmount = (inside || outside) ? curlAmount : 0;
   const approach = phase(t, 0, .31);
   const drive = Math.sin(phase(t, .28, .64) * Math.PI);
   const settle = phase(t, .62, .92);
-  const origin = v(contact.x - .12, .84 - drive * .025, contact.z + 1.65 - approach * 1.17 - settle * .12);
+  const approachOffset = (inside ? -curveSide * .18 : outside ? curveSide * .11 : 0) * styleAmount * (1 - approach);
+  const origin = v(contact.x - .12 + approachOffset, .84 - drive * .025, contact.z + 1.65 - approach * 1.17 - settle * .12);
   if (header) {
     const meet = phase(t, .24, .43) * (1 - phase(t, .43, .68));
     origin.y += (contact.y - .76 - origin.y) * meet;
     origin.z -= .44 * meet;
   }
-  const j = skeleton(origin, { lean:-drive * .23, twist:drive * .10 });
-  const plant = v(contact.x - .25, .09, contact.z + .12);
+  const styleTwist = (inside ? -curveSide * .09 : outside ? curveSide * .13 : 0) * styleAmount * drive;
+  const j = skeleton(origin, { lean:-drive * (.23 + (outside ? .025 * styleAmount : 0)), twist:drive * .10 + styleTwist });
+  const plantX = contact.x - .25 + (inside ? -curveSide * .075 : outside ? curveSide * .055 : 0) * styleAmount;
+  const plant = v(plantX, .09, contact.z + .12);
   const approachFoot = side => curve(t, side === 'left' ? [
     [0, v(origin.x - .115, .09, contact.z + 1.5)],
-    [.09, v(contact.x - .25, .09, contact.z + 1.5)],
-    [.16, v(contact.x - .25, .23, contact.z + .82)],
-    [.23, v(contact.x - .25, .09, contact.z + .52)],
-    [.28, v(contact.x - .25, .18, contact.z + .32)],
+    [.09, v(plantX, .09, contact.z + 1.5)],
+    [.16, v(plantX, .23, contact.z + .82)],
+    [.23, v(plantX, .09, contact.z + .52)],
+    [.28, v(plantX, .18, contact.z + .32)],
     [.33, plant],
   ] : [
-    [0, v(contact.x, .09, contact.z + 1.98)],
-    [.06, v(contact.x, .22, contact.z + 1.58)],
-    [.13, v(contact.x, .09, contact.z + .91)],
+    [0, v(contact.x + approachOffset * .55, .09, contact.z + 1.98)],
+    [.06, v(contact.x + approachOffset * .42, .22, contact.z + 1.58)],
+    [.13, v(contact.x + approachOffset * .30, .09, contact.z + .91)],
     [.22, v(contact.x, .09, contact.z + .91)],
-    [.30, v(contact.x, .40, contact.z + .99)],
+    [.30, v(contact.x + (inside ? curveSide * .12 : outside ? -curveSide * .14 : 0) * styleAmount, .40, contact.z + .99)],
   ]);
+  const backswingX = (inside ? curveSide * .12 : outside ? -curveSide * .14 : 0) * styleAmount;
+  const followX = (inside ? -curveSide * .22 : outside ? curveSide * .28 : 0) * styleAmount;
+  const lateFollowX = (inside ? -curveSide * .17 : outside ? curveSide * .34 : 0) * styleAmount;
   const kick = curve(t, [
-    [.30, v(contact.x, .40, contact.z + .99)],
-    [.36, v(contact.x, Math.max(.24, contact.y * .55), contact.z + .66)],
+    [.30, v(contact.x + backswingX, .40, contact.z + .99)],
+    [.36, v(contact.x + backswingX * .58, Math.max(.24, contact.y * .55), contact.z + .66)],
+    // Do not move this key: authoritative ball launch depends on exact contact.
     [.43, v(contact.x, Math.max(.09, contact.y + .015), contact.z + .16)],
-    [.54, v(contact.x + .07, Math.max(.52, contact.y), contact.z - .16)],
-    [.72, v(contact.x + .10, .09, contact.z - .02)],
-    [1, v(contact.x + .10, .09, contact.z - .02)],
+    [.54, v(contact.x + .07 + followX, Math.max(.52, contact.y) + (outside ? .05 * styleAmount : 0), contact.z - .16)],
+    [.72, v(contact.x + .10 + lateFollowX, .09, contact.z - .02)],
+    [1, v(contact.x + .10 + lateFollowX, .09, contact.z - .02)],
   ]);
   const support = t < .33 ? approachFoot('left') : mix(plant, v(plant.x, .09, plant.z - .06), settle);
   leg(j, 'left', support);
   leg(j, 'right', header ? v(contact.x + .12, .09, contact.z + .38) : t < .30 ? approachFoot('right') : kick);
   const swing = Math.sin(t / .31 * Math.PI * 4) * (1 - approach);
-  arm(j, 'left', add(j.leftShoulder, v(-.07 - drive * .30, -.44 + drive * .18, -.16 - swing * .18)), v(-.25, -.3, .8));
-  arm(j, 'right', add(j.rightShoulder, v(.07 + drive * .12, -.43, -.16 + swing * .18 + drive * .25)), v(.25, -.3, .8));
+  const armStyle = styleTwist * .55;
+  arm(j, 'left', add(j.leftShoulder, v(-.07 - drive * .30 - armStyle, -.44 + drive * .18, -.16 - swing * .18)), v(-.25, -.3, .8));
+  arm(j, 'right', add(j.rightShoulder, v(.07 + drive * .12 + armStyle, -.43, -.16 + swing * .18 + drive * .25)), v(.25, -.3, .8));
   return j;
 }
 
