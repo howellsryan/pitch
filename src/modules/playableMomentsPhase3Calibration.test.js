@@ -185,6 +185,34 @@ describe('Phase 3 representative geometry and calibration', () => {
       .toBeLessThan(ordinaryResolution.presentation.keeper.reach);
   });
 
+  it('scores an on-target one-on-one placed away from the committed keeper and saves one inside reach', () => {
+    const oneOnOne = prepared({ xg:.36, route:'pass_into_space', shooterRating:90, defenderRating:58, keeperRating:82 });
+    const rng = { outcome:.99, defender:.10, actor:.50, target:.50, shot:.50, finish:.50 };
+
+    const awayFromKeeper = interactive(
+      oneOnOne,
+      { attack:{ aimX:.78, aimY:.56, power:.76, timing:.96 } },
+      rng,
+    );
+    const atKeeper = interactive(
+      oneOnOne,
+      { attack:{ aimX:-.54, aimY:.42, power:.72, timing:.96 } },
+      rng,
+    );
+
+    expect(awayFromKeeper.presentation.oneOnOne).toBe(true);
+    expect(awayFromKeeper.onTarget).toBe(true);
+    expect(awayFromKeeper.presentation.keeper.x).toBeLessThan(0);
+    expect(awayFromKeeper.finish).toBe('goal');
+    expect(awayFromKeeper.goal).toBe(true);
+
+    expect(atKeeper.onTarget).toBe(true);
+    expect(atKeeper.presentation.keeper.x).toBeCloseTo(awayFromKeeper.presentation.keeper.x, 6);
+    expect(atKeeper.presentation.keeper.y).toBeCloseTo(awayFromKeeper.presentation.keeper.y, 6);
+    expect(atKeeper.finish).toBe('saved');
+    expect(atKeeper.goal).toBe(false);
+  });
+
   it('requires a top-corner trajectory for playable long shots to score', () => {
     const longShot = prepared({ xg:.09, route:'circulation', shooterRating:90, defenderRating:58, keeperRating:80 });
     const neutralPacket = { outcome:.99, shot:.50, finish:.50 };
