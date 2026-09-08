@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const renderer = readFileSync(resolve(here, './playableMomentsThreeRenderer.js'), 'utf8');
+const stage = readFileSync(resolve(here, './playableFootballStage.js'), 'utf8');
 const director = readFileSync(resolve(here, './playableMomentsSceneDirector.js'), 'utf8');
 const matchScreen = readFileSync(resolve(here, '../lib/ui/MatchScreen.svelte'), 'utf8');
 const eventPolicy = readFileSync(resolve(here, '../modules/playableMomentsCareer.js'), 'utf8');
@@ -16,6 +17,16 @@ describe('Phase 8 coherent visual system', () => {
     expect(renderer).toContain('keeperShorts:new THREE.MeshStandardMaterial');
     expect(renderer).toContain('gloves:new THREE.MeshStandardMaterial');
     expect(renderer).toContain('makeHumanoid(materials.keeper');
+  });
+
+  it('uses the graphics tier for lighting, shadows and generated scene detail rather than only frame rate', () => {
+    expect(renderer).toContain('quality.shadowMapSize');
+    expect(renderer).toContain('new THREE.PMREMGenerator(renderer)');
+    expect(renderer).toContain('scene.environment = environmentTarget.texture');
+    expect(renderer).toContain('quality.geometryDetail');
+    expect(renderer).toContain('createPlayableFootballStage(THREE, worldRoot, world, materials, quality)');
+    expect(stage).toContain('quality.crowdDensity');
+    expect(stage).toContain("detail >= .98 ? .14 : detail >= .8 ? .18 : .24");
   });
 
   it('keeps set-piece walls and ordinary chances inside the same shot renderer adapter', () => {
