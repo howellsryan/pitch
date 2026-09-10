@@ -15,6 +15,7 @@
   import { _updateOffersBadge } from '../../ui/squad_tactics_offers.js';
   import { clampMarketPage, marketPageCount, marketPageLabel, marketPageSlice } from '../../game/marketPagination.js';
   import { screenTicks } from '../state/screens.svelte.js';
+  import Icon from './kit/Icon.svelte';
 
   const POT_COLORS = ['', '#8a9ab0', 'var(--color-live)', '#3b82f6', 'var(--color-warn)', 'var(--color-bad)'];
   const LEAGUE_NATION = { 'Premier League': 'ENG', 'Championship': 'ENG', 'League One': 'ENG', 'League Two': 'ENG', 'La Liga': 'ESP', 'Bundesliga': 'GER', 'Serie A': 'ITA', 'Ligue 1': 'FRA', 'Eredivisie': 'NED' };
@@ -601,7 +602,9 @@
       <div class="tr-panel">
         <div class="tr-panel-title">Active Negotiations &amp; Offers</div>
         {#if !activeDeals.length}
-          <div class="tr-empty-inline">No active deals.<br><span>Open an enquiry from Buy, list a player from Sell, or start contract talks from Contracts.</span></div>
+          <div class="tr-empty-inline">No active deals.<br><span>Find your next signing or review the players you want to move on.</span>
+            <button class="empty-market-action" onclick={() => selectTab('buy')}>Find a player <Icon name="chevron" size={14} /></button>
+          </div>
         {:else}
           <div class="sell-scroll">
             {#each activeDeals as deal (deal.id)}
@@ -1150,8 +1153,10 @@
   }
 
   .tr-empty { color: var(--color-tx-3); font-size: 12px; padding: 24px; text-align: center; }
-  .tr-empty-inline { color: var(--color-tx-3); font-size: 12px; padding: 24px; text-align: center; }
-  .tr-empty-inline span { font-size: 11px; color: var(--color-tx-3); }
+  .tr-empty-inline { color: var(--color-tx-2); font-size: 14px; line-height: 1.6; padding: 24px; text-align: center; }
+  .tr-empty-inline span { font-size: 13px; color: var(--color-tx-2); }
+  .empty-market-action { display:flex; align-items:center; justify-content:center; gap:8px; margin:16px auto 0; min-height:44px; padding:0 18px; border:1px solid var(--color-line); border-radius:8px; background:var(--color-raised); color:var(--color-tx); font:600 13px var(--font-body); cursor:pointer; }
+  .empty-market-action:focus-visible { outline:2px solid var(--color-live); outline-offset:2px; }
 
   .tr-tabs { display: flex; align-items: center; gap: 6px; padding: 0 16px 10px; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
   .tr-tabs::-webkit-scrollbar { display: none; }

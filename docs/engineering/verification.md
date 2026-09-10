@@ -4,14 +4,13 @@ Read before verification, commits or PR handoff. Paths are repository-relative.
 
 ## 3) Build, validation and deployment
 
-Two build paths intentionally coexist:
+Pitch has one application build: the Vite/Svelte app that produces `dist/`.
 
 ```bash
 npm run dev              # Vite dev server
-npm run build            # legacy validation path + Vite app
-npm run build:legacy     # src/build.py -> legacy bundle + validate_p0 bridge
-npm run build:app        # Vite -> dist/
-npm run test             # Vitest + UI emoji audit
+npm run build            # Vite app -> dist/
+npm run build:app        # explicit Vite build used by Cloudflare
+npm run test             # Vitest + UI emoji audit + fast match balance gate
 npm run check:accents    # all 186 clubs
 npm run lint             # ESLint + eslint-plugin-svelte
 ```
@@ -23,11 +22,22 @@ a `test:e2e` script, a `tests/` spec directory, Puppeteer, Cypress, `vitest
 --browser`, or a CI job that drives a real browser. If a change needs proof it
 works in the browser, open the app and look at it — see the definition of done below.
 
-- Vite `dist/` is the deployed artifact.
-- `src/build.py` remains because the legacy validator asserts against concatenated raw source. P0+ route that gate through `src/validate_p0.py`, which permits only an explicit allow-list of superseded source-shape assertions and requires deterministic replacement contracts. Do not interpret the legacy validator's allow-listed failure count as a green-by-itself result; the bridge must pass.
-- CI (`.github/workflows/deploy.yml`) **does not deploy**. Its per-commit gate runs both builds, lint, Vitest and the accent audit — that is the whole gate; there is no browser job to add to it. Cloudflare's Git integration owns production and branch previews.
-- Do not re-add a GitHub Actions deploy step; two deploy systems racing the same Worker is a known failure mode.
-- Cloudflare build command is `npm run build:app`; `wrangler.jsonc` serves `./dist`.
+- Vite `dist/` is the deployed artifact and the only application build used for delivery.
+- The old Python concatenation/source-string validation path (`src/build.py`,
+  `src/validate.js`, `src/validate_p0.py`) is retired from build, CI and deployment.
+  It existed to bridge the migration away from the original single-file app and
+  increasingly asserted implementation/source shape rather than current behaviour.
+  The historical files may remain inert while useful for archaeology; do not add new
+  delivery contracts there. New regression coverage belongs in deterministic Vitest
+  tests over the real modules/components.
+- `npm run validate` is a legacy manual diagnostic only while those historical files
+  remain. It is not a delivery gate and must not be used instead of current tests.
+- CI (`.github/workflows/deploy.yml`) **does not deploy**. Its per-commit gate runs
+  the Vite build, lint, Vitest/fast balance contracts, the deep match-balance guardrail
+  and the accent audit. There is no browser job to add to it.
+- Do not re-add a GitHub Actions deploy step; two deploy systems racing the same Worker
+  is a known failure mode.
+- Cloudflare's build command is `npm run build:app`; `wrangler.jsonc` serves `./dist`.
 
 
 ## 7) Definition of done for roadmap phases
@@ -58,4 +68,3 @@ Whenever code is committed/pushed:
 - confirm the Cloudflare branch preview corresponds to the final SHA where a preview is expected;
 - visually inspect changed UI rather than inferring it from source;
 - report: what changed, verification/test counts, PR link, direct live preview link, next milestone, and any check that could not be completed.
-

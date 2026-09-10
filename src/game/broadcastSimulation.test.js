@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceBroadcastSimulation, createBroadcastSimulation, isOnside, replaceBroadcastLineups, updateBroadcastSimulation } from './broadcastSimulation.js';
+import { advanceBroadcastSimulation, createBroadcastSimulation, isOnside, replaceBroadcastLineups, resumeBroadcastHalfTime, updateBroadcastSimulation } from './broadcastSimulation.js';
 
 const positions = ['GK','RB','CB','CB','LB','CM','CDM','CM','RW','ST','LW'];
 const side = prefix => positions.map((position, index) => ({ id:`${prefix}-${index}`, position }));
@@ -9,6 +9,25 @@ const create = (possessionTeamId = 'home') => createBroadcastSimulation({
 });
 
 describe('broadcast simulation', () => {
+  it('restores a second-half presentation without demanding another half-time break', () => {
+    const sim = createBroadcastSimulation({
+      homeTeamId:'home', awayTeamId:'away', possessionTeamId:'home',
+      homeFormation:'4-3-3', awayFormation:'4-3-3', homePlayers:side('h'), awayPlayers:side('a'),
+      secondHalfStarted:true,
+    });
+    updateBroadcastSimulation(sim, { phase:80, possessionTeamId:'away' });
+    expect(sim.halftimeCompleted).toBe(true);
+    expect(sim.mode).not.toBe('half-time');
+    expect(sim.halftimePending).toBe(false);
+    expect(sim.endsSwapped).toBe(true);
+  });
+  it('never restarts half time merely because time has passed', () => {
+    const sim = create();
+    updateBroadcastSimulation(sim, { phase:60, possessionTeamId:'home' });
+    for (let elapsed = 0; elapsed < 30_000; elapsed += 50) advanceBroadcastSimulation(sim, 50);
+    expect(sim.mode).toBe('half-time');
+    expect(sim.halftimeCompleted).toBe(false);
+  });
   it('starts from a legal, recognisable kickoff shape', () => {
     const sim = create(); const kicker = sim.players.find(player => player.id === sim.kickoffKickerId);
     expect(sim.ball).toMatchObject({ x:50, y:50, ownerId:kicker.id });
@@ -104,16 +123,25 @@ describe('broadcast simulation', () => {
     expect(shotY).toBeLessThanOrEqual(33);
   });
 
-  it('holds half time, swaps ends, and gives the second kickoff to the other team', () => {
+  it('holds half time for the real broadcast pause, swaps ends, and gives the second kickoff to the other team', () => {
     const sim = create();
     updateBroadcastSimulation(sim, { phase:60, possessionTeamId:'home' });
     expect(sim.mode).toBe('half-time');
     expect(sim.action).toBe('HALF TIME');
-    for (let i = 0; i < 65; i++) advanceBroadcastSimulation(sim, 33);
+
+    let elapsed = 0;
+    while (elapsed < 10_000) {
+      advanceBroadcastSimulation(sim, 50);
+      elapsed += 50;
+      expect(sim.mode).toBe('half-time');
+      expect(sim.halftimeCompleted).toBe(false);
+    }
+    expect(resumeBroadcastHalfTime(sim)).toBe(true);
     expect(sim.halftimeCompleted).toBe(true);
     expect(sim.endsSwapped).toBe(true);
     expect(sim.possessionTeamId).toBe('away');
     expect(['kickoff', 'live']).toContain(sim.mode);
+    expect(resumeBroadcastHalfTime(sim)).toBe(false);
   });
 
   it('derives goal kicks and corners from the preceding shot outcome', () => {
@@ -139,8 +167,7 @@ describe('broadcast simulation', () => {
 
   it('waits for most players to fill the penalty area before taking a corner', () => {
     const sim = create(); const carrier = sim.players.find(player => player.id === 'h-9');
-    Object.assign(carrier, { x:50, y:20 });
-    Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:20 });
+    Object.assign(carrier, { x:50, y:20 }); Object.assign(sim.ball, { ownerId:carrier.id, x:50, y:20 });
     Object.assign(sim.players.find(player => player.id === 'a-1'), { x:52, y:21 });
     Object.assign(sim, { mode:'live', nextActionAt:0, sequenceSinceRestart:4, outcomeIndex:1 });
     advanceBroadcastSimulation(sim, 33);

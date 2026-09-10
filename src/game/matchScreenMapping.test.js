@@ -6,9 +6,15 @@ import { buildManagedMatchInputs } from '../modules/managerTactics.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const matchScreenSrc = readFileSync(resolve(here, '../lib/ui/MatchScreen.svelte'), 'utf8');
+const mainSrc = readFileSync(resolve(here, '../main.js'), 'utf8');
 
 function sourceOf(functionName, length = 5000) {
   const start = matchScreenSrc.indexOf(`async function ${functionName}`);
+  return start === -1 ? '' : matchScreenSrc.slice(start, start + length);
+}
+
+function syncSourceOf(functionName, length = 5000) {
+  const start = matchScreenSrc.indexOf(`function ${functionName}`);
   return start === -1 ? '' : matchScreenSrc.slice(start, start + length);
 }
 
@@ -19,10 +25,17 @@ describe('MatchScreen home/away mapping', () => {
     expect(src).toContain('awayPlayers = userIsHomeC ? oppPlayers : userPlayers');
   });
 
-  it('routes venue-side formation and lineup mapping through the shared P2 adapter', () => {
-    const src = sourceOf('startWatch', 3000);
-    expect(src).toContain('buildManagedMatchInputs({');
-    expect(src).toContain('userIsHome:resolved.userIsHome');
+  it('routes both Watch and Play Key Moments through the shared P2 managed-match adapter', () => {
+    const sharedInputSrc = syncSourceOf('buildInputs', 1800);
+    const startManagedSrc = sourceOf('startManagedMatch', 4200);
+    const watchSrc = sourceOf('startWatch', 500);
+    const playableSrc = sourceOf('startPlayableKeyMoments', 500);
+
+    expect(sharedInputSrc).toContain('buildManagedMatchInputs({');
+    expect(sharedInputSrc).toContain('userIsHome:resolved.userIsHome');
+    expect(startManagedSrc).toContain('const inputs = buildInputs(matchCtx, resolved)');
+    expect(watchSrc).toContain('startManagedMatch(false)');
+    expect(playableSrc).toContain('startManagedMatch(true)');
 
     const shared = {
       save:{ formation:'4-2-3-1', mentality:'balanced', lineup:['p1'] },
@@ -44,5 +57,21 @@ describe('MatchScreen home/away mapping', () => {
     expect(managedAway.awayFormation).toBe('3-4-3');
     expect(managedAway.homeLineup).toBeNull();
     expect(managedAway.awayLineup).toEqual(['p1']);
+  });
+
+  it('keeps Play Key Moments on the existing MatchScreen/gameweek lifecycle', () => {
+    expect(matchScreenSrc).toContain('Play Key Moments');
+    expect(matchScreenSrc).toContain('advancePlayableMatchPhase({');
+    expect(matchScreenSrc).toContain('advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome)');
+    expect(matchScreenSrc).toContain('clearPlayableMatchAfterClose(playableSession)');
+  });
+});
+
+describe('MatchScreen mount lifecycle', () => {
+  it('does not mount MatchScreen until the match route is actually active', () => {
+    expect(mainSrc).toContain("const matchMount = document.getElementById('screen-match')");
+    expect(mainSrc).toContain("matchMount.classList.contains('active')");
+    expect(mainSrc).toContain("matchObserver.observe(matchMount, { attributes:true, attributeFilter:['class'] })");
+    expect(mainSrc).not.toContain('if (matchMount) mount(MatchScreen, { target:matchMount });');
   });
 });

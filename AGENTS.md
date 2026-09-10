@@ -68,8 +68,9 @@ missing dependency instead of claiming its workflow ran.
 
 - Run `npm run build`, `npm run test`, `npm run lint`, `npm run check:accents`.
   Keep `npm run balance:match:deep:check` and all statistical guardrails unchanged.
-  The legacy replacement-contract bridge must pass; an allow-listed failure count
-  alone is not success. Full commands and conditional checks are in the reference.
+  `npm run build` is the Vite `dist/` production build; the retired Python
+  concatenation/validator is not a delivery gate. Add new deterministic contracts
+  to Vitest rather than source-string validation.
 - No E2E/browser test suite, dependencies or CI browser job. Use Vitest contracts
   and hands-on inspection. Do not add Playwright/Puppeteer/Cypress/browser Vitest.
 - UI changes require an inspected render and the affected 390px mobile journey;

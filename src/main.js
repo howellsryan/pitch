@@ -18,6 +18,7 @@ import './r7.css';
 import './r7-mobile-fixes.css';
 import './p5.css';
 import './touchline-ledger-polish.css';
+import './live-broadcast-tactical.css';
 
 import { mount } from 'svelte';
 import { navigateTo } from './ui/helpers.js';
@@ -47,55 +48,99 @@ import './ui/squad_tactics_offers.js';
 import './ui/inbox.js';
 import './ui/accessibilityEnhancements.js';
 
+// The live-match player/ball animation has been retired. MatchScreen still
+// consumes the authoritative ledger presentation sequence so commentary can be
+// paced and readable, but main.js no longer installs a DOM coordinate smoother
+// or any other animation-only adapter.
+
 // src/shell.html has two inline onclick="navigateTo(...)" handlers, which
 // resolve against the global scope rather than this module's. Everything else
 // in ui/ binds handlers programmatically.
 window.navigateTo = navigateTo;
 
 // Svelte islands (Phase 3) — mounted straight into the legacy shell's markup.
-// All but the entry island sit inside #app, which boot() (ui/renderers.js)
-// shows only once a save exists, so they stay inert until then exactly like
-// the rest of the legacy screens do.
+// Most game islands sit inside #app, which boot() hides until a save exists.
+// Hidden components can still run reactive effects once mounted, though, so
+// the DB-owning MatchScreen is deliberately mounted lazily below only when its
+// route actually becomes active.
 
 const entryMount = document.getElementById('entry-mount');
-if (entryMount) mount(EntryScreen, { target: entryMount });
+if (entryMount) mount(EntryScreen, { target:entryMount });
 
 const entryStage = document.getElementById('ng');
-if (entryStage) mount(CareerMenu, { target: entryStage });
+if (entryStage) mount(CareerMenu, { target:entryStage });
 
 const tabbarMount = document.getElementById('tabbar-mount');
-if (tabbarMount) mount(TabBar, { target: tabbarMount });
+if (tabbarMount) mount(TabBar, { target:tabbarMount });
 
 const leagueMount = document.getElementById('screen-competitions');
-if (leagueMount) mount(LeagueScreen, { target: leagueMount });
+if (leagueMount) mount(LeagueScreen, { target:leagueMount });
 
 const homeMount = document.getElementById('screen-home');
-if (homeMount) mount(HomeScreen, { target: homeMount });
+if (homeMount) mount(HomeScreen, { target:homeMount });
 
 const squadMount = document.getElementById('screen-squad');
-if (squadMount) mount(SquadScreen, { target: squadMount });
+if (squadMount) mount(SquadScreen, { target:squadMount });
 
 const academyMount = document.getElementById('screen-academy');
-if (academyMount) mount(AcademyScreen, { target: academyMount });
+if (academyMount) mount(AcademyScreen, { target:academyMount });
 
 const trophiesMount = document.getElementById('screen-trophies');
-if (trophiesMount) mount(TrophiesScreen, { target: trophiesMount });
+if (trophiesMount) mount(TrophiesScreen, { target:trophiesMount });
 
 const settingsMount = document.getElementById('screen-settings');
-if (settingsMount) mount(SettingsScreen, { target: settingsMount });
+if (settingsMount) mount(SettingsScreen, { target:settingsMount });
 
 const transfersMount = document.getElementById('screen-transfers');
 if (transfersMount) {
-  mount(TransfersScreen, { target: transfersMount });
-  mount(ScoutingDrawer, { target: transfersMount });
+  mount(TransfersScreen, { target:transfersMount });
+  mount(ScoutingDrawer, { target:transfersMount });
   // Loan pathways belongs to the loan market. The component gates its launcher
   // against Transfers' active Loans tab so it cannot float over Squad or other
   // market surfaces while retaining the existing P9 pathway workflow.
-  mount(LoanPathwaysPanel, { target: transfersMount });
+  mount(LoanPathwaysPanel, { target:transfersMount });
 }
 
 const matchMount = document.getElementById('screen-match');
-if (matchMount) mount(MatchScreen, { target: matchMount });
+if (matchMount) {
+  let matchMounted = false;
+  let matchObserver = null;
+
+  const mountMatchScreen = () => {
+    if (matchMounted) return;
+    matchMounted = true;
+    matchObserver?.disconnect();
+    matchObserver = null;
+    mount(MatchScreen, { target:matchMount });
+  };
+
+  if (matchMount.classList.contains('active')) {
+    mountMatchScreen();
+  } else {
+    // MatchScreen's loader opens the active career IndexedDB. Mounting it behind
+    // the entry route makes its no-save retry lifecycle race the fresh-career
+    // slot reset/writes. Navigation adds `.active` only when Match is entered,
+    // after which the component stays mounted for Squad → Match refreshes.
+    matchObserver = new globalThis.MutationObserver(() => {
+      if (matchMount.classList.contains('active')) mountMatchScreen();
+    });
+    matchObserver.observe(matchMount, { attributes:true, attributeFilter:['class'] });
+  }
+}
 
 const inboxMount = document.getElementById('screen-inbox');
-if (inboxMount) mount(InboxScreen, { target: inboxMount });
+if (inboxMount) mount(InboxScreen, { target:inboxMount });
+
+// Phase 1 Playable Key Moments is deliberately dev-only and lazy. The POC UI
+// and both 3D renderer adapters stay completely outside the ordinary management
+// load unless this explicit query flag is present. Nothing in this harness can
+// write a real career fixture.
+const playablePocEnabled = new window.URLSearchParams(window.location.search).get('playable-poc') === '1';
+if (playablePocEnabled) {
+  const playablePocMount = document.createElement('div');
+  playablePocMount.id = 'playable-poc-mount';
+  document.body.appendChild(playablePocMount);
+  import('./lib/ui/PlayableMomentsPoc.svelte')
+    .then(({ default:PlayableMomentsPoc }) => mount(PlayableMomentsPoc, { target:playablePocMount }))
+    .catch(error => console.error('Playable Key Moments POC failed to load', error));
+}

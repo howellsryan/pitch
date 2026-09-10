@@ -29,7 +29,6 @@ export function _removeFullOverlay() {
 // ── TROPHIES (merged Cups + Honours) ─────────────────────────
 // Migrated to src/lib/ui/TrophiesScreen.svelte (Phase 4,
 // docs/plan/04-migration-phases.md) — same reasoning as Competitions above.
-// registerScreen('trophies', ...) below just bumps screenTicks.trophies.
 
 // ── SETTINGS ──────────────────────────────────────────────────
 // Migrated to src/lib/ui/SettingsScreen.svelte (Phase 4,
@@ -101,23 +100,35 @@ export function showEntryMenu(){
   ng.focus?.();
 }
 
+export function initialScreenForSave(save) {
+  const playableMatchActive = Boolean(save?.playableMatchSession);
+  const shootoutActive = Array.isArray(save?.pendingEvents)
+    && save.pendingEvents.some(event => Boolean(event?.shootoutSession));
+  return playableMatchActive || shootoutActive ? 'match' : 'home';
+}
+
+let pendingResumeScreen = null;
+
 // ── ENTER THE GAME SHELL ──────────────────────────────────────
 /**
- * Hide the entry route, reveal the app, wire the screens, land on Home.
- *
- * Shared by boot()'s resume branch and EntryScreen's start-a-career and
- * continue-a-career handoffs. Kept in one place deliberately: three callers
- * doing these four things by hand is how the new-career path and the resume
- * path drift out of step.
+ * Hide the entry route, reveal the app, wire the screens, and land on the
+ * requested safe resume screen. Normal careers still enter Home; boot can
+ * stage Match as a one-shot destination when a durable playable/shootout
+ * session exists. Keeping enterGame() argument-free preserves the established
+ * shell contract used by the entry and legacy validation paths.
  */
 export async function enterGame(){
+  const goHome=()=>navigateTo('home',{ history:'replace' });
+  const initialScreen=pendingResumeScreen;
+  pendingResumeScreen=null;
   entryState.showing=false;
   entryState.hasSave=true;
   document.getElementById('ng').style.display='none';
   const app=document.getElementById('app');
   app.style.display='flex';
   initUI();
-  await navigateTo('home', { history: 'replace' });
+  if(initialScreen==='match') await navigateTo('match',{ history:'replace' });
+  else await goHome();
   _updateInboxBadge();
   // The entry route's sheet restores focus to the club card that started the
   // career — which #ng's display:none has just removed from the page, leaving
@@ -160,6 +171,7 @@ export async function boot(){
       entryState.showing=true;
     } else {
       entryState.hasSave=true;
+      pendingResumeScreen=initialScreenForSave(save);
       await themeForTeam(save.userTeamId);
       await enterGame();
     }

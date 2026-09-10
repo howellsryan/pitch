@@ -152,11 +152,11 @@
       align-items: center;
       justify-content: center;
       gap: 4px;
-      color: var(--color-tx-3);
+      color: var(--color-tx-2);
       background: transparent;
       border: 0;
       border-top: 3px solid transparent;
-      font: 600 9px/1 var(--font-mono);
+      font: 600 11px/1 var(--font-mono);
       letter-spacing: 0.055em;
       text-transform: uppercase;
       cursor: pointer;

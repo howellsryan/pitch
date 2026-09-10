@@ -1,5 +1,5 @@
 import { getAllFixtures } from './db.js';
-import { simulateMatch } from './matchEngine.js';
+import { selectEleven, simulateMatch } from './matchEngine.js';
 import {
   COMPETITION_RULES,
   UEFA_COMPETITION_IDS,
@@ -9,6 +9,7 @@ import {
   isUefaCompetition,
   resolveTwoLegTie,
 } from './competitionRules.js';
+import { COMPETITION_SHOOTOUT_VERSION } from './competitionShootouts.js';
 
 /** modules/cups.js — competition state + match simulation adapters. */
 
@@ -19,7 +20,7 @@ export const UCL_CLUBS = [
   { id:'man_city', name:'Man City', nation:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', strength:90 },
   { id:'arsenal', name:'Arsenal', nation:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', strength:85 },
   { id:'liverpool', name:'Liverpool', nation:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', strength:88 },
-  { id:'chelsea', name:'Chelsea', nation:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', strength:80 },
+  { id:'chelsea', name:'Chelsea', nation:'🏴', strength:80 },
   { id:'newcastle', name:'Newcastle', nation:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', strength:79 },
   { id:'real_madrid', name:'Real Madrid', nation:'🇪🇸', strength:95 },
   { id:'barcelona', name:'Barcelona', nation:'🇪🇸', strength:92 },
@@ -90,16 +91,6 @@ export const CUP_META = Object.freeze(Object.fromEntries(
   })
 ));
 
-/**
- * Read a stored `cupState.results` row back into display text.
- *
- * League-phase rows are written by `updateLeaguePhaseCupState`, which tags them
- * `isLeaguePhaseMatchday` and carries a `result` letter but no `roundName` and
- * no `userWon`; knockout rows come from `simulateCupRound` and carry the
- * opposite pair. Reading only one of those shapes is what produced
- * "undefined: L" against a match the manager actually won, so the outcome is
- * derived from whichever field the row actually has, falling back to the score.
- */
 export function isLeaguePhaseResult(result) {
   return result?.isLeaguePhaseMatchday === true || result?.isUCLMatchday === true;
 }
@@ -114,9 +105,8 @@ export function cupResultStageLabel(result, cupId = result?.cupId) {
 
 export function cupResultOutcome(result) {
   if (result?.result === 'W' || result?.result === 'D' || result?.result === 'L') return result.result;
-  // A tie settled over two legs, in extra time or on penalties has a verdict
-  // that the score on the night does not carry: 3-0 away then 0-1 at home is a
-  // win, and a level 90 minutes can still be a shootout win.
+  const shootoutWinner = result?.shootout?.winnerTeamId ?? result?.aggregate?.shootout?.winnerTeamId ?? null;
+  if (shootoutWinner && result?.userTeamId) return shootoutWinner === result.userTeamId ? 'W' : 'L';
   const aggregateWon = typeof result?.aggregate?.userWon === 'boolean' ? result.aggregate.userWon : null;
   if (aggregateWon !== null) return aggregateWon ? 'W' : 'L';
   const decided = result?.penalties === true || result?.extraTime === true;
@@ -125,9 +115,6 @@ export function cupResultOutcome(result) {
   const userGoals = Number(result?.userGoals ?? 0);
   const oppGoals = Number(result?.oppGoals ?? 0);
   if (userGoals !== oppGoals) return userGoals > oppGoals ? 'W' : 'L';
-  // Level with nothing to separate the sides: the first leg of a two-legged
-  // round sets userWon from the score alone, so reading it here would turn an
-  // honest draw into a loss.
   return 'D';
 }
 
@@ -139,8 +126,9 @@ export function describeCupResult(result, cupId = result?.cupId) {
   const points = isLeaguePhaseResult(result) && Number.isFinite(Number(result?.points))
     ? ` [${Number(result.points)} pts]`
     : '';
-  // The Trophies rows are a single nowrap line on a 390px screen, so they get a
-  // compact stage ("MD3") while everything else uses the full one.
+  const penalties = result?.shootout?.status === 'complete'
+    ? ` [pens ${Number(result.shootout.homeScore ?? 0)}-${Number(result.shootout.awayScore ?? 0)}]`
+    : '';
   const shortStage = isLeaguePhaseResult(result) && Number.isFinite(Number(result?.matchday))
     ? `MD${Number(result.matchday)}`
     : stage;
@@ -149,12 +137,11 @@ export function describeCupResult(result, cupId = result?.cupId) {
     stage,
     shortStage,
     won:outcome === 'W',
-    label:`${stage}: ${outcome} vs ${opponent} (${score})${points}`,
-    shortLabel:`${shortStage}: ${outcome} vs ${opponent} (${score})${points}`,
+    label:`${stage}: ${outcome} vs ${opponent} (${score})${penalties}${points}`,
+    shortLabel:`${shortStage}: ${outcome} vs ${opponent} (${score})${penalties}${points}`,
   };
 }
 
-/** The stage a cup run is actually at, for a club profile summary. */
 export function cupRunStageLabel(cupId, state) {
   const meta = CUP_META[cupId];
   if (!meta) return 'In progress';
@@ -163,31 +150,18 @@ export function cupRunStageLabel(cupId, state) {
       const matchday = Number(state?.leaguePhase?.matchday ?? 0);
       return matchday > 0 ? `League Phase · MD${matchday}` : 'League Phase';
     }
-    // finishLeaguePhase stores roundIndex 0 for an eliminated route, which would
-    // otherwise read back as the knockout play-off the club never reached.
     const route = state.leaguePhase?.qualificationRoute ?? state.qualificationRoute;
     if (route === 'eliminated') return 'League Phase';
   }
   return meta.rounds?.[state?.roundIndex ?? 0] ?? 'Final';
 }
 
-/** Display status for the whole run, using the round the state actually owns. */
 export function cupRunStatusLabel(cupId, state) {
   if (state?.status === 'winner') return 'Trophy Won!';
   const stage = cupRunStageLabel(cupId, state);
   return state?.status === 'eliminated' ? `Out (${stage})` : stage;
 }
 
-/**
- * Read-only view of the cup/European matches the manager still has coming up.
- *
- * Scheduling comes from the same shared rules layer the event queue uses
- * (`leaguePhase.gws` and `roundGWs`), so the rail cannot disagree with what the
- * Play button will actually serve. It does not draw opponents or touch
- * `save.pendingEvents`: knockout opponents are fixed when the queue builds the
- * event, so anything not yet drawn is reported as undecided. Pass the live
- * queue in `pendingEvents` to name the opponent for the current gameweek.
- */
 export function upcomingCupFixtures(cupState, fromGameweek, { limit = 6, pendingEvents = [] } = {}) {
   const from = Number(fromGameweek) || 0;
   const pendingByCup = new Map();
@@ -224,8 +198,6 @@ export function upcomingCupFixtures(cupState, fromGameweek, { limit = 6, pending
       continue;
     }
 
-    // Knockout: only the round the club is actually in has a fixed gameweek and
-    // a drawable opponent; later rounds depend on winning this one.
     const roundIndex = Number(state.roundIndex ?? 0);
     const gameweek = meta.roundGWs?.[roundIndex];
     if (!Number.isFinite(gameweek) || gameweek < from) continue;
@@ -279,8 +251,6 @@ export function assignCups(userTeam) {
   return cups;
 }
 
-// Compatibility export retained for older callers/tests; unlike the old
-// implementation it delegates to the rules layer and never means away goals.
 export function isEuroLegRound(cupId, roundName, legNum) {
   return isUefaCompetition(cupId) && isTwoLegRound(cupId, roundName, legNum);
 }
@@ -303,7 +273,15 @@ export function resolveSingleLegKnockout(userGoals, oppGoals, seed) {
   };
 }
 
-export function resolveCupProgress(cupId, roundName, roundIdx, cupState, userGoals, oppGoals, userWon, userIsHome, tieSeed = null) {
+export function hasCommittedShootoutResult(cupState, shootoutId) {
+  if (!shootoutId) return false;
+  return (cupState?.results ?? []).some(result => (
+    result?.shootout?.shootoutId === shootoutId
+      || result?.aggregate?.shootout?.shootoutId === shootoutId
+  ));
+}
+
+export function resolveCupProgress(cupId, roundName, roundIdx, cupState, userGoals, oppGoals, userWon, userIsHome, tieSeed = null, versionedResolution = null) {
   const rules = getCompetitionRules(cupId);
   const nextIdx = roundIdx + 1;
   const isFinal = nextIdx >= (rules?.rounds?.length ?? 99);
@@ -312,15 +290,27 @@ export function resolveCupProgress(cupId, roundName, roundIdx, cupState, userGoa
     return { roundIndex: nextIdx, status: 'active', aggregate: null };
   }
   if (isTwoLegRound(cupId, roundName, 2)) {
-    const leg1 = cupState?.results?.[cupState.results.length - 1];
-    const tieRng = tieSeed == null
-      ? Math.random
-      : () => deterministicCupRoll(tieSeed, `${cupId}:${roundName}:aggregate`);
-    const aggregate = resolveTwoLegTie(
-      { userGoals: leg1?.userGoals ?? 0, oppGoals: leg1?.oppGoals ?? 0, userIsHome: leg1?.userIsHome ?? true },
-      { userGoals, oppGoals, userIsHome },
-      tieRng,
-    );
+    let aggregate;
+    if (versionedResolution?.version === COMPETITION_SHOOTOUT_VERSION) {
+      aggregate = {
+        userWon:Boolean(versionedResolution.userWon),
+        penalties:Boolean(versionedResolution.penalties),
+        extraTime:Boolean(versionedResolution.extraTime),
+        userAgg:Number(versionedResolution.userAgg ?? 0),
+        oppAgg:Number(versionedResolution.oppAgg ?? 0),
+        shootout:versionedResolution.shootout ?? null,
+      };
+    } else {
+      const leg1 = cupState?.results?.[cupState.results.length - 1];
+      const tieRng = tieSeed == null
+        ? Math.random
+        : () => deterministicCupRoll(tieSeed, `${cupId}:${roundName}:aggregate`);
+      aggregate = resolveTwoLegTie(
+        { userGoals: leg1?.userGoals ?? 0, oppGoals: leg1?.oppGoals ?? 0, userIsHome: leg1?.userIsHome ?? true },
+        { userGoals, oppGoals, userIsHome },
+        tieRng,
+      );
+    }
     return {
       roundIndex: aggregate.userWon ? nextIdx : roundIdx,
       status: aggregate.userWon ? (isFinal ? 'winner' : 'active') : 'eliminated',
@@ -404,6 +394,36 @@ function drawOpponent(allTeams, userTeam, cupId, event) {
   return eligible[Math.floor(Math.random() * eligible.length)];
 }
 
+/**
+ * Reconstruct the final eligible on-pitch participants after automatic match
+ * substitutions. Shootouts must never silently reintroduce a player who was
+ * substituted off, and the goalkeeper must be whoever finished regulation in
+ * goal. This projection is transient: only matchShootout's compact participant
+ * snapshots/receipts are persisted if penalties are actually required.
+ */
+export function deriveFinalShootoutParticipants(players, formation, lineup, teamId, events = [], fitnessUpdates = []) {
+  const byId = new Map((players ?? []).map(player => [player.id, player]));
+  let active = selectEleven(players ?? [], formation ?? '4-3-3', lineup ?? null).map(player => ({ ...player }));
+  for (const event of events ?? []) {
+    if (event?.type !== 'sub' || event.teamId !== teamId) continue;
+    const index = active.findIndex(player => player.id === event.outId);
+    const incoming = byId.get(event.inId);
+    if (index < 0 || !incoming) continue;
+    const outgoing = active[index];
+    active[index] = {
+      ...incoming,
+      matchPosition:outgoing.matchPosition ?? incoming.matchPosition ?? incoming.position,
+    };
+  }
+  const fitness = new Map((fitnessUpdates ?? [])
+    .filter(update => !update.teamId || update.teamId === teamId)
+    .map(update => [update.id, Number(update.newFitness)]));
+  return active.map(player => ({
+    ...player,
+    fitness:Number.isFinite(fitness.get(player.id)) ? fitness.get(player.id) : Number(player.fitness ?? 90),
+  }));
+}
+
 export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, cupId, roundName, event) {
   const opponentRaw = drawOpponent(allTeams, userTeam, cupId, event);
   const opponent = {
@@ -439,7 +459,7 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
     ? { userWon:userGoals > oppGoals, penalties:false, extraTime:false }
     : resolveSingleLegKnockout(userGoals, oppGoals, result.seed);
 
-  return {
+  const output = {
     cupId,
     roundName,
     userWon:knockout.userWon,
@@ -465,6 +485,17 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
     awayTactics:result.awayTactics,
     seed:result.seed,
   };
+
+  Object.defineProperty(output, 'shootoutParticipants', {
+    enumerable:false,
+    configurable:false,
+    writable:false,
+    value:{
+      home:deriveFinalShootoutParticipants(hPl, result.homeFormation, hLineup, home.id, result.events, result.fitnessUpdates),
+      away:deriveFinalShootoutParticipants(aPl, result.awayFormation, aLineup, away.id, result.events, result.fitnessUpdates),
+    },
+  });
+  return output;
 }
 
 export function simulateEuropeanLeaguePhaseMatchday(

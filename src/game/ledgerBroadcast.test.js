@@ -1,6 +1,6 @@
 import { buildLiveMatchState, simulateMatchSegment } from '../modules/matchEngine.js';
 import { describe, expect, it } from 'vitest';
-import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from './broadcastSimulation.js';
+import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, resumeBroadcastHalfTime, updateBroadcastSimulation } from './broadcastSimulation.js';
 const positions = ['GK','RB','CB','CB','LB','CM','CDM','CM','RW','ST','LW'];
 const players = prefix => positions.map((position, i) => ({ id:`${prefix}${i}`, name:`Player ${prefix}${i}`, position }));
 const create = () => createBroadcastSimulation({ homeTeamId:'h', awayTeamId:'a', possessionTeamId:'h', homeFormation:'4-3-3', awayFormation:'4-3-3', homePlayers:players('h'), awayPlayers:players('a'), ledgerDriven:true });
@@ -9,6 +9,7 @@ function drain(sim, limit = 2400) {
   for (let i = 0; i < limit; i++) {
     const frame = advanceBroadcastSimulation(sim, 50);
     actions.add(frame.action);
+    if (sim.mode === 'half-time') resumeBroadcastHalfTime(sim);
     if (isBroadcastReady(sim)) return actions;
   }
   throw new Error(`Stalled: ${sim.activePhase?.stage} ${sim.action} ${sim.mode} owner=${sim.ball.ownerId}`);

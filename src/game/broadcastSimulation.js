@@ -3,6 +3,7 @@ import { SLOT_LAYOUT, SLOT_POS_MAP } from './formationLayout.js';
 const FORWARDS = new Set(['ST', 'CF', 'RW', 'LW', 'CAM']);
 const DEFENDERS = new Set(['CB', 'RB', 'LB']);
 const WIDE = new Set(['RB', 'LB', 'RW', 'LW', 'RM', 'LM']);
+export const LEDGER_PRESENTATION_TIME_SCALE = 64;
 
 function clamp(value, min = 3, max = 97) { return Math.max(min, Math.min(max, value)); }
 function hash(value) { let h = 2166136261; for (const c of String(value)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -79,29 +80,42 @@ function prepareKickoff(sim, takingTeamId) {
   sim.sequenceSinceRestart = 0;
 }
 
-export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers, ledgerDriven = false }) {
+export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers, ledgerDriven = false, secondHalfStarted = false }) {
   const sim = {
     ledgerDriven, activePhase: null, completedPhase: 0, phaseLabel: 'Kick off',
     homeTeamId, awayTeamId, possessionTeamId, desiredPossessionTeamId: possessionTeamId,
     enginePossessionTeamId: possessionTeamId, possessionLockTeamId: null, possessionLockUntil: 0,
-    firstKickoffTeamId: possessionTeamId, endsSwapped: false, halftimeCompleted: false,
-    halftimePending: false, halftimeHoldUntil: 0, phase: 0,
+    firstKickoffTeamId: possessionTeamId, endsSwapped: secondHalfStarted, halftimeCompleted: secondHalfStarted,
+    halftimePending: false, phase: 0,
     players: [...assign(homePlayers, homeFormation, true, homeTeamId), ...assign(awayPlayers, awayFormation, false, awayTeamId)],
     ball: null, clock: 0, sequence: 0, sequenceSinceRestart: 0, outcomeIndex: 0,
     nextActionAt: 0, mode: 'kickoff', action: 'KICK OFF',
     pendingGoal: null, goalHoldUntil: 0, restart: null, kickoffKickerId: null,
   };
-  prepareKickoff(sim, possessionTeamId);
+  if (secondHalfStarted) {
+    for (const player of sim.players) player.baseY = 100 - player.baseY;
+  }
+  prepareKickoff(sim, secondHalfStarted ? otherTeamId(sim, possessionTeamId) : possessionTeamId);
   return sim;
 }
 
 function beginHalfTime(sim) {
   sim.halftimePending = false; sim.mode = 'half-time'; sim.action = 'HALF TIME';
   sim.ball.ownerId = null; sim.ball.flight = null; sim.ball.shooting = false;
-  sim.halftimeHoldUntil = sim.clock + 1800; sim.nextActionAt = Number.POSITIVE_INFINITY;
+  sim.nextActionAt = Number.POSITIVE_INFINITY;
   for (const player of sim.players) {
     Object.assign(player, { targetX:player.x, targetY:player.y, vx:player.vx * .25, vy:player.vy * .25, pressing:false, receiving:false, rushing:false });
   }
+}
+
+/** Only an explicit manager action can start the second half. */
+export function resumeBroadcastHalfTime(sim) {
+  if (!sim || sim.mode !== 'half-time' || sim.halftimeCompleted) return false;
+  sim.endsSwapped = true;
+  sim.halftimeCompleted = true;
+  for (const player of sim.players) player.baseY = 100 - player.baseY;
+  prepareKickoff(sim, otherTeamId(sim, sim.firstKickoffTeamId));
+  return true;
 }
 
 export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event = null, record = null }) {
@@ -606,7 +620,7 @@ function separate(sim, dt) {
   }
 }
 
-export function advanceBroadcastSimulation(sim, elapsedMs) {
+function advanceBroadcastSimulationStep(sim, elapsedMs) {
   const safeElapsed = clamp(elapsedMs, 0, 50); const dt = safeElapsed / 1000; sim.clock += safeElapsed;
   if (sim.possessionLockTeamId && sim.clock >= sim.possessionLockUntil) {
     sim.possessionLockTeamId = null;
@@ -617,11 +631,6 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
     sim.pendingGoal = null;
     if (sim.halftimePending) beginHalfTime(sim);
     else prepareKickoff(sim, otherTeamId(sim, scoringTeam));
-  }
-  if (sim.mode === 'half-time' && sim.clock >= sim.halftimeHoldUntil) {
-    sim.endsSwapped = true; sim.halftimeCompleted = true;
-    for (const player of sim.players) player.baseY = 100 - player.baseY;
-    prepareKickoff(sim, otherTeamId(sim, sim.firstKickoffTeamId));
   }
   if (sim.mode === 'kickoff') updateKickoffTargets(sim);
   else if (sim.mode === 'restart') updateRestartTargets(sim);
@@ -637,6 +646,41 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
   return snapshotBroadcastSimulation(sim);
 }
 
+function presentationMilestone(action = '') {
+  if (action === 'GOAL') return 'goal';
+  if (action === 'HALF TIME') return 'half-time';
+  if (action.startsWith('SHOT')) return 'shot';
+  if (/^(FREE KICK|CORNER|GOAL KICK|THROW-IN)/.test(action)) return 'restart';
+  return null;
+}
+
+export function advanceBroadcastSimulation(sim, elapsedMs) {
+  const realElapsed = clamp(elapsedMs, 0, 50);
+  if (sim?.mode === 'half-time') {
+    // Only the reader clock can drain a boundary goal; football stays stopped.
+    sim.clock += realElapsed * (sim.ledgerDriven ? LEDGER_PRESENTATION_TIME_SCALE : 1);
+    return snapshotBroadcastSimulation(sim);
+  }
+  if (!sim?.ledgerDriven || realElapsed <= 0) return advanceBroadcastSimulationStep(sim, realElapsed);
+
+  // A ledger phase gets 750ms of wall-clock budget: 120 phases therefore map
+  // to 90 real seconds, i.e. one real second per match minute. Internal scene
+  // choreography can be longer, so advance only presentation time faster in
+  // stable 50ms physics steps. Routine build-up may compress across multiple
+  // internal action labels, but key football beats remain mandatory frames.
+  let remainingPresentationMs = realElapsed * LEDGER_PRESENTATION_TIME_SCALE;
+  let frame = snapshotBroadcastSimulation(sim);
+  const startingMilestone = presentationMilestone(frame.action);
+  while (remainingPresentationMs > 0) {
+    const step = Math.min(remainingPresentationMs, 50);
+    frame = advanceBroadcastSimulationStep(sim, step);
+    remainingPresentationMs -= step;
+    const milestone = presentationMilestone(frame.action);
+    if (milestone && milestone !== startingMilestone) break;
+  }
+  return frame;
+}
+
 export function snapshotBroadcastSimulation(sim) {
   return {
     phaseLabel: sim.phaseLabel, completedPhase: sim.completedPhase,
@@ -646,7 +690,6 @@ export function snapshotBroadcastSimulation(sim) {
     ball: { x: sim.ball.x, y: sim.ball.y, shooting: sim.ball.shooting },
   };
 }
-
 
 const ROUTE_LABELS = {
   circulation: 'Build up · retain possession', direct_pass: 'Progression · direct ball',

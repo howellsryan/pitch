@@ -77,10 +77,10 @@
 
   /* ── Type stacks ─────────────────────────────────────────────────────
      Three families, the stated maximum. Display is condensed and sporty for
-     scores, big numerals and screen titles; body is a crisp grotesk that
-     holds up at 11–13px; mono is for anything tabular, where column
-     alignment matters more than character. Fallbacks are metric-close
-     because PNG/PDF export and first paint both show them. */
+     scores, big numerals and screen titles; body is a crisp grotesk for dense
+     football UI; mono is for tabular/meta information where alignment matters
+     more than character. Fallbacks are metric-close because PNG/PDF export and
+     first paint both show them. */
   --font-display:  "Big Shoulders Display", "Arial Narrow", sans-serif;
   --font-body:     "Familjen Grotesk", system-ui, sans-serif;
   --font-mono:     "IBM Plex Mono", ui-monospace, monospace;
