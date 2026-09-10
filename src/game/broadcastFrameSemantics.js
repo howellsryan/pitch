@@ -5,9 +5,28 @@ import {
   resetLiveMatchStoryForHalfTime,
 } from './liveMatchStory.js';
 
-export const BROADCAST_FRAME_SEMANTICS_VERSION = 7;
+export const BROADCAST_FRAME_SEMANTICS_VERSION = 8;
 
 const storyStateBySimulation = new WeakMap();
+
+export function matchesCommentaryGoal(revealed, event) {
+  return Boolean(revealed && event && revealed.teamId === event.teamId
+    && revealed.playerId === event.playerId && revealed.minute === event.minute);
+}
+
+// A resumed committed moment may replay its notice after the score was restored.
+// Read engine totals instead of incrementing presentation state a second time.
+export function revealCommentaryGoal(event, liveState, revealedGoals, homeTeamId, awayTeamId) {
+  const homeGoals = liveState.hGoals ?? 0;
+  const awayGoals = liveState.aGoals ?? 0;
+  const teamGoals = event.teamId === homeTeamId ? homeGoals : event.teamId === awayTeamId ? awayGoals : 0;
+  const alreadyShown = revealedGoals.filter(goal => goal.teamId === event.teamId).length;
+  return {
+    homeGoals,
+    awayGoals,
+    goals:alreadyShown < teamGoals ? [...revealedGoals, event] : revealedGoals,
+  };
+}
 
 function storyStateFor(simulation) {
   let state = storyStateBySimulation.get(simulation);
@@ -48,7 +67,10 @@ export function describeBroadcastFrame(frame, simulation) {
 
   const state = storyStateFor(simulation);
 
-  if (frame?.mode === 'half-time') {
+  const atHalfTime = frame?.mode === 'half-time';
+  const hasGoalPassage = state.current?.record?.finish === 'goal'
+    || state.queue.some(event => event.record.finish === 'goal');
+  if (atHalfTime && !hasGoalPassage) {
     // Half time comes from the authoritative phase boundary. Clear any routine
     // first-half backlog so second-half commentary cannot replay stale passages.
     resetLiveMatchStoryForHalfTime(state);
@@ -68,11 +90,26 @@ export function describeBroadcastFrame(frame, simulation) {
     stage:scene?.stage ?? 'acquire',
     playersById,
     nowMs:commentaryClockMs(simulation),
-    matchComplete,
+    matchComplete:matchComplete || atHalfTime,
   });
 
   const goalReady = presentation.action?.startsWith('GOAL!');
-  if (goalReady) simulation.commentaryGoalReady = true;
+  const current = state.current;
+  // A reveal belongs to a specific ledger record and fires once. A boolean
+  // derived from a lingering GOAL headline could release the NEXT team's goal.
+  if (goalReady && !current.goalRevealed) {
+    current.goalRevealed = true;
+    simulation.commentaryGoalReady = true;
+    simulation.commentaryGoalEvent = {
+      teamId:current.record.teamId,
+      playerId:current.record.shotId,
+      minute:current.record.minute,
+    };
+  }
+
+  if (atHalfTime && !state.current && !state.queue.length) {
+    return describeBroadcastFrame(frame, simulation);
+  }
 
   // Once phase 120 has finished, stale routine text must never prevent the
   // full-time screen. The only commentary allowed to hold closure is a real

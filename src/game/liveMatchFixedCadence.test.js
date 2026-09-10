@@ -4,7 +4,7 @@ import {
   advanceBroadcastSimulation,
   createBroadcastSimulation,
   isBroadcastReady,
-  LEDGER_HALFTIME_HOLD_MS,
+  resumeBroadcastHalfTime,
   updateBroadcastSimulation,
 } from './broadcastSimulation.js';
 
@@ -64,12 +64,12 @@ function enterHalfTime(sim) {
 
 function drainHalfTime(sim) {
   let elapsed = 0;
-  while (sim.mode === 'half-time' && elapsed < LEDGER_HALFTIME_HOLD_MS + 500) {
+  while (elapsed < 10_000) {
     advanceBroadcastSimulation(sim, 50);
     elapsed += 50;
-    if (elapsed < LEDGER_HALFTIME_HOLD_MS - 50) expect(sim.mode).toBe('half-time');
+    expect(sim.mode).toBe('half-time');
   }
-  expect(elapsed).toBeGreaterThanOrEqual(LEDGER_HALFTIME_HOLD_MS - 50);
+  expect(resumeBroadcastHalfTime(sim)).toBe(true);
   expect(sim.halftimeCompleted).toBe(true);
 
   let settleElapsed = 0;
@@ -116,8 +116,4 @@ describe('fixed live-match cadence with an intentional half-time break', () => {
     expect(displayedGoals).toBe(state.actionLedger.filter(record => record.finish === 'goal').length);
   });
 
-  it('adds a four-second half-time pause on top of the 120-phase regulation presentation budget', () => {
-    expect(120 * 750).toBe(90_000);
-    expect(120 * 750 + LEDGER_HALFTIME_HOLD_MS).toBe(94_000);
-  });
 });

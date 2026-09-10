@@ -7,8 +7,12 @@
   padding: 20px 16px 24px;
 }
 #screen-match .broadcast-label { font-size: 11px; letter-spacing: .14em; }
-#screen-match .score-bug { padding: 12px 0 16px; gap: 16px; }
+#screen-match .score-bug { position: sticky; top: -14px; z-index: 2; padding: 12px 0 16px; gap: 16px; background: var(--color-ground); }
 #screen-match .sb-team { min-width: 0; }
+#screen-match .sb-side { margin-top: 5px; color: var(--color-tx-3); font: 500 10px/1.4 var(--font-mono); text-transform: uppercase; }
+#screen-match .sb-user .sb-side { color: var(--color-tx); font-weight: 700; }
+#screen-match .score-updated { display: inline-block; animation: score-reveal .55s ease-out; }
+@keyframes score-reveal { 0% { transform: scale(.8); opacity: .3; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
 #screen-match .sb-name { font: 500 14px/1.4 var(--font-body); color: var(--color-tx); overflow-wrap: anywhere; }
 #screen-match .sb-team:first-child .sb-crest { border-bottom: 2px solid var(--match-home); }
 #screen-match .sb-team:last-child .sb-crest { border-bottom: 2px solid var(--match-away); }
@@ -22,7 +26,14 @@
 #screen-match .momentum > div { background: var(--match-away); height: 4px; }
 #screen-match .momentum i { background: var(--match-home); }
 #screen-match .live-controls { width: min(100%, 780px); margin-inline: auto; }
-#screen-match .live-controls .ctrl-btn { min-height: 44px; }
+#screen-match .live-controls .ctrl-btn { min-height: 48px; flex: 1; font-size: 12px; }
+#screen-match .live-controls .resume-half { flex: 1.5; background: var(--color-accent); color: var(--color-on-accent); border-color: var(--color-accent); font-weight: 700; }
+#screen-match .match-goals { flex-shrink: 0; border-top: 1px solid var(--color-line); font-size: 12px; }
+#screen-match .match-goals summary { min-height: 44px; padding: 14px 0; cursor: pointer; color: var(--color-tx-2); }
+#screen-match .match-goals > div { display: grid; grid-template-columns: 30px 1fr; gap: 3px 8px; padding: 10px 0; border-top: 1px solid var(--color-line); }
+#screen-match .match-goals small { grid-column: 2; color: var(--color-tx-2); }
+#screen-match .match-goals summary:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { #screen-match .score-updated { animation: none; } }
 @media (max-width: 520px) {
   #screen-match .live-wrap { gap: 10px; padding: 14px 12px 20px; }
   #screen-match .score-bug { gap: 10px; }

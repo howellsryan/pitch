@@ -55,9 +55,9 @@
   import { generateStubPlayers } from '../../game/opponents.js';
   import {
     advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady,
-    replaceBroadcastLineups, updateBroadcastSimulation,
+    replaceBroadcastLineups, resumeBroadcastHalfTime, updateBroadcastSimulation,
   } from '../../game/broadcastSimulation.js';
-  import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
+  import { describeBroadcastFrame, matchesCommentaryGoal, revealCommentaryGoal } from '../../game/broadcastFrameSemantics.js';
   import { resolveMatchKits, resolvePlayableAppearance } from '../../game/matchKits.js';
   import { regulationClockForPhase } from '../../game/liveMatchClock.js';
   import { decorateGoalkeeperMomentWithRead } from '../../game/playableGoalkeeperRead.js';
@@ -119,7 +119,10 @@
   let presentationEvent = null;
   let goalNotice = $state(null);
   let queuedGoalNotice = null;
-  let goalNoticeTimer = null;
+  let goalNoticeRemainingMs = 0;
+  let broadcastPresentation = $state(null);
+  let halfTimePaused = $state(false);
+  let revealedGoals = $state.raw([]);
   let displayHomeGoals = $state(0);
   let displayAwayGoals = $state(0);
 
@@ -354,6 +357,10 @@
   }
 
   function installLiveMatch({ inputs, resolved, liveState, allEvents = [], currentPhase = 0, playable = false }) {
+    halfTimePaused = false;
+    goalNotice = null;
+    queuedGoalNotice = null;
+    revealedGoals = allEvents.filter(event => event.type === 'goal');
     live = {
       liveState, allEvents,
       homeTeam:inputs.homeTeam, awayTeam:inputs.awayTeam,
@@ -370,6 +377,7 @@
     presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
     broadcastSimulation = createBroadcastSimulation({
       homeTeamId:live.homeTeam.id, awayTeamId:live.awayTeam.id, ledgerDriven:true,
+      secondHalfStarted:currentPhase > 60,
       possessionTeamId:presentationPossession,
       homeFormation:live.liveState.homeFormation, awayFormation:live.liveState.awayFormation,
       homePlayers:broadcastPlayers(live.liveState.hActive), awayPlayers:broadcastPlayers(live.liveState.aActive),
@@ -382,6 +390,7 @@
       });
     }
     broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
+    broadcastPresentation = describeBroadcastFrame(broadcastFrame, broadcastSimulation);
     startPresentation();
   }
 
@@ -704,7 +713,7 @@
     // watching. One ledger phase must settle visually before another phase is
     // simulated, otherwise a later record can replace the action that should
     // have produced a visible goal/save/pass.
-    if (broadcastSimulation && !isBroadcastReady(broadcastSimulation)) {
+    if (queuedGoalNotice || goalNotice || (broadcastSimulation && !isBroadcastReady(broadcastSimulation))) {
       scheduleTick(PRESENTATION_RETRY_MS - WATCH_TICK_MS);
       return;
     }
@@ -759,6 +768,7 @@
       event:presentationEvent,
       record:updatedState.actionLedger.at(-1),
     });
+    broadcastPresentation = describeBroadcastFrame(broadcastFrame, broadcastSimulation);
     replaceBroadcastLineups(broadcastSimulation, {
       homeFormation:updatedState.homeFormation, awayFormation:updatedState.awayFormation,
       homePlayers:broadcastPlayers(updatedState.hActive), awayPlayers:broadcastPlayers(updatedState.aActive),
@@ -838,6 +848,7 @@
         event:null,
         record:receipt?.resolution?.record ?? live.liveState.actionLedger?.at?.(-1) ?? null,
       });
+      broadcastPresentation = describeBroadcastFrame(broadcastFrame, broadcastSimulation);
       for (const event of playableRevealEvents) {
         if (event.type === 'goal') {
           queuedGoalNotice = { ...event, isUser:event.teamId === live.userTeam.id };
@@ -877,14 +888,16 @@
 
   function revealGoalNotice() {
     if (!queuedGoalNotice) return;
+    const revealed = broadcastSimulation?.commentaryGoalEvent;
+    if (!matchesCommentaryGoal(revealed, queuedGoalNotice)) return;
     goalNotice = queuedGoalNotice;
+    const revealedScore = revealCommentaryGoal(goalNotice, live.liveState, revealedGoals, live.homeTeam.id, live.awayTeam.id);
+    revealedGoals = revealedScore.goals;
     queuedGoalNotice = null;
-    if (goalNotice.teamId === live.homeTeam.id) displayHomeGoals += 1;
-    else if (goalNotice.teamId === live.awayTeam.id) displayAwayGoals += 1;
-    vibrate([60]);
-    window.clearTimeout(goalNoticeTimer);
-    goalNoticeTimer = window.setTimeout(() => { goalNotice = null; }, 3200);
-    if (goalNotice.isUser) toast(`GOAL! ${goalNotice.playerName}`, 'success');
+    displayHomeGoals = revealedScore.homeGoals;
+    displayAwayGoals = revealedScore.awayGoals;
+    if (goalNotice.isUser) vibrate([60, 40, 100]);
+    goalNoticeRemainingMs = 4200;
   }
 
   function startPresentation() {
@@ -897,15 +910,26 @@
       if (elapsed < 30) return;
       presentationAt = now;
       if (!live.paused && !(live.playable && playableSession?.status !== 'active')) {
+        if (goalNotice) {
+          goalNoticeRemainingMs -= Math.min(elapsed, 100);
+          if (goalNoticeRemainingMs <= 0) goalNotice = null;
+        }
         let remaining = Math.min(elapsed, 100);
         while (remaining > 0) {
           const step = Math.min(remaining, 50);
           broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, step);
+          broadcastPresentation = describeBroadcastFrame(broadcastFrame, broadcastSimulation);
           remaining -= step;
         }
         if (broadcastSimulation.commentaryGoalReady && queuedGoalNotice) {
           broadcastSimulation.commentaryGoalReady = false;
           revealGoalNotice();
+        }
+        if (broadcastFrame?.mode === 'half-time' && broadcastPresentation?.action === 'HALF TIME'
+            && !queuedGoalNotice && !goalNotice) {
+          halfTimePaused = true;
+          live = { ...live, paused:true };
+          window.clearTimeout(tickTimer);
         }
       }
     };
@@ -914,6 +938,12 @@
 
   function togglePause() {
     if (!live || (live.playable && playableSession?.status !== 'active')) return;
+    if (halfTimePaused) {
+      resumeBroadcastHalfTime(broadcastSimulation);
+      halfTimePaused = false;
+      broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
+      broadcastPresentation = describeBroadcastFrame(broadcastFrame, broadcastSimulation);
+    }
     live = { ...live, paused:!live.paused };
     if (!live.paused) scheduleTick();
     else window.clearTimeout(tickTimer);
@@ -936,6 +966,9 @@
     // score to the authoritative final score before opening the result screen.
     displayHomeGoals = updatedState.hGoals ?? displayHomeGoals;
     displayAwayGoals = updatedState.aGoals ?? displayAwayGoals;
+    broadcastSimulation = null;
+    queuedGoalNotice = null;
+    goalNotice = null;
     void finishMatch();
   }
 
@@ -1004,12 +1037,11 @@
   async function finishMatch() {
     if (!live || beat === 'fulltime' || beat === 'shootout') return;
     if (broadcastSimulation && live.currentPhase >= TOTAL_PHASES
-        && (!isBroadcastReady(broadcastSimulation) || broadcastSimulation.commentaryBusy || queuedGoalNotice)) {
+        && (!isBroadcastReady(broadcastSimulation) || broadcastSimulation.commentaryBusy || queuedGoalNotice || goalNotice)) {
       scheduleTick(PRESENTATION_RETRY_MS - WATCH_TICK_MS);
       return;
     }
     window.clearTimeout(tickTimer);
-    window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
     try {
       let regulationResult;
@@ -1117,7 +1149,6 @@
 
   const matchKits = $derived(live?.liveState ? resolveMatchKits(live.homeTeam, live.awayTeam) : null);
   const playableAppearance = $derived(resolvePlayableAppearance(playableMoment, live?.homeTeam, live?.awayTeam, live?.liveState?.hActive, live?.liveState?.aActive));
-  const broadcastPresentation = $derived(describeBroadcastFrame(broadcastFrame, broadcastSimulation));
   const tacticsSlots = $derived(SLOT_LAYOUT[tacticsPickerFormation] ?? SLOT_LAYOUT['4-3-3']);
   const tacticsActivePlayers = $derived.by(() => {
     if (!live?.liveState) return [];
@@ -1305,7 +1336,6 @@
   }
 
   async function finishToHome() {
-    window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
     active = false;
     setMatchNavigationLocked(false);
@@ -1474,20 +1504,22 @@
     <div class="live-wrap" style={`--match-home:${matchKits?.home.color};--match-away:${matchKits?.away.color}`}>
       <div class="broadcast-label">{live.playable ? 'PLAY KEY MOMENTS' : 'LIVE'} · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
       <div class="score-bug">
-        <div class="sb-team">
+        <div class="sb-team" class:sb-user={live.userIsHome}>
           <div class="sb-crest"><Crest team={live.homeTeam} size={26} /></div>
           <div class="sb-name">{live.homeTeam.name}</div>
+          <div class="sb-side">Home{live.userIsHome ? ' · You' : ''}</div>
         </div>
         <div class="sb-centre">
           <div class="sb-score">
-            <span>{displayHomeGoals}</span><span class="sb-sep">–</span><span>{displayAwayGoals}</span>
+            <span class:score-updated={goalNotice?.teamId === live.homeTeam.id}>{displayHomeGoals}</span><span class="sb-sep">–</span><span class:score-updated={goalNotice?.teamId === live.awayTeam.id}>{displayAwayGoals}</span>
           </div>
           <div class="sb-clock">{clock.label}'</div>
-          <div class="sb-status">{live.paused ? 'PAUSED' : playableMoment ? 'KEY MOMENT' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
+          <div class="sb-status">{halfTimePaused ? 'HALF TIME' : live.paused ? 'PAUSED' : playableMoment ? 'KEY MOMENT' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
         </div>
-        <div class="sb-team">
+        <div class="sb-team" class:sb-user={!live.userIsHome}>
           <div class="sb-crest"><Crest team={live.awayTeam} size={26} /></div>
           <div class="sb-name">{live.awayTeam.name}</div>
+          <div class="sb-side">Away{!live.userIsHome ? ' · You' : ''}</div>
         </div>
       </div>
       <div class="progress-wrap"><div class="progress-bar" style="width:{(live.currentPhase / TOTAL_PHASES) * 100}%"></div></div>
@@ -1497,14 +1529,23 @@
         detail={broadcastPresentation?.detail || 'The players take their positions.'}
         paused={live.paused}
         minute={clock.label}
-        goal={goalNotice ? { ...goalNotice, teamName:goalNotice.teamId === live.homeTeam.id ? live.homeTeam.name : live.awayTeam.name } : null}
+        halfTime={halfTimePaused}
+        goal={goalNotice ? { ...goalNotice, teamName:goalNotice.teamId === live.homeTeam.id ? live.homeTeam.name : live.awayTeam.name, homeGoals:displayHomeGoals, awayGoals:displayAwayGoals } : null}
       />
       <div class="momentum" aria-label={`Match possession: ${homeShare}% ${live.homeTeam.name}`}><span>{homeShare}%</span><div><i style={`width:${homeShare}%`}></i></div><span>{100 - homeShare}%</span></div>
+      {#if revealedGoals.length}
+        <details class="match-goals">
+          <summary>Goals so far</summary>
+          {#each revealedGoals as event, index (index)}
+            <div><span>{event.minute}′</span><strong>{event.playerName}</strong><small>{event.teamId === live.homeTeam.id ? live.homeTeam.name : live.awayTeam.name}</small></div>
+          {/each}
+        </details>
+      {/if}
     </div>
 
     <div class="live-controls">
-      <button class="ctrl-btn" onclick={togglePause}><Icon name={live.paused ? 'play' : 'pause'} size={14} />{live.paused ? 'Resume' : 'Pause'}</button>
-      {#if !live.playable}<button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>{/if}
+      <button class="ctrl-btn" class:resume-half={halfTimePaused} onclick={togglePause}><Icon name={live.paused ? 'play' : 'pause'} size={16} />{halfTimePaused ? 'Start second half' : live.paused ? 'Resume' : 'Pause'}</button>
+      {#if !live.playable && !halfTimePaused}<button class="ctrl-btn" onclick={skipMatch}><Icon name="skip" size={14} />Skip</button>{/if}
       <button class="ctrl-btn tactics-control" onclick={openTacticsSheet}><Icon name="tactics" size={14} />Tactics <span>{subsLeft}</span></button>
     </div>
 

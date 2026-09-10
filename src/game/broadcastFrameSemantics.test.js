@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { LEDGER_PRESENTATION_TIME_SCALE } from './broadcastSimulation.js';
-import { describeBroadcastFrame } from './broadcastFrameSemantics.js';
+import { describeBroadcastFrame, matchesCommentaryGoal, revealCommentaryGoal } from './broadcastFrameSemantics.js';
+
+describe('authoritative goal score reveal', () => {
+  const goal = { type:'goal', teamId:'away', playerId:'s1', minute:75 };
+
+  it('awards an away goal to the away score, regardless of the managed team', () => {
+    expect(revealCommentaryGoal(goal, { hGoals:1, aGoals:2 }, [{ ...goal, minute:30 }], 'home', 'away'))
+      .toEqual({ homeGoals:1, awayGoals:2, goals:[{ ...goal, minute:30 }, goal] });
+  });
+
+  it('does not count a restored committed goal twice when replaying its notice', () => {
+    const goals = [goal];
+    expect(revealCommentaryGoal(goal, { hGoals:0, aGoals:1 }, goals, 'home', 'away'))
+      .toEqual({ homeGoals:0, awayGoals:1, goals });
+  });
+
+  it('retains two distinct engine goals by the same scorer in the same minute', () => {
+    const secondGoal = { ...goal };
+    expect(revealCommentaryGoal(secondGoal, { hGoals:0, aGoals:2 }, [goal], 'home', 'away').goals)
+      .toEqual([goal, secondGoal]);
+  });
+});
 
 const players = [
   { id:'g1', name:'Alex Keeper', position:'GK', teamId:'home' },
@@ -32,6 +53,42 @@ function readAt(sim, wallClockMs, frame = {}) {
 }
 
 describe('human-paced live-match commentary reader', () => {
+  it('does not reuse an old goal reveal while the next team starts its attack', () => {
+    const sim = simulation('chance', { finish:'goal' });
+    readAt(sim, 0);
+    readAt(sim, 5600);
+    expect(sim.commentaryGoalReady).toBe(true);
+    sim.commentaryGoalReady = false; // Scoreboard consumed this goal.
+    sim.activePhase = {
+      stage:'chance',
+      record:{ phase:43, minute:33, teamId:'away', opponentTeamId:'home', route:'carry', actorId:'d1', shotId:'d1', finish:'goal', outcome:'chance_created' },
+    };
+    readAt(sim, 5700);
+    expect(sim.commentaryGoalReady).toBe(false);
+  });
+
+  it('matches a reveal to its exact scorer, side and minute, including two goals in the same minute', () => {
+    const revealed = { teamId:'home', playerId:'s1', minute:32 };
+    expect(matchesCommentaryGoal(revealed, { teamId:'home', playerId:'s1', minute:32 })).toBe(true);
+    expect(matchesCommentaryGoal(revealed, { teamId:'away', playerId:'d1', minute:32 })).toBe(false);
+    expect(matchesCommentaryGoal(revealed, { teamId:'home', playerId:'p2', minute:32 })).toBe(false);
+    expect(matchesCommentaryGoal(revealed, { teamId:'home', playerId:'s1', minute:33 })).toBe(false);
+    expect(matchesCommentaryGoal(null, revealed)).toBe(false);
+  });
+
+  it('finishes a first-half goal passage before announcing half time', () => {
+    const sim = simulation('chance', { phase:60, minute:45, finish:'goal' });
+    sim.phase = 60;
+    readAt(sim, 0);
+    sim.activePhase = null;
+    const buildup = readAt(sim, 1000, { mode:'half-time' });
+    expect(buildup.action).not.toBe('HALF TIME');
+    const goal = readAt(sim, 5600, { mode:'half-time' });
+    expect(goal.action).toBe('GOAL! Kai Stone');
+    expect(sim.commentaryGoalEvent).toMatchObject({ teamId:'home', playerId:'s1', minute:45 });
+    expect(readAt(sim, 9500, { mode:'half-time' }).action).toBe('HALF TIME');
+  });
+
   it('builds one passage over several seconds instead of dumping every sentence at once', () => {
     const sim = simulation('route');
     const before = JSON.parse(JSON.stringify(sim));
