@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T19:17:44.336Z",
+  "generatedAt": "2026-09-14T10:42:59.038Z",
   "referenceDate": "2026-09-01",
   "sourceOfTruth": {
     "clubs": "EA SPORTS FC 27",
@@ -10,7 +10,7 @@
   "sources": {
     "eaFc27": {
       "url": "https://www.ea.com/games/ea-sports-fc/ratings",
-      "lastModified": "Fri, 04 Sep 2026 19:13:46 GMT"
+      "lastModified": "Mon, 14 Sep 2026 10:38:32 GMT"
     }
   },
   "baseline": {
@@ -19,20 +19,911 @@
   },
   "result": {
     "teams": 181,
-    "players": 5092,
+    "players": 5037,
     "freeAgents": 0,
-    "movedPlayers": 0,
-    "newPlayers": 0,
-    "removedPlayersApprox": 0
+    "movedPlayers": 196,
+    "newPlayers": 199,
+    "removedPlayersApprox": 254
   },
   "coverage": {
-    "eaPlayersCrawled": 18628,
+    "eaPlayersCrawled": 17849,
     "pitchTeamsResolved": 181,
     "pitchTeamsTotal": 181,
-    "fc27RatedPlayersImported": 5092,
+    "fc27RatedPlayersImported": 5037,
     "ratingsFallback": 0,
-    "ageFallbacks": 5092,
-    "nationalityFallbacks": 0
+    "ageFallbacks": 5037,
+    "nationalityFallbacks": 0,
+    "detailedAttributes": {
+      "requiredNonGoalkeepers": 4493,
+      "completeNonGoalkeepers": 4493,
+      "missingNonGoalkeepers": 0,
+      "byLeague": {
+        "bundesliga": {
+          "players": 548,
+          "complete": 548,
+          "attributes": {
+            "pace": {
+              "count": 548,
+              "min": 34,
+              "max": 95,
+              "mean": 70.92
+            },
+            "shooting": {
+              "count": 548,
+              "min": 23,
+              "max": 94,
+              "mean": 59.04
+            },
+            "passing": {
+              "count": 548,
+              "min": 34,
+              "max": 90,
+              "mean": 64
+            },
+            "dribbling": {
+              "count": 548,
+              "min": 37,
+              "max": 91,
+              "mean": 69.25
+            },
+            "defending": {
+              "count": 548,
+              "min": 18,
+              "max": 87,
+              "mean": 54.88
+            },
+            "physical": {
+              "count": 548,
+              "min": 37,
+              "max": 88,
+              "mean": 68.48
+            }
+          }
+        },
+        "championship": {
+          "players": 669,
+          "complete": 669,
+          "attributes": {
+            "pace": {
+              "count": 669,
+              "min": 30,
+              "max": 94,
+              "mean": 69.6
+            },
+            "shooting": {
+              "count": 669,
+              "min": 23,
+              "max": 81,
+              "mean": 56.8
+            },
+            "passing": {
+              "count": 669,
+              "min": 36,
+              "max": 82,
+              "mean": 61.24
+            },
+            "dribbling": {
+              "count": 669,
+              "min": 41,
+              "max": 82,
+              "mean": 66.18
+            },
+            "defending": {
+              "count": 669,
+              "min": 16,
+              "max": 79,
+              "mean": 53.02
+            },
+            "physical": {
+              "count": 669,
+              "min": 37,
+              "max": 85,
+              "mean": 67.45
+            }
+          }
+        },
+        "eredivisie": {
+          "players": 413,
+          "complete": 413,
+          "attributes": {
+            "pace": {
+              "count": 413,
+              "min": 34,
+              "max": 94,
+              "mean": 68.68
+            },
+            "shooting": {
+              "count": 413,
+              "min": 24,
+              "max": 82,
+              "mean": 55.91
+            },
+            "passing": {
+              "count": 413,
+              "min": 40,
+              "max": 85,
+              "mean": 61.13
+            },
+            "dribbling": {
+              "count": 413,
+              "min": 40,
+              "max": 84,
+              "mean": 66.01
+            },
+            "defending": {
+              "count": 413,
+              "min": 19,
+              "max": 81,
+              "mean": 50.57
+            },
+            "physical": {
+              "count": 413,
+              "min": 36,
+              "max": 85,
+              "mean": 65.38
+            }
+          }
+        },
+        "la_liga": {
+          "players": 548,
+          "complete": 548,
+          "attributes": {
+            "pace": {
+              "count": 548,
+              "min": 41,
+              "max": 96,
+              "mean": 71.4
+            },
+            "shooting": {
+              "count": 548,
+              "min": 23,
+              "max": 91,
+              "mean": 61.33
+            },
+            "passing": {
+              "count": 548,
+              "min": 43,
+              "max": 89,
+              "mean": 66.77
+            },
+            "dribbling": {
+              "count": 548,
+              "min": 45,
+              "max": 93,
+              "mean": 70.83
+            },
+            "defending": {
+              "count": 548,
+              "min": 15,
+              "max": 86,
+              "mean": 57.08
+            },
+            "physical": {
+              "count": 548,
+              "min": 38,
+              "max": 90,
+              "mean": 69.28
+            }
+          }
+        },
+        "league_one": {
+          "players": 612,
+          "complete": 612,
+          "attributes": {
+            "pace": {
+              "count": 612,
+              "min": 30,
+              "max": 92,
+              "mean": 68.1
+            },
+            "shooting": {
+              "count": 612,
+              "min": 23,
+              "max": 72,
+              "mean": 52.58
+            },
+            "passing": {
+              "count": 612,
+              "min": 30,
+              "max": 75,
+              "mean": 56.16
+            },
+            "dribbling": {
+              "count": 612,
+              "min": 38,
+              "max": 74,
+              "mean": 61.18
+            },
+            "defending": {
+              "count": 612,
+              "min": 16,
+              "max": 74,
+              "mean": 50.44
+            },
+            "physical": {
+              "count": 612,
+              "min": 39,
+              "max": 86,
+              "mean": 65.44
+            }
+          }
+        },
+        "league_two": {
+          "players": 557,
+          "complete": 557,
+          "attributes": {
+            "pace": {
+              "count": 557,
+              "min": 31,
+              "max": 90,
+              "mean": 67.18
+            },
+            "shooting": {
+              "count": 557,
+              "min": 21,
+              "max": 68,
+              "mean": 48.91
+            },
+            "passing": {
+              "count": 557,
+              "min": 32,
+              "max": 69,
+              "mean": 52.4
+            },
+            "dribbling": {
+              "count": 557,
+              "min": 37,
+              "max": 69,
+              "mean": 57.68
+            },
+            "defending": {
+              "count": 557,
+              "min": 17,
+              "max": 66,
+              "mean": 48.17
+            },
+            "physical": {
+              "count": 557,
+              "min": 38,
+              "max": 83,
+              "mean": 63.64
+            }
+          }
+        },
+        "ligue_1": {
+          "players": 500,
+          "complete": 500,
+          "attributes": {
+            "pace": {
+              "count": 500,
+              "min": 32,
+              "max": 94,
+              "mean": 70.42
+            },
+            "shooting": {
+              "count": 500,
+              "min": 23,
+              "max": 89,
+              "mean": 57.05
+            },
+            "passing": {
+              "count": 500,
+              "min": 36,
+              "max": 88,
+              "mean": 63.3
+            },
+            "dribbling": {
+              "count": 500,
+              "min": 43,
+              "max": 93,
+              "mean": 69.06
+            },
+            "defending": {
+              "count": 500,
+              "min": 19,
+              "max": 90,
+              "mean": 54.82
+            },
+            "physical": {
+              "count": 500,
+              "min": 38,
+              "max": 86,
+              "mean": 67.05
+            }
+          }
+        },
+        "prem": {
+          "players": 612,
+          "complete": 612,
+          "attributes": {
+            "pace": {
+              "count": 612,
+              "min": 35,
+              "max": 94,
+              "mean": 72.13
+            },
+            "shooting": {
+              "count": 612,
+              "min": 23,
+              "max": 92,
+              "mean": 62.98
+            },
+            "passing": {
+              "count": 612,
+              "min": 37,
+              "max": 92,
+              "mean": 68.63
+            },
+            "dribbling": {
+              "count": 612,
+              "min": 43,
+              "max": 91,
+              "mean": 72.63
+            },
+            "defending": {
+              "count": 612,
+              "min": 18,
+              "max": 91,
+              "mean": 58.83
+            },
+            "physical": {
+              "count": 612,
+              "min": 41,
+              "max": 90,
+              "mean": 70.3
+            }
+          }
+        },
+        "serie_a": {
+          "players": 578,
+          "complete": 578,
+          "attributes": {
+            "pace": {
+              "count": 578,
+              "min": 30,
+              "max": 93,
+              "mean": 69.52
+            },
+            "shooting": {
+              "count": 578,
+              "min": 25,
+              "max": 88,
+              "mean": 60.92
+            },
+            "passing": {
+              "count": 578,
+              "min": 39,
+              "max": 89,
+              "mean": 65.26
+            },
+            "dribbling": {
+              "count": 578,
+              "min": 43,
+              "max": 89,
+              "mean": 70.15
+            },
+            "defending": {
+              "count": 578,
+              "min": 19,
+              "max": 87,
+              "mean": 57.72
+            },
+            "physical": {
+              "count": 578,
+              "min": 41,
+              "max": 90,
+              "mean": 68.31
+            }
+          }
+        }
+      },
+      "byPosition": {
+        "CAM": {
+          "players": 327,
+          "complete": 327,
+          "attributes": {
+            "pace": {
+              "count": 327,
+              "min": 49,
+              "max": 88,
+              "mean": 71.3
+            },
+            "shooting": {
+              "count": 327,
+              "min": 42,
+              "max": 86,
+              "mean": 65.9
+            },
+            "passing": {
+              "count": 327,
+              "min": 49,
+              "max": 92,
+              "mean": 68.09
+            },
+            "dribbling": {
+              "count": 327,
+              "min": 55,
+              "max": 90,
+              "mean": 72.43
+            },
+            "defending": {
+              "count": 327,
+              "min": 21,
+              "max": 79,
+              "mean": 49.33
+            },
+            "physical": {
+              "count": 327,
+              "min": 38,
+              "max": 85,
+              "mean": 60.52
+            }
+          }
+        },
+        "CB": {
+          "players": 969,
+          "complete": 969,
+          "attributes": {
+            "pace": {
+              "count": 969,
+              "min": 30,
+              "max": 90,
+              "mean": 62.44
+            },
+            "shooting": {
+              "count": 969,
+              "min": 21,
+              "max": 76,
+              "mean": 38.39
+            },
+            "passing": {
+              "count": 969,
+              "min": 32,
+              "max": 82,
+              "mean": 54.05
+            },
+            "dribbling": {
+              "count": 969,
+              "min": 37,
+              "max": 78,
+              "mean": 57.57
+            },
+            "defending": {
+              "count": 969,
+              "min": 50,
+              "max": 91,
+              "mean": 69.54
+            },
+            "physical": {
+              "count": 969,
+              "min": 51,
+              "max": 90,
+              "mean": 73.73
+            }
+          }
+        },
+        "CDM": {
+          "players": 420,
+          "complete": 420,
+          "attributes": {
+            "pace": {
+              "count": 420,
+              "min": 30,
+              "max": 81,
+              "mean": 62.44
+            },
+            "shooting": {
+              "count": 420,
+              "min": 32,
+              "max": 81,
+              "mean": 56.59
+            },
+            "passing": {
+              "count": 420,
+              "min": 47,
+              "max": 90,
+              "mean": 65.89
+            },
+            "dribbling": {
+              "count": 420,
+              "min": 46,
+              "max": 84,
+              "mean": 67.91
+            },
+            "defending": {
+              "count": 420,
+              "min": 50,
+              "max": 85,
+              "mean": 67.53
+            },
+            "physical": {
+              "count": 420,
+              "min": 47,
+              "max": 85,
+              "mean": 70.52
+            }
+          }
+        },
+        "CM": {
+          "players": 593,
+          "complete": 593,
+          "attributes": {
+            "pace": {
+              "count": 593,
+              "min": 33,
+              "max": 90,
+              "mean": 66.44
+            },
+            "shooting": {
+              "count": 593,
+              "min": 40,
+              "max": 84,
+              "mean": 61.96
+            },
+            "passing": {
+              "count": 593,
+              "min": 49,
+              "max": 89,
+              "mean": 67.4
+            },
+            "dribbling": {
+              "count": 593,
+              "min": 51,
+              "max": 91,
+              "mean": 69.89
+            },
+            "defending": {
+              "count": 593,
+              "min": 40,
+              "max": 86,
+              "mean": 62.76
+            },
+            "physical": {
+              "count": 593,
+              "min": 37,
+              "max": 90,
+              "mean": 66.74
+            }
+          }
+        },
+        "GK": {
+          "players": 544,
+          "complete": 544,
+          "attributes": {
+            "pace": {
+              "count": 544,
+              "min": 50,
+              "max": 90,
+              "mean": 68.08
+            },
+            "shooting": {
+              "count": 544,
+              "min": 49,
+              "max": 90,
+              "mean": 66.15
+            },
+            "passing": {
+              "count": 544,
+              "min": 46,
+              "max": 89,
+              "mean": 65.44
+            },
+            "dribbling": {
+              "count": 544,
+              "min": 47,
+              "max": 90,
+              "mean": 68.97
+            },
+            "defending": {
+              "count": 544,
+              "min": 15,
+              "max": 64,
+              "mean": 37.83
+            },
+            "physical": {
+              "count": 544,
+              "min": 48,
+              "max": 90,
+              "mean": 66.72
+            }
+          }
+        },
+        "LB": {
+          "players": 367,
+          "complete": 367,
+          "attributes": {
+            "pace": {
+              "count": 367,
+              "min": 38,
+              "max": 94,
+              "mean": 74.87
+            },
+            "shooting": {
+              "count": 367,
+              "min": 26,
+              "max": 78,
+              "mean": 51.08
+            },
+            "passing": {
+              "count": 367,
+              "min": 38,
+              "max": 85,
+              "mean": 63.69
+            },
+            "dribbling": {
+              "count": 367,
+              "min": 48,
+              "max": 86,
+              "mean": 67.57
+            },
+            "defending": {
+              "count": 367,
+              "min": 47,
+              "max": 84,
+              "mean": 65.48
+            },
+            "physical": {
+              "count": 367,
+              "min": 47,
+              "max": 84,
+              "mean": 67.27
+            }
+          }
+        },
+        "LM": {
+          "players": 279,
+          "complete": 279,
+          "attributes": {
+            "pace": {
+              "count": 279,
+              "min": 54,
+              "max": 94,
+              "mean": 79.36
+            },
+            "shooting": {
+              "count": 279,
+              "min": 44,
+              "max": 86,
+              "mean": 63.77
+            },
+            "passing": {
+              "count": 279,
+              "min": 45,
+              "max": 87,
+              "mean": 63.68
+            },
+            "dribbling": {
+              "count": 279,
+              "min": 56,
+              "max": 87,
+              "mean": 71.09
+            },
+            "defending": {
+              "count": 279,
+              "min": 18,
+              "max": 72,
+              "mean": 41.37
+            },
+            "physical": {
+              "count": 279,
+              "min": 36,
+              "max": 80,
+              "mean": 58.9
+            }
+          }
+        },
+        "LW": {
+          "players": 97,
+          "complete": 97,
+          "attributes": {
+            "pace": {
+              "count": 97,
+              "min": 64,
+              "max": 93,
+              "mean": 81.73
+            },
+            "shooting": {
+              "count": 97,
+              "min": 51,
+              "max": 86,
+              "mean": 68.34
+            },
+            "passing": {
+              "count": 97,
+              "min": 52,
+              "max": 85,
+              "mean": 67.4
+            },
+            "dribbling": {
+              "count": 97,
+              "min": 59,
+              "max": 91,
+              "mean": 75.65
+            },
+            "defending": {
+              "count": 97,
+              "min": 18,
+              "max": 68,
+              "mean": 38.41
+            },
+            "physical": {
+              "count": 97,
+              "min": 38,
+              "max": 81,
+              "mean": 60.49
+            }
+          }
+        },
+        "RB": {
+          "players": 380,
+          "complete": 380,
+          "attributes": {
+            "pace": {
+              "count": 380,
+              "min": 34,
+              "max": 94,
+              "mean": 75.15
+            },
+            "shooting": {
+              "count": 380,
+              "min": 26,
+              "max": 79,
+              "mean": 50.31
+            },
+            "passing": {
+              "count": 380,
+              "min": 41,
+              "max": 89,
+              "mean": 62.66
+            },
+            "dribbling": {
+              "count": 380,
+              "min": 48,
+              "max": 84,
+              "mean": 67.08
+            },
+            "defending": {
+              "count": 380,
+              "min": 50,
+              "max": 83,
+              "mean": 65.82
+            },
+            "physical": {
+              "count": 380,
+              "min": 44,
+              "max": 87,
+              "mean": 68.32
+            }
+          }
+        },
+        "RM": {
+          "players": 281,
+          "complete": 281,
+          "attributes": {
+            "pace": {
+              "count": 281,
+              "min": 57,
+              "max": 95,
+              "mean": 78.94
+            },
+            "shooting": {
+              "count": 281,
+              "min": 39,
+              "max": 83,
+              "mean": 63.86
+            },
+            "passing": {
+              "count": 281,
+              "min": 45,
+              "max": 89,
+              "mean": 64.25
+            },
+            "dribbling": {
+              "count": 281,
+              "min": 55,
+              "max": 91,
+              "mean": 71.03
+            },
+            "defending": {
+              "count": 281,
+              "min": 18,
+              "max": 78,
+              "mean": 42.97
+            },
+            "physical": {
+              "count": 281,
+              "min": 37,
+              "max": 84,
+              "mean": 59.35
+            }
+          }
+        },
+        "RW": {
+          "players": 91,
+          "complete": 91,
+          "attributes": {
+            "pace": {
+              "count": 91,
+              "min": 59,
+              "max": 94,
+              "mean": 78.42
+            },
+            "shooting": {
+              "count": 91,
+              "min": 47,
+              "max": 85,
+              "mean": 68.79
+            },
+            "passing": {
+              "count": 91,
+              "min": 41,
+              "max": 87,
+              "mean": 68.41
+            },
+            "dribbling": {
+              "count": 91,
+              "min": 54,
+              "max": 93,
+              "mean": 74.96
+            },
+            "defending": {
+              "count": 91,
+              "min": 19,
+              "max": 67,
+              "mean": 39.45
+            },
+            "physical": {
+              "count": 91,
+              "min": 38,
+              "max": 83,
+              "mean": 59.74
+            }
+          }
+        },
+        "ST": {
+          "players": 689,
+          "complete": 689,
+          "attributes": {
+            "pace": {
+              "count": 689,
+              "min": 31,
+              "max": 96,
+              "mean": 72.06
+            },
+            "shooting": {
+              "count": 689,
+              "min": 51,
+              "max": 94,
+              "mean": 68.23
+            },
+            "passing": {
+              "count": 689,
+              "min": 30,
+              "max": 83,
+              "mean": 56.82
+            },
+            "dribbling": {
+              "count": 689,
+              "min": 46,
+              "max": 93,
+              "mean": 67.02
+            },
+            "defending": {
+              "count": 689,
+              "min": 17,
+              "max": 64,
+              "mean": 32.73
+            },
+            "physical": {
+              "count": 689,
+              "min": 39,
+              "max": 89,
+              "mean": 68.73
+            }
+          }
+        }
+      }
+    }
   },
   "teamResolution": {
     "clubs": [
@@ -42,7 +933,7 @@
         "eaClub": "Manchester City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 38
+        "rosterOverlap": 29
       },
       {
         "teamId": "everton",
@@ -50,7 +941,7 @@
         "eaClub": "Everton",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 23
+        "rosterOverlap": 22
       },
       {
         "teamId": "man_utd",
@@ -58,7 +949,7 @@
         "eaClub": "Man Utd",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 38
+        "rosterOverlap": 33
       },
       {
         "teamId": "newcastle",
@@ -66,7 +957,7 @@
         "eaClub": "Newcastle Utd",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 29
+        "rosterOverlap": 27
       },
       {
         "teamId": "tottenham",
@@ -74,7 +965,7 @@
         "eaClub": "Spurs",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 38
+        "rosterOverlap": 32
       },
       {
         "teamId": "arsenal",
@@ -82,7 +973,7 @@
         "eaClub": "Arsenal",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 26
       },
       {
         "teamId": "liverpool",
@@ -90,7 +981,7 @@
         "eaClub": "Liverpool",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 31
       },
       {
         "teamId": "brentford",
@@ -98,7 +989,7 @@
         "eaClub": "Brentford",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 34
+        "rosterOverlap": 30
       },
       {
         "teamId": "nottm_forest",
@@ -106,7 +997,7 @@
         "eaClub": "Nott'm Forest",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 28
+        "rosterOverlap": 26
       },
       {
         "teamId": "aston_villa",
@@ -114,7 +1005,7 @@
         "eaClub": "Aston Villa",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 35
+        "rosterOverlap": 30
       },
       {
         "teamId": "bournemouth",
@@ -122,7 +1013,7 @@
         "eaClub": "AFC Bournemouth",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 29
       },
       {
         "teamId": "brighton",
@@ -130,7 +1021,7 @@
         "eaClub": "Brighton",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 35
+        "rosterOverlap": 33
       },
       {
         "teamId": "chelsea",
@@ -138,7 +1029,7 @@
         "eaClub": "Chelsea",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 38
+        "rosterOverlap": 35
       },
       {
         "teamId": "leeds",
@@ -146,7 +1037,7 @@
         "eaClub": "Leeds United",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 23
       },
       {
         "teamId": "crystal_palace",
@@ -154,7 +1045,7 @@
         "eaClub": "Crystal Palace",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 27
       },
       {
         "teamId": "fulham",
@@ -162,7 +1053,7 @@
         "eaClub": "Fulham",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 22
       },
       {
         "teamId": "sunderland",
@@ -170,7 +1061,7 @@
         "eaClub": "Sunderland",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 31
+        "rosterOverlap": 27
       },
       {
         "teamId": "coventry",
@@ -178,7 +1069,7 @@
         "eaClub": "Coventry City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 26
       },
       {
         "teamId": "ipswich",
@@ -186,7 +1077,7 @@
         "eaClub": "Ipswich",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 30
+        "rosterOverlap": 25
       },
       {
         "teamId": "hull",
@@ -194,7 +1085,7 @@
         "eaClub": "Hull City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 28
+        "rosterOverlap": 24
       },
       {
         "teamId": "southampton",
@@ -202,7 +1093,7 @@
         "eaClub": "Southampton",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 36
+        "rosterOverlap": 29
       },
       {
         "teamId": "norwich",
@@ -210,7 +1101,7 @@
         "eaClub": "Norwich",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 35
+        "rosterOverlap": 32
       },
       {
         "teamId": "middlesbrough",
@@ -218,7 +1109,7 @@
         "eaClub": "Middlesbrough",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 25
       },
       {
         "teamId": "west_brom",
@@ -226,7 +1117,7 @@
         "eaClub": "West Brom",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 25
+        "rosterOverlap": 21
       },
       {
         "teamId": "derby",
@@ -234,7 +1125,7 @@
         "eaClub": "Derby County",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 25
       },
       {
         "teamId": "birmingham",
@@ -250,7 +1141,7 @@
         "eaClub": "Bristol City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 25
       },
       {
         "teamId": "cardiff",
@@ -258,7 +1149,7 @@
         "eaClub": "Cardiff City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 28
+        "rosterOverlap": 24
       },
       {
         "teamId": "millwall",
@@ -266,7 +1157,7 @@
         "eaClub": "Millwall",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 29
       },
       {
         "teamId": "preston",
@@ -274,7 +1165,7 @@
         "eaClub": "Preston",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 24
+        "rosterOverlap": 19
       },
       {
         "teamId": "qpr",
@@ -282,7 +1173,7 @@
         "eaClub": "QPR",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 29
+        "rosterOverlap": 26
       },
       {
         "teamId": "stoke",
@@ -290,7 +1181,7 @@
         "eaClub": "Stoke City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 24
       },
       {
         "teamId": "watford",
@@ -298,7 +1189,7 @@
         "eaClub": "Watford",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 21
       },
       {
         "teamId": "blackburn",
@@ -306,7 +1197,7 @@
         "eaClub": "Blackburn Rovers",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 31
+        "rosterOverlap": 29
       },
       {
         "teamId": "wolves",
@@ -314,7 +1205,7 @@
         "eaClub": "Wolves",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 31
+        "rosterOverlap": 29
       },
       {
         "teamId": "burnley",
@@ -322,7 +1213,7 @@
         "eaClub": "Burnley",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 31
+        "rosterOverlap": 28
       },
       {
         "teamId": "west_ham",
@@ -330,7 +1221,7 @@
         "eaClub": "West Ham",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 25
+        "rosterOverlap": 21
       },
       {
         "teamId": "lincoln",
@@ -338,7 +1229,7 @@
         "eaClub": "Lincoln City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 23
       },
       {
         "teamId": "bolton",
@@ -346,7 +1237,7 @@
         "eaClub": "Bolton",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 27
+        "rosterOverlap": 24
       },
       {
         "teamId": "charlton",
@@ -354,7 +1245,7 @@
         "eaClub": "Charlton Ath",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 32
+        "rosterOverlap": 28
       },
       {
         "teamId": "portsmouth",
@@ -362,7 +1253,7 @@
         "eaClub": "Portsmouth",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 31
       },
       {
         "teamId": "wrexham",
@@ -370,7 +1261,7 @@
         "eaClub": "Wrexham",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 28
       },
       {
         "teamId": "sheffield_utd",
@@ -378,7 +1269,7 @@
         "eaClub": "Sheffield Utd",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 29
+        "rosterOverlap": 24
       },
       {
         "teamId": "swansea",
@@ -386,7 +1277,7 @@
         "eaClub": "Swansea City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 34
+        "rosterOverlap": 23
       },
       {
         "teamId": "barnsley",
@@ -394,7 +1285,7 @@
         "eaClub": "Barnsley",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 22
       },
       {
         "teamId": "blackpool",
@@ -402,7 +1293,7 @@
         "eaClub": "Blackpool",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 23
+        "rosterOverlap": 21
       },
       {
         "teamId": "burton",
@@ -410,7 +1301,7 @@
         "eaClub": "Burton Albion",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 21
+        "rosterOverlap": 20
       },
       {
         "teamId": "cambridge",
@@ -426,7 +1317,7 @@
         "eaClub": "Leyton Orient",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 28
+        "rosterOverlap": 25
       },
       {
         "teamId": "oxford",
@@ -434,7 +1325,7 @@
         "eaClub": "Oxford United",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 24
       },
       {
         "teamId": "peterborough",
@@ -450,7 +1341,7 @@
         "eaClub": "Stevenage",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 23
       },
       {
         "teamId": "wigan",
@@ -458,7 +1349,7 @@
         "eaClub": "Wigan Athletic",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 19
       },
       {
         "teamId": "reading",
@@ -466,7 +1357,7 @@
         "eaClub": "Reading",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 23
       },
       {
         "teamId": "wycombe",
@@ -474,7 +1365,7 @@
         "eaClub": "Wycombe",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 28
+        "rosterOverlap": 25
       },
       {
         "teamId": "leicester",
@@ -482,7 +1373,7 @@
         "eaClub": "Leicester City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 22
       },
       {
         "teamId": "sheffield_wed",
@@ -490,7 +1381,7 @@
         "eaClub": "Sheffield Wed",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 29
+        "rosterOverlap": 26
       },
       {
         "teamId": "mansfield",
@@ -498,7 +1389,7 @@
         "eaClub": "Mansfield Town",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 22
       },
       {
         "teamId": "plymouth",
@@ -506,7 +1397,7 @@
         "eaClub": "Plymouth Argyle",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 22
       },
       {
         "teamId": "huddersfield",
@@ -514,7 +1405,7 @@
         "eaClub": "Huddersfield",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 28
+        "rosterOverlap": 27
       },
       {
         "teamId": "bromley",
@@ -522,7 +1413,7 @@
         "eaClub": "Bromley FC",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 22
       },
       {
         "teamId": "mk_dons",
@@ -530,7 +1421,7 @@
         "eaClub": "MK Dons",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 25
+        "rosterOverlap": 23
       },
       {
         "teamId": "notts_county",
@@ -538,7 +1429,7 @@
         "eaClub": "Notts County",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 25
       },
       {
         "teamId": "afc_wimbledon",
@@ -546,7 +1437,7 @@
         "eaClub": "AFC Wimbledon",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 23
+        "rosterOverlap": 20
       },
       {
         "teamId": "bradford",
@@ -554,7 +1445,7 @@
         "eaClub": "Bradford City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 21
+        "rosterOverlap": 20
       },
       {
         "teamId": "doncaster",
@@ -562,7 +1453,7 @@
         "eaClub": "Doncaster",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 27
+        "rosterOverlap": 25
       },
       {
         "teamId": "luton",
@@ -578,7 +1469,7 @@
         "eaClub": "Stockport",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 28
+        "rosterOverlap": 27
       },
       {
         "teamId": "barnet",
@@ -586,7 +1477,7 @@
         "eaClub": "Barnet",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 23
+        "rosterOverlap": 21
       },
       {
         "teamId": "colchester",
@@ -602,7 +1493,7 @@
         "eaClub": "Crawley Town",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 29
+        "rosterOverlap": 27
       },
       {
         "teamId": "crewe",
@@ -610,7 +1501,7 @@
         "eaClub": "Crewe Alexandra",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 23
+        "rosterOverlap": 21
       },
       {
         "teamId": "gillingham",
@@ -618,7 +1509,7 @@
         "eaClub": "Gillingham",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 29
+        "rosterOverlap": 27
       },
       {
         "teamId": "grimsby",
@@ -626,7 +1517,7 @@
         "eaClub": "Grimsby Town",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 24
       },
       {
         "teamId": "newport",
@@ -650,7 +1541,7 @@
         "eaClub": "Swindon Town",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 21
+        "rosterOverlap": 20
       },
       {
         "teamId": "tranmere",
@@ -658,7 +1549,7 @@
         "eaClub": "Tranmere Rovers",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 23
       },
       {
         "teamId": "walsall",
@@ -666,7 +1557,7 @@
         "eaClub": "Walsall",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 23
       },
       {
         "teamId": "rotherham",
@@ -674,7 +1565,7 @@
         "eaClub": "Rotherham Utd",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 21
+        "rosterOverlap": 20
       },
       {
         "teamId": "exeter",
@@ -682,7 +1573,7 @@
         "eaClub": "Exeter City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 20
+        "rosterOverlap": 19
       },
       {
         "teamId": "northampton",
@@ -690,7 +1581,7 @@
         "eaClub": "Northampton",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 23
+        "rosterOverlap": 22
       },
       {
         "teamId": "bristol_rovers",
@@ -698,7 +1589,7 @@
         "eaClub": "Bristol Rovers",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 23
       },
       {
         "teamId": "cheltenham",
@@ -706,7 +1597,7 @@
         "eaClub": "Cheltenham Town",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 20
+        "rosterOverlap": 18
       },
       {
         "teamId": "fleetwood",
@@ -714,7 +1605,7 @@
         "eaClub": "Fleetwood Town",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 23
       },
       {
         "teamId": "port_vale",
@@ -722,7 +1613,7 @@
         "eaClub": "Port Vale",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 25
       },
       {
         "teamId": "rochdale",
@@ -730,7 +1621,7 @@
         "eaClub": "Rochdale",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 22
+        "rosterOverlap": 21
       },
       {
         "teamId": "york_city",
@@ -738,7 +1629,7 @@
         "eaClub": "York City",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 23
       },
       {
         "teamId": "accrington",
@@ -746,7 +1637,7 @@
         "eaClub": "Accrington",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 25
+        "rosterOverlap": 24
       },
       {
         "teamId": "chesterfield",
@@ -754,7 +1645,7 @@
         "eaClub": "Chesterfield",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 28
       },
       {
         "teamId": "dortmund",
@@ -762,7 +1653,7 @@
         "eaClub": "Borussia Dortmund",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 29
+        "rosterOverlap": 26
       },
       {
         "teamId": "stuttgart",
@@ -770,7 +1661,7 @@
         "eaClub": "VfB Stuttgart",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 35
+        "rosterOverlap": 33
       },
       {
         "teamId": "frankfurt",
@@ -778,7 +1669,7 @@
         "eaClub": "Frankfurt",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 33
+        "rosterOverlap": 29
       },
       {
         "teamId": "union_berlin",
@@ -786,7 +1677,7 @@
         "eaClub": "Union Berlin",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 29
       },
       {
         "teamId": "freiburg",
@@ -794,7 +1685,7 @@
         "eaClub": "SC Freiburg",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 29
       },
       {
         "teamId": "mainz",
@@ -810,7 +1701,7 @@
         "eaClub": "TSG Hoffenheim",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 30
       },
       {
         "teamId": "bremen",
@@ -818,7 +1709,7 @@
         "eaClub": "SV Werder Bremen",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 29
+        "rosterOverlap": 27
       },
       {
         "teamId": "gladbach",
@@ -826,7 +1717,7 @@
         "eaClub": "M'gladbach",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 29
+        "rosterOverlap": 26
       },
       {
         "teamId": "augsburg",
@@ -834,7 +1725,7 @@
         "eaClub": "FC Augsburg",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 29
       },
       {
         "teamId": "hamburg",
@@ -842,7 +1733,7 @@
         "eaClub": "Hamburger SV",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 25
       },
       {
         "teamId": "bayern",
@@ -850,7 +1741,7 @@
         "eaClub": "FC Bayern München",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 28
+        "rosterOverlap": 27
       },
       {
         "teamId": "leverkusen",
@@ -858,7 +1749,7 @@
         "eaClub": "Leverkusen",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 30
+        "rosterOverlap": 28
       },
       {
         "teamId": "leipzig",
@@ -866,7 +1757,7 @@
         "eaClub": "RB Leipzig",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 35
+        "rosterOverlap": 31
       },
       {
         "teamId": "schalke_04",
@@ -874,7 +1765,7 @@
         "eaClub": "FC Schalke 04",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 33
+        "rosterOverlap": 32
       },
       {
         "teamId": "sv_elversberg",
@@ -890,7 +1781,7 @@
         "eaClub": "SC Paderborn 07",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 30
+        "rosterOverlap": 29
       },
       {
         "teamId": "koln",
@@ -906,7 +1797,7 @@
         "eaClub": "Real Madrid",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 31
       },
       {
         "teamId": "barcelona",
@@ -914,7 +1805,7 @@
         "eaClub": "FC Barcelona",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 27
       },
       {
         "teamId": "atletico",
@@ -922,7 +1813,7 @@
         "eaClub": "Atlético de Madrid",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 34
+        "rosterOverlap": 30
       },
       {
         "teamId": "real_sociedad",
@@ -930,7 +1821,7 @@
         "eaClub": "Real Sociedad",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 23
       },
       {
         "teamId": "athletic_bilbao",
@@ -938,7 +1829,7 @@
         "eaClub": "Athletic Club",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 33
+        "rosterOverlap": 32
       },
       {
         "teamId": "real_betis",
@@ -954,7 +1845,7 @@
         "eaClub": "Villarreal CF",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 28
+        "rosterOverlap": 24
       },
       {
         "teamId": "celta_vigo",
@@ -962,7 +1853,7 @@
         "eaClub": "Celta",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 26
+        "rosterOverlap": 23
       },
       {
         "teamId": "sevilla",
@@ -970,7 +1861,7 @@
         "eaClub": "Sevilla FC",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 22
       },
       {
         "teamId": "valencia",
@@ -986,7 +1877,7 @@
         "eaClub": "Rayo Vallecano",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 25
       },
       {
         "teamId": "osasuna",
@@ -994,7 +1885,7 @@
         "eaClub": "CA Osasuna",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 23
+        "rosterOverlap": 21
       },
       {
         "teamId": "alaves",
@@ -1002,7 +1893,7 @@
         "eaClub": "D. Alavés",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 28
+        "rosterOverlap": 26
       },
       {
         "teamId": "elche",
@@ -1010,7 +1901,7 @@
         "eaClub": "Elche CF",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 25
       },
       {
         "teamId": "espanyol",
@@ -1018,7 +1909,7 @@
         "eaClub": "RCD Espanyol",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 23
       },
       {
         "teamId": "getafe",
@@ -1034,7 +1925,7 @@
         "eaClub": "Levante UD",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 29
+        "rosterOverlap": 25
       },
       {
         "teamId": "racing_santander",
@@ -1042,7 +1933,7 @@
         "eaClub": "R. Racing Club",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 20
+        "rosterOverlap": 19
       },
       {
         "teamId": "deportivo_la_coruna",
@@ -1058,7 +1949,7 @@
         "eaClub": "Málaga CF",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 27
       },
       {
         "teamId": "psg",
@@ -1066,7 +1957,7 @@
         "eaClub": "Paris SG",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 26
+        "rosterOverlap": 25
       },
       {
         "teamId": "marseille",
@@ -1074,7 +1965,7 @@
         "eaClub": "OM",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 30
+        "rosterOverlap": 25
       },
       {
         "teamId": "monaco",
@@ -1082,7 +1973,7 @@
         "eaClub": "AS Monaco",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 28
       },
       {
         "teamId": "strasbourg",
@@ -1090,7 +1981,7 @@
         "eaClub": "Strasbourg",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 33
+        "rosterOverlap": 27
       },
       {
         "teamId": "lyon",
@@ -1098,7 +1989,7 @@
         "eaClub": "OL",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 35
+        "rosterOverlap": 33
       },
       {
         "teamId": "lille",
@@ -1106,7 +1997,7 @@
         "eaClub": "LOSC Lille",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 29
+        "rosterOverlap": 27
       },
       {
         "teamId": "nice",
@@ -1114,7 +2005,7 @@
         "eaClub": "OGC Nice",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 26
       },
       {
         "teamId": "rennes",
@@ -1122,7 +2013,7 @@
         "eaClub": "Stade Rennais FC",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 25
       },
       {
         "teamId": "toulouse",
@@ -1130,7 +2021,7 @@
         "eaClub": "Toulouse FC",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 28
+        "rosterOverlap": 27
       },
       {
         "teamId": "brest",
@@ -1138,7 +2029,7 @@
         "eaClub": "Stade Brestois 29",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 21
+        "rosterOverlap": 17
       },
       {
         "teamId": "lorient",
@@ -1146,7 +2037,7 @@
         "eaClub": "FC Lorient",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 25
+        "rosterOverlap": 23
       },
       {
         "teamId": "troyes",
@@ -1154,7 +2045,7 @@
         "eaClub": "ESTAC Troyes",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 26
+        "rosterOverlap": 25
       },
       {
         "teamId": "le_mans",
@@ -1170,7 +2061,7 @@
         "eaClub": "RC Lens",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 28
+        "rosterOverlap": 26
       },
       {
         "teamId": "le_havre",
@@ -1178,7 +2069,7 @@
         "eaClub": "Havre AC",
         "eaLeague": null,
         "method": "contains",
-        "rosterOverlap": 26
+        "rosterOverlap": 25
       },
       {
         "teamId": "auxerre",
@@ -1186,7 +2077,7 @@
         "eaClub": "AJ Auxerre",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 29
       },
       {
         "teamId": "angers",
@@ -1194,7 +2085,7 @@
         "eaClub": "Angers SCO",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 22
       },
       {
         "teamId": "paris_fc",
@@ -1202,7 +2093,7 @@
         "eaClub": "Paris FC",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 29
+        "rosterOverlap": 26
       },
       {
         "teamId": "inter",
@@ -1210,7 +2101,7 @@
         "eaClub": "Lombardia FC",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 26
+        "rosterOverlap": 25
       },
       {
         "teamId": "juventus",
@@ -1218,7 +2109,7 @@
         "eaClub": "Juventus",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 31
+        "rosterOverlap": 27
       },
       {
         "teamId": "napoli",
@@ -1226,7 +2117,7 @@
         "eaClub": "SSC Napoli",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 34
+        "rosterOverlap": 32
       },
       {
         "teamId": "ac_milan",
@@ -1234,7 +2125,7 @@
         "eaClub": "Milano FC",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 33
+        "rosterOverlap": 31
       },
       {
         "teamId": "roma",
@@ -1242,7 +2133,7 @@
         "eaClub": "AS Roma",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 29
+        "rosterOverlap": 24
       },
       {
         "teamId": "atalanta",
@@ -1250,7 +2141,7 @@
         "eaClub": "Bergamo Calcio",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 32
+        "rosterOverlap": 25
       },
       {
         "teamId": "lazio",
@@ -1266,7 +2157,7 @@
         "eaClub": "Fiorentina",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 29
+        "rosterOverlap": 24
       },
       {
         "teamId": "bologna",
@@ -1274,7 +2165,7 @@
         "eaClub": "Bologna",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 23
       },
       {
         "teamId": "torino",
@@ -1290,7 +2181,7 @@
         "eaClub": "Udinese",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 27
       },
       {
         "teamId": "cagliari",
@@ -1298,7 +2189,7 @@
         "eaClub": "Cagliari",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 25
       },
       {
         "teamId": "como",
@@ -1306,7 +2197,7 @@
         "eaClub": "Como",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 38
+        "rosterOverlap": 32
       },
       {
         "teamId": "lecce",
@@ -1314,7 +2205,7 @@
         "eaClub": "Lecce",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 27
+        "rosterOverlap": 24
       },
       {
         "teamId": "parma",
@@ -1322,7 +2213,7 @@
         "eaClub": "Parma",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 27
+        "rosterOverlap": 21
       },
       {
         "teamId": "genoa",
@@ -1330,7 +2221,7 @@
         "eaClub": "Genoa",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 31
+        "rosterOverlap": 26
       },
       {
         "teamId": "verona",
@@ -1338,7 +2229,7 @@
         "eaClub": "Hellas Verona",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 30
+        "rosterOverlap": 28
       },
       {
         "teamId": "sassuolo",
@@ -1346,7 +2237,7 @@
         "eaClub": "Sassuolo",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 37
+        "rosterOverlap": 32
       },
       {
         "teamId": "pisa",
@@ -1354,7 +2245,7 @@
         "eaClub": "Pisa",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 27
       },
       {
         "teamId": "cremonese",
@@ -1362,7 +2253,7 @@
         "eaClub": "Cremonese",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 30
+        "rosterOverlap": 26
       },
       {
         "teamId": "psv",
@@ -1370,7 +2261,7 @@
         "eaClub": "PSV",
         "eaLeague": null,
         "method": "roster-overlap",
-        "rosterOverlap": 30
+        "rosterOverlap": 27
       },
       {
         "teamId": "feyenoord",
@@ -1378,7 +2269,7 @@
         "eaClub": "Feyenoord",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 32
+        "rosterOverlap": 30
       },
       {
         "teamId": "ajax",
@@ -1386,7 +2277,7 @@
         "eaClub": "Ajax",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 36
+        "rosterOverlap": 31
       },
       {
         "teamId": "nec",
@@ -1394,7 +2285,7 @@
         "eaClub": "N.E.C. Nijmegen",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 31
+        "rosterOverlap": 30
       },
       {
         "teamId": "twente",
@@ -1402,7 +2293,7 @@
         "eaClub": "FC Twente",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 31
+        "rosterOverlap": 29
       },
       {
         "teamId": "az",
@@ -1410,7 +2301,7 @@
         "eaClub": "AZ",
         "eaLeague": null,
         "method": "alias",
-        "rosterOverlap": 37
+        "rosterOverlap": 35
       },
       {
         "teamId": "sparta",
@@ -1426,7 +2317,7 @@
         "eaClub": "sc Heerenveen",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 23
+        "rosterOverlap": 22
       },
       {
         "teamId": "fortuna",
@@ -1434,7 +2325,7 @@
         "eaClub": "Fortuna Sittard",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 20
+        "rosterOverlap": 19
       },
       {
         "teamId": "utrecht",
@@ -1442,7 +2333,7 @@
         "eaClub": "FC Utrecht",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 31
+        "rosterOverlap": 29
       },
       {
         "teamId": "groningen",
@@ -1450,7 +2341,7 @@
         "eaClub": "FC Groningen",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 21
       },
       {
         "teamId": "pec_zwolle",
@@ -1466,7 +2357,7 @@
         "eaClub": "Go Ahead Eagles",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 26
+        "rosterOverlap": 25
       },
       {
         "teamId": "excelsior",
@@ -1474,7 +2365,7 @@
         "eaClub": "Excelsior",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 24
+        "rosterOverlap": 22
       },
       {
         "teamId": "telstar",
@@ -1482,7 +2373,7 @@
         "eaClub": "SC Telstar",
         "eaLeague": null,
         "method": "exact",
-        "rosterOverlap": 21
+        "rosterOverlap": 18
       }
     ],
     "unresolvedPitchTeams": [],
@@ -1490,87 +2381,92 @@
       {
         "name": "Inter Miami CF",
         "league": "",
-        "players": 29
+        "players": 26
+      },
+      {
+        "name": "Trabzonspor",
+        "league": "",
+        "players": 31
       },
       {
         "name": "FC Porto",
         "league": "",
-        "players": 31
-      },
-      {
-        "name": "Galatasaray",
-        "league": "",
-        "players": 32
+        "players": 29
       },
       {
         "name": "Al Hilal",
         "league": "",
-        "players": 32
+        "players": 29
+      },
+      {
+        "name": "Galatasaray",
+        "league": "",
+        "players": 26
       },
       {
         "name": "Club Brugge",
         "league": "",
+        "players": 30
+      },
+      {
+        "name": "Al Qadsiah",
+        "league": "",
         "players": 31
       },
       {
-        "name": "Chicago Fire FC",
+        "name": "Orlando City",
         "league": "",
-        "players": 28
+        "players": 23
       },
       {
-        "name": "Orlando City",
+        "name": "Chicago Fire FC",
         "league": "",
         "players": 25
       },
       {
         "name": "Al Nassr",
         "league": "",
-        "players": 33
-      },
-      {
-        "name": "Al Qadsiah",
-        "league": "",
-        "players": 36
-      },
-      {
-        "name": "Olympiacos FC",
-        "league": "",
-        "players": 34
+        "players": 30
       },
       {
         "name": "Fenerbahçe",
         "league": "",
-        "players": 37
+        "players": 33
       },
       {
         "name": "Al Ahli",
         "league": "",
-        "players": 34
+        "players": 29
       },
       {
-        "name": "Panathinaikos",
+        "name": "Olympiacos FC",
         "league": "",
-        "players": 34
-      },
-      {
-        "name": "Beşiktaş",
-        "league": "",
-        "players": 34
-      },
-      {
-        "name": "SC Braga",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "SL Benfica",
-        "league": "",
-        "players": 33
+        "players": 32
       },
       {
         "name": "Sporting CP",
         "league": "",
+        "players": 29
+      },
+      {
+        "name": "Beşiktaş",
+        "league": "",
+        "players": 35
+      },
+      {
+        "name": "Al Shabab",
+        "league": "",
+        "players": 31
+      },
+      {
+        "name": "SL Benfica",
+        "league": "",
         "players": 30
+      },
+      {
+        "name": "SC Braga",
+        "league": "",
+        "players": 29
       },
       {
         "name": "Al Ittihad",
@@ -1578,19 +2474,24 @@
         "players": 38
       },
       {
-        "name": "Al Shabab",
-        "league": "",
-        "players": 32
-      },
-      {
         "name": "Rosario Central",
         "league": "",
-        "players": 31
+        "players": 36
+      },
+      {
+        "name": "Panathinaikos",
+        "league": "",
+        "players": 35
+      },
+      {
+        "name": "Boca Juniors",
+        "league": "",
+        "players": 34
       },
       {
         "name": "VfL Wolfsburg",
         "league": "",
-        "players": 36
+        "players": 34
       },
       {
         "name": "LAFC",
@@ -1598,9 +2499,24 @@
         "players": 24
       },
       {
-        "name": "Boca Juniors",
+        "name": "River Plate",
         "league": "",
-        "players": 36
+        "players": 33
+      },
+      {
+        "name": "Pumas",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Al Ain FC",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Belgrano",
+        "league": "",
+        "players": 24
       },
       {
         "name": "Whitecaps FC",
@@ -1608,24 +2524,34 @@
         "players": 26
       },
       {
-        "name": "Pumas",
+        "name": "Slavia Praha",
         "league": "",
-        "players": 28
+        "players": 34
       },
       {
-        "name": "Belgrano",
+        "name": "FK Bodø/Glimt",
         "league": "",
         "players": 25
       },
       {
-        "name": "River Plate",
+        "name": "Girona FC",
         "league": "",
-        "players": 37
+        "players": 32
       },
       {
-        "name": "Al Ain FC",
+        "name": "R. Union St.-G.",
         "league": "",
-        "players": 30
+        "players": 27
+      },
+      {
+        "name": "FC Cincinnati",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Rangers",
+        "league": "",
+        "players": 29
       },
       {
         "name": "FC Midtjylland",
@@ -1633,19 +2559,39 @@
         "players": 32
       },
       {
-        "name": "KAA Gent",
-        "league": "",
-        "players": 31
-      },
-      {
         "name": "KRC Genk",
         "league": "",
-        "players": 27
+        "players": 28
       },
       {
-        "name": "R. Union St.-G.",
+        "name": "Al Taawoun",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Abha Club",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "San Diego FC",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Toluca FC",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Al Fateh",
         "league": "",
         "players": 32
+      },
+      {
+        "name": "Al Diriyah",
+        "league": "",
+        "players": 29
       },
       {
         "name": "New England",
@@ -1653,67 +2599,117 @@
         "players": 27
       },
       {
-        "name": "FC Cincinnati",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "San Diego FC",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "FK Bodø/Glimt",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Rangers",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Girona FC",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "PAOK FC",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Sparta Praha",
-        "league": "",
-        "players": 34
-      },
-      {
-        "name": "Slavia Praha",
-        "league": "",
-        "players": 36
-      },
-      {
-        "name": "Toluca FC",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "Al Taawoun",
-        "league": "",
-        "players": 28
-      },
-      {
         "name": "Neom",
         "league": "",
-        "players": 26
+        "players": 30
       },
       {
-        "name": "LA Galaxy",
+        "name": "KAA Gent",
+        "league": "",
+        "players": 31
+      },
+      {
+        "name": "Monterrey",
         "league": "",
         "players": 25
       },
       {
+        "name": "Viking FK",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Dynamo Kyiv",
+        "league": "",
+        "players": 37
+      },
+      {
+        "name": "Columbus Crew",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "RCD Mallorca",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Celtic",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Botafogo",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Club Guadalajara",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Lanús",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "R. Oviedo",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Club América",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Estudiantes",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Frosinone",
+        "league": "",
+        "players": 32
+      },
+      {
         "name": "Nashville SC",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Club Atlético Gimnasia y Esgrima",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Al Khaleej",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Club Tigres",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Peñarol",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Charlotte FC",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "LA Galaxy",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Al Faisaly",
         "league": "",
         "players": 28
       },
@@ -1723,99 +2719,9 @@
         "players": 25
       },
       {
-        "name": "Columbus Crew",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Charlotte FC",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Viking FK",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Celtic",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "RCD Mallorca",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "R. Oviedo",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "Trabzonspor",
-        "league": "",
-        "players": 30
-      },
-      {
         "name": "Dinamo Zagreb",
         "league": "",
-        "players": 28
-      },
-      {
-        "name": "Dynamo Kyiv",
-        "league": "",
-        "players": 37
-      },
-      {
-        "name": "Monterrey",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "Club América",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Club Tigres",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Club Guadalajara",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Al Khaleej",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Al Diriyah",
-        "league": "",
         "players": 27
-      },
-      {
-        "name": "Al Faisaly",
-        "league": "",
-        "players": 34
-      },
-      {
-        "name": "Al Fateh",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Estudiantes",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Lanús",
-        "league": "",
-        "players": 29
       },
       {
         "name": "Nacional",
@@ -1823,59 +2729,29 @@
         "players": 56
       },
       {
-        "name": "Peñarol",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Botafogo",
+        "name": "Sounders FC",
         "league": "",
         "players": 25
       },
       {
-        "name": "Venezia",
-        "league": "",
-        "players": 38
-      },
-      {
-        "name": "Sounders FC",
+        "name": "Bahia",
         "league": "",
         "players": 26
       },
       {
-        "name": "Minnesota United",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "FC Dallas",
-        "league": "",
-        "players": 35
-      },
-      {
         "name": "New York City FC",
         "league": "",
-        "players": 33
+        "players": 31
+      },
+      {
+        "name": "Argentinos Jrs.",
+        "league": "",
+        "players": 27
       },
       {
         "name": "FC Andorra",
         "league": "",
-        "players": 27
-      },
-      {
-        "name": "UD Almería",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "AEK Athens",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Hajduk Split",
-        "league": "",
-        "players": 30
+        "players": 21
       },
       {
         "name": "Viktoria Plzeň",
@@ -1883,69 +2759,159 @@
         "players": 27
       },
       {
+        "name": "PAOK FC",
+        "league": "",
+        "players": 30
+      },
+      {
         "name": "Shakhtar Donetsk",
         "league": "",
-        "players": 31
+        "players": 34
       },
       {
         "name": "CF Cruz Azul",
         "league": "",
-        "players": 28
+        "players": 24
       },
       {
         "name": "Al Riyadh",
         "league": "",
-        "players": 36
+        "players": 25
       },
       {
-        "name": "Abha Club",
-        "league": "",
-        "players": 20
-      },
-      {
-        "name": "Al Ettifaq",
+        "name": "Minnesota United",
         "league": "",
         "players": 30
       },
       {
-        "name": "Al Fayha",
+        "name": "AEK Athens",
         "league": "",
-        "players": 24
+        "players": 26
       },
       {
-        "name": "Talleres",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Racing Club",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Argentinos Jrs.",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Ferencvárosi TC",
-        "league": "",
-        "players": 33
-      },
-      {
-        "name": "Bahia",
+        "name": "UD Almería",
         "league": "",
         "players": 27
       },
       {
+        "name": "Al Ettifaq",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Talleres",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Hajduk Split",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "FC Dallas",
+        "league": "",
+        "players": 34
+      },
+      {
+        "name": "Al Fayha",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Ferencvárosi TC",
+        "league": "",
+        "players": 32
+      },
+      {
+        "name": "Venezia",
+        "league": "",
+        "players": 33
+      },
+      {
+        "name": "Racing Club",
+        "league": "",
+        "players": 29
+      },
+      {
         "name": "AGF",
         "league": "",
-        "players": 28
+        "players": 27
+      },
+      {
+        "name": "Monza",
+        "league": "",
+        "players": 24
       },
       {
         "name": "RSC Anderlecht",
         "league": "",
         "players": 34
+      },
+      {
+        "name": "Stade de Reims",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Defensa",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Atlas FC",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Hannover 96",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Portland Timbers",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Palermo",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "FC Basel 1893",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Hearts",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Independiente",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Başakşehir",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Club Pachuca",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "SJ Earthquakes",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Atl. Nacional",
+        "league": "",
+        "players": 30
       },
       {
         "name": "Sp. Charleroi",
@@ -1955,67 +2921,12 @@
       {
         "name": "KVC Westerlo",
         "league": "",
-        "players": 23
-      },
-      {
-        "name": "FC Metz",
-        "league": "",
         "players": 27
       },
       {
-        "name": "Stade de Reims",
+        "name": "Vélez Sarsfield",
         "league": "",
-        "players": 30
-      },
-      {
-        "name": "Heidenheim",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Monza",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Palermo",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Red Bulls",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "SJ Earthquakes",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "St. Louis CITY SC",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Hearts",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Başakşehir",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "RB Salzburg",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "FC Basel 1893",
-        "league": "",
-        "players": 31
+        "players": 19
       },
       {
         "name": "FC Famalicão",
@@ -2023,54 +2934,49 @@
         "players": 27
       },
       {
-        "name": "Atlas FC",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Club Pachuca",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Defensa",
-        "league": "",
-        "players": 34
-      },
-      {
-        "name": "Vélez Sarsfield",
+        "name": "Red Bulls",
         "league": "",
         "players": 28
       },
       {
-        "name": "Independiente",
+        "name": "RB Salzburg",
         "league": "",
-        "players": 26
+        "players": 31
       },
       {
         "name": "Ind. Rivadavia",
         "league": "",
-        "players": 27
-      },
-      {
-        "name": "Atl. Nacional",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "F.C. København",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Standard Liège",
-        "league": "",
         "players": 30
       },
       {
-        "name": "AS Saint-Étienne",
+        "name": "Heidenheim",
         "league": "",
-        "players": 31
+        "players": 26
+      },
+      {
+        "name": "Konyaspor",
+        "league": "",
+        "players": 19
+      },
+      {
+        "name": "Colorado Rapids",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Ulsan HD FC",
+        "league": "",
+        "players": 34
+      },
+      {
+        "name": "Dalian Yingbo",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Unión",
+        "league": "",
+        "players": 23
       },
       {
         "name": "Karlsruher SC",
@@ -2078,19 +2984,9 @@
         "players": 25
       },
       {
-        "name": "Padova",
+        "name": "Estoril Praia",
         "league": "",
-        "players": 28
-      },
-      {
-        "name": "Houston Dynamo",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Sporting KC",
-        "league": "",
-        "players": 27
+        "players": 25
       },
       {
         "name": "Real Salt Lake",
@@ -2098,9 +2994,14 @@
         "players": 35
       },
       {
-        "name": "Colorado Rapids",
+        "name": "SK Sturm Graz",
         "league": "",
-        "players": 29
+        "players": 26
+      },
+      {
+        "name": "F.C. København",
+        "league": "",
+        "players": 27
       },
       {
         "name": "Lech Poznań",
@@ -2108,9 +3009,44 @@
         "players": 28
       },
       {
-        "name": "Jagiellonia",
+        "name": "Shandong Taishan",
         "league": "",
-        "players": 26
+        "players": 27
+      },
+      {
+        "name": "Libertad",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Instituto",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Philadelphia",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Kocaelispor",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "CF Montréal",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "St. Louis CITY SC",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Servette FC",
+        "league": "",
+        "players": 29
       },
       {
         "name": "GKS Katowice",
@@ -2118,49 +3054,39 @@
         "players": 30
       },
       {
-        "name": "Kocaelispor",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "SK Sturm Graz",
+        "name": "Standard Liège",
         "league": "",
         "players": 28
       },
       {
-        "name": "Ulsan HD FC",
+        "name": "Al Hazem",
         "league": "",
-        "players": 33
+        "players": 29
       },
       {
-        "name": "Servette FC",
-        "league": "",
-        "players": 33
-      },
-      {
-        "name": "Estoril Praia",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Atltico de SL",
+        "name": "APOEL FC",
         "league": "",
         "players": 26
       },
       {
-        "name": "Club Len",
+        "name": "Çorum Futbol Kulübü",
         "league": "",
-        "players": 29
+        "players": 22
       },
       {
-        "name": "Instituto",
+        "name": "Sparta Praha",
         "league": "",
-        "players": 29
+        "players": 31
       },
       {
-        "name": "Unión",
+        "name": "Jagiellonia",
         "league": "",
-        "players": 28
+        "players": 26
+      },
+      {
+        "name": "Houston Dynamo",
+        "league": "",
+        "players": 25
       },
       {
         "name": "Junior",
@@ -2168,59 +3094,24 @@
         "players": 25
       },
       {
-        "name": "Libertad",
+        "name": "AS Saint-Étienne",
         "league": "",
-        "players": 29
+        "players": 31
       },
       {
-        "name": "Dalian Yingbo",
+        "name": "Atltico de SL",
         "league": "",
-        "players": 29
+        "players": 23
       },
       {
-        "name": "Shandong Taishan",
+        "name": "Padova",
         "league": "",
         "players": 30
       },
       {
-        "name": "APOEL FC",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "FC Nordsjælland",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "STVV",
-        "league": "",
-        "players": 22
-      },
-      {
-        "name": "KV Mechelen",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "FC Nantes",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "FC St. Pauli",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Sampdoria",
+        "name": "Club Len",
         "league": "",
         "players": 25
-      },
-      {
-        "name": "Avellino",
-        "league": "",
-        "players": 27
       },
       {
         "name": "Toronto FC",
@@ -2228,74 +3119,29 @@
         "players": 28
       },
       {
-        "name": "Austin FC",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Philadelphia",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "R. Sporting",
+        "name": "Olimpia",
         "league": "",
         "players": 28
       },
       {
-        "name": "UD Las Palmas",
+        "name": "Club Necaxa",
         "league": "",
-        "players": 29
+        "players": 21
       },
       {
-        "name": "Mjällby AIF",
+        "name": "PFC Ludogorets",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "FC Nordsjælland",
         "league": "",
         "players": 26
       },
       {
-        "name": "Korona Kielce",
+        "name": "STVV",
         "league": "",
-        "players": 26
-      },
-      {
-        "name": "Gaziantep",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Amed Sportif Faaliyetler",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Samsunspor",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "FC Seoul",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Daejeon Hana",
-        "league": "",
-        "players": 35
-      },
-      {
-        "name": "Incheon United",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Jeonbuk Hyundai",
-        "league": "",
-        "players": 38
-      },
-      {
-        "name": "FC Lugano",
-        "league": "",
-        "players": 29
+        "players": 23
       },
       {
         "name": "BSC Young Boys",
@@ -2303,127 +3149,67 @@
         "players": 29
       },
       {
-        "name": "Vitória SC",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Gil Vicente",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Rio Ave FC",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Arouca",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Club Tijuana",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Atlante FC",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "Club Necaxa",
-        "league": "",
-        "players": 28
-      },
-      {
         "name": "Santos Laguna",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Platense",
-        "league": "",
-        "players": 33
-      },
-      {
-        "name": "Atlético Tucumán",
-        "league": "",
-        "players": 33
-      },
-      {
-        "name": "Gimnasia",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Dep. Riestra",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Aldosivi",
-        "league": "",
-        "players": 35
-      },
-      {
-        "name": "Huracán",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "San Lorenzo",
-        "league": "",
-        "players": 37
-      },
-      {
-        "name": "Indep. Santa Fe",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Cerro Porteño",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Uni. Católica",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Universitario",
-        "league": "",
-        "players": 20
-      },
-      {
-        "name": "IDV",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Olimpia",
         "league": "",
         "players": 26
       },
       {
         "name": "Chengdu FC",
         "league": "",
-        "players": 31
+        "players": 30
+      },
+      {
+        "name": "FC Lugano",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Gil Vicente",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Sampdoria",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "R. Sporting",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "UD Las Palmas",
+        "league": "",
+        "players": 26
       },
       {
         "name": "Shanghai Shenhua",
         "league": "",
-        "players": 30
+        "players": 29
       },
       {
-        "name": "Wuhan Three Towns",
+        "name": "Club Tijuana",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Korona Kielce",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Universitario",
+        "league": "",
+        "players": 19
+      },
+      {
+        "name": "KV Mechelen",
         "league": "",
         "players": 30
       },
       {
-        "name": "Zhejiang Pro",
+        "name": "Vitória SC",
         "league": "",
         "players": 30
       },
@@ -2433,9 +3219,34 @@
         "players": 23
       },
       {
-        "name": "Yunnan Yukun",
+        "name": "Amed Sportif Faaliyetler",
         "league": "",
-        "players": 28
+        "players": 25
+      },
+      {
+        "name": "FC Nantes",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Estrela Amadora",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "IDV",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "FC St. Pauli",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Daejeon Hana",
+        "league": "",
+        "players": 36
       },
       {
         "name": "Qarabağ FK",
@@ -2443,107 +3254,57 @@
         "players": 25
       },
       {
-        "name": "PFC Ludogorets",
+        "name": "Rio Ave FC",
         "league": "",
-        "players": 29
+        "players": 25
       },
       {
-        "name": "OH Leuven",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Royal Antwerp FC",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Pau FC",
+        "name": "Austin FC",
         "league": "",
         "players": 24
       },
       {
-        "name": "Montpellier",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "VfL Bochum 1848",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "1. FC Magdeburg",
+        "name": "Legia Warszawa",
         "league": "",
         "players": 27
       },
       {
-        "name": "Hertha BSC",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Holstein Kiel",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "1. FC Nürnberg",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Kaiserslautern",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Frosinone",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Modena",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "CF Montréal",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Portland Timbers",
+        "name": "Arouca",
         "league": "",
         "players": 25
       },
       {
-        "name": "D.C. United",
+        "name": "Huracán",
         "league": "",
-        "players": 25
+        "players": 21
       },
       {
-        "name": "Aberdeen",
+        "name": "Gimnasia",
         "league": "",
         "players": 31
       },
       {
-        "name": "Motherwell",
+        "name": "Cerro Porteño",
         "league": "",
-        "players": 26
+        "players": 30
       },
       {
-        "name": "CE Sabadell FC",
+        "name": "Aldosivi",
+        "league": "",
+        "players": 31
+      },
+      {
+        "name": "Zhejiang Pro",
         "league": "",
         "players": 27
       },
       {
-        "name": "Granada CF",
+        "name": "FC Jurez",
         "league": "",
-        "players": 28
+        "players": 22
       },
       {
-        "name": "CD Leganés",
+        "name": "Dep. Riestra",
         "league": "",
         "players": 30
       },
@@ -2553,44 +3314,74 @@
         "players": 29
       },
       {
-        "name": "GAIS",
+        "name": "Yunnan Yukun",
         "league": "",
-        "players": 29
+        "players": 26
       },
       {
-        "name": "Hammarby IF",
+        "name": "Erzurumspor Futbol Kulübü",
         "league": "",
-        "players": 24
+        "players": 25
       },
       {
-        "name": "Motor Lublin",
+        "name": "KS Wieczysta Kraków",
         "league": "",
-        "players": 19
+        "players": 25
       },
       {
-        "name": "Pogoń Szczecin",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Widzew Łódź",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Kasımpaşa",
+        "name": "Jeonbuk Hyundai",
         "league": "",
         "players": 36
       },
       {
-        "name": "Konyaspor",
+        "name": "Indep. Santa Fe",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Platense",
+        "league": "",
+        "players": 35
+      },
+      {
+        "name": "Gaziantep",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "Incheon United",
+        "league": "",
+        "players": 31
+      },
+      {
+        "name": "Wuhan Three Towns",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Atlético Tucumán",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Uni. Católica",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "San Lorenzo",
+        "league": "",
+        "players": 35
+      },
+      {
+        "name": "FC Seoul",
         "league": "",
         "players": 29
       },
       {
-        "name": "LASK",
+        "name": "Avellino",
         "league": "",
-        "players": 23
+        "players": 19
       },
       {
         "name": "Gangwon FC",
@@ -2598,269 +3389,154 @@
         "players": 38
       },
       {
-        "name": "FC Anyang",
-        "league": "",
-        "players": 35
-      },
-      {
-        "name": "FC St. Gallen",
+        "name": "Royal Antwerp FC",
         "league": "",
         "players": 31
       },
       {
-        "name": "FC Luzern",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Casa Pia AC",
+        "name": "CD Leganés",
         "league": "",
         "players": 27
       },
       {
-        "name": "FC Alverca",
+        "name": "OH Leuven",
         "league": "",
-        "players": 31
+        "players": 27
       },
       {
-        "name": "Moreirense FC",
+        "name": "LASK",
         "league": "",
-        "players": 24
-      },
-      {
-        "name": "Santa Clara",
-        "league": "",
-        "players": 30
+        "players": 23
       },
       {
         "name": "Univ. Craiova",
         "league": "",
+        "players": 25
+      },
+      {
+        "name": "Casa Pia AC",
+        "league": "",
         "players": 28
       },
       {
-        "name": "CFR 1907 Cluj",
+        "name": "Pau FC",
         "league": "",
-        "players": 26
+        "players": 24
       },
       {
-        "name": "FC Jurez",
+        "name": "Kasımpaşa",
         "league": "",
-        "players": 25
+        "players": 26
       },
       {
         "name": "Club Puebla",
         "league": "",
-        "players": 26
-      },
-      {
-        "name": "Al Hazem",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Al Kholood",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Newell's",
-        "league": "",
-        "players": 33
-      },
-      {
-        "name": "Tigre",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "LDU Quito",
-        "league": "",
         "players": 24
-      },
-      {
-        "name": "Cienciano",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Henan FC",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Beijing FC",
-        "league": "",
-        "players": 37
       },
       {
         "name": "Qingdao W. Coast",
         "league": "",
-        "players": 29
+        "players": 22
       },
       {
-        "name": "Omonia FC",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Buriram United",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Viborg FF",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Randers FC",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Brøndby IF",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "KV Kortrijk",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Cercle Brugge",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Rodez AF",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Red Star FC",
-        "league": "",
-        "players": 20
-      },
-      {
-        "name": "Energie Cottbus",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "SV Darmstadt 98",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Braunschweig",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Hannover 96",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Mantova",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Cesena",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Catanzaro",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Südtirol",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Carrarese Calcio",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Empoli",
-        "league": "",
-        "players": 21
-      },
-      {
-        "name": "SK Brann",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Molde FK",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Rosenborg BK",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Hibernian",
+        "name": "Motherwell",
         "league": "",
         "players": 28
       },
       {
-        "name": "Córdoba CF",
+        "name": "FC Metz",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Modena",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "CFR 1907 Cluj",
+        "league": "",
+        "players": 20
+      },
+      {
+        "name": "Cercle Brugge",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Banfield",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Omonia FC",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "GAIS",
         "league": "",
         "players": 29
       },
       {
-        "name": "CD Castellón",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "CD Tenerife",
-        "league": "",
-        "players": 31
-      },
-      {
-        "name": "SD Eibar",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "AIK",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Malmö FF",
+        "name": "FC Anyang",
         "league": "",
         "players": 33
       },
       {
-        "name": "IFK Göteborg",
+        "name": "Newell's",
         "league": "",
-        "players": 26
+        "players": 32
       },
       {
-        "name": "IK Sirius",
+        "name": "Widzew Łódź",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "CE Sabadell FC",
+        "league": "",
+        "players": 11
+      },
+      {
+        "name": "Henan FC",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "VfL Bochum 1848",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Granada CF",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "1. FC Nürnberg",
         "league": "",
         "players": 27
       },
       {
-        "name": "Górnik Zabrze",
+        "name": "Pogoń Szczecin",
         "league": "",
-        "players": 26
+        "players": 29
       },
       {
-        "name": "Göztepe",
+        "name": "FC St. Gallen",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "1. FC Magdeburg",
         "league": "",
         "players": 27
+      },
+      {
+        "name": "Kaiserslautern",
+        "league": "",
+        "players": 28
       },
       {
         "name": "Gençlerbirliği",
@@ -2868,119 +3544,274 @@
         "players": 26
       },
       {
-        "name": "Erzurumspor Futbol Kulübü",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Alanyaspor",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Çaykur Rizespor",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Çorum Futbol Kulübü",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "FK Austria Wien",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "SK Rapid",
-        "league": "",
-        "players": 34
-      },
-      {
-        "name": "FC Sion",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Estrela Amadora",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Académico de Viseu FC",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "FC Univ. Cluj",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "FCSB",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "FC Dinamo 1948",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "FC Botoșani",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "UTA Arad",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Quertaro FC",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Newcastle Jets",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Club Atlético Gimnasia y Esgrima",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Banfield",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Barracas Central",
+        "name": "Buriram United",
         "league": "",
         "players": 33
       },
       {
-        "name": "Sporting Cristal",
+        "name": "Moreirense FC",
+        "league": "",
+        "players": 15
+      },
+      {
+        "name": "LDU Quito",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Beijing FC",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Hertha BSC",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Hammarby IF",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "Cienciano",
+        "league": "",
+        "players": 17
+      },
+      {
+        "name": "Aberdeen",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "FC Luzern",
         "league": "",
         "players": 30
       },
       {
-        "name": "Always Ready",
+        "name": "FC Alverca",
         "league": "",
-        "players": 19
+        "players": 30
       },
       {
-        "name": "Cusco FC",
+        "name": "Al Kholood",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "Santa Clara",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Tigre",
+        "league": "",
+        "players": 31
+      },
+      {
+        "name": "D.C. United",
         "league": "",
         "players": 23
       },
       {
-        "name": "América de Cali",
+        "name": "Mjällby AIF",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Motor Lublin",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "Montpellier",
         "league": "",
         "players": 24
+      },
+      {
+        "name": "CD Castellón",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Cesena",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Molde FK",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Südtirol",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "América de Cali",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Sporting KC",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Carrarese Calcio",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Randers FC",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "CD Tenerife",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Sporting Cristal",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Rodez AF",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Hibernian",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Quertaro FC",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "Red Star FC",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "Górnik Zabrze",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Samsunspor",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "FC Dinamo 1948",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Catanzaro",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Brøndby IF",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "SV Darmstadt 98",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Barracas Central",
+        "league": "",
+        "players": 34
+      },
+      {
+        "name": "Rosenborg BK",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Malmö FF",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Mantova",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "FCSB",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "FC Sion",
+        "league": "",
+        "players": 29
+      },
+      {
+        "name": "Newcastle Jets",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "AIK",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Çaykur Rizespor",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Energie Cottbus",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "SK Brann",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "IFK Göteborg",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Atlante FC",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "Cusco FC",
+        "league": "",
+        "players": 15
+      },
+      {
+        "name": "SD Eibar",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Always Ready",
+        "league": "",
+        "players": 16
+      },
+      {
+        "name": "Shanghai Port FC",
+        "league": "",
+        "players": 30
       },
       {
         "name": "Millonarios",
@@ -2988,179 +3819,84 @@
         "players": 20
       },
       {
-        "name": "SZ Peng City",
+        "name": "IK Sirius",
         "league": "",
-        "players": 28
+        "players": 24
       },
       {
-        "name": "Shanghai Port FC",
+        "name": "Göztepe",
         "league": "",
-        "players": 31
+        "players": 24
+      },
+      {
+        "name": "KV Kortrijk",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Córdoba CF",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "UTA Arad",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Alanyaspor",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Braunschweig",
+        "league": "",
+        "players": 29
       },
       {
         "name": "Liaoning FC",
         "league": "",
+        "players": 20
+      },
+      {
+        "name": "Benevento",
+        "league": "",
+        "players": 18
+      },
+      {
+        "name": "FC Botoșani",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "FK Austria Wien",
+        "league": "",
         "players": 30
       },
       {
-        "name": "Mohun Bagan SG",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "Odense BK",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Lommel SK",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Waasland-Beveren",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "RAAL La Louvière",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Zulte Waregem",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Laval MFC",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "En Avant Guingamp",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "FC Annecy",
+        "name": "FC Univ. Cluj",
         "league": "",
         "players": 25
       },
       {
-        "name": "Fürth",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Ascoli",
-        "league": "",
-        "players": 22
-      },
-      {
-        "name": "Cádiz CF",
-        "league": "",
-        "players": 33
-      },
-      {
-        "name": "R. Valladolid CF",
-        "league": "",
-        "players": 36
-      },
-      {
-        "name": "Burgos CF",
-        "league": "",
-        "players": 22
-      },
-      {
-        "name": "Djurgårdens IF",
+        "name": "Académico de Viseu FC",
         "league": "",
         "players": 26
       },
       {
-        "name": "BK Häcken",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "IF Elfsborg",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Shamrock Rovers",
-        "league": "",
-        "players": 35
-      },
-      {
-        "name": "Cracovia",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Wisła Płock",
+        "name": "SZ Peng City",
         "league": "",
         "players": 23
       },
       {
-        "name": "KS Wieczysta Kraków",
+        "name": "SK Rapid",
         "league": "",
-        "players": 24
+        "players": 31
       },
       {
-        "name": "Raków",
+        "name": "Mohun Bagan SG",
         "league": "",
-        "players": 28
-      },
-      {
-        "name": "Wolfsberger AC",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Bucheon FC 1995",
-        "league": "",
-        "players": 34
-      },
-      {
-        "name": "FC Zürich",
-        "league": "",
-        "players": 28
-      },
-      {
-        "name": "FC Thun",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "FC Rapid 1923",
-        "league": "",
-        "players": 32
-      },
-      {
-        "name": "Melb. Victory",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Sarmiento",
-        "league": "",
-        "players": 34
-      },
-      {
-        "name": "Central Córdoba",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Asociación Atlética Estudiantes",
-        "league": "",
-        "players": 33
-      },
-      {
-        "name": "Bolívar",
-        "league": "",
-        "players": 28
+        "players": 26
       },
       {
         "name": "Indep. Medellín",
@@ -3168,24 +3904,19 @@
         "players": 26
       },
       {
-        "name": "UCV FC",
+        "name": "Bucheon FC 1995",
         "league": "",
-        "players": 22
+        "players": 33
       },
       {
-        "name": "Deportes Tolima",
+        "name": "Central Córdoba",
         "league": "",
         "players": 25
       },
       {
-        "name": "Recoleta",
+        "name": "FC Rapid 1923",
         "league": "",
-        "players": 36
-      },
-      {
-        "name": "Chongqing FC",
-        "league": "",
-        "players": 25
+        "players": 29
       },
       {
         "name": "Düsseldorf",
@@ -3193,232 +3924,82 @@
         "players": 28
       },
       {
-        "name": "NorthEast United",
+        "name": "Fürth",
         "league": "",
         "players": 27
       },
       {
-        "name": "Silkeborg IF",
+        "name": "Deportes Tolima",
         "league": "",
-        "players": 26
+        "players": 29
       },
       {
-        "name": "Sønderjyske",
+        "name": "Cracovia",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Cádiz CF",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Bolívar",
         "league": "",
         "players": 28
       },
       {
-        "name": "Willem II",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Dynamo Dresden",
+        "name": "RAAL La Louvière",
         "league": "",
         "players": 27
       },
       {
-        "name": "Arminia Bielefeld",
+        "name": "Sarmiento",
         "league": "",
-        "players": 26
+        "players": 34
       },
       {
-        "name": "SS Juve Stabia",
+        "name": "Laval MFC",
         "league": "",
-        "players": 26
+        "players": 25
       },
       {
-        "name": "Entella",
+        "name": "Holstein Kiel",
         "league": "",
-        "players": 26
+        "players": 31
       },
       {
-        "name": "Arezzo",
+        "name": "UCV FC",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "FC Thun",
         "league": "",
         "players": 29
       },
       {
-        "name": "KFUM-Kameratene",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Tromsø IL",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Dundee United",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Brommapojkarna",
-        "league": "",
-        "players": 30
-      },
-      {
-        "name": "Derry City",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Legia Warszawa",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Radomiak Radom",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Eyüpspor",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "SCR Altach",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Pohang Steelers",
-        "league": "",
-        "players": 35
-      },
-      {
-        "name": "Jeju United",
+        "name": "Asociación Atlética Estudiantes",
         "league": "",
         "players": 28
       },
       {
-        "name": "Lausanne-Sport",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "GC Zürich",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "FC Argeș",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Auckland FC",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Adelaide United",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Perth Glory",
+        "name": "Waasland-Beveren",
         "league": "",
         "players": 27
       },
       {
-        "name": "Coquimbo Unido",
+        "name": "R. Valladolid CF",
         "league": "",
-        "players": 26
+        "players": 31
       },
       {
-        "name": "Alianza Atltico",
+        "name": "Djurgårdens IF",
         "league": "",
-        "players": 24
+        "players": 19
       },
       {
-        "name": "Macar",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Juventud",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Palestino",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Puerto Cabello",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "City Torque",
-        "league": "",
-        "players": 25
-      },
-      {
-        "name": "Carabobo FC",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Preußen Münster",
-        "league": "",
-        "players": 29
-      },
-      {
-        "name": "Punjab FC",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "SC Cambuur",
-        "league": "",
-        "players": 22
-      },
-      {
-        "name": "USL Dunkerque",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "AS Nancy Lorraine",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "Grenoble Foot 38",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Clermont Foot 63",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "VfL Osnabrück",
-        "league": "",
-        "players": 23
-      },
-      {
-        "name": "Benevento",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "L. R. Vicenza",
-        "league": "",
-        "players": 26
-      },
-      {
-        "name": "HamKam Fotball",
-        "league": "",
-        "players": 27
-      },
-      {
-        "name": "Sarpsborg 08",
+        "name": "Burgos CF",
         "league": "",
         "players": 24
       },
@@ -3428,47 +4009,242 @@
         "players": 24
       },
       {
-        "name": "Fredrikstad FK",
+        "name": "IF Elfsborg",
         "league": "",
-        "players": 27
+        "players": 23
       },
       {
-        "name": "AD Ceuta FC",
+        "name": "Wisła Płock",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "FC Annecy",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Odense BK",
         "league": "",
         "players": 26
       },
       {
-        "name": "Real Sociedad B",
+        "name": "Zulte Waregem",
         "league": "",
-        "players": 28
+        "players": 27
       },
       {
-        "name": "Zagłębie Lubin",
+        "name": "Raków",
         "league": "",
-        "players": 28
+        "players": 29
       },
       {
-        "name": "Piast Gliwice",
-        "league": "",
-        "players": 24
-      },
-      {
-        "name": "Wisła Kraków",
+        "name": "BK Häcken",
         "league": "",
         "players": 24
       },
       {
-        "name": "SV Oberbank Ried",
+        "name": "Ascoli",
+        "league": "",
+        "players": 17
+      },
+      {
+        "name": "Recoleta",
+        "league": "",
+        "players": 36
+      },
+      {
+        "name": "Chongqing FC",
+        "league": "",
+        "players": 12
+      },
+      {
+        "name": "NorthEast United",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "FC Zürich",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "En Avant Guingamp",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Shamrock Rovers",
+        "league": "",
+        "players": 35
+      },
+      {
+        "name": "Melb. Victory",
+        "league": "",
+        "players": 20
+      },
+      {
+        "name": "Silkeborg IF",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Lausanne-Sport",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Adelaide United",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Radomiak Radom",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Juventud",
+        "league": "",
+        "players": 12
+      },
+      {
+        "name": "Dundee United",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Derry City",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Entella",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Coquimbo Unido",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Alianza Atltico",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Perth Glory",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "Auckland FC",
+        "league": "",
+        "players": 17
+      },
+      {
+        "name": "Carabobo FC",
+        "league": "",
+        "players": 18
+      },
+      {
+        "name": "Arminia Bielefeld",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Brommapojkarna",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Pohang Steelers",
+        "league": "",
+        "players": 34
+      },
+      {
+        "name": "City Torque",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Eyüpspor",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "FC Argeș",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Dynamo Dresden",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Tromsø IL",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "Empoli",
+        "league": "",
+        "players": 20
+      },
+      {
+        "name": "SCR Altach",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Macar",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "GC Zürich",
         "league": "",
         "players": 31
       },
       {
-        "name": "Gimcheon Sangmu",
+        "name": "Puerto Cabello",
         "league": "",
-        "players": 38
+        "players": 27
       },
       {
-        "name": "Marítimo da Madeira",
+        "name": "Palestino",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Viborg FF",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "KFUM-Kameratene",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Willem II",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Arezzo",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "SS Juve Stabia",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "Jeju United",
         "league": "",
         "players": 27
       },
@@ -3478,14 +4254,129 @@
         "players": 28
       },
       {
+        "name": "Melbourne City",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "VfL Osnabrück",
+        "league": "",
+        "players": 26
+      },
+      {
+        "name": "AD Ceuta FC",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "Grenoble Foot 38",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Sydney FC",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "SC Cambuur",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Qingdao Hainiu",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "Gimcheon Sangmu",
+        "league": "",
+        "players": 38
+      },
+      {
+        "name": "O'Higgins",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Aleman. Aachen",
+        "league": "",
+        "players": 23
+      },
+      {
+        "name": "Bengaluru FC",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "AS Nancy Lorraine",
+        "league": "",
+        "players": 28
+      },
+      {
+        "name": "Dep. La Guaira",
+        "league": "",
+        "players": 21
+      },
+      {
+        "name": "USL Dunkerque",
+        "league": "",
+        "players": 24
+      },
+      {
+        "name": "L. R. Vicenza",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Lommel SK",
+        "league": "",
+        "players": 27
+      },
+      {
+        "name": "Clermont Foot 63",
+        "league": "",
+        "players": 30
+      },
+      {
+        "name": "SV Oberbank Ried",
+        "league": "",
+        "players": 24
+      },
+      {
         "name": "SC Oțelul Galați",
         "league": "",
         "players": 24
       },
       {
-        "name": "Melbourne City",
+        "name": "Audax Italiano",
         "league": "",
         "players": 26
+      },
+      {
+        "name": "Sarpsborg 08",
+        "league": "",
+        "players": 22
+      },
+      {
+        "name": "HamKam Fotball",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Ind. Petrolero",
+        "league": "",
+        "players": 11
+      },
+      {
+        "name": "Dep. Cuenca",
+        "league": "",
+        "players": 25
+      },
+      {
+        "name": "Boston River",
+        "league": "",
+        "players": 24
       }
     ],
     "collisions": [
@@ -3494,12 +4385,12 @@
         "chosen": {
           "pitchTeamId": "barcelona",
           "method": "exact",
-          "score": 3240,
-          "overlap": 32,
+          "score": 2740,
+          "overlap": 27,
           "eaClubKey": "\u0000FC Barcelona",
           "eaClub": "FC Barcelona",
           "eaLeague": "",
-          "players": 32
+          "players": 29
         },
         "rejected": [
           {
@@ -3510,7 +4401,7 @@
             "eaClubKey": "\u0000Barcelona SC",
             "eaClub": "Barcelona SC",
             "eaLeague": "",
-            "players": 26
+            "players": 22
           }
         ]
       }
@@ -3582,242 +4473,242 @@
     "Frenkie de Jong",
     "Bradley Barcola",
     "Paulo Dybala",
-    "Granit Xhaka",
-    "Emiliano Martínez",
-    "Jordan Pickford",
-    "Youri Tielemans",
+    "Fermín",
+    "Felix Nmecha",
+    "Adrien Rabiot",
     "Sandro Tonali",
-    "Marc Guéhi",
-    "Antoine Semenyo",
+    "Jordan Pickford",
     "Ryan Gravenberch",
     "Joško Gvardiol",
-    "Hugo Ekitiké",
+    "Konrad Laimer",
+    "Mile Svilar",
+    "Emiliano Martínez",
+    "Hakan Çalhanoğlu",
+    "Marcos Llorente",
+    "Grimaldo",
+    "Eric García",
+    "Unai Simón",
+    "Antoine Semenyo",
+    "Marcus Thuram",
+    "Jules Koundé",
+    "Kevin De Bruyne",
+    "Luka Modrić",
+    "Youri Tielemans",
     "Cole Palmer",
     "Serhou Guirassy",
-    "Konrad Laimer",
+    "Granit Xhaka",
+    "Hugo Ekitiké",
     "Deniz Undav",
-    "Felix Nmecha",
-    "Luka Modrić",
-    "Kevin De Bruyne",
-    "Hakan Çalhanoğlu",
-    "Adrien Rabiot",
-    "Marcus Thuram",
-    "Mile Svilar",
-    "Grimaldo",
-    "Marcos Llorente",
-    "Unai Simón",
-    "Jules Koundé",
-    "Eric García",
-    "Fermín",
-    "Ezri Konsa",
-    "Eberechi Eze",
-    "Boubacar Kamara",
-    "Phil Foden",
+    "Marc Guéhi",
     "Reece James",
-    "Alexis Mac Allister",
-    "Matheus Cunha",
-    "Tijjani Reijnders",
-    "Bryan Mbeumo",
-    "Jérémy Doku",
-    "Zubimendi",
-    "Jurriën Timber",
-    "Elliot Anderson",
-    "Piero Hincapié",
     "Morgan Rogers",
-    "Yan Diomande",
-    "Oliver Baumann",
     "Aleix García",
-    "Waldemar Anton",
-    "Wladimiro Falcone",
-    "Manuel Locatelli",
-    "Gianluca Mancini",
-    "Nico Paz",
-    "Kenan Yıldız",
-    "Aymeric Laporte",
-    "Bernardo Silva",
-    "Oyarzabal",
     "Trent Alexander-Arnold",
-    "Ibrahima Konaté",
-    "Éder Militão",
-    "Ferran Torres",
     "Aurélien Tchouaméni",
-    "Rodrygo",
-    "Dani Olmo",
+    "Elliot Anderson",
+    "Bryan Mbeumo",
+    "Kenan Yıldız",
+    "Alexis Mac Allister",
+    "Zubimendi",
+    "Oliver Baumann",
+    "Yan Diomande",
+    "Eberechi Eze",
+    "Ferran Torres",
+    "Jérémy Doku",
+    "Nico Paz",
+    "Matheus Cunha",
+    "Éder Militão",
+    "Oyarzabal",
+    "Ezri Konsa",
+    "Phil Foden",
+    "Jurriën Timber",
+    "Piero Hincapié",
+    "Manuel Locatelli",
     "Nico Williams",
+    "Boubacar Kamara",
+    "Bernardo Silva",
+    "Wladimiro Falcone",
+    "Dani Olmo",
+    "Rodrygo",
+    "Waldemar Anton",
+    "Aymeric Laporte",
+    "Gianluca Mancini",
+    "Ibrahima Konaté",
     "John McGinn",
-    "Ollie Watkins",
-    "Mikel Merino",
-    "Morgan Gibbs-White",
-    "Pedro Porro",
-    "João Pedro",
-    "Matheus Nunes",
-    "Giorgi Mamardashvili",
-    "Lewis Hall",
-    "Nico O'Reilly",
-    "Jarrod Bowen",
-    "Matvey Safonov",
+    "João Cancelo",
     "Warren Zaïre-Emery",
-    "Willi Orbán",
-    "Serge Gnabry",
-    "Matthias Ginter",
-    "Maximilian Mittelstädt",
-    "Exequiel Palacios",
-    "Patrik Schick",
+    "Nico O'Reilly",
+    "Denzel Dumfries",
+    "Matheus Nunes",
+    "Morten Hjulmand",
+    "Pablo Barrios",
+    "Pedro Porro",
     "David Raum",
-    "Kim Min Jae",
-    "Angelo Stiller",
+    "Dávid Hancko",
+    "Morgan Gibbs-White",
     "Ismael Saibari",
+    "Matvey Safonov",
     "Aleksandar Pavlović",
-    "De Gea",
-    "Stanislav Lobotka",
     "Ivan Provedel",
+    "Lewis Hall",
+    "De Gea",
+    "Álex Baena",
+    "Exequiel Palacios",
+    "Giorgi Mamardashvili",
+    "Maximilian Mittelstädt",
+    "Mikel Merino",
+    "Gavi",
     "Christian Pulisic",
-    "Manuel Akanji",
+    "Ollie Watkins",
+    "Stanislav Lobotka",
+    "Rafael Leão",
+    "Antonio Rüdiger",
+    "Arda Güler",
+    "Angelo Stiller",
+    "Jarrod Bowen",
     "Donyell Malen",
     "Evan Ndicka",
-    "Rafael Leão",
-    "Amir Rrahmani",
-    "Isco",
-    "Antonio Rüdiger",
-    "Alexander Sørloth",
+    "Manuel Akanji",
+    "Serge Gnabry",
+    "João Pedro",
     "Ademola Lookman",
-    "Denzel Dumfries",
-    "Morten Hjulmand",
-    "Dávid Hancko",
-    "Álex Baena",
-    "Gavi",
-    "Arda Güler",
-    "Pablo Barrios",
-    "Marc-André ter Stegen",
-    "Julian Brandt",
-    "Joey Veerman",
-    "Harry Maguire",
-    "Jack Grealish",
-    "James Maddison",
-    "Marcus Rashford",
-    "Cristian Romero",
-    "Dean Henderson",
-    "Matthijs de Ligt",
-    "Marcos Senesi",
-    "Daniel Muñoz",
-    "Lisandro Martínez",
-    "Cody Gakpo",
-    "James Garner",
-    "Maxence Lacroix",
-    "Senne Lammens",
-    "Omar Marmoush",
-    "Christos Tzolis",
-    "Riccardo Calafiori",
-    "Adam Wharton",
-    "Benjamin Šeško",
-    "Iliman Ndiaye",
-    "Igor Thiago",
-    "Abdukodir Khusanov",
-    "Murillo",
-    "Florian Thauvin",
-    "Corentin Tolisso",
-    "Palhinha",
-    "Julian Ryerson",
-    "Alphonso Davies",
-    "Christoph Baumgartner",
-    "Jonathan Burkardt",
-    "Edmond Tapsoba",
-    "Romelu Lukaku",
-    "John Stones",
-    "Piotr Zieliński",
-    "Domenico Berardi",
-    "Giovanni Di Lorenzo",
-    "Mattia Zaccagni",
-    "André-Franck Zambo Anguissa",
-    "Riccardo Orsolini",
-    "Moise Kean",
+    "Isco",
+    "Alexander Sørloth",
+    "Patrik Schick",
+    "Amir Rrahmani",
+    "Matthias Ginter",
+    "Kim Min Jae",
+    "Willi Orbán",
     "Éderson",
-    "Péter Gulácsi",
-    "Ante Budimir",
-    "Juan Musso",
-    "José María Giménez",
-    "Anthony Gordon",
+    "Alphonso Davies",
     "Sancet",
-    "Vivian",
-    "Karim Adeyemi",
+    "André-Franck Zambo Anguissa",
+    "Corentin Tolisso",
     "Giuliano",
+    "Dean Henderson",
+    "Giovanni Di Lorenzo",
+    "Marc-André ter Stegen",
+    "Daniel Muñoz",
+    "James Garner",
+    "Julian Ryerson",
+    "Piotr Zieliński",
+    "Senne Lammens",
+    "Riccardo Calafiori",
+    "Anthony Gordon",
+    "Riccardo Orsolini",
+    "Mattia Zaccagni",
+    "Juan Musso",
+    "Cody Gakpo",
+    "Péter Gulácsi",
     "Balde",
     "Moleiro",
+    "Edmond Tapsoba",
+    "Murillo",
+    "Christoph Baumgartner",
+    "Marcus Rashford",
+    "Benjamin Šeško",
+    "Karim Adeyemi",
+    "Jack Grealish",
+    "Lisandro Martínez",
+    "Christos Tzolis",
+    "Omar Marmoush",
+    "Iliman Ndiaye",
+    "Palhinha",
+    "Jonathan Burkardt",
+    "Florian Thauvin",
+    "Domenico Berardi",
+    "Adam Wharton",
+    "Igor Thiago",
+    "Julian Brandt",
+    "James Maddison",
+    "Maxence Lacroix",
+    "Abdukodir Khusanov",
+    "Moise Kean",
+    "Joey Veerman",
+    "Vivian",
+    "Matthijs de Ligt",
+    "John Stones",
+    "Marcos Senesi",
+    "Ante Budimir",
+    "Cristian Romero",
+    "José María Giménez",
+    "Harry Maguire",
+    "Khéphren Thuram",
+    "Marcel Sabitzer",
+    "Kouadio Manu Koné",
+    "Eduardo Camavinga",
+    "Álvaro Carreras",
+    "Denis Zakaria",
     "Ivan Perišić",
-    "Mauro Júnior",
-    "Chris Wood",
-    "Matz Sels",
-    "Mateo Kovačić",
-    "Fabian Schär",
-    "Harry Wilson",
-    "Nordi Mukiele",
-    "Matty Cash",
-    "Benjamin White",
-    "Ismaïla Sarr",
-    "Kai Havertz",
-    "Jean-Philippe Mateta",
-    "Kiernan Dewsbury-Hall",
-    "Pedro Neto",
-    "Omar Alderete",
-    "Pau Torres",
-    "Rayan Aït-Nouri",
     "Mohammed Kudus",
-    "Xavi Simons",
-    "Dejan Kulusevski",
-    "Sven Botman",
-    "Jeremie Frimpong",
-    "Nico González",
-    "Kaoru Mitoma",
-    "Malick Thiaw",
-    "Amadou Onana",
-    "Bart Verbruggen",
+    "Brice Samba",
+    "Luis Milla",
+    "Robin Roefs",
     "Mamadou Sangaré",
-    "Jan Paul van Hecke",
+    "Bart Verbruggen",
+    "Henrikh Mkhitaryan",
+    "Amadou Onana",
+    "Emre Can",
     "Milos Kerkez",
     "Alex Scott",
-    "Tino Livramento",
-    "Robin Roefs",
-    "Micky van de Ven",
-    "Kobbie Mainoo",
-    "Luka Vušković",
-    "Michael Kayode",
-    "Estéban Lepaul",
-    "Brice Samba",
-    "Adrien Thomasson",
-    "Lucas Hernández",
-    "Moussa Niakhaté",
-    "Matthieu Udol",
-    "Denis Zakaria",
-    "Dominik Greif",
-    "Maghnes Akliouche",
-    "Robin Risser",
-    "Kaishū Sano",
-    "Manuel Neuer",
-    "Marcel Sabitzer",
-    "Emre Can",
-    "Andrej Kramarić",
-    "Julian Chabot",
-    "Maximilian Beier",
     "Nicolas Seiwald",
-    "Castello Lukeba",
-    "Nathaniel Brown",
-    "Henrikh Mkhitaryan",
+    "Fornals",
+    "Kiernan Dewsbury-Hall",
+    "Kobbie Mainoo",
+    "Dejan Kulusevski",
+    "Micky van de Ven",
+    "Kaishū Sano",
+    "Matz Sels",
+    "Jeremie Frimpong",
+    "Nico González",
+    "Matthieu Udol",
+    "Antony",
+    "Álex Remiro",
     "Bryan Cristante",
-    "Alessio Romagnoli",
+    "Mauro Júnior",
+    "Robin Risser",
+    "Pubill",
+    "Matty Cash",
+    "Rayan Aït-Nouri",
+    "Maximilian Beier",
+    "Xavi Simons",
+    "Kaoru Mitoma",
+    "Nathaniel Brown",
+    "Mario Gila",
     "Alex Meret",
+    "Adrien Thomasson",
+    "De Frutos",
+    "Manuel Neuer",
+    "Charles De Ketelaere",
+    "Pedro Neto",
+    "Tino Livramento",
+    "Michael Kayode",
+    "Koke",
+    "Gerard Moreno",
+    "Pierre Kalulu",
+    "Mateo Kovačić",
+    "Ismaïla Sarr",
+    "Nicolas Pépé",
+    "Wojciech Szczęsny",
+    "Dean Huijsen",
+    "Abde",
+    "Harry Wilson",
+    "Nordi Mukiele",
+    "Fabian Schär",
+    "Benjamin White",
+    "Kai Havertz",
+    "Jean-Philippe Mateta",
+    "Dominik Greif",
+    "Castello Lukeba",
+    "Lucas Hernández",
     "Mario Hermoso",
     "David Neres",
-    "Luis Milla",
+    "Malick Thiaw",
+    "Maghnes Akliouche",
     "Alessandro Buongiorno",
-    "Khéphren Thuram",
-    "Kouadio Manu Koné",
-    "Charles De Ketelaere",
-    "Pierre Kalulu",
-    "Mario Gila",
-    "Wojciech Szczęsny",
     "Iago Aspas",
-    "Koke",
-    "Gerard Moreno"
+    "Álvaro García",
+    "Andrej Kramarić"
   ],
   "nationalityFallbacks": [],
   "ratingSwings": [],
@@ -3829,7 +4720,15 @@
       "attack": 80,
       "midfield": 80,
       "defence": 81,
-      "goalkeeping": 10
+      "goalkeeping": 10,
+      "attributes": {
+        "pace": 84,
+        "shooting": 59,
+        "passing": 75,
+        "dribbling": 78,
+        "defending": 76,
+        "physical": 79
+      }
     },
     "Antony": {
       "teamId": "real_betis",
@@ -3838,7 +4737,15 @@
       "attack": 81,
       "midfield": 80,
       "defence": 61,
-      "goalkeeping": 10
+      "goalkeeping": 10,
+      "attributes": {
+        "pace": 85,
+        "shooting": 81,
+        "passing": 79,
+        "dribbling": 82,
+        "defending": 48,
+        "physical": 71
+      }
     }
   }
 }
