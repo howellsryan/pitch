@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const db = vi.hoisted(() => ({
   getAllPlayers: vi.fn(async () => []),
+  getManager: vi.fn(async () => null),
   getPlayer: vi.fn(async () => null),
   getSave: vi.fn(async () => null),
   getTeam: vi.fn(async () => null),
@@ -114,8 +115,42 @@ describe('P9 canonical academy rollover', () => {
     )).toBe(true);
   });
 
+  it.each([
+    { status:'unemployed', currentClubId:null },
+    { status:'employed', currentClubId:'elsewhere' },
+  ])('lets the AI promote a former club prospect when the user is $status there', async manager => {
+    db.getManager.mockResolvedValue({ id:'manager_user', ...manager });
+    db.getAllPlayers.mockResolvedValue([
+      academyPlayer('former_club_keeper', 'user', { position:'GK', age:18, potentialRating:78 }),
+    ]);
+    await runYouthIntake({ ...save, userManagerId:'manager_user' }, [
+      { id:'user', name:'Former club', league:'Premier League', reputation:70, academyInvestment:0 },
+    ]);
+    const keeper = db.putPlayersBulk.mock.calls[0][0].find(player => player.id === 'former_club_keeper');
+    expect(keeper).toMatchObject({
+      playerStatus:'first_team', contractTeamId:'user', registeredTeamId:'user', inSquad:true,
+      contractExpiry:2029,
+    });
+  });
+
+  it.each([29, 30])('keeps an AI goalkeeper pathway open with %i senior outfield players', async seniorCount => {
+    db.getAllPlayers.mockResolvedValue([
+      ...Array.from({ length:seniorCount }, (_, index) => academyPlayer(`senior_${index}`, 'ai', {
+        playerStatus:'first_team', isYouth:false, youthTeamId:null, inSquad:true, contractExpiry:2030,
+      })),
+      academyPlayer('outfield_prospect', 'ai', { age:18, potentialRating:80 }),
+      academyPlayer('only_keeper', 'ai', { position:'GK', age:18, potentialRating:66 }),
+    ]);
+    await runYouthIntake(save, [
+      { id:'ai', name:'AI', league:'Premier League', reputation:70, academyInvestment:0 },
+    ]);
+    const patches = db.putPlayersBulk.mock.calls[0][0];
+    expect(patches.find(player => player.id === 'only_keeper')).toMatchObject({ playerStatus:'first_team', inSquad:true });
+    expect(patches.find(player => player.id === 'outfield_prospect')).toMatchObject({ playerStatus:'academy', inSquad:false });
+  });
+
   it('seeds a new career academy into the canonical players store rather than save.youthCohort', () => {
-    const source = readFileSync(new URL('./save.js', import.meta.url), 'utf8');
+    const source = readFileSync(new globalThis.URL('./save.js', import.meta.url), 'utf8');
     const start = source.indexOf('export async function startNewGame');
     const body = start >= 0 ? source.slice(start) : '';
 

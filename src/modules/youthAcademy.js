@@ -1,5 +1,5 @@
-import { requireClubEmployment } from './managerEmployment.js';
-import { getAllPlayers, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeamsBulk } from './db.js';
+import { canManageClub, requireClubEmployment } from './managerEmployment.js';
+import { getAllPlayers, getManager, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putTeamsBulk } from './db.js';
 import { normalizePlayerModel } from './playerModel.js';
 import { applyLedgerMovement } from './clubFinance.js';
 import {
@@ -202,7 +202,11 @@ function youthCanonicalAcademy(raw, teamId, season, gameweek = 1) {
  */
 export async function runYouthIntake(save, allTeams) {
   const nextSeason = youthSeasonAfter(save.season);
-  const players = await getAllPlayers();
+  const [players, userManager] = await Promise.all([
+    getAllPlayers(),
+    save.userManagerId ? getManager(save.userManagerId) : null,
+  ]);
+  const managesClub = canManageClub(save, userManager);
   const patches = [];
   const normalizedPlayers = players.map(raw => {
     // season.js's legacy return write clears the old loan flags first. Close the
@@ -225,20 +229,26 @@ export async function runYouthIntake(save, allTeams) {
     return normalizePlayerStatus(raw);
   });
 
-  const seniorCounts = new Map(allTeams.map(team => [
-    team.id,
-    normalizedPlayers.filter(player => isSeniorEligiblePlayer(player, team.id)).length,
-  ]));
+  const seniorCounts = new Map(allTeams.map(team => [team.id, 0]));
+  const keeperCounts = new Map(allTeams.map(team => [team.id, 0]));
+  for (const player of normalizedPlayers) {
+    if (!isSeniorEligiblePlayer(player)) continue;
+    seniorCounts.set(player.teamId, (seniorCounts.get(player.teamId) ?? 0) + 1);
+    if (player.position === 'GK') keeperCounts.set(player.teamId, (keeperCounts.get(player.teamId) ?? 0) + 1);
+  }
   const academyByTeam = new Map(allTeams.map(team => [team.id, []]));
 
-  for (const player of normalizedPlayers) {
-    if (!isAcademyPlayer(player)) continue;
+  // Allocate keeper seats before outfield promotions fill the senior cap.
+  const prospects = normalizedPlayers.filter(player => isAcademyPlayer(player))
+    .sort((a, b) => Number(b.position === 'GK') - Number(a.position === 'GK'));
+  for (const player of prospects) {
     const teamId = player.contractTeamId;
-    const isUser = teamId === save.userTeamId;
+    const isUser = managesClub && teamId === save.userTeamId;
+    const needsKeeper = player.position === 'GK' && (keeperCounts.get(teamId) ?? 0) === 0;
     const canPromoteAI = !isUser
       && Number(player.age ?? 0) >= 18
-      && Number(player.potentialRating ?? 0) >= 70
-      && (seniorCounts.get(teamId) ?? 0) < 30;
+      && (Number(player.potentialRating ?? 0) >= 70 || needsKeeper)
+      && ((seniorCounts.get(teamId) ?? 0) < 30 || needsKeeper);
     if (canPromoteAI) {
       const year = Number.parseInt(nextSeason.split('/')[0], 10) || 2026;
       const promoted = transitionPlayerStatus(player, {
@@ -255,6 +265,7 @@ export async function runYouthIntake(save, allTeams) {
       });
       patches.push(promoted);
       seniorCounts.set(teamId, (seniorCounts.get(teamId) ?? 0) + 1);
+      if (player.position === 'GK') keeperCounts.set(teamId, (keeperCounts.get(teamId) ?? 0) + 1);
       continue;
     }
     if (Number(player.age ?? 0) > 19) {

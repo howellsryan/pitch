@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _db, _fnv1a, _PITCH_MAGIC, _PITCH_SALT, _restoreFromEnvelope, bulkPut, getAllPlayers, getSave, openDB, putSave, runSeasonRolloverAtomic } from './db.js';
+import { _db, _fnv1a, _PITCH_MAGIC, _PITCH_SALT, _restoreFromEnvelope, bulkPut, getAllPlayers, getManager, getSave, getTeam, openDB, putSave, runSeasonRolloverAtomic } from './db.js';
+import { resignAsManager, tryCompletePendingUserHandover } from './managerUserActions.js';
 
 // IO double models transaction commit/abort; game writes use the actual DB API.
 function transactionalDatabase() {
@@ -23,7 +24,7 @@ function transactionalDatabase() {
               pending--;
               if (ended) return;
               try { req.result = operation(); req.onsuccess?.(); }
-              catch (error) { tx.error = error; req.error = error; req.onerror?.(); tx.abort(); }
+              catch (error) { tx.error = error; req.error = error; req.onerror?.(); tx.onerror?.(); tx.abort(); }
               globalThis.setTimeout(() => {
                 if (ended || pending) return;
                 ended = true;
@@ -38,10 +39,14 @@ function transactionalDatabase() {
           return {
             get:key => request(() => globalThis.structuredClone(table.get(key))),
             getAll:() => request(() => globalThis.structuredClone([...table.values()])),
+            index:() => ({ getAll:gameweek => request(() => globalThis.structuredClone([...table.values()].filter(row => row.gameweek === gameweek))) }),
             put(value) {
               const key = value.id ?? value.teamId;
               if (key == null) throw new Error('Missing row key');
-              return request(() => { table.set(key, globalThis.structuredClone(value)); return key; });
+              return request(() => {
+                if (database.failWritesTo === name) throw new Error('Injected write failure');
+                table.set(key, globalThis.structuredClone(value)); return key;
+              });
             },
             clear:() => request(() => table.clear()),
             delete:key => request(() => table.delete(key)),
@@ -100,5 +105,41 @@ describe('atomic season rollover', () => {
     await expect(_restoreFromEnvelope(envelope)).rejects.toThrow();
     expect((await getAllPlayers())[0].age).toBe(28);
     expect((await getSave()).season).toBe('2026/27');
+  });
+
+  it('keeps the manager employed when resignation fails after writing a caretaker', async () => {
+    await bulkPut('managers', [{ id:'mgr_user', isUser:true, status:'employed', currentClubId:'club', record:{} }]);
+    await bulkPut('teams', [{ id:'club', name:'Club', league:'Premier League', managerId:'mgr_user' }]);
+    await putSave({ season:'2026/27', currentGameweek:2, userTeamId:'club', userManagerId:'mgr_user', pendingEvents:[], managerMarket:{ vacancies:[] } });
+    await new Promise(resolve => globalThis.setTimeout(resolve, 5));
+    _db.failWritesTo = 'teams';
+    await expect(resignAsManager()).rejects.toThrow('Injected write failure');
+    expect(await getManager('mgr_user')).toMatchObject({ status:'employed', currentClubId:'club' });
+    expect(await getTeam('club')).toMatchObject({ managerId:'mgr_user' });
+    expect((await getSave()).managerMarket.vacancies).toEqual([]);
+  });
+
+  it('rolls back both club ownership and manager status when the final handover save fails', async () => {
+    const vacancy = { id:'vac_new', clubId:'new', status:'completed', hiredManagerId:'mgr_user', caretakerManagerId:'caretaker' };
+    await bulkPut('managers', [
+      { id:'mgr_user', isUser:true, status:'unemployed', currentClubId:null, record:{} },
+      { id:'caretaker', status:'caretaker', currentClubId:'new', record:{} },
+    ]);
+    await bulkPut('teams', [
+      { id:'old', name:'Old', league:'Premier League', managerId:'old_ai', reputation:70 },
+      { id:'new', name:'New', league:'Premier League', managerId:'caretaker', reputation:70 },
+    ]);
+    await putSave({
+      season:'2026/27', currentGameweek:2, currentDate:'2026-08-16T00:00:00.000Z',
+      userTeamId:'old', userManagerId:'mgr_user', pendingEvents:[],
+      managerMarket:{ vacancies:[vacancy], pendingUserHandover:{ clubId:'new', vacancyId:'vac_new' } },
+    });
+    await new Promise(resolve => globalThis.setTimeout(resolve, 5));
+    _db.failWritesTo = 'save';
+    await expect(tryCompletePendingUserHandover()).rejects.toThrow('Injected write failure');
+    expect(await getManager('mgr_user')).toMatchObject({ status:'unemployed', currentClubId:null });
+    expect(await getManager('caretaker')).toMatchObject({ currentClubId:'new' });
+    expect(await getTeam('new')).toMatchObject({ managerId:'caretaker' });
+    expect(await getSave()).toMatchObject({ userTeamId:'old', managerMarket:{ pendingUserHandover:{ clubId:'new' } } });
   });
 });

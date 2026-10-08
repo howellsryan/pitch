@@ -10,6 +10,7 @@ const db = vi.hoisted(() => ({
   putManagersBulk: vi.fn(async () => {}),
   putSave: vi.fn(async () => {}),
   putTeamsBulk: vi.fn(async () => {}),
+  runCareerTransitionAtomic: vi.fn(async operation => operation()),
 }));
 
 vi.mock('./db.js', () => db);

@@ -23,7 +23,7 @@ const SAFE_SLOT_ID = /^[a-zA-Z0-9_-]{1,80}$/;
 
 export let _db = null;
 let _dbSlotId = null;
-let _seasonWriteTransaction = null;
+let _careerWriteTransaction = null;
 
 function _storage() {
   try {
@@ -159,18 +159,23 @@ export const req2p = r => new Promise((res, rej) => {
   r.onsuccess = () => res(r.result);
   r.onerror = () => rej(r.error);
 });
-export const store = (name, mode='readonly') => (_seasonWriteTransaction ?? _db.transaction(name, mode)).objectStore(name);
+export const store = (name, mode='readonly') => (_careerWriteTransaction ?? _db.transaction(name, mode)).objectStore(name);
 
 /** Keep all rollover reads/writes in one transaction, including async IDB reads.
  * A closed tab or rejected calculation aborts the entire season instead of
  * leaving aged players and new fixtures beside the outgoing calendar.
  */
-export async function runSeasonRolloverAtomic(operation) {
-  if (_seasonWriteTransaction) throw new Error('SEASON_ROLLOVER_ALREADY_RUNNING');
+export function runSeasonRolloverAtomic(operation) {
+  return runCareerTransitionAtomic(operation);
+}
+
+/** Manager ownership changes use the same all-store transaction lifecycle. */
+export async function runCareerTransitionAtomic(operation) {
+  if (_careerWriteTransaction) throw new Error('CAREER_TRANSITION_ALREADY_RUNNING');
   const tx = _db.transaction(STORE_NAMES, 'readwrite');
   const completed = new Promise((resolve, reject) => {
     tx.oncomplete = resolve;
-    tx.onabort = () => reject(tx.error ?? new Error('Season rollover aborted.'));
+    tx.onabort = () => reject(tx.error ?? new Error('Career transition aborted.'));
     tx.onerror = () => reject(tx.error);
   });
   // Attach rejection handling immediately; the operation may still be awaiting
@@ -182,7 +187,7 @@ export async function runSeasonRolloverAtomic(operation) {
     const request = tx.objectStore('save').get('active');
     request.onsuccess = pulse;
   };
-  _seasonWriteTransaction = tx;
+  _careerWriteTransaction = tx;
   pulse();
   try {
     const result = await operation();
@@ -195,13 +200,13 @@ export async function runSeasonRolloverAtomic(operation) {
     await completed.catch(() => {});
     throw error;
   } finally {
-    _seasonWriteTransaction = null;
+    _careerWriteTransaction = null;
   }
 }
 
 export function bulkPut(storeName, items) {
-  if (_seasonWriteTransaction) {
-    const s = _seasonWriteTransaction.objectStore(storeName);
+  if (_careerWriteTransaction) {
+    const s = _careerWriteTransaction.objectStore(storeName);
     return Promise.all(items.map(item => req2p(s.put(item))));
   }
   return _bulkPutToDB(_db, storeName, items);
@@ -218,8 +223,8 @@ function _bulkPutToDB(db, storeName, items) {
 }
 
 export function clearAndBulkPut(storeName, items) {
-  if (_seasonWriteTransaction) {
-    const s = _seasonWriteTransaction.objectStore(storeName);
+  if (_careerWriteTransaction) {
+    const s = _careerWriteTransaction.objectStore(storeName);
     return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(item)))));
   }
   return new Promise((resolve, reject) => {
@@ -305,8 +310,8 @@ export const getPlayersByTeam = tid => req2p(store('players').index('by_team').g
 export const putPlayer = p => req2p(store('players','readwrite').put(p));
 export const putPlayersBulk = ps => bulkPut('players', ps);
 export function deletePlayersBulk(ids) {
-  if (_seasonWriteTransaction) {
-    const s = _seasonWriteTransaction.objectStore('players');
+  if (_careerWriteTransaction) {
+    const s = _careerWriteTransaction.objectStore('players');
     return Promise.all(ids.map(id => req2p(s.delete(id))));
   }
   return new Promise((resolve, reject) => {

@@ -1,6 +1,6 @@
 import {
   getAllTeams, getFixturesByGW, getManager, getSave, getTeam,
-  putManagersBulk, putSave, putTeamsBulk,
+  putManagersBulk, putSave, putTeamsBulk, runCareerTransitionAtomic,
 } from './db.js';
 import { reviewCheckpointKey } from './managerCareer.js';
 import { isVacancyAvailableForNewCandidate } from './managerAppointments.js';
@@ -68,6 +68,10 @@ export async function getManagerCareerView() {
  * message rather than relying solely on the thrown error.
  */
 export async function resignAsManager() {
+  return runCareerTransitionAtomic(commitManagerResignation);
+}
+
+async function commitManagerResignation() {
   const save = await getSave();
   const [userManager, team] = await Promise.all([getManager(save.userManagerId), getTeam(save.userTeamId)]);
   const weekKey = weekKeyFor(save);
@@ -156,6 +160,12 @@ export async function respondToApproach(approachId, outcome) {
  * on UI reload so an interrupted move completes once its events settle.
  */
 export async function tryCompletePendingUserHandover() {
+  const save = await getSave();
+  if (!save?.managerMarket?.pendingUserHandover || (save.pendingEvents ?? []).length) return { completed:false };
+  return runCareerTransitionAtomic(commitPendingUserHandover);
+}
+
+async function commitPendingUserHandover() {
   const save = await getSave();
   const market = save.managerMarket ?? createEmptyManagerMarket();
   const pending = market.pendingUserHandover;

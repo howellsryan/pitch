@@ -38,6 +38,10 @@ Current code and the roadmap establish delivery status.
   continues the world while between clubs, without a former-club board review,
   another dismissal, new user honors or targets. Archive the club's actual manager;
   the season modal and inbox must not present former-club results as user achievements.
+  Academy rollover likewise treats the former club as AI-managed. AI promotion
+  considers keepers before outfield prospects fill the senior limit; a club with
+  no senior keeper may promote an adult academy keeper below the usual potential
+  threshold, including one emergency seat above the normal 30-player limit.
 
 ## Finance, board and facilities
 
