@@ -71,6 +71,12 @@ All nine supported leagues play matches through the authoritative engine;
 background matches use its fast path. Player and club statistics derive from
 completed results. Season rollover creates new fixtures and retains compact
 history while handling development, aging, contracts and retirements.
+The latest completed season retains detailed world player registrations; the
+three most recent completed seasons retain individual world player and academy
+totals. Earlier seasons retain leaders, award winners, tables, awards and club
+history. Detailed player registrations and injury lists remain for each season's
+managed club throughout the career. Idle unattached players without a
+contribution do not get repeated archive rows.
 
 England's supported divisions exchange clubs through promotion, relegation
 and play-offs. Championship promotion uses two automatic places and a

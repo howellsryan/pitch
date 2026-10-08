@@ -11,6 +11,7 @@ import { SERIE_A_TEAMS } from '../data/serieA.js';
 import {
   getAllFixtures,
   getAllPlayers,
+  getAllSeasons,
   getAllStandings,
   getAllTeams,
   getSave,
@@ -21,10 +22,12 @@ import {
   putManagersBulk,
   putPlayersBulk,
   putSave,
+  putSeasonsBulk,
   putStandingsBulk,
   putTeamsBulk,
   replaceAllFixtures,
   replaceAllStandings,
+  runCareerTransitionAtomic,
 } from './db.js';
 import { selectEleven } from './matchEngine.js';
 import { assignCups, buildInitialCupState } from './cups.js';
@@ -40,7 +43,7 @@ import { normalizePlayerStatus } from './playerStatus.js';
 import { generateCohort } from './youthAcademy.js';
 import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
-import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from './world.js';
+import { buildWorldBackfill, buildWorldLeagueSeason, compactHistoricalSeason, groupTeamsByLeague } from './world.js';
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { TACTICS_PLAN_VERSION, createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
@@ -368,6 +371,23 @@ export async function ensureP8CareerEventsSave(save) {
   return migrated;
 }
 
+/** Backfill older imported careers without changing their active football world. */
+export async function ensureSeasonHistoryCompaction(save) {
+  if (!save || save.seasonHistoryCompactionVersion === 2) return save;
+  return runCareerTransitionAtomic(async () => {
+    const current = await getSave();
+    if (!current || current.seasonHistoryCompactionVersion === 2) return current;
+    const records = await getAllSeasons();
+    const latestYear = Math.max(...records.map(record => Number.parseInt(record.season, 10)).filter(Number.isFinite));
+    const patches = records.map(record => Number.parseInt(record.season, 10) < latestYear ? compactHistoricalSeason(record, seasonStartYear(current)) : record)
+      .filter((record, index) => record !== records[index]);
+    if (patches.length) await putSeasonsBulk(patches);
+    const migrated = { ...current, seasonHistoryCompactionVersion:2 };
+    await putSave(migrated);
+    return migrated;
+  });
+}
+
 export async function initApp() {
   await openDB();
   let save = await getSave();
@@ -386,6 +406,7 @@ export async function initApp() {
     save = await ensureP7Facilities(save);
     save = await ensureP9CareerPathways(save);
     save = await ensureP8CareerEventsSave(save);
+    save = await ensureSeasonHistoryCompaction(save);
   }
   return save ?? null;
 }
@@ -470,6 +491,7 @@ export async function startNewGame(userTeamId, managerName) {
     clubFinanceVersion: CLUB_FINANCE_VERSION,
     clubOperatingIncomeVersion: CLUB_OPERATING_INCOME_VERSION,
     facilitiesVersion: FACILITIES_VERSION,
+    seasonHistoryCompactionVersion:2,
     userManagerId:   userManager.id,
     managerMarket:   createEmptyManagerMarket(),
     currentDate,

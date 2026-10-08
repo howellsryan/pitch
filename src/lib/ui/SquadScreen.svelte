@@ -1,5 +1,5 @@
 <script>
-  import { getManager, getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
+  import { getManager, getPlayer, getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
   import { FORMATIONS, MAX_MATCHDAY_BENCH, primaryRating, pruneBenchToSquad, selectBench, selectEleven, selectReserves } from '../../modules/matchEngine.js';
   import {
     SQUAD_ROLE_DEFS,
@@ -27,6 +27,7 @@
   import { contractYearsRemaining, renewContract, setManagedPlayerTransferListing } from '../../modules/transfers.js';
   import { fmt, navigateTo, posGroup, toast } from '../../ui/helpers.js';
   import { canManageClub, requireClubEmployment } from '../../modules/managerEmployment.js';
+  import { isAcademyPlayer } from '../../modules/playerStatus.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import DevelopmentPlanPanel from './DevelopmentPlanPanel.svelte';
   import SquadPlanningPanel from './SquadPlanningPanel.svelte';
@@ -84,7 +85,7 @@
     if (!canManageClub(currentSave, manager)) { loaded = false; return; }
     save = currentSave;
     team = await getTeam(save.userTeamId);
-    players = await getPlayersByTeam(save.userTeamId);
+    players = (await getPlayersByTeam(save.userTeamId)).filter(player => !isAcademyPlayer(player));
     if (playerSheet) playerSheet = players.find(p => p.id === playerSheet.id) ?? null;
     formation = save.formation ?? '4-3-3';
     savedLineup = save.lineup ?? [];
@@ -338,9 +339,11 @@
   function closePlayer() { playerSheet = null; }
   async function toggleSquad(p) {
     const sv = await currentClubSave();
-    if (!sv || String(p.teamId) !== String(sv.userTeamId)) return;
-    const adding = p.inSquad === false;
-    const updatedPlayer = { ...p, inSquad:adding };
+    if (!sv) return;
+    const current = await getPlayer(p.id);
+    if (!current || isAcademyPlayer(current) || String(current.teamId) !== String(sv.userTeamId)) return;
+    const adding = current.inSquad === false;
+    const updatedPlayer = { ...current, inSquad:adding };
     await putPlayer(updatedPlayer);
     if (!adding) {
       const eligiblePlayers = players.map(player => player.id === p.id ? updatedPlayer : player);
@@ -354,7 +357,7 @@
       if (Array.isArray(sv?.bench)) nextSave.bench = sv.bench.filter(id => String(id) !== String(p.id));
       await putSave(nextSave);
     }
-    toast(`${p.name} ${p.inSquad === false ? 'added to' : 'excluded from'} squad`, 'info', 2000);
+    toast(`${current.name} ${adding ? 'added to' : 'excluded from'} squad`, 'info', 2000);
     screenTicks.squad++;
   }
   async function toggleListed(p) {

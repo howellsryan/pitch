@@ -867,7 +867,9 @@ chk('TransfersScreen has a Free Agents tab', transfersScreenSrc.includes("select
   chk('Season-end: user player past expiry is the one that should become a free agent', expiredUserPlayer.contractExpiry <= currentYear && expiredUserPlayer.teamId === userTeamId);
   chk('Season-end: player with years left is untouched', activePlayer.contractExpiry > currentYear);
 })();
-const seasonEndSrc = code.slice(code.indexOf('async function processEndOfSeason'), code.indexOf('async function processEndOfSeason')+7000);
+const seasonEndStart = code.indexOf('async function processEndOfSeason');
+const seasonEndNext = code.indexOf('function _retirePrimaryRating', seasonEndStart);
+const seasonEndSrc = seasonEndStart >= 0 && seasonEndNext > seasonEndStart ? code.slice(seasonEndStart, seasonEndNext) : '';
 chk('Season end backfills missing contractExpiry rather than releasing', seasonEndSrc.includes('contractExpiry == null'));
 chk("Season end sends the user's own expired players to free_agents", seasonEndSrc.includes('releasePlayerToFreeAgency(declined') && seasonEndSrc.includes("reason:'contract_expired'"));
 chk('Season end tracks expired contracts in the summary', seasonEndSrc.includes('summary.expiredContracts'));

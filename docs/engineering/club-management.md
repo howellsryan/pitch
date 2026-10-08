@@ -42,6 +42,9 @@ Current code and the roadmap establish delivery status.
   considers keepers before outfield prospects fill the senior limit; a club with
   no senior keeper may promote an adult academy keeper below the usual potential
   threshold, including one emergency seat above the normal 30-player limit.
+  AI contract renewal also retains the last senior goalkeeper; a retiring keeper
+  then receives the normal position-matched replacement. User contracts still
+  expire unless the manager negotiates their renewal.
 
 ## Finance, board and facilities
 

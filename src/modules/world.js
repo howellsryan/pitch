@@ -302,20 +302,6 @@ function worldSpellSeniorStats(player) {
   };
 }
 
-function worldSpellAcademyStats(player) {
-  const evidence = player?.academyEvidence ?? {};
-  return {
-    appearances:Math.max(0, Number(evidence.appearances ?? 0)),
-    starts:Math.max(0, Number(evidence.starts ?? 0)),
-    minutes:Math.max(0, Number(evidence.minutes ?? 0)),
-    goals:Math.max(0, Number(evidence.goals ?? 0)),
-    assists:Math.max(0, Number(evidence.assists ?? 0)),
-    cleanSheets:Math.max(0, Number(evidence.cleanSheets ?? 0)),
-    ratingTotal:Math.max(0, Number(evidence.ratingTotal ?? 0)),
-    ratingApps:Math.max(0, Number(evidence.ratingApps ?? 0)),
-  };
-}
-
 function worldSpellDelta(end, start = {}) {
   const out = {};
   for (const key of ['appearances','starts','minutes','goals','assists','cleanSheets','ratingTotal','ratingApps']) {
@@ -329,7 +315,6 @@ function worldSpellDelta(end, start = {}) {
 export function compactPlayerRegistrationSpells(player, season) {
   const spells = Array.isArray(player?.registrationSpells) ? player.registrationSpells : [];
   const currentSenior = worldSpellSeniorStats(player);
-  const currentAcademy = worldSpellAcademyStats(player);
   return spells.flatMap(spell => {
     const belongsToSeason = String(spell.startSeason ?? '') === String(season)
       || String(spell.endSeason ?? '') === String(season)
@@ -338,11 +323,12 @@ export function compactPlayerRegistrationSpells(player, season) {
     const seniorEnd = spell.endSeason != null
       ? (spell.endStats ?? {})
       : currentSenior;
-    const academyEnd = spell.endSeason != null
-      ? (spell.endAcademyEvidence ?? {})
-      : currentAcademy;
+    const academyEvidence = spell.endSeason != null ? spell.endAcademyEvidence : player?.academyEvidence;
+    const academyEnd = spell.status === 'academy'
+      && (!academyEvidence?.season || String(academyEvidence.season) === String(season))
+      ? (academyEvidence ?? {}) : {};
     const seniorStart = String(spell.startSeason ?? '') === String(season) ? (spell.startStats ?? {}) : {};
-    const academyStart = String(spell.startSeason ?? '') === String(season) ? (spell.startAcademyEvidence ?? {}) : {};
+    const academyStart = spell.status === 'academy' && String(spell.startSeason ?? '') === String(season) ? (spell.startAcademyEvidence ?? {}) : {};
     return [{
       id:spell.id,
       status:spell.status ?? 'first_team',
@@ -356,6 +342,48 @@ export function compactPlayerRegistrationSpells(player, season) {
       academy:worldSpellDelta(academyEnd, academyStart),
     }];
   });
+}
+
+/** Recent world totals and lifelong manager/leader records keep archives bounded. */
+export function compactHistoricalSeason(summary, currentSeasonStartYear = null) {
+  const archiveYear = Number.parseInt(summary?.season, 10);
+  const retainWorldTotals = currentSeasonStartYear == null || !Number.isFinite(archiveYear) || archiveYear >= currentSeasonStartYear - 3;
+  if (!Array.isArray(summary?.playerHistory)
+    || summary.playerHistoryCompacted && (retainWorldTotals || summary.playerHistorySummaryOnly)) return summary;
+  const managedTeamId = summary.managedClub === false ? null
+    : summary.userTeamId ?? summary.table?.[Number(summary.userFinish) - 1]?.teamId;
+  const leaders = new Set([
+    ...(summary.topScorers ?? []).map(row => row.id),
+    ...(summary.topAssists ?? []).map(row => row.id),
+    ...(summary.competitionHistory ?? []).flatMap(row => [row.topScorer?.playerId, row.topAssists?.playerId]),
+  ].filter(Boolean));
+  const playerHistory = [];
+  for (const row of summary.playerHistory) {
+    if (!row || typeof row !== 'object') continue;
+    if (managedTeamId && Array.isArray(row.clubs) && row.clubs.includes(managedTeamId)) {
+      playerHistory.push(row);
+      continue;
+    }
+    if (!retainWorldTotals && !leaders.has(row.playerId) && !(row.individualAwards ?? []).length) continue;
+    const academy = { appearances:0, starts:0, minutes:0, goals:0, assists:0, cleanSheets:0, ratingTotal:0, ratingApps:0 };
+    for (const spell of Array.isArray(row.spells) ? row.spells : []) {
+      if (spell?.status !== 'academy') continue;
+      for (const key of Object.keys(academy)) academy[key] += Number(spell.academy?.[key]) || 0;
+    }
+    const contributed = Number(row.appearances) > 0 || Number(row.minutes) > 0
+      || Number(row.goals) > 0 || Number(row.assists) > 0 || academy.appearances > 0
+      || (row.transfers ?? []).length > 0 || (row.individualAwards ?? []).length > 0;
+    if (!contributed) continue;
+    const compact = { ...row };
+    delete compact.spells;
+    delete compact.majorInjuries;
+    if (academy.appearances > 0) {
+      compact.academy = { ...academy, averageRating:academy.ratingApps ? Math.round(academy.ratingTotal / academy.ratingApps * 100) / 100 : null };
+    }
+    if (row.majorInjuries?.length) compact.majorInjuryCount = row.majorInjuries.length;
+    playerHistory.push(compact);
+  }
+  return { ...summary, playerHistory, playerHistoryCompacted:true, playerHistorySummaryOnly:!retainWorldTotals };
 }
 
 export function buildLivingWorldSeasonSummary({ save, teams, standings, players, transfers = [], leagueChanges = null, awards = [] }) {

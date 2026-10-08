@@ -1,4 +1,4 @@
-import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllManagers, getAllPlayers, getAllStandings, getAllTeams, getAllTransfers, getManager, getSave, getTeam, putManagersBulk, putPlayersBulk, putSave, putTeam, putTeamsBulk, replaceAllFixtures, replaceAllStandings, runSeasonRolloverAtomic } from './db.js';
+import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllManagers, getAllPlayers, getAllSeasons, getAllStandings, getAllTeams, getAllTransfers, getManager, getSave, getTeam, putManagersBulk, putPlayersBulk, putSave, putSeasonsBulk, putTeam, putTeamsBulk, replaceAllFixtures, replaceAllStandings, runSeasonRolloverAtomic } from './db.js';
 import { bumpMorale, sortTable } from './standings.js';
 import { CUP_META, buildInitialCupState } from './cups.js';
 import { getCompetitionRules } from './competitionRules.js';
@@ -9,6 +9,7 @@ import {
   buildLivingWorldSeasonSummary,
   buildSeasonAwards,
   buildWorldLeagueSeason,
+  compactHistoricalSeason,
   generateReplacementNewgens,
   groupTeamsByLeague,
   resetSeasonPlayerStats,
@@ -19,7 +20,7 @@ import { rolloverTransferMarket } from './transferMarket.js';
 import { pruneBenchToSquad } from './matchEngine.js';
 import { applyLedgerMovement, beginClubFinanceSeason, financialPressure, settleClubPayrollWeek } from './clubFinance.js';
 import { releasePlayerToFreeAgency } from './contracts.js';
-import { isAcademyPlayer, isLoanPlayer, transitionPlayerStatus } from './playerStatus.js';
+import { isAcademyPlayer, isLoanPlayer, isSeniorEligiblePlayer, transitionPlayerStatus } from './playerStatus.js';
 import { evaluateBoardContractSeasonClose, evaluateBoardObjective, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { evolveClubPhilosophy } from './clubPhilosophy.js';
 import { dismissAndCaretake, reviewCheckpointKey } from './managerCareer.js';
@@ -268,6 +269,12 @@ export async function processEndOfSeason() {
 
   const nextYearForContracts = currentYear + 1;
   const expiredContracts = [];
+  const seniorKeepers = new Map();
+  for (const player of players) {
+    if (player.position === 'GK' && isSeniorEligiblePlayer(player)) {
+      seniorKeepers.set(player.teamId, (seniorKeepers.get(player.teamId) ?? 0) + 1);
+    }
+  }
   const agedPlayers = players.map(player => {
     const declined = applyAgingDecline(player);
     let nextPlayer = declined;
@@ -281,9 +288,15 @@ export async function processEndOfSeason() {
           contractExpiry = null;
         } else {
           const releaseChance = Math.min(0.7, 0.15 + (declined.age >= 33 ? 0.25 : declined.age >= 30 ? 0.10 : 0));
-          if (Math.random() < releaseChance) {
+          const releaseRoll = Math.random();
+          const isLastKeeper = declined.position === 'GK' && isSeniorEligiblePlayer(declined)
+            && (seniorKeepers.get(declined.teamId) ?? 0) <= 1;
+          if (!isLastKeeper && releaseRoll < releaseChance) {
             nextPlayer = releasePlayerToFreeAgency(declined, { season:save.season, gameweek:save.currentGameweek, reason:'contract_expired' });
             contractExpiry = null;
+            if (declined.position === 'GK' && isSeniorEligiblePlayer(declined)) {
+              seniorKeepers.set(declined.teamId, (seniorKeepers.get(declined.teamId) ?? 0) - 1);
+            }
           } else contractExpiry = nextYearForContracts + 2 + Math.floor(Math.random() * 2);
         }
       }
@@ -420,8 +433,12 @@ export async function processEndOfSeason() {
     cash:userTeamRec.finance?.cash ?? userTeamRec.budget ?? null,
   } : null;
 
-  // One immutable compact season record. Current detailed ledgers are reset on
-  // players/fixtures below and are not duplicated into historical match blobs.
+  // Keep the latest world season detailed; earlier records retain contributions
+  // and manager-club detail without duplicating every world's registration ledger.
+  const previousSeasons = await getAllSeasons();
+  const compactedSeasons = previousSeasons.map(record => compactHistoricalSeason(record, nextYear))
+    .filter((record, index) => record !== previousSeasons[index]);
+  if (compactedSeasons.length) await putSeasonsBulk(compactedSeasons);
   await addSeason(summary);
 
   const allTeamsRefreshed = (await getAllTeams()).map(team => beginClubFinanceSeason(team, nextSeason));
@@ -496,6 +513,7 @@ export function _retirePrimaryRating(p) {
 export function buildSeasonSummary(save, sorted, players, userPosition) {
   return {
     season:save.season,
+    userTeamId:save.userTeamId,
     userLeague:save.userLeague ?? 'Premier League',
     champion:sorted[0]?.teamId,
     relegated:sorted.slice(-3).map(row => row.teamId),

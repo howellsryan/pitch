@@ -13,6 +13,7 @@ vi.mock('./db.js', async importOriginal => ({
   getTeam:vi.fn(async id => state.teams.find(team => team.id === id)),
   getAllPlayers:vi.fn(async () => state.players),
   getAllStandings:vi.fn(async () => state.standings),
+  getAllSeasons:vi.fn(async () => state.seasons),
   getAllTransfers:vi.fn(async () => []),
   getAllManagers:vi.fn(async () => state.managers),
   getManager:vi.fn(async id => state.managers.find(manager => manager.id === id)),
@@ -35,6 +36,9 @@ vi.mock('./db.js', async importOriginal => ({
   putSave:vi.fn(async save => { state.save = save; }),
   addHonor:vi.fn(async () => {}),
   addSeason:vi.fn(async summary => { state.seasons.push(summary); }),
+  putSeasonsBulk:vi.fn(async patches => {
+    state.seasons = state.seasons.map(record => patches.find(patch => patch.season === record.season) ?? record);
+  }),
   replaceAllFixtures:vi.fn(async () => {}),
   replaceAllStandings:vi.fn(async () => {}),
 }));
@@ -174,7 +178,7 @@ describe('season-close career boundaries', () => {
   });
 
   it('expires the current one-year contract canonically and prunes departed matchday selections', async () => {
-    await processEndOfSeason();
+    const { summary } = await processEndOfSeason();
     const expired = state.players.find(player => player.id === 'expired');
     expect(expired).toMatchObject({
       teamId:'free_agents', playerStatus:'free_agent', contractTeamId:null,
@@ -185,6 +189,7 @@ describe('season-close career boundaries', () => {
     expect(state.players.find(player => player.id === 'academy')).toMatchObject({ playerStatus:'academy', contractExpiry:null });
     expect(state.save.lineup).toEqual(['keeper']);
     expect(state.save.bench).toEqual([]);
+    expect(summary.expiredContracts).toEqual([{ id:'expired', name:'expired', position:'CM' }]);
   });
 
   it('judges youth use and archives player clubs before returning season-long loans', async () => {
@@ -194,6 +199,21 @@ describe('season-close career boundaries', () => {
     expect(summary.playerHistory.find(player => player.playerId === 'incoming').clubs).toEqual(['user']);
     expect(state.players.find(player => player.id === 'outgoing').teamId).toBe('user');
     expect(state.players.find(player => player.id === 'incoming').teamId).toBe('other');
+  });
+
+  it('renews the last AI goalkeeper while leaving the user responsible for their own expiry', async () => {
+    state.players = [
+      careerPlayer('user_keeper', 'user', { position:'GK', contractExpiry:2026 }),
+      careerPlayer('ai_keeper_1', 'other', { position:'GK', contractExpiry:2026 }),
+      careerPlayer('ai_keeper_2', 'other', { position:'GK', contractExpiry:2026 }),
+    ];
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try { await processEndOfSeason(); }
+    finally { random.mockRestore(); }
+    expect(state.players.find(player => player.id === 'user_keeper')).toMatchObject({ playerStatus:'free_agent', contractExpiry:null });
+    const retained = state.players.filter(player => player.teamId === 'other' && player.position === 'GK');
+    expect(retained).toHaveLength(1);
+    expect(retained[0].contractExpiry).toBeGreaterThan(2026);
   });
 
   it('pays the same position-based league prize to AI clubs and never adds annual operating income twice', async () => {

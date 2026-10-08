@@ -169,7 +169,7 @@
             <div class="main"><strong>{player.name}</strong><span>{teams.get(player.registeredTeamId)?.name ?? player.registeredTeamId} · {player.activeLoanAgreement?.expectedRole ?? 'rotation'}</span>
               {#if report}
                 <div class="report"><b>{report.minutes} mins</b><b>{report.appearances} apps</b><b>{report.averageRating ?? '—'} avg</b><em>{report.roleDeliveryLabel}</em></div>
-              {:else}<small>First report will use canonical match evidence.</small>{/if}
+              {:else}<small>Reports will appear after they play.</small>{/if}
               {#if player.injured}<small>{player.injuryName ?? 'Injured'} · rehabilitation remains at the registration club</small>{/if}
             </div>
             {#if player.activeLoanAgreement?.recallAllowed}<button onclick={() => recall(player)}>Recall</button>{/if}

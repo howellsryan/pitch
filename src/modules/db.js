@@ -184,7 +184,7 @@ export async function runCareerTransitionAtomic(operation) {
   let keepAlive = true;
   const pulse = () => {
     if (!keepAlive) return;
-    const request = tx.objectStore('save').get('active');
+    const request = tx.objectStore('save').getKey('active');
     request.onsuccess = pulse;
   };
   _careerWriteTransaction = tx;
@@ -489,6 +489,7 @@ export function settleTransferMarketDealAtomic(dealId) {
 export const getAllHonors = () => req2p(store('honors').getAll());
 export const addHonor = h => req2p(store('honors','readwrite').add(h));
 export const getAllSeasons = () => req2p(store('seasons').getAll());
+export const putSeasonsBulk = seasons => bulkPut('seasons', seasons);
 export const addSeason = s => req2p(store('seasons','readwrite').add(s));
 export const getAllManagers = () => req2p(store('managers').getAll());
 export const getManager = id => req2p(store('managers').get(id));

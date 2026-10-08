@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _db, _fnv1a, _PITCH_MAGIC, _PITCH_SALT, _restoreFromEnvelope, bulkPut, getAllPlayers, getManager, getSave, getTeam, openDB, putSave, runSeasonRolloverAtomic } from './db.js';
+import { _db, _fnv1a, _PITCH_MAGIC, _PITCH_SALT, _restoreFromEnvelope, bulkPut, getAllPlayers, getAllSeasons, getManager, getSave, getTeam, openDB, putSave, runSeasonRolloverAtomic } from './db.js';
 import { resignAsManager, tryCompletePendingUserHandover } from './managerUserActions.js';
+import { ensureSeasonHistoryCompaction } from './save.js';
 
 // IO double models transaction commit/abort; game writes use the actual DB API.
 function transactionalDatabase() {
@@ -38,6 +39,7 @@ function transactionalDatabase() {
           };
           return {
             get:key => request(() => globalThis.structuredClone(table.get(key))),
+            getKey:key => request(() => table.has(key) ? key : undefined),
             getAll:() => request(() => globalThis.structuredClone([...table.values()])),
             index:() => ({ getAll:gameweek => request(() => globalThis.structuredClone([...table.values()].filter(row => row.gameweek === gameweek))) }),
             put(value) {
@@ -141,5 +143,26 @@ describe('atomic season rollover', () => {
     expect(await getManager('caretaker')).toMatchObject({ currentClubId:'new' });
     expect(await getTeam('new')).toMatchObject({ managerId:'caretaker' });
     expect(await getSave()).toMatchObject({ userTeamId:'old', managerMarket:{ pendingUserHandover:{ clubId:'new' } } });
+  });
+
+  it('backfills old archive detail atomically while retaining the latest full world season', async () => {
+    const history = [{ playerId:'opponent', clubs:['other'], appearances:10, spells:[{ status:'first_team' }] }];
+    await bulkPut('seasons', [
+      { id:1, season:'2024/25', playerHistory:history },
+      { id:2, season:'2025/26', playerHistory:history },
+    ]);
+    await new Promise(resolve => globalThis.setTimeout(resolve, 5));
+    const original = await getSave();
+    _db.failWritesTo = 'save';
+    await expect(ensureSeasonHistoryCompaction(original)).rejects.toThrow('Injected write failure');
+    expect((await getAllSeasons())[0].playerHistory[0].spells).toHaveLength(1);
+    expect((await getSave()).seasonHistoryCompactionVersion).toBeUndefined();
+    _db.failWritesTo = null;
+    const result = await ensureSeasonHistoryCompaction(original);
+    const records = await getAllSeasons();
+    expect(result.seasonHistoryCompactionVersion).toBe(2);
+    expect(records[0].playerHistory[0]).toMatchObject({ playerId:'opponent', appearances:10 });
+    expect(records[0].playerHistory[0].spells).toBeUndefined();
+    expect(records[1].playerHistory[0].spells).toHaveLength(1);
   });
 });

@@ -6,6 +6,7 @@ import {
   buildWorldBackfill,
   buildWorldLeagueSeason,
   compactPlayerRegistrationSpells,
+  compactHistoricalSeason,
   generateReplacementNewgens,
   resetSeasonPlayerStats,
   resultFromCanonicalLeagueRecord,
@@ -204,6 +205,59 @@ describe('P1 living-world contracts', () => {
     const row = history.playerHistory[0];
     expect(row.appearances).toBe(8);
     expect(row.spells).toEqual(spells);
+  });
+
+  it('compacts older world detail while preserving manager records and every football contribution', () => {
+    const managed = { playerId:'captain', clubs:['parent'], appearances:32, spells:[{ status:'first_team', senior:{ appearances:32 } }], majorInjuries:[{ name:'Knee' }] };
+    const opponent = { playerId:'opponent', clubs:['other'], appearances:28, goals:7, spells:[{ status:'first_team', senior:{ appearances:28 } }], majorInjuries:[{ name:'Ankle' }] };
+    const youth = { playerId:'youth', clubs:['other'], appearances:0, spells:[{ status:'academy', academy:{ appearances:20, minutes:1400, goals:2, ratingTotal:130, ratingApps:20 } }] };
+    const idle = { playerId:'idle', clubs:['free_agents'], appearances:0, goals:0, spells:[], transfers:[], individualAwards:[] };
+    const source = { id:7, season:'2026/27', userTeamId:'parent', champion:'other', competitionHistory:[{ champion:'other' }], playerHistory:[managed, opponent, youth, idle] };
+    const compact = compactHistoricalSeason(source);
+    expect(compact).toMatchObject({ id:7, season:'2026/27', champion:'other', competitionHistory:source.competitionHistory });
+    expect(compact.playerHistory).toHaveLength(3);
+    expect(compact.playerHistory[0]).toBe(managed);
+    expect(compact.playerHistory[1]).toMatchObject({ playerId:'opponent', clubs:['other'], appearances:28, goals:7, majorInjuryCount:1 });
+    expect(compact.playerHistory[1].spells).toBeUndefined();
+    expect(compact.playerHistory[2].academy).toMatchObject({ appearances:20, minutes:1400, goals:2, averageRating:6.5 });
+    expect(source.playerHistory).toHaveLength(4);
+    expect(opponent.spells).toHaveLength(1);
+    expect(compactHistoricalSeason(compact)).toBe(compact);
+  });
+
+  it('identifies the managed club in an older archive without an explicit club id', () => {
+    const row = { playerId:'captain', clubs:['parent'], spells:[{ status:'first_team' }] };
+    const compact = compactHistoricalSeason({ season:'2025/26', userFinish:2, table:[{ teamId:'other' }, { teamId:'parent' }], playerHistory:[row] });
+    expect(compact.playerHistory[0]).toBe(row);
+  });
+
+  it('tolerates sparse legacy archive rows without blocking career boot', () => {
+    const compact = compactHistoricalSeason({ playerHistory:[null, { playerId:'legacy', appearances:3, clubs:0, spells:{} }] });
+    expect(compact.playerHistory).toEqual([{ playerId:'legacy', appearances:3, clubs:0 }]);
+  });
+
+  it('keeps three recent seasons of world totals and lifelong manager and award records', () => {
+    const manager = { playerId:'captain', clubs:['parent'], appearances:30, spells:[] };
+    const winner = { playerId:'winner', clubs:['other'], appearances:30, goals:20, individualAwards:['top_scorer'] };
+    const ordinary = { playerId:'ordinary', clubs:['other'], appearances:30, goals:3 };
+    const source = { season:'2026/27', userTeamId:'parent', champion:'other', playerHistory:[manager, winner, ordinary] };
+    expect(compactHistoricalSeason(source, 2029).playerHistory).toHaveLength(3);
+    const old = compactHistoricalSeason(compactHistoricalSeason(source, 2029), 2030);
+    expect(old.playerHistory.map(row => row.playerId)).toEqual(['captain', 'winner']);
+    expect(old.champion).toBe('other');
+    expect(old.playerHistorySummaryOnly).toBe(true);
+    expect(compactHistoricalSeason(old, 2031)).toBe(old);
+  });
+
+  it('does not credit past academy games to another season or registration type', () => {
+    for (const status of ['academy', 'first_team', 'loan', 'free_agent']) {
+      const archived = compactPlayerRegistrationSpells({
+        ...player('alumnus', status === 'free_agent' ? 'free_agents' : 'other'),
+        academyEvidence:{ season:'2025/26', appearances:20, minutes:1400 },
+        registrationSpells:[{ id:'spell', status, startSeason:'2025/26', endSeason:null }],
+      }, '2026/27');
+      expect(archived[0].academy).toMatchObject({ appearances:0, minutes:0 });
+    }
   });
 
   it('replaces retirees one-for-one with context-calibrated generated players', () => {
