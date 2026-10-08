@@ -1,4 +1,4 @@
-import { getCompetitionRules, isTwoLegRound } from './competitionRules.js';
+import { buildKnockoutRoundDraw, getCompetitionRules, isTwoLegRound } from './competitionRules.js';
 import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getSave, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
 import { buildPersonalStatePatches } from './playerModel.js';
@@ -188,17 +188,6 @@ function roundRobinPlayingTeamIds(teamIds, roundIndex) {
   return ids;
 }
 
-function knockoutPlayingTeamIds(teamIds) {
-  const ids = [...new Set(teamIds ?? [])].sort();
-  const playing = new Set();
-  for (let index = 0; index < ids.length; index += 2) {
-    if (!ids[index + 1]) continue;
-    playing.add(ids[index]);
-    playing.add(ids[index + 1]);
-  }
-  return playing;
-}
-
 /**
  * Return background clubs whose world week is not complete after league
  * projection because they will actually play a domestic/European fixture in
@@ -245,7 +234,8 @@ export function scheduledWorldCompetitionTeamIds(worldState, gameweek) {
       ...(comp.activeTeamIds ?? []),
       ...(comp.entrantsByRound?.[roundIndex] ?? []),
     ];
-    for (const teamId of knockoutPlayingTeamIds(participants)) ids.add(teamId);
+    const draw = buildKnockoutRoundDraw(comp.id, participants, roundIndex, comp.entrantsByRound);
+    for (const teamId of draw.pairs.flat()) ids.add(teamId);
   }
 
   return ids;

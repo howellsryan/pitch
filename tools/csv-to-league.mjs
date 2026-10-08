@@ -68,6 +68,15 @@ async function processLeague(league) {
   }
 
   const errors = [];
+  const teamIds = new Set();
+  for (const team of teamRows) {
+    if (!team.team_id || teamIds.has(team.team_id)) errors.push(`Missing or duplicate team_id "${team.team_id}"`);
+    teamIds.add(team.team_id);
+  }
+  for (const row of playerRows) {
+    if (!teamIds.has(row.team_id)) errors.push(`Player ${row.player_id} refers to unknown team_id "${row.team_id}"`);
+    if (!row.player_id) errors.push('Player row has no player_id');
+  }
   for (const team of teamRows) {
     errors.push(...validateClubRoster(team.team_id, team.name, playersByTeam.get(team.team_id) || []));
   }
@@ -94,10 +103,8 @@ async function processLeague(league) {
     hasNationality,
   });
 
-  if (!DRY_RUN) fs.writeFileSync(dataPath, js, 'utf8');
-
   const totalPlayers = teamRows.reduce((sum, team) => sum + (playersByTeam.get(team.team_id) || []).length, 0);
-  return { league, teamCount: teamRows.length, playerCount: totalPlayers, errors, diff };
+  return { league, teamCount: teamRows.length, playerCount: totalPlayers, errors, diff, js, dataPath };
 }
 
 async function main() {
@@ -109,12 +116,25 @@ async function main() {
   }
 
   console.log('=== csv-to-league.mjs ===\n');
+  const results = [];
   for (const league of targets) {
     const result = await processLeague(league);
-    if (!result) continue;
+    if (result) results.push(result);
+  }
+  // Validate global IDs even when generating just one league: collisions with
+  // another league would overwrite canonical IndexedDB player registrations.
+  const allRows = ALL_LEAGUES.flatMap(league => {
+    const source = path.join(CSV_DIR, league.pitchPlayersCsv);
+    return fs.existsSync(source) ? readCsvFile(source).rows : [];
+  });
+  const globalErrors = validateUniqueIds(allRows);
+  const invalid = globalErrors.length > 0 || results.some(result => result.errors.length > 0);
+  if (invalid) process.exitCode = 1;
+  for (const result of results) {
+    if (!DRY_RUN && !invalid) fs.writeFileSync(result.dataPath, result.js, 'utf8');
     console.log(`${result.league.label}: ${result.teamCount} teams, ${result.playerCount} players${DRY_RUN ? ' (dry run)' : ' -> ' + result.league.dataFile}`);
     if (result.errors.length) {
-      console.log(`  validation warnings (${result.errors.length}), not blocking:`);
+      console.error(`  validation errors (${result.errors.length}); no files written:`);
       result.errors.slice(0, 8).forEach((error) => console.log(`    - ${error}`));
       if (result.errors.length > 8) console.log(`    ... and ${result.errors.length - 8} more`);
     }
@@ -132,7 +152,8 @@ async function main() {
     }
     console.log('');
   }
-  console.log(DRY_RUN ? '(dry run - no files written)' : 'Done.');
+  if (globalErrors.length) console.error(globalErrors.join('\n'));
+  console.log(invalid ? 'Validation failed; no files written.' : DRY_RUN ? '(dry run - no files written)' : 'Done.');
 }
 
 main();

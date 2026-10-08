@@ -96,6 +96,19 @@ describe('transferClubControl', () => {
     expect(result.managerPatches.find(m => m.id === caretakerManager.id)).toMatchObject({ status:'unemployed', currentClubId:null });
   });
 
+  it('clears the old club story and academy assignments while retaining resolved career history', () => {
+    const resolved = [{ id:'past-decision', status:'resolved' }];
+    const save = baseSave({
+      careerEvents:{ version:2, active:[{ id:'old-club-contract', participantIds:{ playerId:'old-player' } }], resolved, pendingFollowUps:[{ id:'old-promise' }], fanContext:{ sentiment:10, pressure:90 }, rivalries:{ old:{ clubIds:['old_club','rival'] } }, cooldowns:{ old:5 }, processedWeekKeys:['2025/26:4'] },
+      academyPathways:{ version:1, youthScoutingAssignments:[{ id:'old-assignment', status:'active' }], youthScoutingOrdinal:3, processedWeekKeys:['2025/26:4'], notifications:[{ playerId:'old-youth' }] },
+    });
+    const result = transferClubControl(save, { allTeams, newTeamId:'new_club', vacancy, userManager, caretakerManager, weekKey:'2025/26:5' });
+    expect(result.save.careerEvents).toMatchObject({ active:[], resolved, pendingFollowUps:[], rivalries:{}, fanContext:{ sentiment:50, pressure:0 }, cooldowns:{} });
+    expect(result.save.academyPathways).toMatchObject({ youthScoutingAssignments:[], youthScoutingOrdinal:1, notifications:[] });
+    expect(result.save.managerMarket.userApproaches).toEqual([]);
+    expect(result.save.managerMarket.vacancies.some(item => item.id === vacancy.id)).toBe(false);
+  });
+
   it('is idempotent: a second call once userTeamId already matches and the pending marker is cleared is a no-op', () => {
     const save = baseSave();
     const first = transferClubControl(save, { allTeams, newTeamId:'new_club', vacancy, userManager, caretakerManager, weekKey:'2025/26:5' });

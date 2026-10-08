@@ -3,6 +3,7 @@ import {
   APPROACH_FIT_THRESHOLD,
   SAFE_BOUNDARY_ERROR_MESSAGE,
   acceptUserOffer,
+  appendUserManagerInterest,
   applyToVacancy,
   beginUserResignation,
   countPlausibleOpenings,
@@ -118,8 +119,24 @@ describe('applyToVacancy', () => {
   });
 });
 
+describe('bounded user interests', () => {
+  it('preserves all live offers and refuses a ninth active application', () => {
+    const active = Array.from({ length:8 }, (_, i) => ({ id:`app_${i}`, status:i ? 'pending' : 'offered', source:'application' }));
+    expect(() => appendUserManagerInterest(active, { id:'ninth', status:'pending' })).toThrow('APPLICATION_LIMIT_REACHED');
+  });
+
+  it('replaces the oldest rejected decisions to make room without losing a live offer', () => {
+    const live = { id:'offer', status:'offered', source:'application' };
+    const rejected = Array.from({ length:7 }, (_, i) => ({ id:`past_${i}`, status:'rejected' }));
+    const next = appendUserManagerInterest([live, ...rejected], { id:'new_application', status:'pending' });
+    expect(next).toHaveLength(8);
+    expect(next).toContain(live);
+    expect(next.some(item => item.id === 'past_0')).toBe(false);
+  });
+});
+
 describe('accept/decline user offer', () => {
-  const vacancy = { id:'vac_weak', clubId:'weak', status:'caretaker' };
+  const vacancy = { id:'vac_weak', clubId:'weak', status:'offer_extended', offer:{ candidateManagerId:'mgr_user', extendedWeekKey:'2025/26:9' } };
 
   it('accepting resolves the vacancy to completed with hiredManagerId set, and records a pending handover', () => {
     const { vacancy:resolved, pendingUserHandover } = acceptUserOffer(vacancy, 'mgr_user', { weekKey:'2025/26:10' });
@@ -140,6 +157,11 @@ describe('accept/decline user offer', () => {
     const offeredToSomeoneElse = { ...vacancy, status:'offer_extended', offer:{ candidateManagerId:'mgr_ai_rival', extendedWeekKey:'2025/26:10' } };
     expect(() => acceptUserOffer(offeredToSomeoneElse, 'mgr_user', { weekKey:'2025/26:10' })).toThrow('OFFER_NOT_FOR_THIS_CANDIDATE');
     expect(() => declineUserOffer(offeredToSomeoneElse, 'mgr_user', { weekKey:'2025/26:10' })).toThrow('OFFER_NOT_FOR_THIS_CANDIDATE');
+  });
+
+  it('cannot manufacture an offer from an open vacancy or replay a completed offer', () => {
+    expect(() => acceptUserOffer({ ...vacancy, status:'caretaker', offer:null }, 'mgr_user')).toThrow('USER_OFFER_NOT_AVAILABLE');
+    expect(() => acceptUserOffer({ ...vacancy, status:'completed', hiredManagerId:'ai' }, 'mgr_user')).toThrow('VACANCY_NO_LONGER_AVAILABLE');
   });
 });
 

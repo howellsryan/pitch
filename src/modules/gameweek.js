@@ -1,6 +1,7 @@
-import { getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, putFixture, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
+import { commitMatchEventAtomic, getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getSave, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
 import { simulateMatch } from './matchEngine.js';
 import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
+import { canManageClub, requireClubEmployment } from './managerEmployment.js';
 import { buildPersonalStatePatches } from './playerModel.js';
 import { updateTeamMorale } from './standings.js';
 import { CUP_META, UCL_CLUBS, simulateCupRound, simulateEuropeanLeaguePhaseMatchday, resolveCupProgress, resolveSingleLegKnockout } from './cups.js';
@@ -13,9 +14,9 @@ import { advanceP8StoryWeek } from './p8Runtime.js';
 import { applyDevelopment } from './potential.js';
 import { applyInjury, tickInjuryRecovery } from './injuries.js';
 import { payWeeklyWages } from './season.js';
-import { applyWorldPlayerStats, toCanonicalLeagueRecord } from './world.js';
+import { applyWorldPlayerStats, resultFromCanonicalLeagueRecord, toCanonicalLeagueRecord } from './world.js';
 import { advanceWorldCompetitions } from './worldCompetitions.js';
-import { applyNonLeaguePlayerResults, applyPendingWorldCompetitionProjections, applyPendingWorldLeagueProjections } from './worldRuntime.js';
+import { applyNonLeaguePlayerResults, applyPendingWorldCompetitionProjections, applyPendingWorldLeagueProjections, projectNonLeaguePlayers } from './worldRuntime.js';
 
 /** modules/gameweek.js — one user-event queue over a single P2 world clock. */
 
@@ -137,7 +138,7 @@ export function buildPendingEvents(gw, userTeamId, fixtures, cupState, allTeams)
     if (rules.leaguePhase && !state.leaguePhaseComplete) {
       const lp = state.leaguePhase ?? {};
       const matchday = lp.matchday ?? 0;
-      if (rules.leaguePhase.gws.includes(gw) && matchday < rules.leaguePhase.matches) {
+      if (rules.leaguePhase.gws[matchday] === gw && matchday < rules.leaguePhase.matches) {
         const opp = lp.opponents?.[matchday];
         const base = {
           cupId, gw, matchday:matchday + 1, leaguePhase:true,
@@ -222,6 +223,29 @@ export function updateLeaguePhaseCupState(cupId, cupState, matchResult, userTeam
   };
 }
 
+function gameweekEventWeekKey(save) {
+  return `${save.season}:${save.currentGameweek}`;
+}
+
+function gameweekMatchEventKey(event) {
+  return JSON.stringify([
+    event?.type, event?.gw, event?.fixtureId ?? null, event?.cupId ?? null,
+    event?.matchday ?? null, event?.roundIdx ?? null, event?.roundName ?? null,
+    event?.opponentId ?? null, event?.userIsHome ?? null,
+  ]);
+}
+
+async function gameweekInitialisePendingEvents(save, fixtures, allTeams) {
+  const weekKey = gameweekEventWeekKey(save);
+  if (save.pendingEventsWeekKey === weekKey) return save;
+  const pendingEvents = save.pendingEvents?.length
+    ? save.pendingEvents
+    : buildPendingEvents(save.currentGameweek, save.userTeamId, fixtures, save.cups, allTeams);
+  const nextSave = { ...save, pendingEvents, pendingEventsWeekKey:weekKey };
+  await putSave(nextSave);
+  return nextSave;
+}
+
 export async function getNextMatchEvent() {
   const save = await getSave();
   if (save.currentGameweek > getEffectiveTotalGW(save)) return null;
@@ -229,10 +253,8 @@ export async function getNextMatchEvent() {
   const gw = save.currentGameweek;
   const fixtures = await getFixturesByGW(gw);
   const allTeams = await getAllTeams();
-  const events = buildPendingEvents(gw, save.userTeamId, fixtures, save.cups, allTeams);
-  if (!events.length) return { type:'no_user_event', gw };
-  await putSave({ ...save, pendingEvents:events });
-  return events[0];
+  const queuedSave = await gameweekInitialisePendingEvents(save, fixtures, allTeams);
+  return queuedSave.pendingEvents[0] ?? { type:'no_user_event', gw };
 }
 
 export async function getNextUserFixture() {
@@ -251,6 +273,79 @@ async function settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam) {
   const projected = await applyPendingWorldLeagueProjections(fixtures);
   if (projected.length) await applyDevelopment(projected).catch(() => {});
   return projected;
+}
+
+async function gameweekRecoverWorldLeagueGameweek(save, fixtures, allTeams, allPlayers) {
+  const pendingProjection = fixtures.some(fixture => fixture.played && fixture.projectionsApplied !== true);
+  const pendingManagedFixture = fixtures.some(fixture =>
+    fixture.competition === 'league' && !fixture.played &&
+    (fixture.homeTeamId === save.userTeamId || fixture.awayTeamId === save.userTeamId),
+  );
+  // Global recovery, discipline and development settle once for the complete
+  // league batch. Never project a lone saved user result before its AI fixtures.
+  if (pendingProjection && !pendingManagedFixture) {
+    await settleWorldLeagueGameweek(save.currentGameweek, save, new Map(allTeams.map(team => [team.id, team])), groupByTeam(allPlayers));
+    return { allPlayers:await getAllPlayers(), gwFixtures:await getFixturesByGW(save.currentGameweek) };
+  }
+  return { allPlayers, gwFixtures:fixtures };
+}
+
+function gameweekRestoreManagedLeagueResult(fixture, allTeams, save) {
+  const teams = new Map(allTeams.map(team => [team.id, team]));
+  return {
+    ...resultFromCanonicalLeagueRecord(fixture),
+    homeTeamName:teams.get(fixture.homeTeamId)?.name ?? fixture.homeTeamId,
+    awayTeamName:teams.get(fixture.awayTeamId)?.name ?? fixture.awayTeamId,
+    homeTeamCrest:teams.get(fixture.homeTeamId)?.crest ?? '⚽',
+    awayTeamCrest:teams.get(fixture.awayTeamId)?.crest ?? '⚽',
+    isUserMatch:true, userTeamId:save.userTeamId,
+  };
+}
+
+async function gameweekCheckpointManagedEvent(save, event, remaining, updatedCups, result, allPlayers, fixture = null, managementEnabled = true) {
+  const userIsHome = event.userIsHome ?? (result?.homeTeamId === save.userTeamId);
+  const withDNA = result && managementEnabled
+    ? applyManagerDNAResult(save, result, event, userIsHome, allPlayers.filter(player => player.teamId === save.userTeamId))
+    : save;
+  const lastResolvedEvent = {
+    key:gameweekMatchEventKey(event), season:save.season, gameweek:save.currentGameweek,
+    homeTeamId:result?.homeTeamId, awayTeamId:result?.awayTeamId,
+    homeGoals:result?.homeGoals, awayGoals:result?.awayGoals, seed:result?.seed ?? null,
+  };
+  return commitMatchEventAtomic({
+    event, season:save.season, gameweek:save.currentGameweek, fixture,
+    players:result && event.type !== 'league' ? projectNonLeaguePlayers(allPlayers, [result]) : [],
+    savePatch:{ cups:updatedCups, pendingEvents:remaining, pendingEventsWeekKey:gameweekEventWeekKey(save), managerDNA:withDNA.managerDNA, lastResolvedEvent },
+  });
+}
+
+function gameweekValidateBroadcastParticipants(result, event, save, fixtures, userIsHome) {
+  const fixture = event.type === 'league' ? fixtures.find(row => row.id === event.fixtureId) : null;
+  const cupHomeVenue = event.userIsHome ?? true;
+  const homeTeamId = fixture?.homeTeamId ?? (cupHomeVenue ? save.userTeamId : event.opponentId);
+  const awayTeamId = fixture?.awayTeamId ?? (cupHomeVenue ? event.opponentId : save.userTeamId);
+  if (!homeTeamId || !awayTeamId || result?.homeTeamId !== homeTeamId || result?.awayTeamId !== awayTeamId ||
+      userIsHome !== (homeTeamId === save.userTeamId)) {
+    throw new Error('MATCH_RESULT_PARTICIPANTS_CHANGED: reload the current fixture before saving its result.');
+  }
+}
+
+async function gameweekRetryResolvedBroadcast(save, result, event) {
+  const receipt = save.lastResolvedEvent;
+  if (receipt?.key !== gameweekMatchEventKey(event) || receipt.season !== save.season) return null;
+  if (result?.homeTeamId !== receipt.homeTeamId || result?.awayTeamId !== receipt.awayTeamId ||
+      result?.homeGoals !== receipt.homeGoals || result?.awayGoals !== receipt.awayGoals ||
+      (result?.seed ?? null) !== receipt.seed) {
+    throw new Error('MATCH_RESULT_CHANGED: this fixture already has a saved result.');
+  }
+  const closeout = save.currentGameweek === receipt.gameweek &&
+    save.pendingEventsWeekKey === gameweekEventWeekKey(save) && !save.pendingEvents?.length;
+  const resumed = closeout ? await advanceOneFixture() : {
+    gameweek:receipt.gameweek, nextGW:save.currentGameweek,
+    finished:save.currentGameweek > getEffectiveTotalGW(save), eventsLeft:save.pendingEvents?.length ?? 0,
+    newOffers:[], playerResponses:[], recoveredPlayers:[],
+  };
+  return { ...resumed, singleResult:result, eventType:event.type, cupResults:[] };
 }
 
 async function settleWorldCompetitionGameweek(gw, save, allTeams) {
@@ -352,19 +447,14 @@ export async function advanceOneFixture(overrideFormation) {
     getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
   ]);
 
-  // Recover a canonical P1 result left pending by a tab close. The atomic
-  // projection either applies the whole batch or nothing, so this cannot double.
-  const recoveredProjection = await applyPendingWorldLeagueProjections(gwFixtures);
-  if (recoveredProjection.length) {
-    allPlayers = await getAllPlayers();
-    gwFixtures = await getFixturesByGW(gw);
-  }
+  ({ allPlayers, gwFixtures } = await gameweekRecoverWorldLeagueGameweek(save, gwFixtures, allTeams, allPlayers));
+  save = await gameweekInitialisePendingEvents(save, gwFixtures, allTeams);
+  const manager = save.userManagerId ? await getManager(save.userManagerId) : null;
+  const managementEnabled = canManageClub(save, manager);
 
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const playersByTeam = groupByTeam(allPlayers);
-  let pending = save.pendingEvents?.length
-    ? [...save.pendingEvents]
-    : buildPendingEvents(gw, save.userTeamId, gwFixtures, save.cups, allTeams);
+  let pending = [...save.pendingEvents];
 
   if (!pending.length) {
     await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
@@ -374,7 +464,7 @@ export async function advanceOneFixture(overrideFormation) {
     const freshSave = await getSave();
     const newDate = new Date(save.currentDate);
     newDate.setDate(newDate.getDate() + 7);
-    await putSave({ ...freshSave, currentGameweek:gw + 1, currentDate:newDate.toISOString(), pendingEvents:[] });
+    await putSave({ ...freshSave, currentGameweek:gw + 1, currentDate:newDate.toISOString(), pendingEvents:[], pendingEventsWeekKey:null });
     return {
       skipped:true, gameweek:gw, nextGW:gw + 1,
       finished:gw + 1 > getEffectiveTotalGW(save), newOffers, playerResponses, recoveredPlayers,
@@ -384,6 +474,7 @@ export async function advanceOneFixture(overrideFormation) {
   const event = pending[0];
   const remaining = pending.slice(1);
   let singleResult = null;
+  let canonicalFixture = null;
   const cupResults = [];
   const updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
   let recoveredPlayers = [];
@@ -398,31 +489,33 @@ export async function advanceOneFixture(overrideFormation) {
       const rawAway = teamsById.get(fix.awayTeamId) ?? { id:fix.awayTeamId, name:fix.awayTeamId, crest:'⚽' };
       const rawHomePlayers = playersByTeam.get(fix.homeTeamId) ?? [];
       const rawAwayPlayers = playersByTeam.get(fix.awayTeamId) ?? [];
-      const home = userIsHome ? decorateManagedTeam(rawHome, save) : rawHome;
-      const away = userIsHome ? rawAway : decorateManagedTeam(rawAway, save);
-      const hPl = userIsHome ? decorateManagedPlayers(rawHomePlayers, save) : rawHomePlayers;
-      const aPl = userIsHome ? rawAwayPlayers : decorateManagedPlayers(rawAwayPlayers, save);
+      const home = managementEnabled && userIsHome ? decorateManagedTeam(rawHome, save) : rawHome;
+      const away = managementEnabled && !userIsHome ? decorateManagedTeam(rawAway, save) : rawAway;
+      const hPl = managementEnabled && userIsHome ? decorateManagedPlayers(rawHomePlayers, save) : rawHomePlayers;
+      const aPl = managementEnabled && !userIsHome ? decorateManagedPlayers(rawAwayPlayers, save) : rawAwayPlayers;
       const fm = overrideFormation ?? save.formation ?? '4-3-3';
-      const hFm = userIsHome ? fm : undefined;
-      const aFm = userIsHome ? undefined : fm;
-      const hLineup = userIsHome ? (save.lineup ?? null) : null;
-      const aLineup = userIsHome ? null : (save.lineup ?? null);
-      const hBench = userIsHome ? (save.bench ?? null) : null;
-      const aBench = userIsHome ? null : (save.bench ?? null);
-      const hMentality = userIsHome ? (save.mentality ?? 'balanced') : undefined;
-      const aMentality = userIsHome ? undefined : (save.mentality ?? 'balanced');
-      const result = simulateMatch(home, away, hPl, aPl, hFm, aFm, hLineup, aLineup, hMentality, aMentality, { homeBench:hBench, awayBench:aBench });
-      await putFixture(toCanonicalLeagueRecord(fix, result, save.season));
-      const worldResults = await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
+      const hFm = managementEnabled && userIsHome ? fm : undefined;
+      const aFm = managementEnabled && !userIsHome ? fm : undefined;
+      const hLineup = managementEnabled && userIsHome ? (save.lineup ?? null) : null;
+      const aLineup = managementEnabled && !userIsHome ? (save.lineup ?? null) : null;
+      const hBench = managementEnabled && userIsHome ? (save.bench ?? null) : null;
+      const aBench = managementEnabled && !userIsHome ? (save.bench ?? null) : null;
+      const hMentality = managementEnabled && userIsHome ? (save.mentality ?? 'balanced') : undefined;
+      const aMentality = managementEnabled && !userIsHome ? (save.mentality ?? 'balanced') : undefined;
+      const result = fix.played
+        ? gameweekRestoreManagedLeagueResult(fix, allTeams, save)
+        : simulateMatch(home, away, hPl, aPl, hFm, aFm, hLineup, aLineup, hMentality, aMentality, { homeBench:hBench, awayBench:aBench });
+      canonicalFixture = fix.played ? null : toCanonicalLeagueRecord(fix, result, save.season);
       singleResult = { ...result, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
-      void worldResults;
-    }
+    } else throw new Error('MATCH_FIXTURE_MISSING: reload the current fixture.');
     pending = remaining;
 
   } else if (event.type === 'ucl_md' || (event.type === 'cup' && event.leaguePhase)) {
     const cupId = event.cupId ?? 'ucl';
-    const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
-    const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
+    const rawUserTeam = allTeams.find(t => t.id === save.userTeamId);
+    const rawUserPlayers = playersByTeam.get(save.userTeamId) ?? [];
+    const userTeam = managementEnabled ? decorateManagedTeam(rawUserTeam, save) : rawUserTeam;
+    const userPlayers = managementEnabled ? decorateManagedPlayers(rawUserPlayers, save) : rawUserPlayers;
     const cupState = save.cups?.[cupId];
     const mdResult = simulateEuropeanLeaguePhaseMatchday(
       cupId,
@@ -435,6 +528,7 @@ export async function advanceOneFixture(overrideFormation) {
       overrideFormation ?? save.formation ?? '4-3-3',
       save.lineup ?? null,
       save.bench ?? null,
+      { userManaged:managementEnabled },
     );
     if (mdResult) {
       const reportResult = {
@@ -448,17 +542,19 @@ export async function advanceOneFixture(overrideFormation) {
       updatedCups[cupId] = updateLeaguePhaseCupState(cupId, cupState, reportResult, save.userTeamId);
       cupResults.push(reportResult);
       singleResult = buildCupMatchResult(reportResult, save.userTeamId, event, allTeams);
-      await applyNonLeaguePlayerResults([mdResult]).catch(() => {});
       await applyDevelopment([mdResult]).catch(() => {});
     }
     pending = remaining;
 
   } else if (event.type === 'cup') {
-    const userTeam = decorateManagedTeam(allTeams.find(t => t.id === save.userTeamId), save);
-    const userPlayers = decorateManagedPlayers(playersByTeam.get(save.userTeamId) ?? [], save);
+    const rawUserTeam = allTeams.find(t => t.id === save.userTeamId);
+    const rawUserPlayers = playersByTeam.get(save.userTeamId) ?? [];
+    const userTeam = managementEnabled ? decorateManagedTeam(rawUserTeam, save) : rawUserTeam;
+    const userPlayers = managementEnabled ? decorateManagedPlayers(rawUserPlayers, save) : rawUserPlayers;
     const cupState = save.cups?.[event.cupId];
     const result = simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam, event.cupId, event.roundName, {
       ...event,
+      userManaged:managementEnabled,
       userMentality:save.mentality ?? 'balanced',
       userFormation:overrideFormation ?? save.formation ?? '4-3-3',
       userLineup:save.lineup ?? null,
@@ -492,10 +588,12 @@ export async function advanceOneFixture(overrideFormation) {
     };
     cupResults.push(resultOut);
     singleResult = buildCupMatchResult(resultOut, save.userTeamId, event, allTeams);
-    await applyNonLeaguePlayerResults([result]).catch(() => {});
     await applyDevelopment([result]).catch(() => {});
     pending = remaining;
-  }
+  } else throw new Error('MATCH_EVENT_UNSUPPORTED');
+
+  save = await gameweekCheckpointManagedEvent(save, event, pending, updatedCups, singleResult, allPlayers, canonicalFixture, managementEnabled);
+  if (event.type === 'league') await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
 
   const gwDone = pending.length === 0;
   const nextGW = gwDone ? gw + 1 : gw;
@@ -512,19 +610,10 @@ export async function advanceOneFixture(overrideFormation) {
     newDate.setDate(newDate.getDate() + 7);
   }
 
-  const freshSave = gwDone ? await getSave() : save;
-  const userPlayersForDNA = playersByTeam.get(save.userTeamId) ?? [];
-  const userIsHomeForDNA = event.userIsHome ?? (singleResult?.homeTeamId === save.userTeamId);
-  const saveWithDNA = singleResult
-    ? applyManagerDNAResult(freshSave, singleResult, event, userIsHomeForDNA, userPlayersForDNA)
-    : freshSave;
-  await putSave({
-    ...saveWithDNA,
-    currentGameweek:nextGW,
-    currentDate:gwDone ? newDate.toISOString() : save.currentDate,
-    cups:updatedCups,
-    pendingEvents:pending,
-  });
+  if (gwDone) {
+    const freshSave = await getSave();
+    await putSave({ ...freshSave, currentGameweek:nextGW, currentDate:newDate.toISOString(), pendingEvents:[], pendingEventsWeekKey:null });
+  }
 
   return {
     singleResult, eventType:event.type, cupResults, gameweek:gw, nextGW,
@@ -535,6 +624,10 @@ export async function advanceOneFixture(overrideFormation) {
 
 export async function advanceOneFixtureWithResult(matchResult, event, userIsHome) {
   let save = await getSave();
+  await requireClubEmployment(save);
+  const retried = await gameweekRetryResolvedBroadcast(save, matchResult, event);
+  if (retried) return retried;
+  if (save.currentGameweek > getEffectiveTotalGW(save)) throw new Error('MATCH_EVENT_STALE: the season has finished.');
   const recoveredCompetition = await applyPendingWorldCompetitionProjections(save);
   if (recoveredCompetition.results.length) {
     save = recoveredCompetition.save ?? save;
@@ -546,21 +639,19 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
   ]);
 
-  const recoveredProjection = await applyPendingWorldLeagueProjections(gwFixtures);
-  if (recoveredProjection.length) {
-    allPlayers = await getAllPlayers();
-    gwFixtures = await getFixturesByGW(gw);
-  }
+  ({ allPlayers, gwFixtures } = await gameweekRecoverWorldLeagueGameweek(save, gwFixtures, allTeams, allPlayers));
+  save = await gameweekInitialisePendingEvents(save, gwFixtures, allTeams);
 
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const playersByTeam = groupByTeam(allPlayers);
-  const pending = save.pendingEvents?.length
-    ? [...save.pendingEvents]
-    : buildPendingEvents(gw, save.userTeamId, gwFixtures, save.cups, allTeams);
-  const event0 = pending[0] ?? event;
+  const pending = [...save.pendingEvents];
+  const event0 = pending[0];
+  if (!event0 || gameweekMatchEventKey(event0) !== gameweekMatchEventKey(event)) throw new Error('MATCH_EVENT_STALE: reload the current fixture before saving its result.');
+  gameweekValidateBroadcastParticipants(matchResult, event0, save, gwFixtures, userIsHome);
   const remaining = pending.slice(1);
   const updatedCups = JSON.parse(JSON.stringify(save.cups ?? {}));
   let singleResult = null;
+  let canonicalFixture = null;
   let recoveredPlayers = [];
   let newOffers = [];
   let playerResponses = [];
@@ -568,10 +659,10 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
   if (event0?.type === 'league') {
     const fix = gwFixtures.find(f => f.id === event0.fixtureId);
     if (fix) {
-      await putFixture(toCanonicalLeagueRecord(fix, matchResult, save.season));
-      await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
-    }
-    singleResult = { ...matchResult, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
+      const authoritativeResult = fix.played ? gameweekRestoreManagedLeagueResult(fix, allTeams, save) : matchResult;
+      canonicalFixture = fix.played ? null : toCanonicalLeagueRecord(fix, authoritativeResult, save.season);
+      singleResult = { ...authoritativeResult, isUserMatch:true, userTeamId:save.userTeamId, gameweek:gw };
+    } else throw new Error('MATCH_FIXTURE_MISSING: reload the current fixture.');
 
   } else if (event0?.type === 'ucl_md' || event0?.type === 'cup') {
     const userGoals = userIsHome ? matchResult.homeGoals : matchResult.awayGoals;
@@ -683,9 +774,11 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
       );
     }
 
-    await applyNonLeaguePlayerResults([matchResult]).catch(() => {});
     await applyDevelopment([matchResult]).catch(() => {});
-  }
+  } else throw new Error('MATCH_EVENT_UNSUPPORTED');
+
+  save = await gameweekCheckpointManagedEvent(save, event0, remaining, updatedCups, singleResult, allPlayers, canonicalFixture);
+  if (event0.type === 'league') await settleWorldLeagueGameweek(gw, save, teamsById, playersByTeam);
 
   const gwDone = remaining.length === 0;
   const nextGW = gwDone ? gw + 1 : gw;
@@ -701,18 +794,10 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
     newDate.setDate(newDate.getDate() + 7);
   }
 
-  const freshSave = gwDone ? await getSave() : save;
-  const userPlayersForDNA = playersByTeam.get(save.userTeamId) ?? [];
-  const saveWithDNA = singleResult
-    ? applyManagerDNAResult(freshSave, singleResult, event0, userIsHome, userPlayersForDNA)
-    : freshSave;
-  await putSave({
-    ...saveWithDNA,
-    currentGameweek:nextGW,
-    currentDate:gwDone ? newDate.toISOString() : save.currentDate,
-    cups:updatedCups,
-    pendingEvents:remaining,
-  });
+  if (gwDone) {
+    const freshSave = await getSave();
+    await putSave({ ...freshSave, currentGameweek:nextGW, currentDate:newDate.toISOString(), pendingEvents:[], pendingEventsWeekKey:null });
+  }
 
   return {
     singleResult, eventType:event0?.type, cupResults:[], gameweek:gw, nextGW,
@@ -825,19 +910,25 @@ export async function updateCache(allPlayersIgnored, results) {
  * write set. Keeping this pure makes the no-full-world-rewrite contract easy to
  * verify independently of IndexedDB.
  */
-export function injuryRecoveryWriteSet(allPlayers) {
-  return (allPlayers ?? []).filter(player => player?.injured);
+export function injuryRecoveryWriteSet(allPlayers, weekKey = null) {
+  return (allPlayers ?? []).filter(player => player?.injured
+    && (!weekKey || player.injuryRecoverySettledKey !== weekKey));
+}
+
+export function settleInjuryRecovery(allPlayers, save) {
+  const weekKey = `${save.season}:${save.currentGameweek}`;
+  const rows = injuryRecoveryWriteSet(allPlayers, weekKey);
+  const recovered = tickInjuryRecovery(rows);
+  for (const player of rows) player.injuryRecoverySettledKey = weekKey;
+  return { rows, recovered };
 }
 
 export async function processInjuryRecovery() {
   if (typeof tickInjuryRecovery !== 'function') return [];
   const allPlayers = await getAllPlayers();
   const save = await getSave();
-  const hadInjured = allPlayers.some(p => p.injured);
-  if (!hadInjured) return [];
-  const recoveryRows = injuryRecoveryWriteSet(allPlayers);
-  const recovered = tickInjuryRecovery(recoveryRows);
-  await putPlayersBulk(recoveryRows);
+  const { rows, recovered } = settleInjuryRecovery(allPlayers, save);
+  if (rows.length) await putPlayersBulk(rows);
   return recovered.filter(p => p.teamId === save.userTeamId);
 }
 

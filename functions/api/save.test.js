@@ -39,6 +39,16 @@ function deleteEnv(changes = 1) {
 }
 
 describe('DELETE /api/save', () => {
+  it('returns unauthorized for malformed bearer tokens instead of throwing a server error', async () => {
+    const { env } = deleteEnv();
+    const request = new Request('https://pitch.test/api/save?slotId=legacy', {
+      method:'DELETE', headers:{ Authorization:'Bearer x.y.!!!' },
+    });
+    const response = await worker.fetch(request, env, {});
+    expect(response.status).toBe(401);
+    expect(env.DB.prepare).not.toHaveBeenCalled();
+  });
+
   it('deletes only the authenticated user and requested career slot', async () => {
     const { env, statements } = deleteEnv();
     const request = await authenticatedRequest('https://pitch.test/api/save?slotId=career_alpha');

@@ -87,6 +87,10 @@ describe('P1 living-world contracts', () => {
       events:[{ type:'yellow', minute:40, teamId:'b', playerId:'b4' }],
       fitnessUpdates:[{ id:'a9', teamId:'a', newFitness:72 }],
       stats:{ shots:{ home:12, away:8 } },
+      seed:'saved-match-seed',
+      homeTactics:{ pressing:'high' }, awayTactics:{ pressing:'low' },
+      tacticalAnalysis:{ version:1, phases:[] },
+      actionLedger:{ phases:[{ large:'private authoritative ledger' }] },
     };
 
     const canonical = toCanonicalLeagueRecord(fixture, result, '2025/26');
@@ -95,6 +99,8 @@ describe('P1 living-world contracts', () => {
     expect(canonical).toMatchObject({ played:true, projectionsApplied:false, season:'2025/26', homeGoals:2, awayGoals:1 });
     expect(restored).toMatchObject({ fixtureId:fixture.id, homeTeamId:'a', awayTeamId:'b', homeGoals:2, awayGoals:1, gameweek:1 });
     expect(restored.events).toEqual(result.events);
+    expect(restored).toMatchObject({ seed:result.seed, homeTactics:result.homeTactics, awayTactics:result.awayTactics, tacticalAnalysis:result.tacticalAnalysis });
+    expect(canonical).not.toHaveProperty('actionLedger');
   });
 
   it('derives appearances, minutes, goals, assists, cards, ratings and goalkeeper clean sheets from one result', () => {

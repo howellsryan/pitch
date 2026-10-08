@@ -1,10 +1,9 @@
 <script>
   import {
-    exportSaveFile, getAllPlayers, getAllSeasons, getSave, getTeam, importSaveFile,
+    exportSaveFile, getAllHonors, getAllPlayers, getAllSeasons, getManager, getSave, getTeam, importSaveFile,
     importSaveFromCode, openDB, putPlayersBulk,
   } from '../../modules/db.js';
   import { assignPotentials } from '../../modules/potential.js';
-  import { getHonorsForTeam } from '../../modules/season.js';
   import { fmt, toast } from '../../ui/helpers.js';
   import { _removeFullOverlay, _showFullOverlay, showEntryMenu } from '../../ui/renderers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -19,6 +18,7 @@
     describeFacilityConsumer, FACILITY_LEAD_TIME_WEEKS, facilityUpgradeCost, FACILITY_MAX_LEVEL, FACILITY_TRACKS,
   } from '../../modules/facilities.js';
   import { startFacilityUpgrade } from '../../modules/p7Runtime.js';
+  import { canManageClub } from '../../modules/managerEmployment.js';
 
   const FACILITY_LABELS = { training:'Training', medical:'Medical', scouting:'Scouting' };
   const PRESSURE_LABELS = { stable:'Stable', strained:'Strained', critical:'Critical' };
@@ -111,10 +111,13 @@
     void loadCloudIdentity();
     managerView = await getManagerCareerView().catch(() => null);
     if (save) {
-      const team = await getTeam(save.userTeamId).catch(() => null);
+      const manager = save.userManagerId ? await getManager(save.userManagerId) : null;
+      const team = canManageClub(save, manager) ? await getTeam(save.userTeamId).catch(() => null) : null;
       clubView = team ? { team, available:availableFunds(team, save.transferMarket), pressure:financialPressure(team) } : null;
       managerName = save.managerName || 'The Manager';
-      const { earned } = await getHonorsForTeam(save.userTeamId);
+      // Honors are written for the user manager's achievements. Keep the whole
+      // career visible here, including trophies won at a previous club.
+      const earned = await getAllHonors();
       totalEarned = earned.length;
       const byTrophy = [];
       earned.forEach(h => {
@@ -142,6 +145,7 @@
 
   async function refreshManagerView() {
     managerView = await getManagerCareerView().catch(() => managerView);
+    if (managerView?.isUnemployed) clubView = null;
   }
 
   function confirmResign() { resignConfirming = true; }
@@ -219,6 +223,7 @@
   }
 
   const FACILITY_ERROR_MESSAGES = {
+    MANAGER_NOT_EMPLOYED: 'You need a club appointment before managing facilities.',
     INSUFFICIENT_FUNDS: 'Not enough available funds for this upgrade.',
     UPGRADE_ALREADY_IN_PROGRESS: 'This facility is already being upgraded.',
     FACILITY_AT_MAX_LEVEL: 'Already at the maximum level.',
@@ -356,11 +361,11 @@
           <div><div class="set-nm">Import Save</div><div class="set-desc">Load a .pitch file to resume a career</div></div>
           <button class="btn-set btn-secondary" onclick={openImport}>Import</button>
         </div>
-        <div class="set-row">
+        <div class="set-row career-reset-row">
           <div><div class="set-nm">Start New Career</div><div class="set-desc">Delete this career and choose a different club</div></div>
           <button class="btn-set btn-danger" onclick={openReset}>Start</button>
         </div>
-        <div class="set-row">
+        <div class="set-row career-maintenance-row">
           <div><div class="set-nm">Recalculate Potentials</div><div class="set-desc">Refresh all player potential ratings using the latest formula</div></div>
           <button id="btn-recalc-potentials" class="btn-set btn-secondary" disabled={recalcBusy} onclick={recalcPotentials}>
             {recalcBusy ? 'Recalculating…' : recalcDone ? 'Done!' : 'Recalculate'}
@@ -451,6 +456,7 @@
       <div class="set-card">
         <div class="set-card-title">Cloud Save</div>
         <div class="set-card-sub">Google Account</div>
+        <div class="set-desc">Each upload replaces that career's cloud backup. Use one device at a time.</div>
         {#if !cloudSignedIn}
           <div class="set-row">
             <div><div class="set-nm">Sign in with Google</div><div class="set-desc">Back up your career and pick it up on another device</div></div>
@@ -611,10 +617,12 @@
               <div class="mgr-row">
                 <div>
                   <div class="mgr-row-name">{entry.team.name}</div>
-                  <div class="mgr-row-sub">Fit {entry.approach.fit}%</div>
+                  <div class="mgr-row-sub">{entry.canAccept ? `Job offered · Fit ${entry.approach.fit}%` : 'Decision at the next weekly review'}</div>
                 </div>
                 <div class="mgr-row-actions">
-                  <button class="btn-set btn-primary" disabled={managerBusy} onclick={() => doAccept(entry.approach.id, entry.team.name)}>Accept</button>
+                  {#if entry.canAccept}
+                    <button class="btn-set btn-primary" disabled={managerBusy} onclick={() => doAccept(entry.approach.id, entry.team.name)}>Accept</button>
+                  {/if}
                   <button class="btn-set btn-secondary" disabled={managerBusy} onclick={() => doDecline(entry.approach.id)}>Decline</button>
                 </div>
               </div>
@@ -629,11 +637,13 @@
               <div class="mgr-row">
                 <div>
                   <div class="mgr-row-name">{entry.team.name}</div>
-                  <div class="mgr-row-sub">Awaiting a decision</div>
+                  <div class="mgr-row-sub">{entry.canAccept ? `Job offered · Fit ${entry.approach.fit}%` : entry.approach.status === 'rejected' ? 'Your application was unsuccessful' : 'Decision at the next weekly review'}</div>
                 </div>
                 <div class="mgr-row-actions">
-                  <button class="btn-set btn-primary" disabled={managerBusy} onclick={() => doAccept(entry.approach.id, entry.team.name)}>Accept</button>
-                  <button class="btn-set btn-secondary" disabled={managerBusy} onclick={() => doDecline(entry.approach.id)}>Withdraw</button>
+                  {#if entry.canAccept}
+                    <button class="btn-set btn-primary" disabled={managerBusy} onclick={() => doAccept(entry.approach.id, entry.team.name)}>Accept</button>
+                  {/if}
+                  <button class="btn-set btn-secondary" disabled={managerBusy} onclick={() => doDecline(entry.approach.id)}>{entry.canAccept ? 'Decline' : entry.approach.status === 'rejected' ? 'Dismiss' : 'Withdraw'}</button>
                 </div>
               </div>
             {/each}

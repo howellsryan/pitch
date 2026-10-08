@@ -34,6 +34,8 @@ implementation details against the current checkout.
 - One advance action resolves one pending league/cup/European event.
 - The gameweek advances only after the queue is empty.
 - Cup/European opponents and event details are fixed when the event is built; do not bypass the queue with a second tournament path.
+- Persist the initialized queue's season/week even when it is empty. Managed outcome, cup participant projections, cup progress and Manager DNA commit with queue consumption before world closeout; retrying closeout must not rebuild or replay a resolved event. European league-phase matchdays use the indexed scheduled gameweek.
+- Quick Sim cup projections consume the report's authoritative home/away team IDs, score, events and fitness updates, matching Broadcast. Broadcast completion validates the pending event and both participants; a matching saved receipt resumes closeout without applying football twice.
 - P1's world clock settles background leagues/competitions around this queue; it must not create a parallel user-match lifecycle.
 
 ### Competition rules — P0 foundation
@@ -43,11 +45,15 @@ implementation details against the current checkout.
 - P0 removed UEFA away-goals semantics.
 - P0 models current UEFA 36-team league-phase routes: UCL/UEL 8 user league-phase fixtures, UECL 6; positions 1-8 direct R16, 9-24 knockout play-off, 25-36 eliminated; seeded placement drives relevant home-leg ordering.
 - P1 extends the living world across supported domestic and associated competition state; future format changes still belong in the shared rules layer.
+- Reduced background domestic fields use `competitionRules.buildKnockoutRoundDraw`: scheduled byes preserve later bracket stages and reserve places for clubs entering in later rounds. The competition simulator and weekly participant prediction consume the same draw, so a bye creates neither a fictional match nor deferred player exposure. A two-legged tie counts as one elimination stage.
+- `promotion.js` owns English movement rules: Championship has two automatic promotion places, positions 3–6 in the play-offs and three relegation places; League One has the same promotion route and four relegation places; League Two has three automatic places and positions 4–7 in the play-offs. League Two has no relegation route while the National League is outside the supported world. Named table zones consume these same rules.
+- Promotion play-off football uses `matchEngine.simulateMatch` for both semifinal legs and the final, with actual eligible squads and an employed manager's existing lineup, bench, formation, mentality and tactical plan. Rollover resolves these matches before loan returns, aging and medical resets. The former club remains AI-controlled between jobs. Aggregate ties have no away-goals rule and draw decisions use the authoritative match seed. Compact playoff result shapes remain compatible; the old Poisson helpers are retained only for legacy callers, not career progression.
 
 ### Living world — P1 foundation
 
 - `src/modules/world.js` owns the canonical living-world match/stat ledger contract. A completed fixture is written once; player/club/competition projections derive from that authoritative record.
 - `src/modules/worldRuntime.js` applies persisted canonical results with apply-once semantics. Fixture projection flags, standings and changed player rows commit atomically; do not split that boundary into independent writes.
+- Recovery finishes every canonical league fixture for the world week before projecting its batch, so global recovery, form and suspensions settle once. An already-played managed fixture reuses its canonical outcome, seed, tactics and compact tactical report; it is never resimulated or relabelled.
 - `src/modules/worldCompetitions.js` owns background domestic/European competition state and its compactable result ledger. Cup projection writes only participant-club players; do not return to full-world rewrites.
 - Current-season player statistics include appearances, starts/minutes, goals, assists, clean sheets, cards/suspensions, injuries, form and ratings. `LeagueScreen.svelte` exposes inspectable living-world club profiles.
 - Season rollover persists compact historical summaries and creates the next season's fresh world/competition state. Do not retain an unbounded detailed match ledger across seasons.

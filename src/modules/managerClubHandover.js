@@ -1,6 +1,8 @@
 import { buildPendingEvents } from './gameweek.js';
 import { generateBoardContract, generateBoardObjective } from './boardContract.js';
-import { applyHireOutcome } from './managerAppointments.js';
+import { applyHireOutcome, resolveOffer } from './managerAppointments.js';
+import { createAcademyPathwaysState } from './academyPathways.js';
+import { createCareerEventsState, normalizeCareerEvents } from './careerEvents.js';
 import { swapClubCompetitionControl } from './managerCompetitionHandoff.js';
 import { createScoutingState } from './scouting.js';
 import { MAX_RECENT_MANAGER_APPOINTMENTS, createEmptyManagerMarket } from './managers.js';
@@ -15,16 +17,10 @@ import { SAFE_BOUNDARY_ERROR_MESSAGE } from './managerUserJourney.js';
  * acceptUserOffer, which stops short of calling this) and the event queue is
  * empty, matching every other P6 control change's safe boundary.
  *
- * What this does NOT solve (explicit deferrals, not oversights):
- *  - How the world advances while the user's manager is unemployed between
- *    resigning and accepting a new job — that "bounded wait/advance path"
- *    is WP7's UI/runtime concern. This command only guarantees that
- *    whatever save.cups state exists for the departing club *at the moment
- *    of handover* is captured correctly, per the phase guide's own framing
- *    ("snapshots the old controlled club's save.cups state").
- *  - Full match-by-match cup history across the save.cups/worldCompetitions
- *    shape boundary — see managerCompetitionHandoff.js's own header.
- *  - Academy/youth-cohort continuity across a club change — deferred to P9.
+ * Club-owned player rows and academy cohorts stay with their existing
+ * clubs. Save-owned scouting briefs and live stories reset for the arrival;
+ * completed decisions remain in the manager's compact career history.
+ * Competition projection boundaries are documented in the shared adapter.
  */
 export function assertHandoverSafeBoundary(save) {
   if ((save?.pendingEvents ?? []).length) throw new Error(SAFE_BOUNDARY_ERROR_MESSAGE);
@@ -89,6 +85,10 @@ export function transferClubControl(save, {
     bench:null,
     playerRoles:{},
     scouting:createScoutingState(),
+    academyPathways:createAcademyPathwaysState(),
+    // Live stories, fan mood and scouting briefs belong to the departing
+    // club. Completed decisions remain part of this manager's career.
+    careerEvents:{ ...createCareerEventsState(), resolved:normalizeCareerEvents(save.careerEvents).resolved },
     inboundOffers:[],
     collapsedDeals:[],
     boardObjective:nextBoardObjective,
@@ -98,6 +98,11 @@ export function transferClubControl(save, {
     managerMarket:{
       ...market,
       pendingUserHandover:null,
+      userApproaches:[],
+      vacancies:(market.vacancies ?? [])
+        .filter(item => item.id !== vacancy.id)
+        .map(item => item.status === 'offer_extended' && item.offer?.candidateManagerId === userManager.id
+          ? resolveOffer(item, 'declined', { weekKey }) : item),
       recentAppointments:[
         ...(market.recentAppointments ?? []),
         { clubId:newTeamId, managerId:userManager.id, wasCaretaker, weekKey, reason:'user_appointment' },

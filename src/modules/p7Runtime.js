@@ -3,6 +3,7 @@ import { settleDueObligations } from './clubFinance.js';
 import { beginFacilityUpgrade, completeDueFacilityUpgrades } from './facilities.js';
 import { advanceP9PostMarketWeek } from './p9Runtime.js';
 import { advanceP9AcademyScoutingWeek } from './p9ScoutingRuntime.js';
+import { requireClubEmployment } from './managerEmployment.js';
 
 /**
  * modules/p7Runtime.js — P7 weekly club-side tick, called from gameweek.js's
@@ -56,6 +57,7 @@ export async function advanceP7ClubFinanceWeek(save) {
 export async function startFacilityUpgrade(track) {
   const save = await getSave();
   if (!save) throw new Error('NO_ACTIVE_SAVE');
+  await requireClubEmployment(save);
   const team = await getTeam(save.userTeamId);
   if (!team) throw new Error('TEAM_NOT_FOUND');
   const weekKey = `${save.season}:${save.currentGameweek}`;

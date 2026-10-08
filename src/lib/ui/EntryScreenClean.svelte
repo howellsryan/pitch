@@ -26,6 +26,5 @@
 
 <style>
   .entry-clean { width:100%; height:100%; }
-  :global(.entry-clean .hero-body > button.link:last-of-type) { display:none; }
   :global(.entry-clean .picker > .sub) { display:none; }
 </style>

@@ -42,6 +42,7 @@ MODULES += [
     # must load before db.js.
     ('modules/clubFinance.js',      'CLUB FINANCE'),
     ('modules/db.js',               'DATABASE'),
+    ('modules/managerEmployment.js', 'MANAGER EMPLOYMENT'),
     ('modules/contracts.js',        'PLAYER CONTRACTS'),
     ('modules/playerPathways.js',   'PLAYER PATHWAYS'),
     ('modules/playerStatus.js',     'PLAYER STATUS'),
@@ -106,6 +107,7 @@ MODULES += [
     ('modules/managerClubHandover.js', 'MANAGER CLUB HANDOVER'),
     ('modules/managerUserActions.js', 'MANAGER USER ACTIONS'),
     ('lib/theme.mjs',               'CLUB THEME'),
+    ('lib/nationality.mjs',         'PLAYER NATIONALITY'),
     ('ui/helpers.js',               'UI HELPERS'),
     ('ui/home_transfers.js',        'HOME & TRANSFERS'),
     ('ui/renderers.js',             'RENDERERS'),

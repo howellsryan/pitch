@@ -262,7 +262,6 @@
   let detailFresh = $state(null); // projected fresh copy, canonical row stays in DB
   let offerAmount = $state(0);
   let offerInstallment = $state(0);
-  let offerSellOn = $state(0);
 
   async function openDetail(p) {
     detailPlayer = p;
@@ -271,7 +270,6 @@
     const fv = scoutedValue(detailFresh);
     offerAmount = Math.floor(fv * 0.95);
     offerInstallment = 0;
-    offerSellOn = 0;
   }
   function closeDetail() { detailPlayer = null; detailFresh = null; }
 
@@ -339,7 +337,7 @@
   async function sendOffer() {
     const { player, offer } = confirmOffer;
     try {
-      await createUserMarketDeal(player.id, { type:'transfer', terms:{ fee:{ upfront:offer, installments:offerInstallment > 0 ? [{ amount:offerInstallment, dueSeason:save.season, dueGameweek:(save.currentGameweek ?? 1) + 8 }]:[], sellOnPercentage:offerSellOn } } });
+      await createUserMarketDeal(player.id, { type:'transfer', terms:{ fee:{ upfront:offer, installments:offerInstallment > 0 ? [{ amount:offerInstallment, dueSeason:save.season, dueGameweek:(save.currentGameweek ?? 1) + 8 }]:[] } } });
       toast(`Enquiry sent for ${player.name}. The club will respond at the next market update.`, 'success', 5000);
       confirmOffer = null;
       closeDetail();
@@ -396,7 +394,7 @@
     loanBusy = true;
     try {
       const cost = loanCost(player);
-      await createUserMarketDeal(player.id, { type:'loan', terms:{ loan:{ fee:cost.fee, wageContributionPercentage:100, recall:false, optionToBuy:Math.round(scoutedValue(player) * .9) }, contract:{ wage:player.wage ?? 10_000, duration:1, squadRole:'rotation' } } });
+      await createUserMarketDeal(player.id, { type:'loan', terms:{ loan:{ fee:cost.fee, wageContributionPercentage:100, recall:false }, contract:{ wage:player.wage ?? 10_000, duration:1, squadRole:'rotation' } } });
       toast(`Loan enquiry sent for ${player.name}`, 'success', 5000);
       loanDetail = null;
       screenTicks.transfers++;
@@ -854,7 +852,7 @@
                 <div class="pl-flag-sm pos-{g}">{g}</div>
                 <div class="pl-info">
                   <div class="pl-name">{p.name}</div>
-                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>{fmt.wage(p.wage)}/wk</span></div>
+                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>{fmt.wage(p.wage)}</span></div>
                 </div>
                 <div class="pl-right">
                   <div class="pl-val" style="color:var(--color-live)">+{fmt.money(cost.total)}</div>
@@ -879,7 +877,7 @@
                 <div class="pl-flag-sm pos-{g}">{g}</div>
                 <div class="pl-info">
                   <div class="pl-name">{p.name}</div>
-                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>~{fmt.wage(p.wage)}/wk</span></div>
+                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>~{fmt.wage(p.wage)}</span></div>
                 </div>
                 <div class="pl-val range-rating">{abilityLabel(p)}</div>
                 <button class="sell-btn" disabled={blocked} title={blocked ? "Scouting suggests your club's reputation may be too low" : ''} onclick={() => signFree(p)}>Sign</button>
@@ -983,7 +981,6 @@
           <div class="tr-adv-body">
             <div class="tr-adv-grid">
               <label><span class="tr-adv-lbl-inline">Installment</span><input type="number" min="0" step="100000" bind:value={offerInstallment} /></label>
-              <label><span class="tr-adv-lbl-inline">Sell-on %</span><input type="number" min="0" max="50" bind:value={offerSellOn} /></label>
             </div>
           </div>
         </details>

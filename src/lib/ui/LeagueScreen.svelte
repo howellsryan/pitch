@@ -4,6 +4,7 @@
   import { CUP_META, cupRunStageLabel } from '../../modules/cups.js';
   import { getLeaguePhaseQualification } from '../../modules/competitionRules.js';
   import { getLeagueTable } from '../../modules/standings.js';
+  import { getZoneInfo } from '../../modules/promotion.js';
   import { WORLD_EUROPEAN_COMPETITION_IDS, buildEuropeanLeaguePhaseTable, worldCompetitionRunsForTeam } from '../../modules/worldCompetitions.js';
   import { fmt } from '../../ui/helpers.js';
   import { screenTicks } from '../state/screens.svelte.js';
@@ -27,21 +28,8 @@
   let europeanId = $state(null);
 
   function zone(pos, total) {
-    if (total === 20) {
-      if (pos <= 4) return { cls:'ucl', label:'UCL' };
-      if (pos <= 6) return { cls:'uel', label:'UEL' };
-      if (pos === 7) return { cls:'uecl', label:'UECL' };
-      if (pos >= 18) return { cls:'rel', label:'REL' };
-    } else if (total === 24) {
-      if (pos <= 2) return { cls:'ucl', label:'UP' };
-      if (pos <= 6) return { cls:'uecl', label:'P/O' };
-      if (pos >= 22) return { cls:'rel', label:'REL' };
-    } else if (total === 18) {
-      if (pos <= 4) return { cls:'ucl', label:'UCL' };
-      if (pos <= 6) return { cls:'uel', label:'UEL' };
-      if (pos >= 16) return { cls:'rel', label:'REL' };
-    }
-    return null;
+    const outcome = getZoneInfo(pos, total, leagueName);
+    return { ...outcome, cls:outcome.zone === 'auto' ? 'ucl' : outcome.zone === 'playoff' ? 'uecl' : outcome.zone };
   }
 
   const europeanCompetitions = $derived(WORLD_EUROPEAN_COMPETITION_IDS

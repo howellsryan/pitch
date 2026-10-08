@@ -151,7 +151,7 @@
               <div class="coach-copy">
                 <strong>{copy.covers} coach<em class="dept-tag">{coachingDepartmentLabel(department)}</em></strong>
                 <span class="covers">Trains your {copy.example}</span>
-                <span>{coach?.name ?? 'Staff'} · {'★'.repeat(coach?.quality ?? 3)}{'☆'.repeat(5 - (coach?.quality ?? 3))} · {fmt.wage(coach?.wage ?? 0)}/wk</span>
+                <span>{coach?.name ?? 'Staff'} · {'★'.repeat(coach?.quality ?? 3)}{'☆'.repeat(5 - (coach?.quality ?? 3))} · {fmt.wage(coach?.wage ?? 0)}</span>
                 <span class="specialism">{specialismCopy[coach?.specialism ?? 'balanced']}</span>
                 <span class="effects">
                   Development {effect.development >= 1 ? '+' : ''}{Math.round((effect.development - 1) * 100)}% ·
@@ -171,7 +171,7 @@
               <div class="candidate">
                 <div>
                   <strong>{candidate.name}</strong>
-                  <span>{'★'.repeat(candidate.quality)}{'☆'.repeat(5 - candidate.quality)} · {fmt.wage(candidate.wage)}/wk{candidate.improvement > 0 ? ` · ${candidate.improvement} better than your current coach` : candidate.improvement < 0 ? ' · worse than your current coach' : ' · same as your current coach'}</span>
+                  <span>{'★'.repeat(candidate.quality)}{'☆'.repeat(5 - candidate.quality)} · {fmt.wage(candidate.wage)}{candidate.improvement > 0 ? ` · ${candidate.improvement} better than your current coach` : candidate.improvement < 0 ? ' · worse than your current coach' : ' · same as your current coach'}</span>
                   <span class="specialism">{specialismCopy[candidate.specialism]}</span>
                 </div>
                 <button disabled={busy || (team?.budget ?? 0) < candidate.signingCost} onclick={() => hireCoach(candidate)}>Hire · {fmt.money(candidate.signingCost)}</button>

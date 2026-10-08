@@ -1,3 +1,4 @@
+import { requireClubEmployment } from './managerEmployment.js';
 import { getAllPlayers, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeamsBulk } from './db.js';
 import { normalizePlayerModel } from './playerModel.js';
 import { applyLedgerMovement } from './clubFinance.js';
@@ -68,6 +69,7 @@ export function academyInvestmentPointsForSpend(currentInvestment, spend) {
 
 export async function investInAcademy(amount) {
   const save = await getSave();
+  await requireClubEmployment(save);
   const team = await getTeam(save.userTeamId);
   if (!team) throw new Error('TEAM_NOT_FOUND');
   if ((team.budget ?? 0) < amount) throw new Error('INSUFFICIENT_FUNDS');
@@ -301,6 +303,7 @@ export async function runYouthIntake(save, allTeams) {
 /** Compatibility command; the P9 Academy surface calls p9Runtime directly. */
 export async function promoteYouthPlayer(playerId) {
   const save = await getSave();
+  await requireClubEmployment(save);
   const player = normalizePlayerStatus(await getPlayer(playerId));
   if (!save || !player || !isAcademyPlayer(player, save.userTeamId)) throw new Error('Youth player not found');
   const year = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 2025;
@@ -323,6 +326,7 @@ export async function promoteYouthPlayer(playerId) {
 /** Compatibility command; release means canonical free agency, never deletion. */
 export async function releaseYouthPlayer(playerId) {
   const save = await getSave();
+  await requireClubEmployment(save);
   const player = normalizePlayerStatus(await getPlayer(playerId));
   if (!save || !player || !isAcademyPlayer(player, save.userTeamId)) throw new Error('Youth player not found');
   const released = transitionPlayerStatus(player, {

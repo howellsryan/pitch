@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLUB_FINANCE_VERSION,
+  CLUB_OPERATING_INCOME_VERSION,
   applyLedgerMovement,
   availableFunds,
   buildClubFinanceBackfill,
@@ -30,7 +31,8 @@ describe('financeNeedsBackfill / buildClubFinanceBackfill', () => {
   it('needs backfill for a missing save or stale version', () => {
     expect(financeNeedsBackfill(null)).toBe(true);
     expect(financeNeedsBackfill({})).toBe(true);
-    expect(financeNeedsBackfill({ clubFinanceVersion:CLUB_FINANCE_VERSION })).toBe(false);
+    expect(financeNeedsBackfill({ clubFinanceVersion:CLUB_FINANCE_VERSION })).toBe(true);
+    expect(financeNeedsBackfill({ clubFinanceVersion:CLUB_FINANCE_VERSION, clubOperatingIncomeVersion:CLUB_OPERATING_INCOME_VERSION })).toBe(false);
   });
 
   it('opens ledger cash at exactly the existing budget — no opening double income', () => {
@@ -172,9 +174,23 @@ describe('scheduleObligation / isObligationDue / settleDueObligations', () => {
     expect(isObligationDue({ dueSeason:'2025/26', dueGameweek:13 }, save)).toBe(false);
   });
 
-  it('isObligationDue: true as a catch-up safety net once the save has moved to a different season entirely', () => {
+  it('isObligationDue: true as a catch-up safety net once the save has moved past the scheduled season', () => {
     const save = { season:'2026/27', currentGameweek:1 };
     expect(isObligationDue({ dueSeason:'2025/26', dueGameweek:40 }, save)).toBe(true);
+  });
+
+  it('keeps next-season installments reserved until their scheduled week', () => {
+    const opening = { id:'club_a', budget:10_000_000, finance:createClubFinance(10_000_000) };
+    const scheduled = scheduleObligation(opening, { id:'future', category:'transfer_fee_out', amount:-2_000_000, dueSeason:'2027/28', dueGameweek:12 });
+    const current = settleDueObligations(scheduled, { season:'2026/27', currentGameweek:46 });
+    expect(current.budget).toBe(10_000_000);
+    expect(current.finance.obligations).toHaveLength(1);
+    expect(availableFunds(current)).toBe(8_000_000);
+    const early = settleDueObligations(current, { season:'2027/28', currentGameweek:11 });
+    expect(early.budget).toBe(10_000_000);
+    const due = settleDueObligations(early, { season:'2027/28', currentGameweek:12 });
+    expect(due.budget).toBe(8_000_000);
+    expect(due.finance.obligations).toEqual([]);
   });
 
   it('settleDueObligations pays only what is due, leaving the rest scheduled', () => {

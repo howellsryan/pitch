@@ -1,5 +1,6 @@
 import { getAllPlayers, getAllStandings, getAllTeams, getFixturesByGW, getManager, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
 import { applyLedgerMovement } from './clubFinance.js';
+import { requireClubEmployment } from './managerEmployment.js';
 import { loanOutPlayer } from './transfers.js';
 import { acceptUserOffer, declineUserOffer } from './managerUserJourney.js';
 import {
@@ -88,6 +89,7 @@ async function applyManagerApproach(event, choice, save, effectApplicationKey) {
   if (!vacancy) throw new Error('VACANCY_NOT_FOUND');
   const userManager = await getManager(save.userManagerId);
   if (!userManager) throw new Error('USER_MANAGER_NOT_FOUND');
+  if (userManager.status !== 'unemployed') throw new Error('USER_MANAGER_NOT_AVAILABLE');
   const nextApproaches = (market.userApproaches ?? []).filter(item => item.id !== approachId);
   const weekKey = eventWeekKey(save);
 
@@ -113,6 +115,7 @@ const RECOVERABLE_EVENT_COMMAND_ERRORS = new Set([
   'SIGNED_THIS_SEASON', 'ALREADY_ON_LOAN', 'APPROACH_NOT_FOUND', 'VACANCY_NOT_FOUND',
   'VACANCY_NOT_OPEN', 'VACANCY_NO_LONGER_AVAILABLE', 'USER_MANAGER_NOT_FOUND',
   'OFFER_NOT_FOR_THIS_CANDIDATE', 'ALREADY_HAVE_A_PENDING_JOB_OFFER',
+  'USER_OFFER_NOT_AVAILABLE', 'USER_MANAGER_NOT_AVAILABLE',
 ]);
 
 async function releaseRecoverableEventClaim(eventId, effectApplicationKey) {
@@ -178,6 +181,7 @@ export async function resolveCareerEvent(eventId, choiceId) {
   if (event.status !== 'applying') assertPendingEvent(event, save);
   const choice = careerEventChoices(event).find(item => item.id === choiceId);
   if (!choice) throw new Error('CAREER_EVENT_CHOICE_INVALID');
+  if (!['manager_approach', 'acknowledge'].includes(choice.command)) await requireClubEmployment(save);
   if (event.status === 'applying' && event.selectedChoice !== choice.id) throw new Error('CAREER_EVENT_IN_PROGRESS');
   const effectApplicationKey = `${event.id}:${choice.id}`;
 

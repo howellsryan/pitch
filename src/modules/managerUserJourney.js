@@ -4,20 +4,27 @@
  * (managerAppointments.js) and vacate transition (managerCareer.js's
  * dismissAndCaretake) that AI managers already go through.
  *
- * Not reachable from any UI action yet. `acceptApproach`/`acceptApplication`
- * deliberately stop at `save.managerMarket.pendingUserHandover` rather than
- * touching `save.userTeamId` — WP6 owns the atomic competition-transfer and
- * club-control handover that actually executes a pending user move safely.
- * `p6Runtime.js` calling this module for real, and a Resign/Apply UI action,
- * land in WP7 once WP6's handover exists to complete the loop.
+ * The weekly runtime selects candidates and extends real club offers.
+ * Responses stop at `save.managerMarket.pendingUserHandover`; the atomic
+ * competition-transfer command executes the move at a safe event boundary.
  */
 
-import { assembleCandidates, completeHandover, extendOffer, isVacancyAvailableForNewCandidate, resolveOffer, scoreCandidateFit } from './managerAppointments.js';
+import { assembleCandidates, completeHandover, isVacancyAvailableForNewCandidate, resolveOffer } from './managerAppointments.js';
 import { dismissAndCaretake } from './managerCareer.js';
 import { createCaretakerManager } from './managers.js';
 
 export const MAX_USER_APPROACHES = 8;
 export const APPROACH_FIT_THRESHOLD = 55;
+
+/** Keep live decisions; discard only resolved history when making room. */
+export function appendUserManagerInterest(existingInterests, interest) {
+  const previous = existingInterests.filter(item => item.id !== interest.id);
+  const active = previous.filter(item => item.status !== 'rejected');
+  if (active.length >= MAX_USER_APPROACHES) throw new Error('APPLICATION_LIMIT_REACHED');
+  const historyLimit = MAX_USER_APPROACHES - active.length - 1;
+  const history = historyLimit ? previous.filter(item => item.status === 'rejected').slice(-historyLimit) : [];
+  return [...history, ...active, interest];
+}
 
 // A plain Error factory rather than `export class` — the legacy bundler's
 // module stripper (src/build.py's strip_modules) only rewrites
@@ -61,15 +68,19 @@ export function beginUserResignation(save, userManager, team, { weekKey } = {}) 
  * whose fit with the user's manager clears `APPROACH_FIT_THRESHOLD`, and only
  * a club that hasn't already approached the user for this same vacancy.
  */
-export function generateUserApproaches(userManager, vacancies, teamsById, existingApproaches, { weekKey } = {}) {
-  if (!userManager || userManager.status === 'employed') return existingApproaches;
-  const alreadyApproachedClubIds = new Set(existingApproaches.map(approach => approach.clubId));
+export function generateUserApproaches(userManager, vacancies, teamsById, existingApproaches, { weekKey, managerPool = null } = {}) {
+  if (!userManager || userManager.status !== 'unemployed' || existingApproaches.filter(item => item.status !== 'rejected').length >= MAX_USER_APPROACHES) return existingApproaches;
+  const alreadyApproachedClubIds = new Set(existingApproaches.filter(approach => approach.status !== 'rejected').map(approach => approach.clubId));
   const openVacancies = vacancies.filter(vacancy => isVacancyAvailableForNewCandidate(vacancy) && !alreadyApproachedClubIds.has(vacancy.clubId));
   const scored = openVacancies
     .map(vacancy => {
       const team = teamsById.get(vacancy.clubId);
       if (!team) return null;
-      const fit = scoreCandidateFit(userManager, team);
+      const candidates = assembleCandidates(vacancy, team, managerPool ?? [userManager], {
+        excludeIds:[vacancy.previousManagerId, ...(vacancy.declinedCandidateIds ?? [])],
+      });
+      if (candidates[0]?.managerId !== userManager.id) return null;
+      const fit = candidates[0].fit;
       return { vacancy, team, fit };
     })
     .filter(entry => entry && entry.fit.overall >= APPROACH_FIT_THRESHOLD)
@@ -86,7 +97,7 @@ export function generateUserApproaches(userManager, vacancies, teamsById, existi
     status:'pending',
     source:'approach',
   };
-  return [...existingApproaches, approach].slice(-MAX_USER_APPROACHES);
+  return appendUserManagerInterest(existingApproaches, approach);
 }
 
 /**
@@ -99,7 +110,7 @@ export function generateUserApproaches(userManager, vacancies, teamsById, existi
  * having expressed interest.
  */
 export function applyToVacancy(userManager, vacancy, { weekKey } = {}) {
-  if (!userManager || userManager.status === 'employed') throw new Error('USER_MANAGER_NOT_AVAILABLE');
+  if (!userManager || userManager.status !== 'unemployed') throw new Error('USER_MANAGER_NOT_AVAILABLE');
   if (!isVacancyAvailableForNewCandidate(vacancy)) throw new Error('VACANCY_NOT_OPEN');
   return {
     id:`application_${vacancy.clubId}_${weekKey}`,
@@ -112,13 +123,15 @@ export function applyToVacancy(userManager, vacancy, { weekKey } = {}) {
 }
 
 /**
- * Accept a pending approach/application. Extends and resolves the offer
- * through the shared appointment state machine, then records the outcome as
+ * Accept a club offer. Resolves the already-extended offer through the
+ * shared appointment state machine, then records the outcome as
  * `pendingUserHandover` rather than moving the user immediately — the actual
  * world-mutating handover is WP6's atomic command.
  */
 /** Neither accept nor decline may act on an offer that isn't actually the user's. */
 function assertOfferBelongsToCandidate(vacancy, candidateManagerId) {
+  if (vacancy?.status === 'completed') throw new Error('VACANCY_NO_LONGER_AVAILABLE');
+  if (vacancy?.status !== 'offer_extended' || !vacancy.offer) throw new Error('USER_OFFER_NOT_AVAILABLE');
   if (vacancy.status === 'offer_extended' && vacancy.offer?.candidateManagerId !== candidateManagerId) {
     throw new Error('OFFER_NOT_FOR_THIS_CANDIDATE');
   }
@@ -126,8 +139,7 @@ function assertOfferBelongsToCandidate(vacancy, candidateManagerId) {
 
 export function acceptUserOffer(vacancy, userManagerId, { weekKey } = {}) {
   assertOfferBelongsToCandidate(vacancy, userManagerId);
-  const offered = extendOffer(vacancy, userManagerId, { weekKey });
-  const resolved = resolveOffer(offered, 'accepted', { weekKey });
+  const resolved = resolveOffer(vacancy, 'accepted', { weekKey });
   // resolveOffer only flips status to 'completed'; managerClubHandover.js's
   // transferClubControl requires hiredManagerId to actually be set, which is
   // completeHandover's job (same as the AI path in p6Runtime.js).
@@ -140,8 +152,7 @@ export function acceptUserOffer(vacancy, userManagerId, { weekKey } = {}) {
 
 export function declineUserOffer(vacancy, userManagerId, { weekKey } = {}) {
   assertOfferBelongsToCandidate(vacancy, userManagerId);
-  const offered = extendOffer(vacancy, userManagerId, { weekKey });
-  return resolveOffer(offered, 'declined', { weekKey });
+  return resolveOffer(vacancy, 'declined', { weekKey });
 }
 
 /**
@@ -151,7 +162,7 @@ export function declineUserOffer(vacancy, userManagerId, { weekKey } = {}) {
  * count matches what would actually be offered.
  */
 export function countPlausibleOpenings(userManager, vacancies, teamsById) {
-  if (!userManager || userManager.status === 'employed') return 0;
+  if (!userManager || userManager.status !== 'unemployed') return 0;
   let count = 0;
   for (const vacancy of vacancies) {
     if (!isVacancyAvailableForNewCandidate(vacancy)) continue;

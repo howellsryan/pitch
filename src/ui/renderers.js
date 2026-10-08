@@ -144,8 +144,8 @@ export async function boot(){
     await openDB();
     let save=await getSave();
     if((!save||save._deleted) && isSignedIn()){
-      // No local career yet, but signed in — best-effort restore from the
-      // cloud (e.g. a fresh browser/device) before falling to team-select.
+      // No local career yet, but signed in — discover and restore the latest
+      // remote career (including generated slots) before falling to team-select.
       // Never runs when a local career already exists, so it can't clobber
       // one — see src/cloud/sync.js's pullAndApplyCloudSave().
       const pulled = await pullAndApplyCloudSave();

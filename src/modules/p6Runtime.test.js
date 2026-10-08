@@ -63,6 +63,16 @@ describe('advanceP6ManagerCareerWeek', () => {
     expect(db.putSave).not.toHaveBeenCalled();
   });
 
+  it('leaves a vacancy open when no candidate is eligible, including a save without a user manager id', async () => {
+    const vacancy = { id:'vac_no_candidates', clubId:'target', status:'caretaker', caretakerManagerId:'missing', previousManagerId:'departed', declinedCandidateIds:[] };
+    db.getAllManagers.mockResolvedValue([]);
+    db.getAllTeams.mockResolvedValue([{ id:'target', reputation:50, managerId:'missing' }]);
+    db.getFixturesByGW.mockResolvedValue([]);
+    const result = await advanceP6ManagerCareerWeek(baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy] } }));
+    expect(result.hired).toEqual([]);
+    expect(result.save.managerMarket.vacancies).toEqual([vacancy]);
+  });
+
   it('dismisses an underperforming tenured AI manager, and — with no other candidate available — confirms the caretaker permanently in the same tick', async () => {
     const save = baseSave({ currentGameweek:MANAGER_REVIEW_INTERVAL_GWS });
     db.getSave.mockResolvedValue(save);
@@ -293,5 +303,41 @@ describe('advanceP6ManagerCareerWeek', () => {
       expect(employed).toBeTruthy(); // every club has exactly one active manager
       expect(team.managerId).toBe(employed.id); // team.managerId always tracks who actually runs it
     }
+  });
+
+  it('reviews an application against actual candidates, offers the selected user and reserves the job across weeks', async () => {
+    const vacancy = { id:'vac_target', clubId:'target', status:'caretaker', caretakerManagerId:'caretaker', previousManagerId:'old', declinedCandidateIds:[] };
+    const application = { id:'application_target', clubId:'target', vacancyId:vacancy.id, source:'application', status:'pending', offeredWeekKey:'2025/26:0' };
+    db.getAllTeams.mockResolvedValue([{ id:'target', reputation:70, managerId:'caretaker' }]);
+    db.getAllManagers.mockResolvedValue([
+      createManager({ id:'caretaker', status:'employed', currentClubId:'target', caretakerEligible:true, reputation:{ overall:20, youth:20 } }),
+      createManager({ id:'mgr_user', isUser:true, status:'unemployed', reputation:{ overall:70, youth:80 }, record:{ matches:20, wins:16 } }),
+    ]);
+    db.getFixturesByGW.mockResolvedValue([]);
+    const save = baseSave({ userManagerId:'mgr_user', managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[application] } });
+    const reviewed = await advanceP6ManagerCareerWeek(save);
+    expect(reviewed.hired).toEqual([]);
+    expect(reviewed.save.managerMarket.vacancies[0]).toMatchObject({ status:'offer_extended', offer:{ candidateManagerId:'mgr_user' } });
+    expect(reviewed.save.managerMarket.userApproaches[0]).toMatchObject({ source:'application', status:'offered' });
+    const next = await advanceP6ManagerCareerWeek({ ...reviewed.save, currentGameweek:2 });
+    expect(next.hired).toEqual([]);
+    expect(next.save.managerMarket.vacancies[0].offer.candidateManagerId).toBe('mgr_user');
+    expect(next.save.managerMarket.userApproaches[0].status).toBe('offered');
+  });
+
+  it('does not award an application to a user when the club prefers an AI candidate', async () => {
+    const vacancy = { id:'vac_target', clubId:'target', status:'caretaker', caretakerManagerId:'caretaker', previousManagerId:'old', declinedCandidateIds:[] };
+    const application = { id:'application_target', clubId:'target', vacancyId:vacancy.id, source:'application', status:'pending' };
+    db.getAllTeams.mockResolvedValue([{ id:'target', reputation:80, managerId:'caretaker' }]);
+    db.getAllManagers.mockResolvedValue([
+      createManager({ id:'caretaker', status:'employed', currentClubId:'target', caretakerEligible:true, reputation:{ overall:20, youth:20 } }),
+      createManager({ id:'mgr_user', isUser:true, status:'unemployed', reputation:{ overall:10, youth:10 }, record:{ matches:20, wins:1 } }),
+      createManager({ id:'best_ai', status:'unemployed', reputation:{ overall:80, youth:90 }, record:{ matches:20, wins:18 } }),
+    ]);
+    db.getFixturesByGW.mockResolvedValue([]);
+    const save = baseSave({ userManagerId:'mgr_user', managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[application] } });
+    const result = await advanceP6ManagerCareerWeek(save);
+    expect(result.hired[0]).toMatchObject({ managerId:'best_ai', clubId:'target' });
+    expect(result.save.managerMarket.userApproaches[0]).toMatchObject({ source:'application', status:'rejected', decision:'another_candidate' });
   });
 });

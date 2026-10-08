@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { getCompetitionRules } from './competitionRules.js';
+import { scheduledWorldCompetitionTeamIds } from './worldRuntime.js';
+
 import {
   advanceWorldCompetitions,
   buildWorldCompetitionHistory,
@@ -44,6 +47,52 @@ function europeanTeams(count = 110) {
 }
 
 describe('P1 living-world competitions', () => {
+  it.each([
+    ['dfb_pokal', 'Bundesliga', 18],
+    ['coupe_de_france', 'Ligue 1', 18],
+    ['knvb_beker', 'Eredivisie', 15],
+  ])('plays exactly one %s final with a runner-up even with a reduced field', async (cupId, league, size) => {
+    const teams = Array.from({ length:size }, (_, index) => team(`club_${index}`, league, 65));
+    let state = buildWorldCompetitionState(teams, '2025/26', null);
+    for (const gw of getCompetitionRules(cupId).roundGWs) {
+      const advanced = await advanceWorldCompetitions(state, gw, teams, playersByTeam(teams));
+      state = advanced.state;
+    }
+    const comp = state.competitions[cupId];
+    const finals = comp.results.filter(record => record.roundName === 'Final');
+    expect(finals).toHaveLength(1);
+    expect(comp.winnerId).toBe(finals[0].winnerId);
+    expect(comp.runnerUpId).toBeTruthy();
+    expect(comp.runnerUpId).not.toBe(comp.winnerId);
+  }, 20_000);
+
+  it('reserves enough FA Cup places for later Premier League and Championship entrants', async () => {
+    const teams = [
+      ...Array.from({ length:46 }, (_, index) => team(`lower_${index}`, 'League One')),
+      ...Array.from({ length:44 }, (_, index) => team(`upper_${index}`, 'Premier League')),
+    ];
+    let state = buildWorldCompetitionState(teams, '2025/26', null);
+    for (const gw of getCompetitionRules('fa_cup').roundGWs) {
+      state = (await advanceWorldCompetitions(state, gw, teams, playersByTeam(teams))).state;
+    }
+    const comp = state.competitions.fa_cup;
+    expect(comp.results.filter(record => record.roundName === 'R3')).toHaveLength(32);
+    expect(comp.results.filter(record => record.roundName === 'Final')).toHaveLength(1);
+    expect(comp.runnerUpId).toBeTruthy();
+  }, 20_000);
+
+  it('predicts only the clubs that actually play while other clubs receive scheduled byes', async () => {
+    const teams = Array.from({ length:18 }, (_, index) => team(`club_${index}`, 'Bundesliga'));
+    let state = buildWorldCompetitionState(teams, '2025/26', null);
+    expect([...scheduledWorldCompetitionTeamIds(state, 3)]).toEqual([]);
+    state = (await advanceWorldCompetitions(state, 3, teams, playersByTeam(teams))).state;
+    const expectedParticipants = [...scheduledWorldCompetitionTeamIds(state, 8)].sort();
+    const advanced = await advanceWorldCompetitions(state, 8, teams, playersByTeam(teams));
+    const actualParticipants = [...new Set(advanced.records.flatMap(record => [record.homeTeamId, record.awayTeamId]))].sort();
+    expect(expectedParticipants).toHaveLength(4);
+    expect(actualParticipants).toEqual(expectedParticipants);
+  });
+
   it('seeds supported domestic and European competitions without duplicating the managed club', () => {
     const teams = [
       team('user', 'Premier League', 96),
@@ -78,22 +127,22 @@ describe('P1 living-world competitions', () => {
   });
 
   it('advances scheduled AI cup ties through the authoritative fast match engine', async () => {
-    const teams = Array.from({ length:4 }, (_, index) => team(`l2_${index}`, 'League Two', 60 + index));
+    const teams = Array.from({ length:4 }, (_, index) => team(`club_${index}`, 'La Liga', 60 + index));
     const world = buildWorldCompetitionState(teams, '2025/26', null);
-    const result = await advanceWorldCompetitions(world, 1, teams, playersByTeam(teams));
-    const leagueCup = result.state.competitions.league_cup;
+    const result = await advanceWorldCompetitions(world, 4, teams, playersByTeam(teams));
+    const supercopa = result.state.competitions.supercopa;
 
     expect(result.records).toHaveLength(2);
-    expect(result.records.every(record => record.competitionId === 'league_cup')).toBe(true);
+    expect(result.records.every(record => record.competitionId === 'supercopa')).toBe(true);
     expect(result.records.every(record => record.projectionsApplied === false)).toBe(true);
-    expect(leagueCup.roundIndex).toBe(1);
-    expect(leagueCup.activeTeamIds).toHaveLength(2);
+    expect(supercopa.roundIndex).toBe(1);
+    expect(supercopa.activeTeamIds).toHaveLength(2);
   });
 
   it('exposes pending canonical cup records and marks only the applied IDs', async () => {
-    const teams = Array.from({ length:4 }, (_, index) => team(`l2_${index}`, 'League Two', 60 + index));
+    const teams = Array.from({ length:4 }, (_, index) => team(`club_${index}`, 'La Liga', 60 + index));
     const world = buildWorldCompetitionState(teams, '2025/26', null);
-    const result = await advanceWorldCompetitions(world, 1, teams, playersByTeam(teams));
+    const result = await advanceWorldCompetitions(world, 4, teams, playersByTeam(teams));
     const pending = pendingWorldCompetitionRecords(result.state);
 
     expect(pending).toHaveLength(2);

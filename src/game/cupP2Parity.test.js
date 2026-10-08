@@ -4,6 +4,7 @@ import {
   resolveCupProgress,
   resolveSingleLegKnockout,
   simulateCupRound,
+  simulateEuropeanLeaguePhaseMatchday,
 } from '../modules/cups.js';
 
 function player(id, teamId, position, rating = 78) {
@@ -30,6 +31,27 @@ function squad(teamId) {
 }
 
 describe('P2 cup parity', () => {
+  it.each([true, false])('uses AI choices for a former club in cup and UEFA simulation (home=%s)', (userIsHome) => {
+    const team = { id:'former', name:'Former Club', league:'Premier League', reputation:82 };
+    const opponent = { id:'opp', name:'Opponent', league:'Premier League', reputation:78 };
+    const players = squad(team.id);
+    const playersByTeam = new Map([[team.id, players], [opponent.id, squad(opponent.id)]]);
+    const ai = getAITacticalProfile(team, opponent, userIsHome);
+    const staleChoices = { userFormation:'3-4-3', userMentality:'attacking', userLineup:[], userBench:[] };
+    const cup = simulateCupRound(team, players, [team, opponent], playersByTeam, 'fa_cup', 'Round 3', {
+      opponentId:opponent.id, userIsHome, userManaged:false, ...staleChoices,
+    });
+    const european = simulateEuropeanLeaguePhaseMatchday('ucl', team, players, {
+      leaguePhase:{ matchday:0, opponents:[opponent] },
+    }, staleChoices.userMentality, userIsHome, playersByTeam, staleChoices.userFormation,
+    staleChoices.userLineup, staleChoices.userBench, { userManaged:false });
+    const side = userIsHome ? 'home' : 'away';
+    expect(cup[`${side}Formation`]).toBe(ai.formation);
+    expect(cup[`${side}Mentality`]).toBe(ai.mentality);
+    expect(european[`${side}Formation`]).toBe(ai.formation);
+    expect(european[`${side}Mentality`]).toBe(ai.mentality);
+  });
+
   it('resolves a tied single-leg knockout deterministically without fabricating a regulation goal', () => {
     const a = resolveSingleLegKnockout(1, 1, 'same-match-seed');
     const b = resolveSingleLegKnockout(1, 1, 'same-match-seed');

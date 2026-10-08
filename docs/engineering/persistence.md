@@ -16,6 +16,11 @@ Read before save, IndexedDB, migration or cloud changes. Paths are repository-re
 - Cloud save API/D1 is slot-aware: rows are keyed by `(user_id, slot_id)`; pre-P0 cloud rows migrate to `legacy`.
 - P1 legacy/current careers backfill living-world state through the existing migration/backfill path; do not require users to destroy a P0 career to gain the world model.
 - P3 uses additive, idempotent player-row/domain backfills and does not increment `DB_VERSION` merely to add fields to existing rows. Preserve that pattern for compatible player-contract extensions.
+- Managed match completion uses `db.commitMatchEventAtomic`: canonical league fixture or cup participant rows, cup progress, Manager DNA and queue consumption commit together. Failure aborts the whole checkpoint. The transaction re-reads the save and rejects a changed queue head.
+- `pendingEventsWeekKey` identifies an initialized queue for the current season/week, including an empty queue awaiting world closeout. Its absence on older saves uses the normal queue builder; advancing the world week clears it. `lastResolvedEvent` retains one compact receipt so retrying a committed Broadcast result cannot consume the following event. These optional V2 fields do not create another save lifecycle or retain an unbounded result history.
+- Season rollover runs inside `db.runSeasonRolloverAtomic`. All store reads and writes use the same transaction, including asynchronous domain work; aborting preserves the outgoing calendar, players, finances and history together. Keep rollover helpers on the normal database accessors so they participate in that transaction.
+- Import validates the envelope before changing data, then clears and restores the target slot in one transaction. A failed restore preserves that slot's existing contents and restores the prior active-slot pointer, including failure to open the destination database.
+- Empty-device cloud recovery discovers generated remote slots and restores the latest backup only while no local career exists. Recheck local state after network waits. Uploads currently replace a slot's backup; simultaneous devices have no conflict resolution, so the UI advises using one device at a time.
 
 ## 4) Server/cloud boundary
 

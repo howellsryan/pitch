@@ -44,16 +44,20 @@ import { buildWorldBackfill, buildWorldLeagueSeason, groupTeamsByLeague } from '
 import { buildWorldCompetitionState } from './worldCompetitions.js';
 import { TACTICS_PLAN_VERSION, createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
-import { withDefaultCoaching } from './coaching.js';
+import { coachingWeeklyCost, withDefaultCoaching } from './coaching.js';
 import { createFreshP5SaveFields, ensureP5CareerDepth } from './p5Runtime.js';
 import { createFreshP9SaveFields, ensureP9CareerPathways } from './p9Runtime.js';
 import { MANAGER_MODEL_VERSION, buildManagersBackfill, createEmptyManagerMarket, createUserManager, generateAIManagerForClub, managersNeedBackfill } from './managers.js';
 import { CLUB_PHILOSOPHY_VERSION, buildClubPhilosophyBackfill, clubPhilosophiesNeedBackfill, generateClubPhilosophy } from './clubPhilosophy.js';
-import { CLUB_FINANCE_VERSION, buildClubFinanceBackfill, createClubFinance, financeNeedsBackfill } from './clubFinance.js';
+import { CLUB_FINANCE_VERSION, CLUB_OPERATING_INCOME_VERSION, buildClubFinanceBackfill, createClubFinance, financeNeedsBackfill, seedClubOperatingIncome } from './clubFinance.js';
 import { buildCareerEventsBackfill, createCareerEventsState, careerEventsNeedBackfill } from './careerEvents.js';
 import { seedVerifiedStartingFreeAgents } from './startingFreeAgents.js';
 
 /** modules/save.js — New game creation, save state management. Supports the full P2 world. */
+
+// The shipped FC27 roster represents 2026/27. Keep this tied to that data
+// release rather than the browser clock; imported careers retain their date.
+export const STARTING_SEASON_YEAR = 2026;
 
 export function getAllTeamData() {
   const sources = [
@@ -330,7 +334,11 @@ export async function ensureP7ClubPhilosophy(save) {
 export async function ensureP7ClubFinance(save) {
   if (!save || !financeNeedsBackfill(save)) return save;
   const teams = await getAllTeams();
-  const migration = buildClubFinanceBackfill(save, teams);
+  const migration = buildClubFinanceBackfill(save, teams, {
+    seedTeams:getAllTeamData(),
+    weeklyCoachingFor:source => coachingWeeklyCost(withDefaultCoaching(source)),
+    weeksPerSeason:Math.max(1, Number(save.worldTotalGameweeks ?? save.totalGameweeks ?? 46)),
+  });
   if (migration.teamPatches.length) await putTeamsBulk(migration.teamPatches);
   await putSave(migration.save);
   return migration.save;
@@ -409,7 +417,7 @@ export async function startNewGame(userTeamId, managerName) {
   const userLeague  = userTeamData.league ?? 'Premier League';
   const leagueTeams = allTeamData.filter(t => (t.league ?? 'Premier League') === userLeague);
 
-  const seasonYear = 2025;
+  const seasonYear = STARTING_SEASON_YEAR;
   const season = `${seasonYear}/${String(seasonYear + 1).slice(2)}`;
   const initialCohort = generateCohort(userTeamId, userTeamData.reputation ?? 70, season, userLeague)
     .map(normalizePlayerModel);
@@ -433,9 +441,10 @@ export async function startNewGame(userTeamId, managerName) {
     .map(team => generateAIManagerForClub(team, { currentDate, seasonStartYear:seasonYear }));
   const managerIdByClub = new Map([[userTeamId, userManager.id], ...aiManagers.map(m => [m.currentClubId, m.id])]);
 
-  const teams = allTeamData.map(({ players: _, ...rest }) => {
+  const teams = allTeamData.map(source => {
+    const { players: _, ...rest } = source;
     const budget = startingBudget(rest.reputation ?? 70);
-    return withDefaultCoaching({
+    const team = withDefaultCoaching({
       ...rest,
       budget,
       academyInvestment: 0,
@@ -443,6 +452,12 @@ export async function startNewGame(userTeamId, managerName) {
       philosophy: generateClubPhilosophy(rest, rest.league ?? userLeague),
       finance: createClubFinance(budget),
       facilities: createFacilities(),
+    });
+    return seedClubOperatingIncome(team, {
+      baselineWeeklyWages:(source.players ?? []).reduce((sum, player) => sum + Math.max(0, Number(player.wage) || 0), 0),
+      baselineWeeklyCoaching:coachingWeeklyCost(team),
+      weeksPerSeason:calculateWorldTotalGameweeks(allTeamData),
+      season,
     });
   });
 
@@ -453,6 +468,7 @@ export async function startNewGame(userTeamId, managerName) {
     managerModelVersion: MANAGER_MODEL_VERSION,
     clubPhilosophyVersion: CLUB_PHILOSOPHY_VERSION,
     clubFinanceVersion: CLUB_FINANCE_VERSION,
+    clubOperatingIncomeVersion: CLUB_OPERATING_INCOME_VERSION,
     facilitiesVersion: FACILITIES_VERSION,
     userManagerId:   userManager.id,
     managerMarket:   createEmptyManagerMarket(),

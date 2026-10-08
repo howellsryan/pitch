@@ -1,7 +1,8 @@
 <script>
+  import { untrack } from 'svelte';
   import { flip } from 'svelte/animate';
   import {
-    getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB, putSave,
+    getAllFixtures, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getSave, openDB, putSave,
   } from '../../modules/db.js';
   import { CUP_META } from '../../modules/cups.js';
   // 🚑 Injuries — legacy validation anchor; UI uses the injury icon/text section below.
@@ -14,6 +15,7 @@
     positionGroup, primaryRating, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
   import { buildManagedMatchInputs, buildOpponentTacticalInsight } from '../../modules/managerTactics.js';
+  import { canManageClub } from '../../modules/managerEmployment.js';
   import { createUserTacticalPlan } from '../../modules/tactics.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
@@ -255,6 +257,13 @@
     await openDB();
     const save = await getSave();
     if (!save || save._deleted) { active = false; loading = true; return; }
+    const manager = save.userManagerId ? await getManager(save.userManagerId) : null;
+    if (!canManageClub(save, manager)) {
+      active = false;
+      loading = false;
+      await navigateTo('home');
+      return;
+    }
     const event = await getNextMatchEvent();
 
     if (!event || event.type === 'no_user_event') {
@@ -310,9 +319,14 @@
   }
 
   $effect(() => {
-    void screenTicks.match;
-    if (!active) loadMatch();
-    else if (beat === 'teamNews') void Promise.resolve().then(refreshTeamNewsLineup);
+    // Islands mount even behind hidden screens. Only an explicit navigation
+    // tick may read/build the match queue; changes to active/beat must never
+    // load another fixture or advance the world when returning to Home.
+    if (screenTicks.match === 0) return;
+    untrack(() => {
+      if (!active) void loadMatch();
+      else if (beat === 'teamNews') void Promise.resolve().then(refreshTeamNewsLineup);
+    });
   });
 
   async function resolveMatchTeams(ctx) {
@@ -701,6 +715,7 @@
       committing = true;
       try {
         const res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
+        result = res.singleResult ?? result;
         applyCommitExtras(res);
         resultCommitted = true;
         cloudSaveCheckpoint();
@@ -1285,12 +1300,12 @@
   .ft-win { color: var(--color-live); }
   .ft-loss { color: var(--color-bad); }
   .ft-draw { color: var(--color-warn); }
-  .ft-header { display: flex; align-items: center; gap: 20px; }
-  .ft-side { width: 130px; }
+  .ft-header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; width: min(100%, 460px); }
+  .ft-side { min-width: 0; overflow-wrap: anywhere; }
   .ft-crest { min-height: 40px; display: flex; align-items: center; justify-content: center; }
   .ft-tname { font-size: 13px; font-weight: 600; margin-top: 4px; }
   .ft-scorers { font-size: 11px; color: var(--color-tx-2); margin-top: 6px; }
-  .ft-score { font-family: var(--font-display); font-size: 44px; }
+  .ft-score { display: flex; align-items: center; white-space: nowrap; font-family: var(--font-display); font-size: 44px; line-height: 1; }
   .ft-sep { margin: 0 10px; opacity: 0.4; }
   .ft-status { font-size: 10px; font-family: var(--font-mono); letter-spacing: 2px; color: var(--color-tx-3); }
 

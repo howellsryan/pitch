@@ -28,6 +28,16 @@ Current code and the roadmap establish delivery status.
   including reload recovery. Do not import the handover path into `p6Runtime.js`:
   its dependency on `gameweek.js` creates a cycle. Dismissal uses `dismissAndCaretake`
   and preserves the career; never restore the destructive season-end new-save reset.
+- `managerEmployment.js` owns club-management authority. `save.userTeamId` remains
+  a competition projection while unemployed; only the persisted user manager's
+  employment at that club authorizes squad, market, academy and facility commands.
+  Home provides vacancies and a world-week advance between jobs. That advance
+  drains the existing one-event queue to the next week, with former-club matches
+  using AI choices and no samples added to the user's Manager DNA. Former-club
+  transfer negotiations return to AI staff on the next market tick. Season rollover
+  continues the world while between clubs, without a former-club board review,
+  another dismissal, new user honors or targets. Archive the club's actual manager;
+  the season modal and inbox must not present former-club results as user achievements.
 
 ## Finance, board and facilities
 
@@ -37,6 +47,23 @@ Current code and the roadmap establish delivery status.
   payables. Keep paired payable/receivable installments and one idempotent weekly
   settlement after transfer-market work and before wages; due obligations catch up
   across season rollover. Do not bump finance versions in ways that wipe accrued data.
+  Future-season installments remain reserved until their scheduled season/week;
+  only overdue obligations from earlier seasons use the catch-up rule.
+- Fixed weekly operating revenue is seeded once from the shipped club roster's
+  wage bill, default coaching and a reputation-based surplus. The separate
+  operating-income version backfills that baseline without changing ledger cash,
+  obligations or accrued totals. Later signings and staff hires increase costs
+  without increasing this revenue. Weekly income and salaries share one team-row
+  write and retry key; season rollover resets category totals after archiving,
+  preserves cash and obligations, and awards every club the same position-based
+  league prize. Do not add a second annual operating-income credit.
+- Player contracts expire at the ending calendar year of the outgoing season
+  (`2026` expires when `2025/26` closes). Use canonical free-agency transitions,
+  retain academy rows without professional contracts, and prune departed lineup
+  and bench IDs. Archive outgoing player registrations and board youth evidence
+  before returning loans to their parent clubs. Return loans through
+  `transitionPlayerStatus`, closing the borrowing spell and restoring both canonical
+  ownership and registration; clearing compatibility loan flags alone is insufficient.
 - `boardContract.js` owns sporting/financial/youth objectives. Keep its dependency
   direction toward `season.js` acyclic. Financial/youth misses must not be blended
   into the old sporting job-security score; the dismissal recommendation requires

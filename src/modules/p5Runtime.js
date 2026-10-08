@@ -1,3 +1,4 @@
+import { requireClubEmployment } from './managerEmployment.js';
 import { getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
 import { applyLedgerMovement } from './clubFinance.js';
 import { medicalRecoveryMultiplier, scoutingCapacityBonus, trainingEfficiencyMultiplier } from './facilities.js';
@@ -191,7 +192,7 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
 }
 
 export async function addScoutingAssignment(assignment) {
-  let save = await ensureP5CareerDepth();
+  let save = await ensureP5CareerDepth(await requireClubEmployment());
   const userTeam = await getTeam(save.userTeamId);
   const assignmentCap = MAX_SCOUTING_ASSIGNMENTS + scoutingCapacityBonus(userTeam);
   const nextScouting = createScoutingAssignment(save.scouting, assignment, { season:save.season, gameweek:save.currentGameweek, assignmentCap });
@@ -210,7 +211,7 @@ export async function scoutPlayerInFull(playerId, label = null) {
 }
 
 export async function removeScoutingAssignment(assignmentId) {
-  let save = await ensureP5CareerDepth();
+  let save = await ensureP5CareerDepth(await requireClubEmployment());
   save = { ...save, scouting:cancelScoutingAssignment(save.scouting, assignmentId) };
   await putSave(save);
   return save.scouting;
@@ -218,6 +219,7 @@ export async function removeScoutingAssignment(assignmentId) {
 
 export async function setManagedDevelopmentPlan(playerId, planId, options = {}) {
   const [save, player] = await Promise.all([getSave(), getPlayer(playerId)]);
+  await requireClubEmployment(save);
   if (!save || !player || player.teamId !== save.userTeamId) throw new Error('PLAYER_NOT_IN_SQUAD');
   const team = await getTeam(save.userTeamId);
   const plan = createDevelopmentPlan(planId, player, {
@@ -248,7 +250,7 @@ export async function getCoachMarket(department) {
 }
 
 export async function hireManagedCoach(department, coachId) {
-  const save = await ensureP5CareerDepth();
+  const save = await ensureP5CareerDepth(await requireClubEmployment());
   const team = await getTeam(save.userTeamId);
   if (!team) throw new Error('TEAM_NOT_FOUND');
   const candidate = buildCoachCandidates(team, department, save.season, save.currentGameweek).find(coach => coach.id === coachId);

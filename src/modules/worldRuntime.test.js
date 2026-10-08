@@ -272,8 +272,8 @@ describe('P1 world projection runtime', () => {
   it('recognises scheduled domestic and European background participants before league settlement', () => {
     const state = {
       competitions:{
-        league_cup:{
-          id:'league_cup',
+        supercopa:{
+          id:'supercopa',
           format:'knockout',
           roundIndex:0,
           activeTeamIds:['cup-a','cup-b'],
@@ -295,7 +295,7 @@ describe('P1 world projection runtime', () => {
 
     // cup-c receives the odd-team bye, so its world week is already complete
     // after league projection and must not be deferred for nonexistent exposure.
-    expect([...scheduledWorldCompetitionTeamIds(state, 1)].sort()).toEqual(['cup-a','cup-b']);
+    expect([...scheduledWorldCompetitionTeamIds(state, 4)].sort()).toEqual(['cup-a','cup-b']);
     expect([...scheduledWorldCompetitionTeamIds(state, 5)].sort()).toEqual(['euro-a','euro-b']);
   });
 

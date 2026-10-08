@@ -1,5 +1,5 @@
 <script>
-  import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
+  import { getManager, getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
   import { FORMATIONS, MAX_MATCHDAY_BENCH, primaryRating, pruneBenchToSquad, selectBench, selectEleven, selectReserves } from '../../modules/matchEngine.js';
   import {
     SQUAD_ROLE_DEFS,
@@ -25,7 +25,8 @@
   import { SLOT_LAYOUT } from '../../game/formationLayout.js';
   import { reconcileBenchWithLineup } from '../../game/matchdaySquad.js';
   import { contractYearsRemaining, renewContract, setManagedPlayerTransferListing } from '../../modules/transfers.js';
-  import { fmt, posGroup, toast } from '../../ui/helpers.js';
+  import { fmt, navigateTo, posGroup, toast } from '../../ui/helpers.js';
+  import { canManageClub, requireClubEmployment } from '../../modules/managerEmployment.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import DevelopmentPlanPanel from './DevelopmentPlanPanel.svelte';
   import SquadPlanningPanel from './SquadPlanningPanel.svelte';
@@ -58,10 +59,29 @@
   let draggedPlayerId = $state(null);
   let benchSlotIdx = $state(null);
 
+  async function currentClubSave() {
+    try {
+      const sv = await requireClubEmployment();
+      if (save?.userTeamId && String(sv.userTeamId) !== String(save.userTeamId)) {
+        await navigateTo('home');
+        return null;
+      }
+      return sv;
+    }
+    catch (error) {
+      if (error.message !== 'MANAGER_NOT_EMPLOYED' && error.message !== 'NO_ACTIVE_SAVE') throw error;
+      toast('You need a club appointment before managing a squad.', 'info');
+      await navigateTo('home');
+      return null;
+    }
+  }
+
   async function load() {
     await openDB();
     const currentSave = await getSave();
     if (!currentSave || currentSave._deleted) return;
+    const manager = currentSave.userManagerId ? await getManager(currentSave.userManagerId) : null;
+    if (!canManageClub(currentSave, manager)) { loaded = false; return; }
     save = currentSave;
     team = await getTeam(save.userTeamId);
     players = await getPlayersByTeam(save.userTeamId);
@@ -164,7 +184,8 @@
   /** Takes the *named* ids, not resolved players, so an unavailable substitute
    *  keeps their seat instead of being edited out of the save. */
   async function persistBench(nextBenchIds) {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const bench = [];
     for (const id of nextBenchIds) {
       if (id == null || bench.some(taken => String(taken) === String(id))) continue;
@@ -212,7 +233,8 @@
   }
 
   async function resetBench() {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     await putSave({ ...sv, bench:null });
     savedBench = null;
     screenTicks.squad++;
@@ -250,7 +272,8 @@
 
   async function pickFormation(f) {
     formationOpen = false;
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     // The new shape is filled automatically, and that XI can absorb someone the
     // manager had named as a substitute — leaving their id on the bench, where
     // the engine skips it and plays a substitute short.
@@ -260,14 +283,16 @@
   }
   async function pickMentality(m) {
     mentalityOpen = false;
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     await putSave({ ...sv, mentality: m.id });
     toast(`Mentality: ${m.fullLabel}`, 'info', 2000);
     screenTicks.squad++;
   }
 
   async function pickInstruction(key, value) {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const nextInstructions = normalizeTeamInstructions({ ...instructions, [key]:value });
     const updated = { ...sv, tactics:createUserTacticalPlan(nextInstructions) };
     await putSave(updated);
@@ -276,7 +301,8 @@
   }
 
   async function pickPlayerRole(player, roleId) {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const nextRoles = { ...(sv.playerRoles ?? {}) };
     if (roleId) nextRoles[player.id] = roleId;
     else delete nextRoles[player.id];
@@ -288,6 +314,8 @@
   }
 
   async function pickSquadRole(player, roleId) {
+    const sv = await currentClubSave();
+    if (!sv || String(player.teamId) !== String(sv.userTeamId)) return;
     const updated = setPlayerSquadRole(player, roleId, { source:'manager', teamId:save?.userTeamId ?? player.teamId });
     if (updated === player) return;
     await putPlayer(updated);
@@ -309,10 +337,11 @@
   function openPlayer(p) { playerSheet = p; rosterOpen = false; }
   function closePlayer() { playerSheet = null; }
   async function toggleSquad(p) {
+    const sv = await currentClubSave();
+    if (!sv || String(p.teamId) !== String(sv.userTeamId)) return;
     const adding = p.inSquad === false;
     const updatedPlayer = { ...p, inSquad:adding };
     await putPlayer(updatedPlayer);
-    const sv = await getSave();
     if (!adding) {
       const eligiblePlayers = players.map(player => player.id === p.id ? updatedPlayer : player);
       const nextSave = { ...sv };
@@ -391,7 +420,8 @@
     newAssignment[idx] = newPlayer;
     if (otherIdx >= 0) newAssignment[otherIdx] = currentPlayer ?? null;
 
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const lineup = newAssignment.filter(Boolean).map(p => p.id);
     await putSave({ ...sv, lineup, formation, bench:reconcileBenchWithLineup(sv.bench, lineup, newPlayer, currentPlayer) });
     const fit = positionFitLabel(slotFit(newPlayer, slots[idx].p));
@@ -761,7 +791,7 @@
       </div>
     </section>
 
-    <div class="player-finance"><span>{fmt.money(p.value)}</span><span>{fmt.wage(p.wage)}/wk</span></div>
+    <div class="player-finance"><span>{fmt.money(p.value)}</span><span>{fmt.wage(p.wage)}</span></div>
     <div class="player-actions">
       {#if yearsLeft !== null && !p.onLoan}<button class="player-primary" onclick={() => renewPlayerContract(p)}>Renew contract</button>{/if}
       <button onclick={() => toggleSquad(p)}>{p.inSquad === false ? 'Add to squad' : 'Exclude from squad'}</button>

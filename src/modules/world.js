@@ -88,6 +88,11 @@ export function toCanonicalLeagueRecord(fixture, result, season) {
     awayFormation:result.awayFormation ?? null,
     homeMentality:result.homeMentality ?? 'balanced',
     awayMentality:result.awayMentality ?? 'balanced',
+    homeTactics:result.homeTactics ?? null,
+    awayTactics:result.awayTactics ?? null,
+    seed:result.seed ?? null,
+    // Keep the managed report compact; never persist the action ledger.
+    tacticalAnalysis:result.tacticalAnalysis ?? null,
   };
 }
 
@@ -110,6 +115,10 @@ export function resultFromCanonicalLeagueRecord(fixture) {
     awayFormation:fixture.awayFormation ?? null,
     homeMentality:fixture.homeMentality ?? 'balanced',
     awayMentality:fixture.awayMentality ?? 'balanced',
+    homeTactics:fixture.homeTactics ?? null,
+    awayTactics:fixture.awayTactics ?? null,
+    seed:fixture.seed ?? null,
+    tacticalAnalysis:fixture.tacticalAnalysis ?? null,
   };
 }
 

@@ -20,8 +20,13 @@ const shell = readFileSync(join(ROOT, 'src/shell.html'), 'utf8');
 const marker = shell.lastIndexOf('<script>');
 if (marker === -1) throw new Error('src/shell.html: expected a trailing <script> opener');
 
+// The served root is web/. A relative ../src URL becomes /src in the browser,
+// which Vite resolves inside web/ and answers with its HTML fallback. /@fs is
+// Vite's explicit entry for source files outside that served root, in dev and
+// in the production build. Resolve it from this script so any checkout works.
+const moduleEntry = '/@fs/' + join(ROOT, 'src/main.js').replaceAll('\\', '/');
 const html = shell.slice(0, marker)
-  + '<script type="module" src="../src/main.js"></script>\n'
+  + `<script type="module" src="${moduleEntry}"></script>\n`
   + '</body>\n</html>\n';
 
 mkdirSync(join(ROOT, 'web'), { recursive: true });
