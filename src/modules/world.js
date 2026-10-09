@@ -1,6 +1,7 @@
 import { generateLeagueFixtures } from './fixtures.js';
 import { primaryRating } from './matchEngine.js';
 import { normalizePlayerModel } from './playerModel.js';
+import { transitionPlayerStatus } from './playerStatus.js';
 import { blankStandingRow, sortTable } from './standings.js';
 import { calcYouthPeakAge, distributeAttributes, randName } from './youthAcademy.js';
 import { buildWorldCompetitionHistory, worldCompetitionRunsForTeam } from './worldCompetitions.js';
@@ -583,7 +584,7 @@ export function generateReplacementNewgens(retirees, teams, season) {
       const attrs = distributeAttributes(position, base);
       const potential = Math.max(base + 4, Math.min(92, base + 8 + Math.floor(Math.random() * 12)));
       const age = 17 + Math.floor(Math.random() * 4);
-      return normalizePlayerModel(resetSeasonPlayerStats({
+      return transitionPlayerStatus(normalizePlayerModel(resetSeasonPlayerStats({
         id:`newgen_${team.id}_${seasonKey}_${index}_${Math.floor(Math.random() * 1e9).toString(36)}`,
         name:randName(league),
         position,
@@ -604,7 +605,10 @@ export function generateReplacementNewgens(retirees, teams, season) {
         generated:true,
         generatedSeason:season,
         generatedLeague:league,
-      }));
+      })), {
+        status:'first_team', contractTeamId:team.id, registeredTeamId:team.id,
+        season, gameweek:1, reason:'retirement_replacement',
+      });
     });
 }
 

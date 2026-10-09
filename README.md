@@ -27,7 +27,9 @@ or get an instant result. No account is required for local play.
   Optional Google cloud backup uses the deployed server configuration.
 
 Read the [player guide and feature decisions](docs/features.md) for the
-management loop and the current simulation boundaries.
+management loop and the current simulation boundaries. The
+[October launch review](docs/reviews/2026-10-08-launch-readiness.md) records the
+main-branch findings, fixes, fifteen-season simulation and remaining limits.
 
 ## Start playing
 

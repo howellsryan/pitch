@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { playerStatusNeedsNormalization } from './playerStatus.js';
 
 import {
   applyWorldPlayerStats,
@@ -321,5 +322,18 @@ describe('P1 living-world contracts', () => {
     expect(generated[1]).toMatchObject({ teamId:'b', position:'GK', generated:true, generatedSeason:'2026/27' });
     expect(generated.every(p => p.age >= 17 && p.age <= 20)).toBe(true);
     expect(new Set(generated.map(p => p.id)).size).toBe(2);
+    for (const player of generated) {
+      expect(playerStatusNeedsNormalization(player)).toBe(false);
+      expect(player).toMatchObject({
+        playerStatus:'first_team', contractTeamId:player.teamId,
+        registeredTeamId:player.teamId, inSquad:true, onLoan:false,
+      });
+      expect(player.registrationSpells).toHaveLength(1);
+      expect(player.registrationSpells[0]).toMatchObject({
+        status:'first_team', contractTeamId:player.teamId,
+        registeredTeamId:player.teamId, startSeason:'2026/27',
+        startGameweek:1, endSeason:null, reason:'retirement_replacement',
+      });
+    }
   });
 });
