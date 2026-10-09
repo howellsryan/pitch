@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  sharePlayerHistorySnapshots,
   ensureOpenRegistrationSpell,
   isAcademyPlayer,
   isOwnedByTeam,
@@ -153,5 +154,35 @@ describe('P9 canonical player lifecycle', () => {
     expect(result.registrationSpells).toEqual([]);
     expect(result.lifecycleTransitionKeys).toEqual([]);
     expect(() => transitionPlayerStatus(result, { status:'free_agent', idempotencyKey:'release' })).not.toThrow();
+  });
+});
+
+describe('lossless history snapshot sharing', () => {
+  it('shares identical snapshots without changing values, inputs or lifecycle identity', () => {
+    const stats = { appearances:3, minutes:120 };
+    const evidence = { season:'2026/27', appearances:20, minutes:1300 };
+    const source = player({ academyEvidence:evidence, registrationSpells:[
+      { id:'old', startStats:{ ...stats }, endStats:{ ...stats }, endAcademyEvidence:{ ...evidence } },
+      { id:'open', startStats:{ ...stats }, startAcademyEvidence:{ ...evidence }, endSeason:null },
+    ] });
+    const result = sharePlayerHistorySnapshots(source);
+    expect(JSON.stringify(result)).toBe(JSON.stringify(source));
+    expect(result.registrationSpells[0].startStats).toBe(result.registrationSpells[1].startStats);
+    expect(result.registrationSpells[0].endAcademyEvidence).toBe(result.academyEvidence);
+    expect(source.registrationSpells[0].startStats).not.toBe(source.registrationSpells[1].startStats);
+    expect(sharePlayerHistorySnapshots(result)).toBe(result);
+    const restored = structuredClone(result);
+    expect(restored.registrationSpells[0].startStats).toBe(restored.registrationSpells[1].startStats);
+    expect(sharePlayerHistorySnapshots(restored)).toBe(restored);
+  });
+  it('keeps distinct snapshots and copies changed evidence without changing historical totals', () => {
+    const source = player({ academyEvidence:{ appearances:5 }, registrationSpells:[
+      { id:'old', startStats:{ appearances:2 }, endStats:{ appearances:3 }, endAcademyEvidence:{ appearances:5 } },
+    ] });
+    const result = sharePlayerHistorySnapshots(source);
+    expect(result.registrationSpells[0].startStats).not.toBe(result.registrationSpells[0].endStats);
+    const advanced = { ...result, academyEvidence:{ ...result.academyEvidence, appearances:6 } };
+    expect(advanced.registrationSpells[0].endAcademyEvidence.appearances).toBe(5);
+    expect(sharePlayerHistorySnapshots({ ...source, registrationSpells:[] })).toEqual({ ...source, registrationSpells:[] });
   });
 });

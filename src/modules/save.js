@@ -39,7 +39,7 @@ import {
   normalizePlayerModel,
   playerModelNeedsNormalization,
 } from './playerModel.js';
-import { normalizePlayerStatus } from './playerStatus.js';
+import { normalizePlayerStatus, sharePlayerHistorySnapshots } from './playerStatus.js';
 import { generateCohort } from './youthAcademy.js';
 import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
@@ -131,8 +131,9 @@ export async function ensureLivingWorld(save) {
   if (compactedFixtures.length) await putFixturesBulk(compactedFixtures);
 
   const playerPatches = players
-    .filter(player => player.appearances == null || player.minutes == null || player.yellowCards == null || player.ratingApps == null)
-    .map(backfillP1PlayerStats);
+    .map(player => player.appearances == null || player.minutes == null || player.yellowCards == null || player.ratingApps == null ? backfillP1PlayerStats(player) : player)
+    .map(sharePlayerHistorySnapshots)
+    .filter((player, index) => player !== players[index]);
   if (playerPatches.length) await putPlayersBulk(playerPatches);
 
   const worldTotalGameweeks = calculateWorldTotalGameweeks(teams);

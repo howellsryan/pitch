@@ -127,6 +127,41 @@ function playerStatusSpells(spells) {
     .slice(-MAX_REGISTRATION_SPELLS);
 }
 
+/** IndexedDB preserves shared references: identical historical snapshots need
+ * only one object per row. Values and snapshot field order remain unchanged.
+ * Consumers copy evidence before changing it; historical snapshots are read-only.
+ */
+export function sharePlayerHistorySnapshots(player) {
+  if (!Array.isArray(player?.registrationSpells) || !player.registrationSpells.length) return player;
+  const seen = [];
+  const intern = snapshot => {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return snapshot;
+    if (seen.some(item => item.snapshot === snapshot)) return snapshot;
+    const keys = Object.keys(snapshot);
+    if (keys.some(key => snapshot[key] !== null && typeof snapshot[key] === 'object')) return snapshot;
+    const previous = seen.find(item => item.keys.length === keys.length
+      && keys.every((key, index) => key === item.keys[index] && snapshot[key] === item.snapshot[key]));
+    if (previous) return previous.snapshot;
+    seen.push({ snapshot, keys });
+    return snapshot;
+  };
+  intern(player.academyEvidence);
+  let changed = false;
+  const registrationSpells = player.registrationSpells.map(spell => {
+    if (!spell || typeof spell !== 'object') return spell;
+    let next = spell;
+    for (const key of ['startStats','endStats','startAcademyEvidence','endAcademyEvidence']) {
+      const snapshot = intern(spell[key]);
+      if (snapshot === spell[key]) continue;
+      if (next === spell) next = { ...spell };
+      next[key] = snapshot;
+      changed = true;
+    }
+    return next;
+  });
+  return changed ? { ...player, registrationSpells } : player;
+}
+
 function playerStatusIds(player, status, agreement) {
   if (status === 'free_agent') return { contractTeamId:null, registeredTeamId:'free_agents' };
   if (status === 'loan') {
