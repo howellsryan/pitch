@@ -177,6 +177,28 @@ describe('managed result interruption recovery', () => {
     expect(memory.save.currentGameweek).toBe(2);
   });
 
+  it.each([true, false])('commits a Broadcast league result with a presentation venue hint (home=%s)', async userIsHome => {
+    memory.save.userTeamId = userIsHome ? 'a' : 'b';
+    const event = await getNextMatchEvent();
+    expect(event).not.toHaveProperty('userIsHome');
+    const result = { homeTeamId:'a', awayTeamId:'b', homeGoals:2, awayGoals:1, events:[], fitnessUpdates:[], seed:'broadcast-venue' };
+    const displayedEvent = { ...event, userIsHome };
+    await advanceOneFixtureWithResult(result, displayedEvent, userIsHome);
+    expect(memory.fixtures[0]).toMatchObject({ homeGoals:2, awayGoals:1, projectionsApplied:true });
+    expect(memory.save.currentGameweek).toBe(2);
+    expect(memory.save.managerDNA.matches).toBe(1);
+    await advanceOneFixtureWithResult(result, displayedEvent, userIsHome);
+    expect(memory.save.currentGameweek).toBe(2);
+    expect(memory.standings.every(row => row.played === 1)).toBe(true);
+  });
+
+  it('validates the actual fixture venue even when presentation supplies its own hint', async () => {
+    const event = await getNextMatchEvent();
+    const result = { homeTeamId:'a', awayTeamId:'b', homeGoals:2, awayGoals:1, events:[], fitnessUpdates:[] };
+    await expect(advanceOneFixtureWithResult(result, { ...event, userIsHome:false }, false)).rejects.toThrow('MATCH_RESULT_PARTICIPANTS_CHANGED');
+    expect(memory.fixtures.every(row => !row.played)).toBe(true);
+  });
+
   it('uses AI plans while between jobs and rejects managerial Broadcast commits', async () => {
     memory.save.sacked = true;
     memory.save.formation = '3-4-3';

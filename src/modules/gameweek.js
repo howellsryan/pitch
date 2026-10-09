@@ -231,7 +231,9 @@ function gameweekMatchEventKey(event) {
   return JSON.stringify([
     event?.type, event?.gw, event?.fixtureId ?? null, event?.cupId ?? null,
     event?.matchday ?? null, event?.roundIdx ?? null, event?.roundName ?? null,
-    event?.opponentId ?? null, event?.userIsHome ?? null,
+    // League venue belongs to the persisted fixture; Broadcast enriches the
+    // event with a display hint that is absent from the canonical queue.
+    event?.opponentId ?? null, event?.type === 'league' ? null : event?.userIsHome ?? null,
   ]);
 }
 

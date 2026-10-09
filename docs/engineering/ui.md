@@ -11,5 +11,6 @@ Paths are repository-relative.
 - Mobile navigation and the main game surfaces are already redesigned. Do not reopen R0-R7 visual decisions incidentally during gameplay-system work.
 - Any new/restyled surface must be verified from an actual rendered screenshot at the affected viewport; CSS reading correctly is not visual verification.
 - Preserve accessibility basics: 44px touch targets where applicable, focus-visible states, reduced-motion support, readable contrast, safe-area spacing.
+- Team news treats a null lineup as automatic selection through `matchEngine.selectEleven`. Named selections still require eleven distinct senior players and block injured or suspended starters; do not make a formation reset or club handover unplayable.
 - P3 player state enriches existing Squad/Market/Academy surfaces rather than creating permanent dashboard clutter.
 

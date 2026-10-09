@@ -63,7 +63,10 @@ income. Transfer commitments, facilities and season prize money also affect
 cash. Board objectives give the career goals beyond a single fixture.
 Manager jobs support resigning, applying, accepting approaches and taking over
 a different club. While unemployed, advance the world and look for jobs from
-Home instead of continuing to control the former club.
+Home instead of continuing to control the former club. An unset XI after a
+formation change or appointment is selected automatically; explicit injured or
+suspended starters must be replaced before playing. Season history labels
+world seasons completed between jobs without crediting former-club results.
 
 ## Competitions and seasons
 

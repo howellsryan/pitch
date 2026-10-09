@@ -515,10 +515,14 @@
               <div class="set-season-row">
                 <div class="set-season-name">Season {s.season}</div>
                 <div class="set-season-detail">
-                  {finishPlace(s.userFinish)} place
-                  {#if s.topScorers?.[0]} · Top scorer: {s.topScorers[0].name} ({s.topScorers[0].goals}g){/if}
-                  {#if s.topAssists?.[0]} · Top assists: {s.topAssists[0].name} ({s.topAssists[0].assists}a){/if}
-                  {#if s.prizeMoney} · Prize: {fmt.money(s.prizeMoney)}{/if}
+                  {#if s.managedClub === false}
+                    Between clubs · World season completed
+                  {:else}
+                    {finishPlace(s.userFinish)} place
+                    {#if s.topScorers?.[0]} · Top scorer: {s.topScorers[0].name} ({s.topScorers[0].goals}g){/if}
+                    {#if s.topAssists?.[0]} · Top assists: {s.topAssists[0].name} ({s.topAssists[0].assists}a){/if}
+                    {#if s.prizeMoney} · Prize: {fmt.money(s.prizeMoney)}{/if}
+                  {/if}
                 </div>
               </div>
             {/each}

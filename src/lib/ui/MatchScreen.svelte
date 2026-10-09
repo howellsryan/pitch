@@ -22,6 +22,7 @@
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
+  import { lineupAvailability } from '../../game/matchLineupAvailability.js';
   import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
@@ -187,31 +188,23 @@
       keyPlayer:oppInForm,
     });
 
-    const { injuredInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers);
+    const { injuredInLineup, suspendedInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers, userFormation);
 
     return {
       event, save, userTeam, oppTeam, oppForm, oppInForm, opponentPlayers, oppTacticalProfile, oppInsight,
       matchTitle, compLabel, compColor, isLeague, userIsHome,
       userPlayers, userFormation, userLineup,
-      injuredInLineup, lineupIncomplete,
+      injuredInLineup, suspendedInLineup, lineupIncomplete,
       lineupBlocked,
     };
-  }
-
-  function lineupAvailability(userLineup, userPlayers) {
-    const injuredInLineup = userLineup
-      ? userPlayers.filter(player => player.injured && userLineup.includes(player.id))
-      : [];
-    const lineupIncomplete = !userLineup || userLineup.length !== 11
-      || new Set(userLineup).size !== 11
-      || userLineup.some(playerId => !userPlayers.some(player => player.id === playerId && player.inSquad !== false));
-    return { injuredInLineup, lineupIncomplete, lineupBlocked:injuredInLineup.length > 0 || lineupIncomplete };
   }
 
   const blockMsg = $derived(
     matchCtx?.injuredInLineup?.length > 0
       ? 'Fix your lineup — injured players selected. Go to Squad.'
-      : 'Set a full starting XI in Squad before playing.'
+      : matchCtx?.suspendedInLineup?.length > 0
+        ? 'Fix your lineup — suspended players selected. Go to Squad.'
+        : 'Set a full starting XI in Squad before playing.'
   );
 
   function diffLabel(rep) {
@@ -297,7 +290,7 @@
     const freshPlayers = await getPlayersByTeam(freshSave.userTeamId);
     const userFormation = freshSave.formation ?? '4-3-3';
     const userLineup = freshSave.lineup ?? null;
-    const availability = lineupAvailability(userLineup, freshPlayers);
+    const availability = lineupAvailability(userLineup, freshPlayers, userFormation);
     matchCtx = {
       ...matchCtx, save:freshSave, userPlayers:freshPlayers, userFormation, userLineup,
       ...availability,
@@ -324,6 +317,9 @@
     // load another fixture or advance the world when returning to Home.
     if (screenTicks.match === 0) return;
     untrack(() => {
+      // Quick Sim has already committed its result. A manager who leaves its
+      // report to change tactics must enter the next fixture on their return.
+      if (resultCommitted && (beat === 'fulltime' || beat === 'after')) resetMatchPresentation();
       if (!active) void loadMatch();
       else if (beat === 'teamNews') void Promise.resolve().then(refreshTeamNewsLineup);
     });
@@ -736,7 +732,7 @@
     }
   }
 
-  async function finishToHome() {
+  function resetMatchPresentation() {
     window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
     active = false;
@@ -744,6 +740,10 @@
     live = null; result = null; matchCtx = null; broadcastSimulation = null;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
     beforeTable = []; afterTable = [];
+  }
+
+  async function finishToHome() {
+    resetMatchPresentation();
     await navigateTo('home');
   }
 
@@ -872,6 +872,16 @@
             <div class="tn-warning-line"><strong>{p.name}</strong> — {p.injuryName || 'Injured'} ({injuryDurationLabel(p.injuryGWsLeft)} remaining)</div>
           {/each}
           <div class="tn-warning-cta">Replace the injured player before playing.</div>
+          <button class="tn-squad-link" onclick={openSquadFromTeamNews}>Open Squad →</button>
+        </div>
+      {/if}
+      {#if m.suspendedInLineup.length}
+        <div class="tn-warning tn-warning-bad">
+          <div class="tn-warning-title"><Icon name="warning" size={14} /><span>Suspended Players in Lineup</span></div>
+          {#each m.suspendedInLineup as p (p.id)}
+            <div class="tn-warning-line"><strong>{p.name}</strong> — Suspended</div>
+          {/each}
+          <div class="tn-warning-cta">Replace the suspended player before playing.</div>
           <button class="tn-squad-link" onclick={openSquadFromTeamNews}>Open Squad →</button>
         </div>
       {/if}
