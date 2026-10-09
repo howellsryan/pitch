@@ -9,7 +9,7 @@
  */
 import { applyLedgerMovement, availableFunds, scheduleObligation } from './clubFinance.js';
 import { buildSettledMarketPlayer } from './transferMarket.js';
-import { isFreeAgentPlayer, isLoanPlayer, sharePlayerHistorySnapshots, transitionPlayerStatus } from './playerStatus.js';
+import { isFreeAgentPlayer, isLoanPlayer, compactPlayerHistoryPayload, transitionPlayerStatus } from './playerStatus.js';
 export const DB_NAME = 'pitch_fc';
 export const DB_VERSION = 4;
 export const LEGACY_SLOT_ID = 'legacy';
@@ -207,7 +207,7 @@ export async function runCareerTransitionAtomic(operation) {
 export function bulkPut(storeName, items) {
   if (_careerWriteTransaction) {
     const s = _careerWriteTransaction.objectStore(storeName);
-    return Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? sharePlayerHistorySnapshots(item) : item))));
+    return Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item))));
   }
   return _bulkPutToDB(_db, storeName, items);
 }
@@ -216,7 +216,7 @@ function _bulkPutToDB(db, storeName, items) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
-    items.forEach(item => s.put(storeName === 'players' ? sharePlayerHistorySnapshots(item) : item));
+    items.forEach(item => s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -225,13 +225,13 @@ function _bulkPutToDB(db, storeName, items) {
 export function clearAndBulkPut(storeName, items) {
   if (_careerWriteTransaction) {
     const s = _careerWriteTransaction.objectStore(storeName);
-    return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? sharePlayerHistorySnapshots(item) : item)))));
+    return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item)))));
   }
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
     const clearReq = s.clear();
-    clearReq.onsuccess = () => items.forEach(item => s.put(storeName === 'players' ? sharePlayerHistorySnapshots(item) : item));
+    clearReq.onsuccess = () => items.forEach(item => s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -290,7 +290,7 @@ export function commitMatchEventAtomic({ event, season, gameweek, savePatch, fix
         };
         if (fixture) tx.objectStore('fixtures').put(fixture);
         const playerStore = tx.objectStore('players');
-        players.forEach(player => playerStore.put(sharePlayerHistorySnapshots(player)));
+        players.forEach(player => playerStore.put(compactPlayerHistoryPayload(player)));
         saves.put(nextSave);
       } catch (error) { fail(error); }
     };
@@ -315,7 +315,7 @@ export async function getPlayersByTeams(teamIds) {
   const squads = await Promise.all(ids.map(id => req2p(index.getAll(id))));
   return squads.flat();
 }
-export const putPlayer = p => req2p(store('players','readwrite').put(sharePlayerHistorySnapshots(p)));
+export const putPlayer = p => req2p(store('players','readwrite').put(compactPlayerHistoryPayload(p)));
 export const putPlayersBulk = ps => bulkPut('players', ps);
 export function deletePlayersBulk(ids) {
   if (_careerWriteTransaction) {
@@ -449,8 +449,8 @@ export function settleTransferMarketDealAtomic(dealId) {
 
           const seasonYear = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 0;
           const nextPlayer = buildSettledMarketPlayer(player, deal, save);
-          playersStore.put(sharePlayerHistorySnapshots(nextPlayer));
-          if (exchangePlayer && seller) playersStore.put(sharePlayerHistorySnapshots(transitionPlayerStatus({
+          playersStore.put(compactPlayerHistoryPayload(nextPlayer));
+          if (exchangePlayer && seller) playersStore.put(compactPlayerHistoryPayload(transitionPlayerStatus({
             ...exchangePlayer, signedThisSeason:true, contractExpiry:seasonYear + 3,
             squadRole:null, squadRoleTeamId:null, squadRoleSource:null, playingTimeAgreement:null,
           }, {

@@ -162,6 +162,37 @@ export function sharePlayerHistorySnapshots(player) {
   return changed ? { ...player, registrationSpells } : player;
 }
 
+/** Missing historical counters already mean zero. Academy evidence belongs to
+ * academy spells; senior/loan/free-agent projections never consume those copies.
+ * Keep every ID, club, date, reason and nonzero counter, including unknown fields.
+ */
+export function compactPlayerHistoryPayload(player) {
+  if (!Array.isArray(player?.registrationSpells)) return player;
+  const counters = new Set(['appearances','starts','minutes','goals','assists','cleanSheets','ratingTotal','ratingApps']);
+  const compactStats = stats => {
+    if (!stats || typeof stats !== 'object' || Array.isArray(stats)) return stats;
+    const entries = Object.entries(stats);
+    const kept = entries.filter(([key, value]) => !counters.has(key) || value !== 0);
+    return kept.length === entries.length ? stats : Object.fromEntries(kept);
+  };
+  let changed = false;
+  const registrationSpells = player.registrationSpells.map(spell => {
+    if (!spell || typeof spell !== 'object') return spell;
+    let next = spell;
+    for (const key of ['startStats','endStats','startAcademyEvidence','endAcademyEvidence']) {
+      const snapshot = ['first_team','loan','free_agent'].includes(spell.status) && key.includes('Academy')
+        ? spell[key] == null ? spell[key] : null
+        : compactStats(spell[key]);
+      if (snapshot === spell[key]) continue;
+      if (next === spell) next = { ...spell };
+      next[key] = snapshot;
+      changed = true;
+    }
+    return next;
+  });
+  return sharePlayerHistorySnapshots(changed ? { ...player, registrationSpells } : player);
+}
+
 function playerStatusIds(player, status, agreement) {
   if (status === 'free_agent') return { contractTeamId:null, registeredTeamId:'free_agents' };
   if (status === 'loan') {

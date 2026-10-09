@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compactPlayerHistoryPayload,
   sharePlayerHistorySnapshots,
   ensureOpenRegistrationSpell,
   isAcademyPlayer,
@@ -9,6 +10,7 @@ import {
   playerStatusNeedsNormalization,
   transitionPlayerStatus,
 } from './playerStatus.js';
+import { compactPlayerRegistrationSpells } from './world.js';
 
 function player(overrides = {}) {
   return {
@@ -184,5 +186,24 @@ describe('lossless history snapshot sharing', () => {
     const advanced = { ...result, academyEvidence:{ ...result.academyEvidence, appearances:6 } };
     expect(advanced.registrationSpells[0].endAcademyEvidence.appearances).toBe(5);
     expect(sharePlayerHistorySnapshots({ ...source, registrationSpells:[] })).toEqual({ ...source, registrationSpells:[] });
+  });
+});
+
+describe('registration bookkeeping payload', () => {
+  it('preserves every seasonal history projection and nonzero snapshot field', () => {
+    const source = player({ academyEvidence:{ season:'2026/27', appearances:12, minutes:800 }, registrationSpells:[
+      { id:'youth', status:'academy', startSeason:'2025/26', endSeason:'2026/27', startStats:{ appearances:0, minutes:0 }, endStats:{ appearances:0, minutes:0 }, startAcademyEvidence:{ appearances:0, minutes:0 }, endAcademyEvidence:{ season:'2026/27', appearances:12, minutes:800, goals:0 } },
+      { id:'senior', status:'first_team', startSeason:'2026/27', endSeason:'2027/28', startStats:{ appearances:0, minutes:0, futureCounter:0 }, endStats:{ appearances:3, minutes:120, goals:0 }, startAcademyEvidence:{ season:'2026/27', appearances:12 }, endAcademyEvidence:{ season:'2026/27', appearances:12 } },
+      { id:'loan', status:'loan', startSeason:'2027/28', endSeason:null, startStats:{ appearances:2, minutes:90, goals:0 }, startAcademyEvidence:{ season:'2026/27', appearances:12 } },
+    ] });
+    const result = compactPlayerHistoryPayload(source);
+    for (const season of ['2025/26','2026/27','2027/28']) expect(compactPlayerRegistrationSpells(result, season)).toEqual(compactPlayerRegistrationSpells(source, season));
+    expect(result.registrationSpells.map(spell => spell.id)).toEqual(source.registrationSpells.map(spell => spell.id));
+    expect(result.registrationSpells[1].startStats.futureCounter).toBe(0);
+    expect(result.registrationSpells[1].endStats).toEqual({ appearances:3, minutes:120 });
+    expect(result.registrationSpells[1].endAcademyEvidence).toBeNull();
+    expect(source.registrationSpells[1].startStats).toHaveProperty('appearances', 0);
+    expect(result.academyEvidence).toBe(source.academyEvidence);
+    expect(compactPlayerHistoryPayload(result)).toBe(result);
   });
 });
