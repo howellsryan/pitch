@@ -1,4 +1,4 @@
-import { commitMatchEventAtomic, getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getSave, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
+import { commitMatchEventAtomic, getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getPlayersByTeams, getSave, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
 import { simulateMatch } from './matchEngine.js';
 import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
 import { canManageClub, requireClubEmployment } from './managerEmployment.js';
@@ -287,7 +287,7 @@ async function gameweekRecoverWorldLeagueGameweek(save, fixtures, allTeams, allP
   // league batch. Never project a lone saved user result before its AI fixtures.
   if (pendingProjection && !pendingManagedFixture) {
     await settleWorldLeagueGameweek(save.currentGameweek, save, new Map(allTeams.map(team => [team.id, team])), groupByTeam(allPlayers));
-    return { allPlayers:await getAllPlayers(), gwFixtures:await getFixturesByGW(save.currentGameweek) };
+    return { allPlayers:await getPlayersByTeams(allTeams.map(team => team.id)), gwFixtures:await getFixturesByGW(save.currentGameweek) };
   }
   return { allPlayers, gwFixtures:fixtures };
 }
@@ -358,7 +358,7 @@ async function settleWorldCompetitionGameweek(gw, save, allTeams) {
     await applyDevelopment(recovered.results).catch(() => {});
   }
   if (!workingSave?.worldCompetitions?.competitions) return workingSave;
-  const freshPlayers = await getAllPlayers();
+  const freshPlayers = await getPlayersByTeams(allTeams.map(team => team.id));
   const advanced = await advanceWorldCompetitions(
     workingSave.worldCompetitions,
     gw,
@@ -445,9 +445,10 @@ export async function advanceOneFixture(overrideFormation) {
   }
 
   const gw = save.currentGameweek;
-  let [allTeams, allPlayers, gwFixtures] = await Promise.all([
-    getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
+  let [allTeams, gwFixtures] = await Promise.all([
+    getAllTeams(), getFixturesByGW(gw),
   ]);
+  let allPlayers = await getPlayersByTeams(allTeams.map(team => team.id));
 
   ({ allPlayers, gwFixtures } = await gameweekRecoverWorldLeagueGameweek(save, gwFixtures, allTeams, allPlayers));
   save = await gameweekInitialisePendingEvents(save, gwFixtures, allTeams);
@@ -637,9 +638,10 @@ export async function advanceOneFixtureWithResult(matchResult, event, userIsHome
   }
 
   const gw = save.currentGameweek;
-  let [allTeams, allPlayers, gwFixtures] = await Promise.all([
-    getAllTeams(), getAllPlayers(), getFixturesByGW(gw),
+  let [allTeams, gwFixtures] = await Promise.all([
+    getAllTeams(), getFixturesByGW(gw),
   ]);
+  let allPlayers = await getPlayersByTeams(allTeams.map(team => team.id));
 
   ({ allPlayers, gwFixtures } = await gameweekRecoverWorldLeagueGameweek(save, gwFixtures, allTeams, allPlayers));
   save = await gameweekInitialisePendingEvents(save, gwFixtures, allTeams);

@@ -7,6 +7,7 @@ import {
   advanceWorldCompetitions,
   buildWorldCompetitionHistory,
   buildWorldCompetitionState,
+  compactAppliedWorldCompetitionRecords,
   markWorldCompetitionRecordsApplied,
   pendingWorldCompetitionRecords,
   worldCompetitionRunsForTeam,
@@ -183,5 +184,43 @@ describe('P1 living-world competitions', () => {
       topScorer:expect.objectContaining({ playerId:'p1', name:'Top Scorer', value:1 }),
     })]);
     expect(history[0]).not.toHaveProperty('results');
+  });
+
+  it('compacts applied projection payloads without changing scores, awards or pending recovery', () => {
+    const goal = { type:'goal', minute:35, teamId:'a', playerId:'p1', assistId:'p2' };
+    const record = {
+      id:'played', worldCompetitionVersion:1, projectionsApplied:true,
+      homeTeamId:'a', awayTeamId:'b', homeGoals:1, awayGoals:0, seed:123,
+      events:[goal, { type:'injury', playerId:'p3', injuryGWsLeft:4 }],
+      fitnessUpdates:[{ id:'p1', newFitness:70 }], homeTactics:{ pressing:'high' }, awayTactics:{ pressing:'low' },
+    };
+    const pending = { ...record, id:'pending', projectionsApplied:false };
+    const world = { season:'2025/26', competitions:{ cup:{ id:'cup', winnerId:'a', runnerUpId:'b', results:[record,pending] } } };
+    const history = buildWorldCompetitionHistory(world);
+    const compacted = compactAppliedWorldCompetitionRecords(world);
+    const completed = compacted.competitions.cup.results[0];
+    expect(completed).toMatchObject({ homeGoals:1, awayGoals:0, seed:123, events:[goal], fitnessUpdates:[] });
+    expect(completed).not.toHaveProperty('homeTactics');
+    expect(completed).not.toHaveProperty('awayTactics');
+    expect(compacted.competitions.cup.results[1]).toBe(pending);
+    expect(pendingWorldCompetitionRecords(compacted)).toEqual([pending]);
+    expect(buildWorldCompetitionHistory(compacted)).toEqual(history);
+    expect(record.events).toHaveLength(2);
+    expect(compactAppliedWorldCompetitionRecords(compacted)).toBe(compacted);
+  });
+
+  it('marks and compacts only resolved records while keeping uncommitted payloads intact', () => {
+    const make = id => ({ id, worldCompetitionVersion:1, projectionsApplied:false, events:[{ type:'yellow', playerId:id }], fitnessUpdates:[{ id, newFitness:60 }] });
+    const world = { competitions:{ cup:{ results:[make('a'),make('b')] } } };
+    const applied = markWorldCompetitionRecordsApplied(world, ['a']);
+    expect(applied.competitions.cup.results[0]).toMatchObject({ projectionsApplied:true, events:[], fitnessUpdates:[] });
+    expect(pendingWorldCompetitionRecords(applied)[0]).toEqual(world.competitions.cup.results[1]);
+    expect(world.competitions.cup.results[0].projectionsApplied).toBe(false);
+  });
+
+  it('preserves an unsupported future projection-payload format', () => {
+    const record = { id:'future', worldCompetitionVersion:1, projectionsApplied:true, projectionPayloadCompactedVersion:2, events:[{ type:'injury' }], fitnessUpdates:[{ id:'p1' }] };
+    const world = { competitions:{ cup:{ results:[record] } } };
+    expect(compactAppliedWorldCompetitionRecords(world)).toBe(world);
   });
 });

@@ -12,6 +12,7 @@ vi.mock('./db.js', async importOriginal => ({
   getAllTeams:vi.fn(async () => state.teams),
   getTeam:vi.fn(async id => state.teams.find(team => team.id === id)),
   getAllPlayers:vi.fn(async () => state.players),
+  getPlayersByTeams:vi.fn(async ids => state.players.filter(player => ids.includes(player.teamId))),
   getAllStandings:vi.fn(async () => state.standings),
   getAllSeasons:vi.fn(async () => state.seasons),
   getAllTransfers:vi.fn(async () => []),

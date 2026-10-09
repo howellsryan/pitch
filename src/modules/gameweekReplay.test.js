@@ -24,6 +24,7 @@ vi.mock('./db.js', () => {
     getAllStandings:async () => clone(memory.standings), getAllFixtures:async () => clone(memory.fixtures),
     getFixturesByGW:async gw => clone(memory.fixtures.filter(row => row.gameweek === gw)),
     getPlayersByTeam:async id => clone(memory.players.filter(row => row.teamId === id)),
+    getPlayersByTeams:async ids => clone(memory.players.filter(row => ids.includes(row.teamId))),
     getTeam:async id => clone(memory.teams.find(row => row.id === id)),
     getManager:async () => null,
     getStanding:async id => clone(memory.standings.find(row => row.teamId === id)),

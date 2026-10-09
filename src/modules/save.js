@@ -44,7 +44,7 @@ import { generateCohort } from './youthAcademy.js';
 import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
 import { buildWorldBackfill, buildWorldLeagueSeason, compactHistoricalSeason, groupTeamsByLeague } from './world.js';
-import { buildWorldCompetitionState } from './worldCompetitions.js';
+import { buildWorldCompetitionState, compactAppliedWorldCompetitionRecords } from './worldCompetitions.js';
 import { TACTICS_PLAN_VERSION, createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
 import { coachingWeeklyCost, withDefaultCoaching } from './coaching.js';
@@ -136,9 +136,9 @@ export async function ensureLivingWorld(save) {
     save.worldCompetitions?.competitions && save.worldCompetitions?.season === save.season,
   );
   const worldCompetitions = hasCurrentCompetitionWorld
-    ? save.worldCompetitions
+    ? compactAppliedWorldCompetitionRecords(save.worldCompetitions)
     : buildWorldCompetitionState(teams, save.season, save.userTeamId, save.currentGameweek ?? 1);
-  if (save.worldTotalGameweeks !== worldTotalGameweeks || !hasCurrentCompetitionWorld) {
+  if (save.worldTotalGameweeks !== worldTotalGameweeks || !hasCurrentCompetitionWorld || worldCompetitions !== save.worldCompetitions) {
     const migrated = { ...save, worldTotalGameweeks, worldCompetitions };
     await putSave(migrated);
     return migrated;

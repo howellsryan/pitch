@@ -119,6 +119,8 @@ export function normalizeLoanAgreement(agreement, player = null) {
 
 function playerStatusSpells(spells) {
   if (!Array.isArray(spells)) return [];
+  if (spells.length <= MAX_REGISTRATION_SPELLS
+    && spells.every(spell => spell && typeof spell === 'object' && spell.id)) return spells;
   return spells
     .filter(spell => spell && typeof spell === 'object' && spell.id)
     .map(spell => ({ ...spell }))
@@ -160,11 +162,13 @@ export function normalizePlayerStatus(player) {
   const playerStatus = inferPlayerStatus(player);
   const activeLoanAgreement = playerStatus === 'loan' ? normalizeLoanAgreement(player.activeLoanAgreement, player) : null;
   const ids = playerStatusIds(player, playerStatus, activeLoanAgreement);
-  const transitionKeys = Array.isArray(player.lifecycleTransitionKeys)
-    ? player.lifecycleTransitionKeys.filter(key => typeof key === 'string').slice(-MAX_LIFECYCLE_TRANSITION_KEYS)
+  const rawKeys = player.lifecycleTransitionKeys;
+  const transitionKeys = Array.isArray(rawKeys)
+    ? rawKeys.length <= MAX_LIFECYCLE_TRANSITION_KEYS && rawKeys.every(key => typeof key === 'string')
+      ? rawKeys
+      : rawKeys.filter(key => typeof key === 'string').slice(-MAX_LIFECYCLE_TRANSITION_KEYS)
     : [];
   const normalized = {
-    ...player,
     lifecycleVersion:PLAYER_LIFECYCLE_VERSION,
     playerStatus,
     contractTeamId:ids.contractTeamId,
@@ -173,6 +177,9 @@ export function normalizePlayerStatus(player) {
     activeLoanAgreement,
     registrationSpells:playerStatusSpells(player.registrationSpells),
     lifecycleTransitionKeys:transitionKeys,
+    inSquad:player.inSquad,
+    wage:player.wage,
+    squadRole:player.squadRole,
   };
 
   // Compatibility projections. These are deliberately derived from canonical
@@ -203,8 +210,8 @@ export function normalizePlayerStatus(player) {
     && player.registeredTeamId === normalized.registeredTeamId
     && player.activeAgreementId === normalized.activeAgreementId
     && JSON.stringify(player.activeLoanAgreement ?? null) === JSON.stringify(normalized.activeLoanAgreement ?? null)
-    && JSON.stringify(player.registrationSpells ?? []) === JSON.stringify(normalized.registrationSpells ?? [])
-    && JSON.stringify(player.lifecycleTransitionKeys ?? []) === JSON.stringify(normalized.lifecycleTransitionKeys ?? [])
+    && player.registrationSpells === normalized.registrationSpells
+    && player.lifecycleTransitionKeys === normalized.lifecycleTransitionKeys
     && player.teamId === normalized.teamId
     && player.isYouth === normalized.isYouth
     && player.youthTeamId === normalized.youthTeamId
@@ -216,7 +223,7 @@ export function normalizePlayerStatus(player) {
     && player.inSquad === normalized.inSquad
     && player.wage === normalized.wage
     && player.squadRole === normalized.squadRole;
-  return unchanged ? player : normalized;
+  return unchanged ? player : { ...player, ...normalized };
 }
 
 export function playerStatusNeedsNormalization(player) {

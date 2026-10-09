@@ -12,7 +12,7 @@ npm run build            # legacy validation path + Vite app
 npm run build:legacy     # src/build.py -> legacy bundle + validate_p0 bridge
 npm run build:app        # Vite -> dist/
 npm run test             # Vitest + UI emoji audit
-npm run check:accents    # all 186 clubs
+npm run check:accents    # all loaded clubs
 npm run lint             # ESLint + eslint-plugin-svelte
 ```
 

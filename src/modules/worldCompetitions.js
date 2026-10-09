@@ -665,11 +665,35 @@ export function pendingWorldCompetitionRecords(worldState) {
   return records;
 }
 
+/** Applied AI records retain football history, not a second projection payload. */
+export function compactAppliedWorldCompetitionRecords(worldState) {
+  let changed = false;
+  const competitions = Object.fromEntries(Object.entries(worldState?.competitions ?? {}).map(([id, comp]) => {
+    let compacted = false;
+    const results = (comp.results ?? []).map(record => {
+      if (record.worldCompetitionVersion !== WORLD_COMPETITION_VERSION
+        || record.projectionsApplied !== true || record.projectionPayloadCompactedVersion >= 1) return record;
+      const next = {
+        ...record,
+        events:(record.events ?? []).filter(event => event.type === 'goal'),
+        fitnessUpdates:[],
+        projectionPayloadCompactedVersion:1,
+      };
+      delete next.homeTactics;
+      delete next.awayTactics;
+      compacted = true;
+      return next;
+    });
+    changed ||= compacted;
+    return [id, compacted ? { ...comp, results } : comp];
+  }));
+  return changed ? { ...worldState, competitions } : worldState;
+}
+
 export function markWorldCompetitionRecordsApplied(worldState, recordIds) {
   const ids = new Set(recordIds);
-  const next = clone(worldState);
-  for (const comp of Object.values(next?.competitions ?? {})) {
-    comp.results = (comp.results ?? []).map(record => ids.has(record.id) ? { ...record, projectionsApplied:true } : record);
-  }
-  return next;
+  const competitions = Object.fromEntries(Object.entries(worldState?.competitions ?? {}).map(([id, comp]) => [
+    id, { ...comp, results:(comp.results ?? []).map(record => ids.has(record.id) ? { ...record, projectionsApplied:true } : record) },
+  ]));
+  return compactAppliedWorldCompetitionRecords({ ...worldState, competitions });
 }

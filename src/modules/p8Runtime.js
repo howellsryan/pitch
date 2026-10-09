@@ -1,4 +1,4 @@
-import { getAllPlayers, getAllStandings, getAllTeams, getFixturesByGW, getManager, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
+import { getAllStandings, getAllTeams, getFixturesByGW, getManager, getPlayer, getPlayersByTeam, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
 import { applyLedgerMovement } from './clubFinance.js';
 import { requireClubEmployment } from './managerEmployment.js';
 import { loanOutPlayer } from './transfers.js';
@@ -31,6 +31,14 @@ export async function ensureP8CareerEvents(saveInput = null) {
 
 function standingForUser(rows, userTeamId) { return rows.find(row => row.teamId === userTeamId) ?? null; }
 
+async function readStoryParticipants(state, userTeamId) {
+  const squad = userTeamId ? await getPlayersByTeam(userTeamId) : [];
+  const included = new Set(squad.map(player => player.id));
+  const referenced = new Set([...state.active, ...state.pendingFollowUps].map(event => event.participantIds?.playerId).filter(Boolean));
+  const extra = await Promise.all([...referenced].filter(id => !included.has(id)).map(id => getPlayer(id)));
+  return [...squad, ...extra.filter(Boolean)];
+}
+
 export async function advanceP8StoryWeek(saveInput = null) {
   let save = await ensureP8CareerEvents(saveInput);
   if (!save) return { save, added:[], expired:[], followUps:[], alreadyProcessed:true };
@@ -38,7 +46,7 @@ export async function advanceP8StoryWeek(saveInput = null) {
   const key = eventWeekKey(save);
   if (state.processedWeekKeys.includes(key)) return { save, added:[], expired:[], followUps:[], alreadyProcessed:true };
   const [team, teams, players, standings, nextFixtures, userManager] = await Promise.all([
-    getTeam(save.userTeamId), getAllTeams(), getAllPlayers(), getAllStandings(), getFixturesByGW(Number(save.currentGameweek ?? 0) + 1), getManager(save.userManagerId),
+    getTeam(save.userTeamId), getAllTeams(), readStoryParticipants(state, save.userTeamId), getAllStandings(), getFixturesByGW(Number(save.currentGameweek ?? 0) + 1), getManager(save.userManagerId),
   ]);
   const standing = standingForUser(standings, save.userTeamId);
   const rivalries = buildRivalries(team, teams, state.rivalries);

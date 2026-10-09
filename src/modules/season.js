@@ -1,4 +1,4 @@
-import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllManagers, getAllPlayers, getAllSeasons, getAllStandings, getAllTeams, getAllTransfers, getManager, getSave, getTeam, putManagersBulk, putPlayersBulk, putSave, putSeasonsBulk, putTeam, putTeamsBulk, replaceAllFixtures, replaceAllStandings, runSeasonRolloverAtomic } from './db.js';
+import { addHonor, addSeason, deletePlayersBulk, getAllHonors, getAllManagers, getAllPlayers, getAllSeasons, getAllStandings, getAllTeams, getAllTransfers, getManager, getPlayersByTeams, getSave, getTeam, putManagersBulk, putPlayersBulk, putSave, putSeasonsBulk, putTeam, putTeamsBulk, replaceAllFixtures, replaceAllStandings, runSeasonRolloverAtomic } from './db.js';
 import { bumpMorale, sortTable } from './standings.js';
 import { CUP_META, buildInitialCupState } from './cups.js';
 import { getCompetitionRules } from './competitionRules.js';
@@ -620,8 +620,9 @@ export function nextJobSecurity(current, met, margin) {
 }
 
 export async function payWeeklyWages() {
-  const [allTeams, allPlayers, save] = await Promise.all([getAllTeams(), getAllPlayers(), getSave()]);
+  const [allTeams, save] = await Promise.all([getAllTeams(), getSave()]);
   if (!save) return;
+  const allPlayers = await getPlayersByTeams(allTeams.map(team => team.id));
   const billByTeam = new Map();
   for (const player of allPlayers) {
     if (!player.teamId || player.onLoan) continue;

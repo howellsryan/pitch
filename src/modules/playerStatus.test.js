@@ -131,4 +131,27 @@ describe('P9 canonical player lifecycle', () => {
     expect(normalized.contractTeamId).toBe('buyer');
     expect(normalized.registeredTeamId).toBe('buyer');
   });
+
+  it('keeps valid registration evidence and sanitizes malformed bounded histories', () => {
+    const canonical = normalizePlayerStatus(player());
+    const spells = Array.from({ length:30 }, (_, i) => ({ id:`s${i}`, startStats:{ goals:i }, endSeason:'2024/25' }));
+    const input = { ...canonical, registrationSpells:[null, {}, ...spells], lifecycleTransitionKeys:[null, ...spells.map(s => s.id)] };
+    const result = normalizePlayerStatus(input);
+    expect(result.registrationSpells.map(s => s.id)).toEqual(spells.slice(-24).map(s => s.id));
+    expect(result.registrationSpells.at(-1).startStats).toEqual({ goals:29 });
+    expect(result.lifecycleTransitionKeys).toEqual(spells.slice(-24).map(s => s.id));
+    expect(input.registrationSpells).toHaveLength(32);
+    expect(normalizePlayerStatus(result)).toBe(result);
+    expect(isSeniorEligiblePlayer(result, 'parent')).toBe(true);
+  });
+
+  it('restores missing history arrays on otherwise canonical imported rows', () => {
+    const input = normalizePlayerStatus(player());
+    delete input.registrationSpells;
+    delete input.lifecycleTransitionKeys;
+    const result = normalizePlayerStatus(input);
+    expect(result.registrationSpells).toEqual([]);
+    expect(result.lifecycleTransitionKeys).toEqual([]);
+    expect(() => transitionPlayerStatus(result, { status:'free_agent', idempotencyKey:'release' })).not.toThrow();
+  });
 });

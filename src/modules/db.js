@@ -307,6 +307,14 @@ export const putTeamsBulk = ts => bulkPut('teams', ts);
 export const getAllPlayers = () => req2p(store('players').getAll());
 export const getPlayer = id => req2p(store('players').get(id));
 export const getPlayersByTeam = tid => req2p(store('players').index('by_team').getAll(tid));
+/** One indexed snapshot of the requested clubs, excluding unrelated free agents. */
+export async function getPlayersByTeams(teamIds) {
+  const ids = [...new Set(teamIds)];
+  if (!ids.length) return [];
+  const index = store('players').index('by_team');
+  const squads = await Promise.all(ids.map(id => req2p(index.getAll(id))));
+  return squads.flat();
+}
 export const putPlayer = p => req2p(store('players','readwrite').put(p));
 export const putPlayersBulk = ps => bulkPut('players', ps);
 export function deletePlayersBulk(ids) {

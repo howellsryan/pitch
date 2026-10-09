@@ -1,5 +1,5 @@
 import { buildKnockoutRoundDraw, getCompetitionRules, isTwoLegRound } from './competitionRules.js';
-import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getSave, putPlayersBulk } from './db.js';
+import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getPlayersByTeams, getSave, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
 import { buildPersonalStatePatches } from './playerModel.js';
 import { mutateRow, sortTable } from './standings.js';
@@ -110,6 +110,10 @@ function nonLeagueParticipantTeamIds(results) {
     if (result.awayTeamId) ids.add(result.awayTeamId);
   }
   return ids;
+}
+
+async function readNonLeagueParticipants(results) {
+  return getPlayersByTeams([...nonLeagueParticipantTeamIds(results)]);
 }
 
 function shallowRowChanged(before, after) {
@@ -374,7 +378,7 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
 export async function applyPendingWorldCompetitionProjections(save) {
   const pending = pendingWorldCompetitionRecords(save?.worldCompetitions);
   if (!pending.length) return { save, results:[] };
-  const players = await getAllPlayers();
+  const players = await readNonLeagueParticipants(pending);
   const projectedPlayers = projectNonLeaguePlayers(players, pending);
   const weekKeys = new Set(pending.map(record => `${record.season ?? ''}:${record.gameweek ?? ''}`));
   const singleWeek = weekKeys.size === 1 ? pending[0] : null;
@@ -398,6 +402,6 @@ export async function applyPendingWorldCompetitionProjections(save) {
 /** Cup matches use the same player-stat projection but have no league table row. */
 export async function applyNonLeaguePlayerResults(results) {
   if (!results.length) return;
-  const players = await getAllPlayers();
+  const players = await readNonLeagueParticipants(results);
   await putPlayersBulk(projectNonLeaguePlayers(players, results));
 }
