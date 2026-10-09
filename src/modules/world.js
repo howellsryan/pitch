@@ -122,6 +122,20 @@ export function resultFromCanonicalLeagueRecord(fixture) {
   };
 }
 
+/** Keep managed reports intact; applied AI exposure no longer needs replay data. */
+export function compactAppliedLeagueRecord(fixture, userTeamId = null) {
+  if (fixture?.worldRecordVersion !== WORLD_RECORD_VERSION || fixture.played !== true
+    || fixture.projectionsApplied !== true || fixture.projectionPayloadCompactedVersion >= 1
+    || fixture.homeTeamId === userTeamId || fixture.awayTeamId === userTeamId
+    || fixture.tacticalAnalysis) return fixture;
+  return {
+    ...fixture,
+    events:(fixture.events ?? []).filter(event => event.type === 'goal'),
+    fitnessUpdates:[],
+    projectionPayloadCompactedVersion:1,
+  };
+}
+
 function participantsForResult(result) {
   const starters = new Map();
   for (const update of result.fitnessUpdates ?? []) {
@@ -344,6 +358,24 @@ export function compactPlayerRegistrationSpells(player, season) {
   });
 }
 
+/** Idle free agents have no seasonal history to duplicate; retained rows stay full. */
+export function omitIdleUnattachedHistory(summary) {
+  if (!Array.isArray(summary?.playerHistory)) return summary;
+  const hasTotals = row => ['appearances','starts','minutes','goals','assists','cleanSheets','ratingTotal','ratingApps','averageRating','yellowCards','redCards']
+    .some(key => Number(row?.[key] ?? 0) !== 0);
+  const playerHistory = summary.playerHistory.filter(row => {
+    if (!row || !Array.isArray(row.clubs) || !row.clubs.length || row.clubs.some(id => id !== 'free_agents')) return true;
+    if (hasTotals(row) || hasTotals(row.academy) || (row.transfers ?? []).length
+      || (row.individualAwards ?? []).length || (row.majorInjuries ?? []).length || row.majorInjuryCount) return true;
+    if (row.spells != null && !Array.isArray(row.spells)) return true;
+    return (row.spells ?? []).some(spell => !spell || spell.status !== 'free_agent'
+      || spell.registeredTeamId && spell.registeredTeamId !== 'free_agents'
+      || spell.contractTeamId && spell.contractTeamId !== 'free_agents'
+      || hasTotals(spell.senior) || hasTotals(spell.academy));
+  });
+  return playerHistory.length === summary.playerHistory.length ? summary : { ...summary, playerHistory };
+}
+
 /** Recent world totals and lifelong manager/leader records keep archives bounded. */
 export function compactHistoricalSeason(summary, currentSeasonStartYear = null) {
   const archiveYear = Number.parseInt(summary?.season, 10);
@@ -477,7 +509,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
     save.cups ?? {},
   ));
 
-  return {
+  return omitIdleUnattachedHistory({
     version:WORLD_RECORD_VERSION,
     season:save.season,
     playerHistory,
@@ -485,7 +517,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
     competitionHistory,
     awards,
     leagueChanges:leagueChanges ?? null,
-  };
+  });
 }
 
 export function groupStandingsByLeague(standings) {

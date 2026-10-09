@@ -76,13 +76,14 @@ async function request(path, options = {}) {
 
 export const api = {
   me: () => request('/api/auth/me'),
-  getSave: (slotId = 'legacy') => request(`/api/save?slotId=${encodeURIComponent(slotId)}`),
+  getSave: (slotId = 'legacy') => request(`/api/save?slotId=${encodeURIComponent(slotId)}`, { timeoutMs:60_000 }),
   listSaves: () => request('/api/save?list=1'),
   deleteSave: (slotId = 'legacy') => request(`/api/save?slotId=${encodeURIComponent(slotId)}`, {
     method: 'DELETE',
   }),
   putSave: (slotId, save_blob, metadata = null) => request('/api/save', {
     method: 'PUT',
+    timeoutMs:60_000,
     body: JSON.stringify({ slot_id: slotId, save_blob, metadata }),
   }),
 };

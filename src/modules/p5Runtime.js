@@ -1,5 +1,5 @@
 import { requireClubEmployment } from './managerEmployment.js';
-import { getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
+import { getAllPlayers, getAllTeams, getPlayer, getPlayersByTeam, getPlayersByTeams, getSave, getTeam, putPlayer, putPlayersBulk, putSave, putTeam, putTeamsBulk } from './db.js';
 import { applyLedgerMovement } from './clubFinance.js';
 import { medicalRecoveryMultiplier, scoutingCapacityBonus, trainingEfficiencyMultiplier } from './facilities.js';
 import { buildSquadNeeds } from './squadPlanning.js';
@@ -12,6 +12,7 @@ import {
   createScoutingState,
   normalizeScoutingState,
   scoutingNeedsBackfill,
+  scoutingAssignmentIsCurrent,
 } from './scouting.js';
 import {
   buildCoachCandidates,
@@ -121,6 +122,16 @@ export function refreshPlanContext(player, team, weekKey) {
  * before P4 candidate activity. The scouting processed key and per-team staff
  * payment key make retries no-ops even if a browser reload interrupts closeout.
  */
+export async function readP5WeekPlayers(save, teams) {
+  const key = p5WeekKey(save);
+  const active = normalizeScoutingState(save.scouting).assignments.some(assignment =>
+    assignment.status === 'active' && scoutingAssignmentIsCurrent(assignment, save.season) && assignment.lastAdvancedKey !== key);
+  if (!active) return save.userTeamId ? getPlayersByTeam(save.userTeamId) : [];
+  // Scouting excludes unattached players. Preserve primary-key order for any
+  // tied candidate rankings while keeping its complete registered-player pool.
+  return (await getPlayersByTeams(teams.map(team => team.id))).sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
 export async function advanceP5CareerDepthWeek(saveInput = null) {
   let save = saveInput ?? await getSave();
   if (!save) return { save, reportsAdded:[], needs:[], alreadyProcessed:true };
@@ -128,12 +139,12 @@ export async function advanceP5CareerDepthWeek(saveInput = null) {
   const weekKey = p5WeekKey(save);
   const scouting = normalizeScoutingState(save.scouting);
   if (scouting.processedWeekKeys.includes(weekKey)) {
-    const [team, players] = await Promise.all([getTeam(save.userTeamId), getAllPlayers()]);
+    const [team, players] = await Promise.all([getTeam(save.userTeamId), save.userTeamId ? getPlayersByTeam(save.userTeamId) : []]);
     return { save, reportsAdded:[], needs:team ? buildSquadNeeds(team, players, { season:save.season, transferMarket:save.transferMarket }) : [], alreadyProcessed:true };
   }
 
   let teams = await getAllTeams();
-  const players = await getAllPlayers();
+  const players = await readP5WeekPlayers(save, teams);
   const teamPatches = [];
   for (const rawTeam of teams) {
     let team = coachingNeedsBackfill(rawTeam) ? withDefaultCoaching(rawTeam) : rawTeam;

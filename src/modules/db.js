@@ -707,11 +707,11 @@ async function _snapshotSlot(slotId) {
   const isActive = slotId === getActiveSlotId();
   const db = isActive ? await openDB() : await _openNamedDB(careerSlotDbName(slotId));
   try {
-    const snapshot = {};
-    for (const name of STORE_NAMES) {
-      snapshot[name] = await req2p(db.transaction(name, 'readonly').objectStore(name).getAll());
-    }
-    return snapshot;
+    // Export/cloud work can overlap the next match or rollover. Queue every
+    // store read in one transaction so the envelope represents one checkpoint.
+    const tx = db.transaction(STORE_NAMES, 'readonly');
+    const rows = await Promise.all(STORE_NAMES.map(name => req2p(tx.objectStore(name).getAll())));
+    return Object.fromEntries(STORE_NAMES.map((name, index) => [name, rows[index]]));
   } finally {
     if (!isActive) {
       try { db.close(); } catch {}

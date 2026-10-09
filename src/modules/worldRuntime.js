@@ -6,6 +6,7 @@ import { mutateRow, sortTable } from './standings.js';
 import {
   WORLD_RECORD_VERSION,
   applyWorldPlayerStats,
+  compactAppliedLeagueRecord,
   resultFromCanonicalLeagueRecord,
   tickPlayerSuspensions,
 } from './world.js';
@@ -361,7 +362,7 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
       { deferTeamIds:deferredTeams },
     )
     : { players:projected.players, changedPlayers:projected.changedPlayers };
-  const appliedFixtures = pending.map(fixture => ({ ...fixture, projectionsApplied:true }));
+  const appliedFixtures = pending.map(fixture => compactAppliedLeagueRecord({ ...fixture, projectionsApplied:true }, save?.userTeamId));
   // Keep fixture apply-once flags, standings and every changed/P3-settled player
   // in one transaction, but avoid rewriting thousands of byte-identical rows.
   await commitWorldProjection(appliedFixtures, projected.standings, withPersonalState.changedPlayers);

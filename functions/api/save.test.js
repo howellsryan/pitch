@@ -58,8 +58,8 @@ describe('DELETE /api/save', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok:true, slotId:'career_alpha', deleted:true });
     expect(statements).toHaveLength(1);
-    expect(statements[0].sql).toContain('DELETE FROM saves WHERE user_id = ? AND slot_id = ?');
-    expect(statements[0].bindings).toEqual([42, 'career_alpha']);
+    expect(statements[0].sql).toContain('DELETE FROM saves WHERE user_id = ? AND (slot_id = ?');
+    expect(statements[0].bindings).toEqual([42, 'career_alpha', 'career_alpha.chunk.', 'career_alpha.chunk.']);
   });
 
   it('rejects an invalid slot without touching D1', async () => {

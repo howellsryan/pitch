@@ -43,7 +43,7 @@ import { normalizePlayerStatus } from './playerStatus.js';
 import { generateCohort } from './youthAcademy.js';
 import { BOARD_CONTRACT_VERSION, boardContractNeedsBackfill, buildBoardContractBackfill, generateBoardContract, generateBoardObjective } from './boardContract.js';
 import { FACILITIES_VERSION, buildFacilitiesBackfill, createFacilities, facilitiesNeedBackfill } from './facilities.js';
-import { buildWorldBackfill, buildWorldLeagueSeason, compactHistoricalSeason, groupTeamsByLeague } from './world.js';
+import { buildWorldBackfill, buildWorldLeagueSeason, compactAppliedLeagueRecord, compactHistoricalSeason, groupTeamsByLeague, omitIdleUnattachedHistory } from './world.js';
 import { buildWorldCompetitionState, compactAppliedWorldCompetitionRecords } from './worldCompetitions.js';
 import { TACTICS_PLAN_VERSION, createManagerDNA, createUserTacticalPlan } from './tactics.js';
 import { buildTransferMarketBackfill, createEmptyTransferMarket, transferMarketNeedsBackfill } from './transferMarket.js';
@@ -125,6 +125,10 @@ export async function ensureLivingWorld(save) {
   const patch = buildWorldBackfill(teams, fixtures, standings, seasonStartYear(save));
   if (patch.fixturesToAdd.length) await putFixturesBulk(patch.fixturesToAdd);
   if (patch.standingsToAdd.length) await putStandingsBulk(patch.standingsToAdd);
+
+  const compactedFixtures = fixtures.map(fixture => compactAppliedLeagueRecord(fixture, save.userTeamId))
+    .filter((fixture, index) => fixture !== fixtures[index]);
+  if (compactedFixtures.length) await putFixturesBulk(compactedFixtures);
 
   const playerPatches = players
     .filter(player => player.appearances == null || player.minutes == null || player.yellowCards == null || player.ratingApps == null)
@@ -373,16 +377,16 @@ export async function ensureP8CareerEventsSave(save) {
 
 /** Backfill older imported careers without changing their active football world. */
 export async function ensureSeasonHistoryCompaction(save) {
-  if (!save || save.seasonHistoryCompactionVersion === 2) return save;
+  if (!save || save.seasonHistoryCompactionVersion >= 3) return save;
   return runCareerTransitionAtomic(async () => {
     const current = await getSave();
-    if (!current || current.seasonHistoryCompactionVersion === 2) return current;
+    if (!current || current.seasonHistoryCompactionVersion >= 3) return current;
     const records = await getAllSeasons();
     const latestYear = Math.max(...records.map(record => Number.parseInt(record.season, 10)).filter(Number.isFinite));
-    const patches = records.map(record => Number.parseInt(record.season, 10) < latestYear ? compactHistoricalSeason(record, seasonStartYear(current)) : record)
+    const patches = records.map(record => omitIdleUnattachedHistory(Number.parseInt(record.season, 10) < latestYear ? compactHistoricalSeason(record, seasonStartYear(current)) : record))
       .filter((record, index) => record !== records[index]);
     if (patches.length) await putSeasonsBulk(patches);
-    const migrated = { ...current, seasonHistoryCompactionVersion:2 };
+    const migrated = { ...current, seasonHistoryCompactionVersion:3 };
     await putSave(migrated);
     return migrated;
   });

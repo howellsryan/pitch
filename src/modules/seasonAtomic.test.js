@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { _db, _fnv1a, _PITCH_MAGIC, _PITCH_SALT, _restoreFromEnvelope, bulkPut, getAllPlayers, getAllSeasons, getManager, getSave, getTeam, openDB, putSave, runSeasonRolloverAtomic } from './db.js';
+import { _db, _fnv1a, _PITCH_MAGIC, _PITCH_SALT, _restoreFromEnvelope, buildSaveEnvelope, bulkPut, getAllPlayers, getAllSeasons, getManager, getSave, getTeam, openDB, putSave, runSeasonRolloverAtomic } from './db.js';
 import { resignAsManager, tryCompletePendingUserHandover } from './managerUserActions.js';
 import { ensureSeasonHistoryCompaction } from './save.js';
 
@@ -7,10 +7,12 @@ import { ensureSeasonHistoryCompaction } from './save.js';
 function transactionalDatabase() {
   const rows = new Map();
   const database = {
+    rows,
     objectStoreNames:{ contains:() => true },
     close() {},
     transaction(names, mode) {
       const working = globalThis.structuredClone(rows);
+      if (mode === 'readonly') database.afterReadSnapshot?.();
       let pending = 0;
       let ended = false;
       const tx = {
@@ -160,9 +162,24 @@ describe('atomic season rollover', () => {
     _db.failWritesTo = null;
     const result = await ensureSeasonHistoryCompaction(original);
     const records = await getAllSeasons();
-    expect(result.seasonHistoryCompactionVersion).toBe(2);
+    expect(result.seasonHistoryCompactionVersion).toBe(3);
     expect(records[0].playerHistory[0]).toMatchObject({ playerId:'opponent', appearances:10 });
     expect(records[0].playerHistory[0].spells).toBeUndefined();
     expect(records[1].playerHistory[0].spells).toHaveLength(1);
+  });
+
+  it('exports one coherent snapshot while another career checkpoint commits', async () => {
+    _db.afterReadSnapshot = () => {
+      _db.afterReadSnapshot = null;
+      // Model an external committed checkpoint after the read snapshot starts.
+      _db.rows.get('players').set('captain', { id:'captain', age:29 });
+      _db.rows.get('save').set('active', { id:'active', season:'2027/28', currentGameweek:1 });
+    };
+    const { envelope } = await buildSaveEnvelope();
+    const { snapshot } = JSON.parse(JSON.parse(envelope).d);
+    expect(snapshot.save[0].season).toBe('2026/27');
+    expect(snapshot.players[0].age).toBe(28);
+    expect((await getSave()).season).toBe('2027/28');
+    expect((await getAllPlayers())[0].age).toBe(29);
   });
 });

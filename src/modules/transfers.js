@@ -1,5 +1,5 @@
 import { canManageClub, requireClubEmployment } from './managerEmployment.js';
-import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getManager, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam, settleTransferMarketDealAtomic } from './db.js';
+import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getManager, getPlayer, getPlayersByTeams, getSave, getTeam, putPlayer, putSave, putTeam, settleTransferMarketDealAtomic } from './db.js';
 import { baselineLevel, currentEffectiveLevel } from './playerModel.js';
 import { patchSave } from './save.js';
 import { bumpMorale } from './standings.js';
@@ -1263,6 +1263,17 @@ export function delegateFormerClubMarketDeals(marketInput, formerClubId) {
   });
 }
 
+export async function readMarketWeekPlayers(save, market) {
+  if (isTransferWindowOpen(save).open) return getAllPlayers();
+  const active = market.activeDeals.filter(deal => !isTerminalDeal(deal));
+  const teamIds = [...new Set(active.flatMap(deal => [deal.buyerTeamId, deal.sellerTeamId]).filter(id => id && id !== 'free_agents'))];
+  const players = await getPlayersByTeams(teamIds);
+  const knownIds = new Set(players.map(player => String(player.id)));
+  const missingIds = [...new Set(active.map(deal => deal.playerId).filter(id => id != null && !knownIds.has(String(id))))];
+  const targets = await Promise.all(missingIds.map(getPlayer));
+  return [...players, ...targets.filter(Boolean)];
+}
+
 export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput = null) {
   const save = saveInput ?? await getSave();
   if (!save) return { newOffers:[], playerResponses:[], settled:[] };
@@ -1275,7 +1286,7 @@ export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput =
   let playerResponses = [];
   if (!alreadyProcessed) {
     if (!managesClub) market = delegateFormerClubMarketDeals(market, save.userTeamId);
-    const [teams, players] = await Promise.all([getAllTeams(), getAllPlayers()]);
+    const [teams, players] = await Promise.all([getAllTeams(), readMarketWeekPlayers(save, market)]);
     const teamById = new Map(teams.map(team => [team.id, team]));
     const playerById = new Map(players.map(player => [String(player.id), player]));
     const squads = new Map();
