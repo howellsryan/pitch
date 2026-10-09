@@ -14,6 +14,8 @@ provide a promotion challenge with tighter finances.
 waiting in your inbox. **Squad** combines the team sheet with tactics: select
 the XI, name a bench, choose a formation and review player availability.
 Automatic selection remains available if you do not want to name every seat.
+On mobile, formation, mentality, team plan and Manager DNA share a compact row
+above the XI pitch. Tap Manager DNA to see the style developing from your matches.
 
 **Play** opens team news. An injured or suspended player in a manually selected
 XI needs attention before kickoff. Choose **Sim Instantly** for a result or
@@ -41,6 +43,8 @@ Scouting intentionally limits what you know about outside players. Reports
 become more precise with confidence and dedicated assignments. Recruitment
 filters and sorting use those observed estimates, so a fogged ability figure
 is meaningful.
+Market player cards lead with the player's position; nationality, club and league
+sit beneath the name, with the same position colours used by Squad.
 
 Transfer offers support an upfront fee and an optional deferred installment;
 the fee structure schedules actual payments. Personal terms support wage,
