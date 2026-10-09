@@ -8,7 +8,7 @@ const PLAYER_STORAGE_WORDS_V1 = Object.freeze(["CAM", "CB", "CDM", "CF", "CM", "
 const PLAYER_STORAGE_WORDS_V2 = Object.freeze(["id","contractTeamId","registeredTeamId","minutes","appearances","ratingApps","ratingTotal","starts","averageRating","assists","season","goals","cleanSheets","peakAge","status","endGameweek","endSeason","reason","startAcademyEvidence","startGameweek","startSeason","startStats","lastPlayedWeekKey","lastRating","lastWeekKey","version","name","teamId","activeAgreementId","activeLoanAgreement","age","attack","attributeProfile","defence","defending","developmentAppearances","developmentMinutes","developmentProgress","developmentSettledKey","dribbling","fitness","form","goalkeeping","growthPoints","growthProfile","individualMorale","injured","inSquad","isYouth","lastMatchRating","lifecycleTransitionKeys","lifecycleVersion","loanedFrom","loanedTo","loanOriginalTeamId","loanRecallable","midfield","onLoan","pace","passing","personalStateAppearances","personalStateMinutes","personalStateSettledKey","physical","playerStatus","playingTimeAgreement","position","positionConversion","positionSuitability","potentialKnowledge","potentialRating","redCards","registrationSpells","rehabilitation","rehabilitationMinutes","seasonMajorInjuries","sharpness","shooting","signedThisSeason","squadRole","squadRoleSource","squadRoleTeamId","suspended","suspensionGWsLeft","traits","transferListed","value","wage","yellowCards","youthTeamId","contractExpiry","developmentBoostedKey","injuryGWsLeft","injuryGWsTotal","injuryName","injuryType","isWonderkid","academyEvidence","endAcademyEvidence","endReason","endStats","injuryRecoverySettledKey","earlyReturn","lastSettledKey","matchReadiness","medicallyAvailable","reinjuryRisk","severity","sourceInjuryName","sourceInjuryType","sourceInjuryWeeks","CB","ST","releaseClause","loanSeason","GK","CM","generated","generatedLeague","generatedSeason","RB","CAM","CDM","LM","RM","LB","CF","RW","LW","nationality","appeared","key","gameweek","weeks","appearanceShare","deliveryScore","history","lastEvaluatedKey","minuteShare","role","scope","facilityRecoveryMultiplier"]);
 const PLAYER_STORAGE_KEYS_V2 = new Map(PLAYER_STORAGE_WORDS_V2.map((key, index) => [key, index]));
 
-export function encodeStoredPlayer(player) {
+export function encodeStorageGraph(input) {
   const seen = new WeakMap();
   const pack = value => {
     if (!value || typeof value !== 'object') return value;
@@ -37,24 +37,25 @@ export function encodeStoredPlayer(player) {
     }
     return packed;
   };
-  return { id:player.id, teamId:player.teamId, __pitchPlayerStorage:2, payload:pack(player) };
+  return pack(input);
 }
 
-export function decodeStoredPlayer(row) {
-  if (!row || !Object.hasOwn(row, '__pitchPlayerStorage')) return row;
-  if (![1,2].includes(row.__pitchPlayerStorage)) throw new Error('This career uses a newer player storage format. Update Pitch before continuing.');
-  const rootTags = row.__pitchPlayerStorage === 1 ? [0,2] : [5,6];
-  if (!Array.isArray(row.payload) || !rootTags.includes(row.payload[0])) throw new Error('Invalid stored player data. Restore a file backup.');
+export function decodeStorageGraph(payload, version = 2) {
+  if (![1,2].includes(version)) throw new Error('This career uses a newer storage format. Update Pitch before continuing.');
+  const rootTags = version === 1 ? [0,2] : [5,6];
+  if (!Array.isArray(payload) || !rootTags.includes(payload[0])) throw new Error('Invalid stored player data. Restore a file backup.');
   const seen = new WeakMap();
   const unpack = packed => {
-    if (!Array.isArray(packed)) return packed;
     const previous = seen.get(packed);
     if (previous) return previous;
     const tag = packed[0];
     if (tag === 3) {
       const value = new Array(packed.length - 1);
       seen.set(packed, value);
-      for (let index=1; index<packed.length; index++) value[index-1] = unpack(packed[index]);
+      for (let index=1; index<packed.length; index++) {
+        const child = packed[index];
+        value[index-1] = Array.isArray(child) ? unpack(child) : child;
+      }
       return value;
     }
     if (tag === 5 || tag === 6) {
@@ -67,7 +68,8 @@ export function decodeStoredPlayer(row) {
         const code = codes.charCodeAt(index);
         const key = code === 255 ? unknown?.[escaped++] : PLAYER_STORAGE_WORDS_V2[code - 1];
         if (typeof key !== 'string') throw new Error('Invalid stored player field. Update Pitch or restore a file backup.');
-        const child = unpack(packed[index+3]);
+        const stored = packed[index+3];
+        const child = Array.isArray(stored) ? unpack(stored) : stored;
         if (key === '__proto__') Object.defineProperty(value, key, { value:child, enumerable:true, writable:true, configurable:true });
         else value[key] = child;
       }
@@ -85,13 +87,24 @@ export function decodeStoredPlayer(row) {
       const code = packed[index];
       const key = tag === 1 ? String(code) : typeof code === 'number' ? PLAYER_STORAGE_WORDS_V1[code] : code;
       if (typeof key !== 'string') throw new Error('Invalid stored player field. Update Pitch or restore a file backup.');
-      const child = unpack(packed[index+1]);
+      const stored = packed[index+1];
+      const child = Array.isArray(stored) ? unpack(stored) : stored;
       if (key === '__proto__') Object.defineProperty(value, key, { value:child, enumerable:true, writable:true, configurable:true });
       else value[key] = child;
     }
     return value;
   };
-  const player = unpack(row.payload);
-  if (player?.id !== row.id || player?.teamId !== row.teamId) throw new Error('Stored player index fields do not match. Restore a file backup.');
+  return unpack(payload);
+}
+
+export function encodeStoredPlayer(player) {
+  return { id:player.id, teamId:player.teamId, i:Number(Boolean(player.injured)), __pitchPlayerStorage:2, payload:encodeStorageGraph(player) };
+}
+
+export function decodeStoredPlayer(row) {
+  if (!row || !Object.hasOwn(row, '__pitchPlayerStorage')) return row;
+  const player = decodeStorageGraph(row.payload, row.__pitchPlayerStorage);
+  if (player?.id !== row.id || player?.teamId !== row.teamId
+    || Object.hasOwn(row, 'i') && row.i !== Number(Boolean(player.injured))) throw new Error('Stored player index fields do not match. Restore a file backup.');
   return player;
 }

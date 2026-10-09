@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getPlayersByTeams, openDB } from './db.js';
+import { getInjuredPlayers, getPlayersByTeams, openDB } from './db.js';
+import { encodeStoredPlayer } from './playerStorageCodec.js';
 
 let activeDb;
 afterEach(() => { activeDb?.onversionchange?.(); activeDb = null; vi.unstubAllGlobals(); });
@@ -8,12 +9,12 @@ async function setup(players, failTeam = null) {
   const transactions = [], queried = [];
   activeDb = { close() {}, transaction(name, mode) {
     transactions.push({ name, mode });
-    return { objectStore:() => ({ index:() => ({ getAll(teamId) {
+    return { objectStore:() => ({ index:indexName => ({ getAll(teamId) {
       queried.push(teamId);
       const request = {};
       queueMicrotask(() => {
         if (teamId === failTeam) { request.error = new Error('read failed'); request.onerror?.(); }
-        else { request.result = structuredClone(players.filter(player => player.teamId === teamId).sort((a,b) => a.id.localeCompare(b.id))); request.onsuccess?.(); }
+        else { request.result = structuredClone(players.filter(player => indexName === 'by_injury' ? player.i === teamId : player.teamId === teamId).sort((a,b) => a.id.localeCompare(b.id))); request.onsuccess?.(); }
       });
       return request;
     } }) }) };
@@ -45,5 +46,12 @@ describe('indexed club player snapshots', () => {
   it('rejects an incomplete snapshot when any requested club read fails', async () => {
     await setup([{ id:'a', teamId:'home' }], 'away');
     await expect(getPlayersByTeams(['home','away'])).rejects.toThrow('read failed');
+  });
+  it('reads injured club and unattached players without loading healthy rows', async () => {
+    const players = [{ id:'a', teamId:'home', injured:true }, { id:'b', teamId:'free_agents', injured:true }, { id:'healthy', teamId:'free_agents', injured:false }];
+    const { queried, transactions } = await setup(players.map(encodeStoredPlayer));
+    expect(await getInjuredPlayers()).toEqual(players.slice(0,2));
+    expect(queried).toEqual([1]);
+    expect(transactions).toEqual([{ name:'players', mode:'readonly' }]);
   });
 });

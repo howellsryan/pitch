@@ -1,4 +1,4 @@
-import { commitMatchEventAtomic, getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getPlayersByTeams, getSave, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
+import { commitMatchEventAtomic, getAllFixtures, getAllPlayers, getAllTeams, getFixturesByGW, getInjuredPlayers, getManager, getPlayersByTeam, getPlayersByTeams, getSave, putFixturesBulk, putPlayersBulk, putSave } from './db.js';
 import { simulateMatch } from './matchEngine.js';
 import { applyManagerDNAResult, decorateManagedPlayers, decorateManagedTeam } from './managerTactics.js';
 import { canManageClub, requireClubEmployment } from './managerEmployment.js';
@@ -929,7 +929,7 @@ export function settleInjuryRecovery(allPlayers, save) {
 
 export async function processInjuryRecovery() {
   if (typeof tickInjuryRecovery !== 'function') return [];
-  const allPlayers = await getAllPlayers();
+  const allPlayers = await getInjuredPlayers();
   const save = await getSave();
   const { rows, recovered } = settleInjuryRecovery(allPlayers, save);
   if (rows.length) await putPlayersBulk(rows);

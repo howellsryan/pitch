@@ -40,7 +40,14 @@ async function setup(player, type = 'free_agent') {
       };
       return {
         get:key => request(() => globalThis.structuredClone(working[name].get(key))),
-        getAll:() => request(() => globalThis.structuredClone([...working[name].values()])),
+        getAll:() => {
+          if (name === 'players') throw new Error('Settlement must not read unrelated world players');
+          return request(() => globalThis.structuredClone([...working[name].values()]));
+        },
+        index:indexName => ({ getAll:teamId => {
+          if (name !== 'players' || indexName !== 'by_team') throw new Error('Unexpected settlement index');
+          return request(() => globalThis.structuredClone([...working.players.values()].filter(row => row.teamId === teamId)));
+        } }),
         put:row => request(() => working[name].set(row.id, globalThis.structuredClone(row))),
         add:row => request(() => working[name].set(working[name].size + 1, globalThis.structuredClone(row))),
       };
@@ -102,5 +109,34 @@ describe('transfer settlement ownership boundaries', () => {
     expect(rows.players.get('borrowed')).toMatchObject({ playerStatus:'loan', contractTeamId:'parent', registeredTeamId:'buyer' });
     expect(rows.teams.get('buyer').finance.cash).toBe(10000);
     expect(rows.transfers.size).toBe(0);
+  });
+  it('renews a club’s only goalkeeper without treating him as a departure', async () => {
+    const rows = await setup(normalizePlayerStatus({ id:'keeper', teamId:'buyer', position:'GK' }), 'renewal');
+    expect((await settleTransferMarketDealAtomic('deal')).success).toBe(true);
+    expect(decodeStoredPlayer(rows.players.get('keeper'))).toMatchObject({ teamId:'buyer', contractTeamId:'buyer', position:'GK' });
+  });
+  it('keeps numeric legacy player IDs reachable from string deal references', async () => {
+    const rows = await setup(normalizePlayerStatus({ id:7, teamId:'free_agents', position:'ST' }));
+    rows.save.get('active').transferMarket.activeDeals[0].playerId = '7';
+    expect((await settleTransferMarketDealAtomic('deal')).success).toBe(true);
+    expect(decodeStoredPlayer(rows.players.get(7)).id).toBe(7);
+  });
+  it('rejects a departure that leaves the seller without its only goalkeeper', async () => {
+    const rows = await setup(normalizePlayerStatus({ id:'keeper', teamId:'seller', position:'GK' }), 'transfer');
+    rows.teams.set('seller', { id:'seller', budget:10000, finance:createClubFinance(10000) });
+    rows.save.get('active').transferMarket.activeDeals[0].sellerTeamId = 'seller';
+    for (let index=0; index<11; index++) rows.players.set(`outfield-${index}`, normalizePlayerStatus({ id:`outfield-${index}`, teamId:'seller', position:'CM' }));
+    expect(await settleTransferMarketDealAtomic('deal')).toMatchObject({ success:false, error:'seller_no_goalkeeper' });
+    expect(rows.teams.get('buyer').finance.cash).toBe(10000);
+    expect(rows.players.get('keeper').teamId).toBe('seller');
+  });
+  it('allows a loan-back that keeps the seller’s existing eleven and keeper registered', async () => {
+    const rows = await setup(normalizePlayerStatus({ id:'keeper', teamId:'seller', position:'GK' }), 'transfer');
+    rows.teams.set('seller', { id:'seller', budget:10000, finance:createClubFinance(10000) });
+    const deal = rows.save.get('active').transferMarket.activeDeals[0];
+    deal.sellerTeamId = 'seller';deal.terms.fee.loanBack = true;
+    for (let index=0; index<10; index++) rows.players.set(`outfield-${index}`, normalizePlayerStatus({ id:`outfield-${index}`, teamId:'seller', position:'CM' }));
+    expect((await settleTransferMarketDealAtomic('deal')).success).toBe(true);
+    expect(decodeStoredPlayer(rows.players.get('keeper'))).toMatchObject({ playerStatus:'loan', contractTeamId:'buyer', registeredTeamId:'seller', teamId:'seller' });
   });
 });

@@ -11,8 +11,9 @@ import { applyLedgerMovement, availableFunds, scheduleObligation } from './clubF
 import { buildSettledMarketPlayer } from './transferMarket.js';
 import { isFreeAgentPlayer, isLoanPlayer, compactPlayerHistoryPayload, transitionPlayerStatus } from './playerStatus.js';
 import { decodeStoredPlayer, encodeStoredPlayer } from './playerStorageCodec.js';
+import { decodeStoredSeason, encodeStoredSeason } from './seasonStorageCodec.js';
 export const DB_NAME = 'pitch_fc';
-export const DB_VERSION = 6;
+export const DB_VERSION = 8;
 export const LEGACY_SLOT_ID = 'legacy';
 export const SAVE_SCHEMA_VERSION = 2;
 export const CAREER_SLOT_REGISTRY_VERSION = 1;
@@ -99,6 +100,8 @@ function _upgradeSchema(db, transaction, oldVersion = 0) {
     const ps = db.createObjectStore('players', { keyPath:'id' });
     ps.createIndex('by_team', 'teamId', { unique:false });
   }
+  const players = transaction.objectStore('players');
+  if (!players.indexNames.contains('by_injury')) players.createIndex('by_injury', 'i', { unique:false });
   if (!db.objectStoreNames.contains('fixtures')) {
     const fs = db.createObjectStore('fixtures', { keyPath:'id' });
     fs.createIndex('by_gameweek', 'gameweek', { unique:false });
@@ -107,15 +110,26 @@ function _upgradeSchema(db, transaction, oldVersion = 0) {
     const ms = db.createObjectStore('managers', { keyPath:'id' });
     ms.createIndex('by_club', 'currentClubId', { unique:false });
   }
-  // V5/V6 change physical player serialization, so old clients must not reopen
+  // V5/V6 change serialization; V8 indexes its numeric medical projection.
+  // Old clients must not reopen
   // the database and silently treat packed history as legacy player fields.
   // The versionchange transaction publishes all rows or preserves the old DB.
-  if (oldVersion < 6) {
+  if (oldVersion < 8) {
     const request = transaction.objectStore('players').openCursor();
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
       try { cursor.update(prepareStoredPlayer(decodeStoredPlayer(cursor.value))); cursor.continue(); }
+      catch { transaction.abort(); }
+    };
+  }
+  // V7 compacts retained archives; later databases already have this format.
+  if (oldVersion < 7) {
+    const request = transaction.objectStore('seasons').openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      try { cursor.update(encodeStoredSeason(decodeStoredSeason(cursor.value))); cursor.continue(); }
       catch { transaction.abort(); }
     };
   }
@@ -175,6 +189,7 @@ export const req2p = r => new Promise((res, rej) => {
 
 /** Canonical players enter/leave persistence only through this wire boundary. */
 export const prepareStoredPlayer = player => encodeStoredPlayer(compactPlayerHistoryPayload(player));
+const prepareStoredRow = (name, row) => name === 'players' ? prepareStoredPlayer(row) : name === 'seasons' ? encodeStoredSeason(row) : row;
 export const store = (name, mode='readonly') => (_careerWriteTransaction ?? _db.transaction(name, mode)).objectStore(name);
 
 /** Keep all rollover reads/writes in one transaction, including async IDB reads.
@@ -223,7 +238,7 @@ export async function runCareerTransitionAtomic(operation) {
 export function bulkPut(storeName, items) {
   if (_careerWriteTransaction) {
     const s = _careerWriteTransaction.objectStore(storeName);
-    return Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? prepareStoredPlayer(item) : item))));
+    return Promise.all(items.map(item => req2p(s.put(prepareStoredRow(storeName, item)))));
   }
   return _bulkPutToDB(_db, storeName, items);
 }
@@ -232,7 +247,7 @@ function _bulkPutToDB(db, storeName, items) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
-    items.forEach(item => s.put(storeName === 'players' ? prepareStoredPlayer(item) : item));
+    items.forEach(item => s.put(prepareStoredRow(storeName, item)));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -241,13 +256,13 @@ function _bulkPutToDB(db, storeName, items) {
 export function clearAndBulkPut(storeName, items) {
   if (_careerWriteTransaction) {
     const s = _careerWriteTransaction.objectStore(storeName);
-    return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? prepareStoredPlayer(item) : item)))));
+    return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(prepareStoredRow(storeName, item))))));
   }
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
     const clearReq = s.clear();
-    clearReq.onsuccess = () => items.forEach(item => s.put(storeName === 'players' ? prepareStoredPlayer(item) : item));
+    clearReq.onsuccess = () => items.forEach(item => s.put(prepareStoredRow(storeName, item)));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -323,6 +338,7 @@ export const putTeamsBulk = ts => bulkPut('teams', ts);
 export const getAllPlayers = async () => (await req2p(store('players').getAll())).map(decodeStoredPlayer);
 export const getPlayer = async id => decodeStoredPlayer(await req2p(store('players').get(id)));
 export const getPlayersByTeam = async tid => (await req2p(store('players').index('by_team').getAll(tid))).map(decodeStoredPlayer);
+export const getInjuredPlayers = async () => (await req2p(store('players').index('by_injury').getAll(1))).map(decodeStoredPlayer);
 /** One indexed snapshot of the requested clubs, excluding unrelated free agents. */
 export async function getPlayersByTeams(teamIds) {
   const ids = [...new Set(teamIds)];
@@ -374,23 +390,46 @@ export function settleTransferMarketDealAtomic(dealId) {
     const historyStore = tx.objectStore('transfers');
     let result = null;
     let failure = null;
-    const requests = [saves.get('active'), teamsStore.getAll(), playersStore.getAll(), historyStore.getAll()];
+    const requests = [saves.get('active'), teamsStore.getAll(), historyStore.getAll()];
+    const participantRequests = [];
     let remaining = requests.length;
 
     const fail = error => {
       failure = error instanceof Error ? error : new Error(String(error));
       try { tx.abort(); } catch {}
     };
-    for (const request of requests) {
+    const watch = request => {
       request.onerror = () => fail(request.error ?? new Error('TRANSFER_SETTLEMENT_READ_FAILED'));
       request.onsuccess = () => {
+        if (request === requests[0]) {
+          try {
+            const deal = request.result?.transferMarket?.activeDeals?.find(item => item.id === dealId);
+            const queue = participantRequest => {
+              participantRequests.push(participantRequest);
+              remaining += 1;
+              watch(participantRequest);
+            };
+            if (deal) {
+              for (const reference of [deal.playerId, deal.terms?.fee?.exchangePlayerId]) {
+                if (reference == null) continue;
+                const text = String(reference), numeric = Number(text);
+                // Native primary-key order puts numbers before strings. Retain
+                // the old String(id) lookup for numeric legacy player IDs.
+                const keys = new Set(Number.isFinite(numeric) && String(numeric) === text ? [numeric, reference, text] : [reference, text]);
+                for (const key of keys) queue(playersStore.get(key));
+              }
+              if (deal.sellerTeamId && deal.sellerTeamId !== 'free_agents') queue(playersStore.index('by_team').getAll(deal.sellerTeamId));
+            }
+          } catch (error) { fail(error); return; }
+        }
         remaining -= 1;
         if (remaining || failure) return;
         try {
-          const [saveReq, teamReq, playerReq, historyReq] = requests;
+          const [saveReq, teamReq, historyReq] = requests;
           const save = saveReq.result;
           const allTeams = teamReq.result ?? [];
-          const allPlayers = (playerReq.result ?? []).map(decodeStoredPlayer);
+          const rows = participantRequests.flatMap(item => Array.isArray(item.result) ? item.result : item.result ? [item.result] : []);
+          const allPlayers = [...new Map(rows.map(row => [row.id, row])).values()].map(decodeStoredPlayer);
           const history = historyReq.result ?? [];
           const market = save?.transferMarket;
           const existingByDeal = history.find(item => item.dealId === dealId);
@@ -445,8 +484,9 @@ export function settleTransferMarketDealAtomic(dealId) {
           // squad/GK safety floor. There is no buyer-side size ceiling: a club
           // may register as many players as it likes.
           const sellerSquad = allPlayers.filter(item => item.teamId === seller?.id && !item.onLoan && item.inSquad !== false);
-          if (seller && !['renewal','free_agent'].includes(deal.type) && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
-          if (seller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
+          const leavesSeller = !['renewal','free_agent'].includes(deal.type) && (deal.type === 'loan' || !terms.fee?.loanBack);
+          if (seller && leavesSeller && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
+          if (seller && leavesSeller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
 
           const settlementWeekKey = market.lastTickKey ?? deal.updatedWeekKey;
           let nextBuyer = applyLedgerMovement(buyer, { category:'transfer_fee_out', amount:-upfrontCost, description:`Deal ${deal.id} settled (upfront)`, weekKey:settlementWeekKey });
@@ -504,7 +544,8 @@ export function settleTransferMarketDealAtomic(dealId) {
           fail(error);
         }
       };
-    }
+    };
+    for (const request of requests) watch(request);
     tx.oncomplete = () => resolve(result);
     tx.onerror = () => reject(failure ?? tx.error ?? new Error('TRANSFER_SETTLEMENT_FAILED'));
     tx.onabort = () => reject(failure ?? tx.error ?? new Error('TRANSFER_SETTLEMENT_ABORTED'));
@@ -512,9 +553,9 @@ export function settleTransferMarketDealAtomic(dealId) {
 }
 export const getAllHonors = () => req2p(store('honors').getAll());
 export const addHonor = h => req2p(store('honors','readwrite').add(h));
-export const getAllSeasons = () => req2p(store('seasons').getAll());
+export const getAllSeasons = async () => (await req2p(store('seasons').getAll())).map(decodeStoredSeason);
 export const putSeasonsBulk = seasons => bulkPut('seasons', seasons);
-export const addSeason = s => req2p(store('seasons','readwrite').add(s));
+export const addSeason = s => req2p(store('seasons','readwrite').add(encodeStoredSeason(s)));
 export const getAllManagers = () => req2p(store('managers').getAll());
 export const getManager = id => req2p(store('managers').get(id));
 export const putManager = m => req2p(store('managers','readwrite').put(m));
@@ -727,7 +768,7 @@ async function _snapshotSlot(slotId) {
     // store read in one transaction so the envelope represents one checkpoint.
     const tx = db.transaction(STORE_NAMES, 'readonly');
     const rows = await Promise.all(STORE_NAMES.map(name => req2p(tx.objectStore(name).getAll())));
-    return Object.fromEntries(STORE_NAMES.map((name, index) => [name, name === 'players' ? rows[index].map(decodeStoredPlayer) : rows[index]]));
+    return Object.fromEntries(STORE_NAMES.map((name, index) => [name, name === 'players' ? rows[index].map(decodeStoredPlayer) : name === 'seasons' ? rows[index].map(decodeStoredSeason) : rows[index]]));
   } finally {
     if (!isActive) {
       try { db.close(); } catch {}

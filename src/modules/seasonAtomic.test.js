@@ -183,4 +183,19 @@ describe('atomic season rollover', () => {
     expect((await getSave()).season).toBe('2027/28');
     expect((await getAllPlayers())[0].age).toBe(29);
   });
+  it('exports and restores canonical archived history from compact physical rows', async () => {
+    const archive = { id:1, season:'2025/26', playerHistory:[{ playerId:'captain', appearances:32, spells:[{ status:'first_team', minutes:2800 }] }] };
+    await bulkPut('seasons', [archive]);
+    await new Promise(resolve => globalThis.setTimeout(resolve, 5));
+    expect(_db.rows.get('seasons').get(1).__pitchSeasonStorage).toBe(2);
+    const { envelope } = await buildSaveEnvelope();
+    const { snapshot } = JSON.parse(JSON.parse(envelope).d);
+    expect(snapshot.seasons).toEqual([archive]);
+    expect(snapshot.seasons[0]).not.toHaveProperty('__pitchSeasonStorage');
+    await bulkPut('seasons', [{ ...archive, season:'modified' }]);
+    await new Promise(resolve => globalThis.setTimeout(resolve, 5));
+    await _restoreFromEnvelope(envelope);
+    expect(await getAllSeasons()).toEqual([archive]);
+    expect((await getAllPlayers())[0].age).toBe(28);
+  });
 });

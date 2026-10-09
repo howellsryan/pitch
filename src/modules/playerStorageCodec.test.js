@@ -67,6 +67,7 @@ describe('player storage codec', () => {
   it('rejects malformed payloads and mismatched club indexes', () => {
     const encoded = encodeStoredPlayer(sample());
     expect(() => decodeStoredPlayer({ ...encoded, teamId:'other' })).toThrow('index fields');
+    expect(() => decodeStoredPlayer({ ...encoded, i:1 })).toThrow('index fields');
     expect(() => decodeStoredPlayer({ ...encoded, payload:sample() })).toThrow('Invalid stored player');
     expect(() => decodeStoredPlayer({ ...encoded, payload:[5,String.fromCharCode(254),[],5] })).toThrow('Invalid stored player field');
   });

@@ -42,6 +42,7 @@ MODULES += [
     # must load before db.js.
     ('modules/clubFinance.js',      'CLUB FINANCE'),
     ('modules/playerStorageCodec.js', 'PLAYER STORAGE CODEC'),
+    ('modules/seasonStorageCodec.js', 'SEASON STORAGE CODEC'),
     ('modules/db.js',               'DATABASE'),
     ('modules/managerEmployment.js', 'MANAGER EMPLOYMENT'),
     ('modules/contracts.js',        'PLAYER CONTRACTS'),
