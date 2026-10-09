@@ -198,6 +198,7 @@ P0_TEST_FILES = [
     'src/modules/competitionRules.test.js',
     'src/modules/competitionIntegration.test.js',
     'src/modules/dbSaveMigration.test.js',
+    'src/modules/playerStorageCodec.test.js',
     'src/modules/seasonP0.test.js',
     'src/modules/seasonP1.test.js',
     # P1 replacements for the living-world source-shape assertions above.

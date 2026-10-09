@@ -1,9 +1,8 @@
 import { buildKnockoutRoundDraw, getCompetitionRules, isTwoLegRound } from './competitionRules.js';
-import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getPlayersByTeams, getSave, putPlayersBulk } from './db.js';
+import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getPlayersByTeams, getSave, prepareStoredPlayer, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
 import { buildPersonalStatePatches } from './playerModel.js';
 import { mutateRow, sortTable } from './standings.js';
-import { compactPlayerHistoryPayload } from './playerStatus.js';
 import {
   WORLD_RECORD_VERSION,
   applyWorldPlayerStats,
@@ -305,7 +304,7 @@ function commitWorldProjection(fixtures, standings, players) {
     const playerStore = tx.objectStore('players');
     fixtures.forEach(fixture => fixtureStore.put(fixture));
     standings.forEach(row => standingStore.put(row));
-    players.forEach(player => playerStore.put(compactPlayerHistoryPayload(player)));
+    players.forEach(player => playerStore.put(prepareStoredPlayer(player)));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
@@ -317,7 +316,7 @@ function commitWorldCompetitionProjection(save, worldCompetitions, players) {
     const tx = _db.transaction(['save', 'players'], 'readwrite');
     const saveStore = tx.objectStore('save');
     const playerStore = tx.objectStore('players');
-    players.forEach(player => playerStore.put(compactPlayerHistoryPayload(player)));
+    players.forEach(player => playerStore.put(prepareStoredPlayer(player)));
     saveStore.put({
       ...save,
       id:'active',

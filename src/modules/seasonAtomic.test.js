@@ -179,6 +179,7 @@ describe('atomic season rollover', () => {
     const { snapshot } = JSON.parse(JSON.parse(envelope).d);
     expect(snapshot.save[0].season).toBe('2026/27');
     expect(snapshot.players[0].age).toBe(28);
+    expect(snapshot.players[0]).not.toHaveProperty('__pitchPlayerStorage');
     expect((await getSave()).season).toBe('2027/28');
     expect((await getAllPlayers())[0].age).toBe(29);
   });

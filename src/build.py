@@ -41,6 +41,7 @@ MODULES += [
     # settleTransferMarketDealAtomic calls its applyLedgerMovement, so it
     # must load before db.js.
     ('modules/clubFinance.js',      'CLUB FINANCE'),
+    ('modules/playerStorageCodec.js', 'PLAYER STORAGE CODEC'),
     ('modules/db.js',               'DATABASE'),
     ('modules/managerEmployment.js', 'MANAGER EMPLOYMENT'),
     ('modules/contracts.js',        'PLAYER CONTRACTS'),

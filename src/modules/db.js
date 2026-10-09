@@ -10,8 +10,9 @@
 import { applyLedgerMovement, availableFunds, scheduleObligation } from './clubFinance.js';
 import { buildSettledMarketPlayer } from './transferMarket.js';
 import { isFreeAgentPlayer, isLoanPlayer, compactPlayerHistoryPayload, transitionPlayerStatus } from './playerStatus.js';
+import { decodeStoredPlayer, encodeStoredPlayer } from './playerStorageCodec.js';
 export const DB_NAME = 'pitch_fc';
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 export const LEGACY_SLOT_ID = 'legacy';
 export const SAVE_SCHEMA_VERSION = 2;
 export const CAREER_SLOT_REGISTRY_VERSION = 1;
@@ -84,7 +85,7 @@ export function makeCareerSlotId() {
   return `career_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function _upgradeSchema(db) {
+function _upgradeSchema(db, transaction, oldVersion = 0) {
   const make = (name, opts) => {
     if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, opts);
   };
@@ -106,12 +107,24 @@ function _upgradeSchema(db) {
     const ms = db.createObjectStore('managers', { keyPath:'id' });
     ms.createIndex('by_club', 'currentClubId', { unique:false });
   }
+  // V5 changes physical player serialization, so old clients must not reopen
+  // the database and silently treat packed history as legacy player fields.
+  // The versionchange transaction publishes all rows or preserves V4 on abort.
+  if (oldVersion < 5) {
+    const request = transaction.objectStore('players').openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      try { cursor.update(prepareStoredPlayer(cursor.value)); cursor.continue(); }
+      catch { transaction.abort(); }
+    };
+  }
 }
 
 function _openNamedDB(name) {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(name, DB_VERSION);
-    req.onupgradeneeded = e => _upgradeSchema(e.target.result);
+    req.onupgradeneeded = e => _upgradeSchema(e.target.result, e.target.transaction, e.oldVersion);
     req.onsuccess = e => resolve(e.target.result);
     req.onerror = e => reject(e.target.error);
   });
@@ -159,6 +172,9 @@ export const req2p = r => new Promise((res, rej) => {
   r.onsuccess = () => res(r.result);
   r.onerror = () => rej(r.error);
 });
+
+/** Canonical players enter/leave persistence only through this wire boundary. */
+export const prepareStoredPlayer = player => encodeStoredPlayer(compactPlayerHistoryPayload(player));
 export const store = (name, mode='readonly') => (_careerWriteTransaction ?? _db.transaction(name, mode)).objectStore(name);
 
 /** Keep all rollover reads/writes in one transaction, including async IDB reads.
@@ -207,7 +223,7 @@ export async function runCareerTransitionAtomic(operation) {
 export function bulkPut(storeName, items) {
   if (_careerWriteTransaction) {
     const s = _careerWriteTransaction.objectStore(storeName);
-    return Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item))));
+    return Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? prepareStoredPlayer(item) : item))));
   }
   return _bulkPutToDB(_db, storeName, items);
 }
@@ -216,7 +232,7 @@ function _bulkPutToDB(db, storeName, items) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
-    items.forEach(item => s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item));
+    items.forEach(item => s.put(storeName === 'players' ? prepareStoredPlayer(item) : item));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -225,13 +241,13 @@ function _bulkPutToDB(db, storeName, items) {
 export function clearAndBulkPut(storeName, items) {
   if (_careerWriteTransaction) {
     const s = _careerWriteTransaction.objectStore(storeName);
-    return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item)))));
+    return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(storeName === 'players' ? prepareStoredPlayer(item) : item)))));
   }
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
     const clearReq = s.clear();
-    clearReq.onsuccess = () => items.forEach(item => s.put(storeName === 'players' ? compactPlayerHistoryPayload(item) : item));
+    clearReq.onsuccess = () => items.forEach(item => s.put(storeName === 'players' ? prepareStoredPlayer(item) : item));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -290,7 +306,7 @@ export function commitMatchEventAtomic({ event, season, gameweek, savePatch, fix
         };
         if (fixture) tx.objectStore('fixtures').put(fixture);
         const playerStore = tx.objectStore('players');
-        players.forEach(player => playerStore.put(compactPlayerHistoryPayload(player)));
+        players.forEach(player => playerStore.put(prepareStoredPlayer(player)));
         saves.put(nextSave);
       } catch (error) { fail(error); }
     };
@@ -304,18 +320,18 @@ export const getAllTeams = () => req2p(store('teams').getAll());
 export const getTeam = id => req2p(store('teams').get(id));
 export const putTeam = t => req2p(store('teams','readwrite').put(t));
 export const putTeamsBulk = ts => bulkPut('teams', ts);
-export const getAllPlayers = () => req2p(store('players').getAll());
-export const getPlayer = id => req2p(store('players').get(id));
-export const getPlayersByTeam = tid => req2p(store('players').index('by_team').getAll(tid));
+export const getAllPlayers = async () => (await req2p(store('players').getAll())).map(decodeStoredPlayer);
+export const getPlayer = async id => decodeStoredPlayer(await req2p(store('players').get(id)));
+export const getPlayersByTeam = async tid => (await req2p(store('players').index('by_team').getAll(tid))).map(decodeStoredPlayer);
 /** One indexed snapshot of the requested clubs, excluding unrelated free agents. */
 export async function getPlayersByTeams(teamIds) {
   const ids = [...new Set(teamIds)];
   if (!ids.length) return [];
   const index = store('players').index('by_team');
   const squads = await Promise.all(ids.map(id => req2p(index.getAll(id))));
-  return squads.flat();
+  return squads.flat().map(decodeStoredPlayer);
 }
-export const putPlayer = p => req2p(store('players','readwrite').put(compactPlayerHistoryPayload(p)));
+export const putPlayer = p => req2p(store('players','readwrite').put(prepareStoredPlayer(p)));
 export const putPlayersBulk = ps => bulkPut('players', ps);
 export function deletePlayersBulk(ids) {
   if (_careerWriteTransaction) {
@@ -374,7 +390,7 @@ export function settleTransferMarketDealAtomic(dealId) {
           const [saveReq, teamReq, playerReq, historyReq] = requests;
           const save = saveReq.result;
           const allTeams = teamReq.result ?? [];
-          const allPlayers = playerReq.result ?? [];
+          const allPlayers = (playerReq.result ?? []).map(decodeStoredPlayer);
           const history = historyReq.result ?? [];
           const market = save?.transferMarket;
           const existingByDeal = history.find(item => item.dealId === dealId);
@@ -449,8 +465,8 @@ export function settleTransferMarketDealAtomic(dealId) {
 
           const seasonYear = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 0;
           const nextPlayer = buildSettledMarketPlayer(player, deal, save);
-          playersStore.put(compactPlayerHistoryPayload(nextPlayer));
-          if (exchangePlayer && seller) playersStore.put(compactPlayerHistoryPayload(transitionPlayerStatus({
+          playersStore.put(prepareStoredPlayer(nextPlayer));
+          if (exchangePlayer && seller) playersStore.put(prepareStoredPlayer(transitionPlayerStatus({
             ...exchangePlayer, signedThisSeason:true, contractExpiry:seasonYear + 3,
             squadRole:null, squadRoleTeamId:null, squadRoleSource:null, playingTimeAgreement:null,
           }, {
@@ -711,7 +727,7 @@ async function _snapshotSlot(slotId) {
     // store read in one transaction so the envelope represents one checkpoint.
     const tx = db.transaction(STORE_NAMES, 'readonly');
     const rows = await Promise.all(STORE_NAMES.map(name => req2p(tx.objectStore(name).getAll())));
-    return Object.fromEntries(STORE_NAMES.map((name, index) => [name, rows[index]]));
+    return Object.fromEntries(STORE_NAMES.map((name, index) => [name, name === 'players' ? rows[index].map(decodeStoredPlayer) : rows[index]]));
   } finally {
     if (!isActive) {
       try { db.close(); } catch {}
