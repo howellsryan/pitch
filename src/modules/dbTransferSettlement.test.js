@@ -69,7 +69,7 @@ describe('transfer settlement ownership boundaries', () => {
   it('signs a genuine free agent at zero transfer fee exactly once, charging only the agreed bonus', async () => {
     const rows = await setup(normalizePlayerStatus({ id:'p', teamId:'free_agents', position:'ST', inSquad:false }));
     expect((await settleTransferMarketDealAtomic('deal')).success).toBe(true);
-    expect(rows.players.get('p').__pitchPlayerStorage).toBe(1);
+    expect(rows.players.get('p').__pitchPlayerStorage).toBe(2);
     expect(decodeStoredPlayer(rows.players.get('p'))).toMatchObject({ teamId:'buyer', inSquad:true, contractTeamId:'buyer' });
     expect(rows.teams.get('buyer').finance.cash).toBe(9900);
     expect(rows.transfers.size).toBe(1);

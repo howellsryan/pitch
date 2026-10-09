@@ -18,6 +18,7 @@ describe('player storage codec', () => {
     const player = sample();
     const encoded = encodeStoredPlayer(player);
     expect(encoded).toMatchObject({ id:player.id, teamId:player.teamId });
+    expect(encoded.__pitchPlayerStorage).toBe(2);
     const decoded = decodeStoredPlayer(structuredClone(encoded));
     expect(decoded).toEqual(player);
     expect(JSON.stringify(decoded)).toBe(JSON.stringify(player));
@@ -37,7 +38,18 @@ describe('player storage codec', () => {
   it('reads legacy rows directly and rejects future codecs before any data can be rewritten', () => {
     const player = sample();
     expect(decodeStoredPlayer(player)).toBe(player);
-    expect(() => decodeStoredPlayer({ id:'p1', __pitchPlayerStorage:2, payload:[] })).toThrow('newer');
+    expect(() => decodeStoredPlayer({ id:'p1', __pitchPlayerStorage:3, payload:[] })).toThrow('newer');
+  });
+  it('reads the published V1 dictionary and upgrades it without changing canonical values', () => {
+    const stored = { id:'p', teamId:'club', __pitchPlayerStorage:1,
+      payload:[0,53,'p',132,'club',83,'Keeper',95,'GK',105,[3,[0,53,'s',127,[0,82,90,18,1]]]] };
+    const expected = { id:'p', teamId:'club', name:'Keeper', position:'GK', registrationSpells:[{ id:'s', startStats:{ minutes:90, appearances:1 } }] };
+    const decoded = decodeStoredPlayer(structuredClone(stored));
+    expect(JSON.stringify(decoded)).toBe(JSON.stringify(expected));
+    const upgraded = encodeStoredPlayer(decoded);
+    expect(upgraded.__pitchPlayerStorage).toBe(2);
+    expect(JSON.stringify(decodeStoredPlayer(structuredClone(upgraded)))).toBe(JSON.stringify(expected));
+    expect(serialize(upgraded).length).toBeLessThan(serialize(stored).length);
   });
   it('retains sparse arrays, cycles, null prototypes and native structured-clone values', () => {
     const player = sample();
@@ -56,6 +68,6 @@ describe('player storage codec', () => {
     const encoded = encodeStoredPlayer(sample());
     expect(() => decodeStoredPlayer({ ...encoded, teamId:'other' })).toThrow('index fields');
     expect(() => decodeStoredPlayer({ ...encoded, payload:sample() })).toThrow('Invalid stored player');
-    expect(() => decodeStoredPlayer({ ...encoded, payload:[0,10000,5] })).toThrow('Invalid stored player field');
+    expect(() => decodeStoredPlayer({ ...encoded, payload:[5,String.fromCharCode(254),[],5] })).toThrow('Invalid stored player field');
   });
 });

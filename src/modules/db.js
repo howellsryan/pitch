@@ -12,7 +12,7 @@ import { buildSettledMarketPlayer } from './transferMarket.js';
 import { isFreeAgentPlayer, isLoanPlayer, compactPlayerHistoryPayload, transitionPlayerStatus } from './playerStatus.js';
 import { decodeStoredPlayer, encodeStoredPlayer } from './playerStorageCodec.js';
 export const DB_NAME = 'pitch_fc';
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 export const LEGACY_SLOT_ID = 'legacy';
 export const SAVE_SCHEMA_VERSION = 2;
 export const CAREER_SLOT_REGISTRY_VERSION = 1;
@@ -107,15 +107,15 @@ function _upgradeSchema(db, transaction, oldVersion = 0) {
     const ms = db.createObjectStore('managers', { keyPath:'id' });
     ms.createIndex('by_club', 'currentClubId', { unique:false });
   }
-  // V5 changes physical player serialization, so old clients must not reopen
+  // V5/V6 change physical player serialization, so old clients must not reopen
   // the database and silently treat packed history as legacy player fields.
-  // The versionchange transaction publishes all rows or preserves V4 on abort.
-  if (oldVersion < 5) {
+  // The versionchange transaction publishes all rows or preserves the old DB.
+  if (oldVersion < 6) {
     const request = transaction.objectStore('players').openCursor();
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
-      try { cursor.update(prepareStoredPlayer(cursor.value)); cursor.continue(); }
+      try { cursor.update(prepareStoredPlayer(decodeStoredPlayer(cursor.value))); cursor.continue(); }
       catch { transaction.abort(); }
     };
   }

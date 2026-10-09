@@ -77,7 +77,7 @@ describe('atomic managed match checkpoint', () => {
       fixture:{ id:'match', played:true, homeGoals:2 }, players:[{ id:'player', appearances:1 }],
     });
     expect(rows.fixtures.get('match').played).toBe(true);
-    expect(rows.players.get('player').__pitchPlayerStorage).toBe(1);
+    expect(rows.players.get('player').__pitchPlayerStorage).toBe(2);
     expect(decodeStoredPlayer(rows.players.get('player')).appearances).toBe(1);
     expect(rows.save.get('active')).toMatchObject({ slotId:'legacy', untouched:'preserved', pendingEvents:[], saveSchemaVersion:2 });
     expect(saved).toEqual(rows.save.get('active'));
