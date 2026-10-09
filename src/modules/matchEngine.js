@@ -28,6 +28,7 @@ import {
 } from './matchActionResolver.js';
 import { buildMatchTacticalAnalysis } from './matchTacticalAnalysis.js';
 import { validateMatchSimulationVersion } from './matchSimulationVersion.js';
+import { createFootballState, footballPossessionTeam, resolveFootballIntent } from './matchFootball.js';
 
 /**
  * modules/matchEngine.js — authoritative P2/P3/T3/T5 simulation core.
@@ -40,7 +41,7 @@ import { validateMatchSimulationVersion } from './matchSimulationVersion.js';
  * persistence contract while score and core match stats derive from the ledger.
  */
 
-export const MATCH_ENGINE_VERSION = 2;
+export const MATCH_ENGINE_VERSION = 3;
 export const ATT = new Set(['ST','CF','RW','LW','CAM']);
 export const MID = new Set(['CM','CDM','CAM','RM','LM']);
 export const DEF = new Set(['CB','RB','LB']);
@@ -148,18 +149,37 @@ function withMatchPosition(player, position) {
   return { ...player, matchPosition:position ?? player.position };
 }
 
+function ensureMatchKeeper(eleven) {
+  if (!eleven.length || eleven.some(p=>(p.matchPosition??p.position)==='GK')) return eleven;
+  const emergency=[...eleven].sort((a,b)=>Number(b.goalkeeping??0)-Number(a.goalkeeping??0)||String(a.id).localeCompare(String(b.id)))[0];
+  return eleven.map(p=>p.id===emergency.id ? withMatchPosition(p,'GK') : p);
+}
+
 function assignRequestedLineup(players, formation) {
   const remaining = [...players];
-  const assigned = [];
+  const slots=formationSlots(formation);
   const ratingFor = createSlotRatingLookup();
-  for (const slot of formationSlots(formation)) {
-    const player = bestPlayerForSlot(remaining, slot, () => true, ratingFor);
-    if (!player) continue;
-    assigned.push(withMatchPosition(player, slot));
-    remaining.splice(remaining.findIndex(item => item.id === player.id), 1);
-  }
+  const assigned=slots.map(slot=>{
+    const player=bestPlayerForSlot(remaining,slot,()=>true,ratingFor);
+    if(!player)return null;
+    remaining.splice(remaining.findIndex(item=>item.id===player.id),1);
+    return withMatchPosition(player,slot);
+  });
+  slots.forEach((slot,i)=>{
+    if(assigned[i]||slot==='GK')return;
+    const player=[...remaining].filter(p=>(p.matchPosition??p.position)!=='GK')
+      .sort((a,b)=>ratingFor(b,slot)-ratingFor(a,slot)||String(a.id).localeCompare(String(b.id)))[0];
+    if(!player)return;
+    assigned[i]=withMatchPosition(player,slot);
+    remaining.splice(remaining.findIndex(item=>item.id===player.id),1);
+  });
   for (const player of remaining) assigned.push(withMatchPosition(player, player.position));
-  return assigned.slice(0, 11);
+  return assigned.filter(Boolean).slice(0, 11);
+}
+
+/** Assign a new formation to the same on-field identities, without substitutions. */
+export function assignLiveFormation(players,formation) {
+  return ensureMatchKeeper(assignRequestedLineup(players,formation));
 }
 
 export function selectEleven(players, formation = '4-3-3', lineup = null) {
@@ -176,7 +196,7 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
         used.add(player.id);
       }
     }
-    if (requested.length === 11) return assignRequestedLineup(requested, formation);
+    if (requested.length === 11) return ensureMatchKeeper(assignRequestedLineup(requested, formation));
     used.clear();
   }
 
@@ -199,7 +219,7 @@ export function selectEleven(players, formation = '4-3-3', lineup = null) {
       used.add(player.id);
     }
   }
-  return chosen.slice(0, 11);
+  return ensureMatchKeeper(chosen.slice(0, 11));
 }
 
 function automaticBench(available) {
@@ -593,6 +613,7 @@ export function buildLiveMatchState(homeTeam, awayTeam, homePlayers, awayPlayers
   return refreshLiveMatchState({
     ...currentSimulationVersions(),
     actionLedger:[],
+    football:createFootballState(homeTeam.id, awayTeam.id),
     hActive:[...hElev], aActive:[...aElev], hBenchLeft:[...hBench], aBenchLeft:[...aBench],
     hFitness:new Map(hElev.map(p => [p.id, Math.min(100, Number(p.fitness ?? 90))])),
     aFitness:new Map(aElev.map(p => [p.id, Math.min(100, Number(p.fitness ?? 90))])),
@@ -623,6 +644,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
   let curHPhases = state.hPhases, curAPhases = state.aPhases;
   let hStr = state.hStr, aStr = state.aStr;
   const actionLedger = [...(state.actionLedger ?? [])];
+  let football = state.football ?? createFootballState(homeTeam.id, awayTeam.id);
   const segEvents = [];
   const hBaseMods = combinedMods(state.homeMentality, state.homeTactics, state.awayTactics);
   const aBaseMods = combinedMods(state.awayMentality, state.awayTactics, state.homeTactics);
@@ -637,7 +659,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
     const hMods = scoreAdjustedMods(hBaseMods, state.homePlanSource, curHGoals, curAGoals, minute);
     const aMods = scoreAdjustedMods(aBaseMods, state.awayPlanSource, curAGoals, curHGoals, minute);
     const hMidShare = midfieldShare(hStr, aStr, hMods, aMods);
-    const isHome = packet.possession < hMidShare;
+    const isHome = footballPossessionTeam(football, hMidShare, packet.possession, phase) === homeTeam.id;
     if (isHome) curHPhases++; else curAPhases++;
 
     const attActive = isHome ? curHActive : curAActive;
@@ -680,10 +702,16 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       packet,
       isHome,
     });
-    actionLedger.push(resolvedAction.record);
-    if (resolvedAction.goalEvent) {
+    const footballAction = resolveFootballIntent(football, resolvedAction.record, {
+      attackers:attForAction, defenders:defForAction,
+      instructions:isHome ? state.homeTactics : state.awayTactics,
+      packet, goalEvent:resolvedAction.goalEvent,
+    });
+    football = footballAction.state;
+    actionLedger.push(footballAction.record);
+    if (footballAction.goalEvent) {
       if (isHome) curHGoals++; else curAGoals++;
-      segEvents.push(resolvedAction.goalEvent);
+      segEvents.push(footballAction.goalEvent);
     }
 
     const disciplineRng = createSeededRng(packetDerivedSeed(packet.discipline, `${phase}:${defTeam.id}:discipline`));
@@ -725,9 +753,13 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       if (curHSubs > 0 && homeTeam.id !== inferredControlled) {
         const tired = curHActive.filter(player => (player.matchPosition ?? player.position) !== 'GK' && shouldSub(hFitness.get(player.id) ?? 90, minute, trailH));
         for (const out of tired.slice(0, curHSubs)) {
-          const sub = curHBench.shift(); if (!sub) break;
+          const sub = bestPlayerForSlot(curHBench,out.matchPosition??out.position,p=>p.position!=='GK'&&!p.injured,createSlotRatingLookup())
+            ?? curHBench.find(p=>p.position!=='GK'&&!p.injured);
+          if(!sub)break;
+          curHBench.splice(curHBench.findIndex(p=>p.id===sub.id),1);
           const replacement = withMatchPosition(sub, out.matchPosition ?? out.position);
           curHActive = curHActive.map(player => player.id === out.id ? replacement : player);
+          if(football.carrierId===out.id) football={...football,carrierId:sub.id};
           hFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curHSubs--; hChanged = true;
           segEvents.push({ type:'sub', minute, teamId:homeTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
@@ -735,9 +767,13 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       if (curASubs > 0 && awayTeam.id !== inferredControlled) {
         const tired = curAActive.filter(player => (player.matchPosition ?? player.position) !== 'GK' && shouldSub(aFitness.get(player.id) ?? 90, minute, trailA));
         for (const out of tired.slice(0, curASubs)) {
-          const sub = curABench.shift(); if (!sub) break;
+          const sub = bestPlayerForSlot(curABench,out.matchPosition??out.position,p=>p.position!=='GK'&&!p.injured,createSlotRatingLookup())
+            ?? curABench.find(p=>p.position!=='GK'&&!p.injured);
+          if(!sub)break;
+          curABench.splice(curABench.findIndex(p=>p.id===sub.id),1);
           const replacement = withMatchPosition(sub, out.matchPosition ?? out.position);
           curAActive = curAActive.map(player => player.id === out.id ? replacement : player);
+          if(football.carrierId===out.id) football={...football,carrierId:sub.id};
           aFitness.set(sub.id, Math.min(100, Number(sub.fitness ?? 90))); curASubs--; aChanged = true;
           segEvents.push({ type:'sub', minute, teamId:awayTeam.id, outId:out.id, outName:out.name, inId:sub.id, inName:sub.name });
         }
@@ -754,6 +790,7 @@ export function simulateMatchSegment(homeTeam, awayTeam, liveState, startPhase, 
       ...state,
       ...versionFields,
       actionLedger,
+      football,
       hActive:curHActive, aActive:curAActive, hBenchLeft:curHBench, aBenchLeft:curABench,
       hFitness, aFitness, hSubsLeft:curHSubs, aSubsLeft:curASubs,
       hGoals:curHGoals, aGoals:curAGoals, hPhases:curHPhases, aPhases:curAPhases,

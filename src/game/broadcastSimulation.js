@@ -1,4 +1,5 @@
 import { SLOT_LAYOUT, SLOT_POS_MAP } from './formationLayout.js';
+import { advanceFootballSimulation, createFootballSimulation, isFootballReady, queueFootballPhase, replaceFootballLineups, snapshotFootballSimulation } from './footballSimulation.js';
 
 const FORWARDS = new Set(['ST', 'CF', 'RW', 'LW', 'CAM']);
 const DEFENDERS = new Set(['CB', 'RB', 'LB']);
@@ -79,7 +80,8 @@ function prepareKickoff(sim, takingTeamId) {
   sim.sequenceSinceRestart = 0;
 }
 
-export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers, ledgerDriven = false }) {
+export function createBroadcastSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers, ledgerDriven = false, continuous = false, homeTactics, awayTactics }) {
+  if (continuous) return createFootballSimulation({ homeTeamId, awayTeamId, possessionTeamId, homeFormation, awayFormation, homePlayers, awayPlayers, homeTactics, awayTactics });
   const sim = {
     ledgerDriven, activePhase: null, completedPhase: 0, phaseLabel: 'Kick off',
     homeTeamId, awayTeamId, possessionTeamId, desiredPossessionTeamId: possessionTeamId,
@@ -105,6 +107,7 @@ function beginHalfTime(sim) {
 }
 
 export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event = null, record = null }) {
+  if (sim.continuous) { if (record) queueFootballPhase(sim, record); return sim; }
   if (sim.ledgerDriven && record) {
     if (sim.activePhase || record.phase <= sim.completedPhase) return sim;
     sim.activePhase = { record: { ...record }, stage: 'acquire' };
@@ -134,7 +137,8 @@ export function updateBroadcastSimulation(sim, { phase, possessionTeamId, event 
   return sim;
 }
 
-export function replaceBroadcastLineups(sim, { homeFormation, awayFormation, homePlayers, awayPlayers }) {
+export function replaceBroadcastLineups(sim, { homeFormation, awayFormation, homePlayers, awayPlayers, homeTactics, awayTactics }) {
+  if (sim.continuous) { replaceFootballLineups(sim, { homeFormation, awayFormation, homePlayers, awayPlayers, homeTactics, awayTactics }); return sim; }
   if (sim.ledgerDriven && sim.activePhase) {
     sim.pendingLineups = { homeFormation, awayFormation, homePlayers, awayPlayers };
     return sim;
@@ -607,6 +611,7 @@ function separate(sim, dt) {
 }
 
 export function advanceBroadcastSimulation(sim, elapsedMs) {
+  if (sim.continuous) return advanceFootballSimulation(sim, elapsedMs);
   const safeElapsed = clamp(elapsedMs, 0, 50); const dt = safeElapsed / 1000; sim.clock += safeElapsed;
   if (sim.possessionLockTeamId && sim.clock >= sim.possessionLockUntil) {
     sim.possessionLockTeamId = null;
@@ -638,6 +643,7 @@ export function advanceBroadcastSimulation(sim, elapsedMs) {
 }
 
 export function snapshotBroadcastSimulation(sim) {
+  if (sim.continuous) return snapshotFootballSimulation(sim, true);
   return {
     phaseLabel: sim.phaseLabel, completedPhase: sim.completedPhase,
     carrierName: sim.players.find(player => player.id === sim.ball.ownerId)?.name ?? '',
@@ -655,6 +661,7 @@ const ROUTE_LABELS = {
 };
 
 export function isBroadcastReady(sim) {
+  if (sim?.continuous) return isFootballReady(sim);
   return !!sim && !sim.activePhase && !sim.ball.flight && !sim.pendingGoal
     && !sim.restart && sim.mode === 'live';
 }

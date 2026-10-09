@@ -1,4 +1,4 @@
-import { teamStrength } from '../modules/matchEngine.js';
+import { refreshLiveMatchState } from '../modules/matchEngine.js';
 
 /**
  * src/game/substitutions.js — User-substitution rules for the live match
@@ -19,7 +19,6 @@ const SIDE = {
 };
 
 function sideOf(userIsHome) { return userIsHome ? SIDE.home : SIDE.away; }
-function oppSideOf(userIsHome) { return userIsHome ? SIDE.away : SIDE.home; }
 
 // ── Who can come off for a given bench player ─────────────────
 // GK can only replace GK; outfield can only replace outfield. Fittest first.
@@ -28,8 +27,8 @@ export function eligibleSubOutTargets(liveState, userIsHome, subInPlayer) {
   const active = liveState[k.active];
   const fitMap = liveState[k.fitness];
   const pool = subInPlayer.position === 'GK'
-    ? active.filter(p => p.position === 'GK')
-    : active.filter(p => p.position !== 'GK');
+    ? active.filter(p => (p.matchPosition??p.position) === 'GK')
+    : active.filter(p => (p.matchPosition??p.position) !== 'GK');
   return [...pool].sort((a, b) => (fitMap.get(a.id) ?? 90) - (fitMap.get(b.id) ?? 90));
 }
 
@@ -42,8 +41,8 @@ export function validateSubstitution(liveState, userIsHome, subInId, subOutId) {
   const subOut = liveState[k.active].find(p => p.id === subOutId);
   if (!subIn || !subOut) return { ok: false, reason: 'player-not-found' };
   if (subIn.injured) return { ok: false, reason: 'sub-in-injured' };
-  if (subIn.position === 'GK' && subOut.position !== 'GK') return { ok: false, reason: 'gk-outfield-mismatch' };
-  if (subIn.position !== 'GK' && subOut.position === 'GK') return { ok: false, reason: 'gk-outfield-mismatch' };
+  if (subIn.position === 'GK' && (subOut.matchPosition??subOut.position) !== 'GK') return { ok: false, reason: 'gk-outfield-mismatch' };
+  if (subIn.position !== 'GK' && (subOut.matchPosition??subOut.position) === 'GK') return { ok: false, reason: 'gk-outfield-mismatch' };
 
   return { ok: true, subIn, subOut };
 }
@@ -61,24 +60,15 @@ export function applySubstitution(liveState, userIsHome, subInId, subOutId, minu
   const fitMap = liveState[k.fitness];
   fitMap.set(subIn.id, Math.min(100, subIn.fitness ?? 90));
 
-  const newActive = liveState[k.active].map(p => (p.id === subOutId ? subIn : p));
+  const newActive = liveState[k.active].map(p => (p.id === subOutId ? {...subIn,matchPosition:subOut.matchPosition??subOut.position} : p));
   const newBench  = liveState[k.bench].filter(p => p.id !== subInId);
-  const newStr    = teamStrength(newActive);
-
-  const oppK  = oppSideOf(userIsHome);
-  const hStr  = userIsHome ? newStr : liveState[oppK.str];
-  const aStr  = userIsHome ? liveState[oppK.str] : newStr;
-  const hMidShare = (hStr.midfield + aStr.midfield) > 0
-    ? hStr.midfield / (hStr.midfield + aStr.midfield) : 0.5;
-
-  const updated = {
+  const updated = refreshLiveMatchState({
     ...liveState,
+    ...(liveState.football?.carrierId===subOutId ? {football:{...liveState.football,carrierId:subInId}} : {}),
     [k.active]: newActive,
     [k.bench]: newBench,
     [k.subsLeft]: Math.max(0, liveState[k.subsLeft] - 1),
-    [k.str]: newStr,
-    hMidShare,
-  };
+  });
 
   const event = { type: 'sub', minute, teamId, outId: subOut.id, outName: subOut.name, inId: subIn.id, inName: subIn.name };
   return { ok: true, liveState: updated, event };
