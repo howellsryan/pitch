@@ -23,6 +23,21 @@ XI needs attention before kickoff. Choose **Sim Instantly** for a result or
 lets you make tactical changes and substitutions. Continue through full time
 to commit the result and see its effect on the table.
 
+The watched match uses a following **Broadcast** camera; tap its camera control
+for the complete **Tactical** overview. Players accelerate, turn and move into
+restart positions on a proportioned pitch. Passes have fixed destinations and
+distance-based travel time; interceptions cut out the flight before reception.
+The match clock and commentary follow the visible action, with the score revealed
+when the ball reaches the goal. Pause, speed and the Tactics room control the same
+timeline. Reduced-motion preferences use the fixed overview and remove stride effects.
+
+Quick Sim and Broadcast share the same seeded action/result engine. The engine
+supplies ordered passes, carries, recoveries, shots and restart ownership; the
+watched view projects their movement. It remains an episode-based football model,
+with calibrated route/attribute/tactic probabilities rather than measured tracking
+or a physics-derived xG model. Connecting touches do not add invented shot or pass
+statistics. See the [broadcast engineering decisions](plan/immersive-football-broadcast.md).
+
 Some gameweeks contain multiple events. A league match and a cup tie sharing
 one week require separate Play actions; the week advances after its event
 queue is empty. Every other supported league also progresses through the

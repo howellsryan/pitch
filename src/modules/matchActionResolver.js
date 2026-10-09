@@ -21,8 +21,8 @@ import { normalizeTeamInstructions, resolvePlayerRole, stableStringHash } from '
  * randomness itself, which keeps whole-match and segmented simulation aligned.
  */
 
-export const MATCH_ACTION_RESOLVER_VERSION = 2;
-export const MATCH_ACTION_LEDGER_VERSION = 1;
+export const MATCH_ACTION_RESOLVER_VERSION = 3;
+export const MATCH_ACTION_LEDGER_VERSION = 2;
 export const MATCH_RNG_PACKET_VERSION = 1;
 
 export const MATCH_RNG_PACKET_FIELDS = Object.freeze([
@@ -402,7 +402,9 @@ export function resolveAuthoritativePhase({
   const defender = actionChooseDefender(defenders, opponentRolesById, actionDef, packet.defender);
   const execution = actionRouteExecution(route, actor, target);
   const counter = actionRouteCounter(route, defender);
-  const context = actionCachedContextEdge(route, normalized, opponentNormalized) + (isHome ? 2.0 : 0);
+  // Possession/restart continuity now amplifies sustained advantages. Keep the
+  // venue execution edge small beside player quality and tactical matchups.
+  const context = actionCachedContextEdge(route, normalized, opponentNormalized) + (isHome ? 1.0 : 0);
   const edge = execution - counter + context;
   const successChance = actionContestProbability(edge);
   const success = packet.execution < successChance;

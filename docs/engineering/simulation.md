@@ -7,8 +7,9 @@ implementation details against the current checkout.
 ### Authoritative football outcome
 
 - `src/modules/matchEngine.js` owns football outcomes.
-- Current Broadcast consumes each authoritative action-ledger phase and waits for its scene to complete before advancing; speed/pause affect both clocks. Lineup visuals change after the active scene. See `docs/plan/live-broadcast.md`.
-- `src/game/broadcastSimulation.js` is a deterministic spatial/presentation layer. It may visualise an authoritative result/event plan but must never invent a conflicting score, scorer or result.
+- Current Broadcast consumes each authoritative action-ledger phase's ordered football intent and waits for physical contact/completion before advancing; speed/pause affect both clocks. Lineup visuals change after the active scene. See `docs/plan/immersive-football-broadcast.md` and `docs/plan/live-broadcast.md`.
+- `src/modules/matchFootball.js` owns compact last-carrier/ball/restart continuity and metric tactical action intent. Engine3/resolver3/ledger2/packet1 is the new-match tuple. Forced restarts preserve the correct side; normal45-second episode selection retains calibrated midfield share. The final actual pass supplies the assist identity. Tracking does not generate outcomes or extra statistics.
+- `src/game/broadcastSimulation.js` adapts current watched matches to `src/game/footballSimulation.js`, a deterministic20ms fixed-step metric presentation layer. It may visualise an authoritative result/event plan but must never invent a conflicting score, scorer or result. The original non-continuous implementation remains a legacy compatibility path.
 - Quick Sim and Broadcast must consume the same authoritative football outcome.
 - P1 background fixtures also use the authoritative fast match engine. Never run Broadcast simulation for the background world.
 

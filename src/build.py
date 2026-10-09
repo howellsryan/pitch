@@ -72,6 +72,7 @@ MODULES += [
     ('modules/matchActionResolver.js', 'MATCH ACTION RESOLVER'),
     ('modules/matchTacticalAnalysis.js', 'MATCH TACTICAL ANALYSIS'),
     ('modules/matchSimulationVersion.js', 'MATCH SIMULATION VERSION'),
+    ('modules/matchFootball.js',    'MATCH FOOTBALL INTENT'),
     ('modules/matchEngine.js',      'MATCH ENGINE'),
     ('modules/startingFreeAgents.js','STARTING FREE AGENTS'),
     ('modules/standings.js',        'STANDINGS'),
