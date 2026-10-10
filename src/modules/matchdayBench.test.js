@@ -57,8 +57,7 @@ describe('matchday bench', () => {
     const bench = selectBench(squad, eleven);
 
     expect(bench.filter(player => player.position === 'GK').length).toBeGreaterThanOrEqual(1);
-    // The keeper takes the last seat, so the three a match can actually reach
-    // are the same outfielders as before.
+    // The keeper takes the last seat when the top outfield nine omit one.
     expect(bench.at(-1).position).toBe('GK');
     expect(bench.slice(0, 3).some(player => player.position === 'GK')).toBe(false);
     expect(bench).toHaveLength(MAX_MATCHDAY_BENCH);
@@ -159,7 +158,7 @@ describe('matchday bench', () => {
     expect(pruneBenchToSquad([], squad)).toEqual([]);
   });
 
-  it('never reaches past the front of an AI bench, which is why capping it is outcome-neutral', () => {
+  it('uses at most three named outfield substitutes and never a reserve outside the matchday bench', () => {
     const home = { id:'home', name:'Home', reputation:76, league:'Premier League' };
     const away = { id:'away', name:'Away', reputation:74, league:'Premier League' };
     const homePlayers = makeSquad('h');
@@ -171,10 +170,13 @@ describe('matchday bench', () => {
 
     for (const [side, teamId] of [['home','home'], ['away','away']]) {
       const usedIn = result.events.filter(event => event.type === 'sub' && event.teamId === teamId).map(event => event.inId);
-      // Three substitutes, taken off the front of a rating-sorted bench: no
-      // match can reach a tenth name, so the cap cannot change any outcome.
       expect(usedIn.length).toBeLessThanOrEqual(3);
-      for (const id of usedIn) expect(benches[side].indexOf(id)).toBeLessThan(3);
+      expect(new Set(usedIn).size).toBe(usedIn.length);
+      for (const id of usedIn) {
+        expect(benches[side]).toContain(id);
+        const incoming=[...homePlayers,...awayPlayers].find(p=>p.id===id);
+        expect(incoming.position).not.toBe('GK');
+      }
     }
   });
 });
