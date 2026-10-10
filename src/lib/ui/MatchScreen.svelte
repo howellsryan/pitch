@@ -1,5 +1,5 @@
 <script>
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { flip } from 'svelte/animate';
   import {
     getAllFixtures, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getSave, openDB, putSave,
@@ -95,6 +95,9 @@
   let tacticsSheetWasPaused  = false;
   let tacticsSubInId         = $state(null);
   let tacticsSubOutId        = $state(null);
+  let tacticsView            = $state('lineup');
+  let tacticsDialog          = $state(null);
+  let tacticsReturnFocus;
 
   function vibrate(pattern) {
     try { window.navigator?.vibrate?.(pattern); } catch { /* not supported */ }
@@ -608,6 +611,10 @@
   const tacticsSubIn = $derived(tacticsSubInId ? benchList.find(player => player.id === tacticsSubInId) ?? null : null);
   const tacticsSubOut = $derived(tacticsSubOutId ? tacticsActivePlayers.find(player => player.id === tacticsSubOutId) ?? null : null);
   const subOutOptions = $derived(tacticsSubIn && live?.liveState ? eligibleSubOutTargets(live.liveState, live.userIsHome, tacticsSubIn) : []);
+  const tacticsSubHint = $derived(subsLeft <= 0 ? 'All substitutions used.'
+    : tacticsSubIn ? `Select a starter to replace with ${tacticsSubIn.name}.`
+    : tacticsSubOut ? `Select a substitute for ${tacticsSubOut.name}.`
+    : 'Select a substitute and the player to replace.');
 
   function applyTacticsSub(inPlayer, outPlayer) {
     if (!inPlayer || !outPlayer || !live?.liveState) return;
@@ -646,13 +653,17 @@
     applyTacticsSub(tacticsSubIn, player);
   }
 
-  function openTacticsSheet() {
+  async function openTacticsSheet() {
+    tacticsReturnFocus = document.activeElement;
     tacticsSheetWasPaused = live.paused;
     if (!live.paused) togglePause();
     tacticsPickerFormation = live.userIsHome ? live.liveState.homeFormation : live.liveState.awayFormation;
     tacticsSubInId = null;
     tacticsSubOutId = null;
+    tacticsView = 'lineup';
     tacticsSheetOpen = true;
+    await tick();
+    tacticsDialog?.querySelector('.match-tactics-close')?.focus();
   }
   function applyTactics(formation) {
     tacticsPickerFormation = formation;
@@ -686,6 +697,29 @@
     tacticsSubInId = null;
     tacticsSubOutId = null;
     if (!tacticsSheetWasPaused) togglePause();
+    void tick().then(() => {
+      if (tacticsReturnFocus?.isConnected) tacticsReturnFocus.focus();
+    });
+  }
+
+  function keepTacticsFocus(event) {
+    if (!tacticsSheetOpen) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTacticsSheet();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(tacticsDialog?.querySelectorAll('button:not([disabled]), select:not([disabled]), summary') ?? [])
+      .filter(element => element.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && (document.activeElement === first || !tacticsDialog?.contains(document.activeElement))) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !tacticsDialog?.contains(document.activeElement))) {
+      event.preventDefault();
+      first?.focus();
+    }
   }
 
   function applyCommitExtras(res) {
@@ -779,6 +813,8 @@
     return MENTALITY_ICONS[mentality] ?? MENTALITY_ICONS.balanced;
   }
 </script>
+
+<svelte:window onkeydown={keepTacticsFocus} />
 
 <div class="match-screen">
   {#if loading && !matchCtx}
@@ -1077,79 +1113,100 @@
   {/if}
 
   {#if tacticsSheetOpen && live}
-    <section class="match-tactics" aria-label="Live match tactics">
+    <section class="match-tactics" bind:this={tacticsDialog} role="dialog" aria-modal="true" aria-labelledby="match-tactics-title">
       <header class="match-tactics-header">
-        <div><span>LIVE · PAUSED</span><strong>{live.userTeam.name} Tactics</strong></div>
+        <div><span>LIVE · PAUSED</span><strong id="match-tactics-title">{live.userTeam.name} Tactics</strong></div>
         <button class="match-tactics-close" onclick={closeTacticsSheet} aria-label="Back to match">← Match</button>
       </header>
 
-      <div class="match-tactics-formations" aria-label="Formation">
-        {#each Object.keys(SLOT_LAYOUT) as f (f)}
-          <button class:active={f === tacticsPickerFormation} onclick={() => applyTactics(f)}>{f}</button>
-        {/each}
-      </div>
-
-      <div class="match-tactics-mentalities" aria-label="Mentality">
-        {#each MENTALITIES as mentality (mentality.id)}
-          <button
-            class:active={mentality.id === (live.userIsHome ? live.liveState.homeMentality : live.liveState.awayMentality)}
-            onclick={() => applyTacticsMentality(mentality.id)}
-            aria-label={`${mentality.label} mentality`}
-          >{mentality.label}</button>
-        {/each}
-      </div>
+      <nav class="match-tactics-views" aria-label="Tactics views">
+        <button aria-pressed={tacticsView === 'lineup'} onclick={() => { tacticsView = 'lineup'; }}>Line-up</button>
+        <button aria-pressed={tacticsView === 'plan'} onclick={() => { tacticsView = 'plan'; }}>Team plan</button>
+      </nav>
 
       <div class="match-tactics-scroll">
-        <TeamInstructionsPanel
-          compact
-          instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
-          players={tacticsActivePlayers}
-          rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
-          onchange={applyTacticsInstruction}
-        />
+        {#if tacticsView === 'plan'}
+          <div class="match-tactics-plan">
+            <p class="match-tactics-help">Open a section to adjust your approach. Changes apply immediately.</p>
+            <TeamInstructionsPanel
+              collapsible
+              instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
+              players={tacticsActivePlayers}
+              rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
+              onchange={applyTacticsInstruction}
+            />
+          </div>
+        {:else}
+          <div class="match-tactics-settings">
+            <label>
+              <span>Formation</span>
+              <select value={tacticsPickerFormation} onchange={event => applyTactics(event.currentTarget.value)}>
+                {#each Object.keys(SLOT_LAYOUT) as formation (formation)}
+                  <option value={formation}>{formation}</option>
+                {/each}
+              </select>
+            </label>
+            <label>
+              <span>Mentality</span>
+              <select value={live.userIsHome ? live.liveState.homeMentality : live.liveState.awayMentality} onchange={event => applyTacticsMentality(event.currentTarget.value)}>
+                {#each MENTALITIES as mentality (mentality.id)}
+                  <option value={mentality.id}>{mentality.label}</option>
+                {/each}
+              </select>
+            </label>
+          </div>
 
-        <div class="match-tactics-pitch-wrap">
-          <div class="match-tactics-pitch">
-            <div class="mtp-half"></div><div class="mtp-circle"></div>
-            <div class="mtp-box top"></div><div class="mtp-box bottom"></div>
-            {#each tacticsSlots as slot, i (i)}
-              {@const player = tacticsAssignment[i]}
-              {#if player}
-                {@const eligible = !tacticsSubIn || subOutOptions.some(option => option.id === player.id)}
-                <button
-                  class="match-tactics-slot pos-{positionGroup(player.position)}"
-                  class:selected={tacticsSubOutId === player.id}
-                  class:unavailable={!eligible}
-                  style="left:{slot.x}%;top:{slot.y}%"
-                  onclick={() => chooseTacticsStarter(player)}
-                  aria-label="Select {player.name}"
-                >
-                  <span class="mts-rating">{primaryRating(player)}</span>
-                  <span class="mts-pos">{player.position}</span>
-                  <small>{player.name.split(' ').pop()}</small>
-                </button>
-              {/if}
-            {/each}
-          </div>
-        </div>
+          <div class="match-tactics-team">
+            <div class="match-tactics-pitch-wrap">
+              <div class="match-tactics-pitch">
+                <div class="mtp-half"></div><div class="mtp-circle"></div>
+                <div class="mtp-box top"></div><div class="mtp-box bottom"></div>
+                {#each tacticsSlots as slot, i (i)}
+                  {@const player = tacticsAssignment[i]}
+                  {#if player}
+                    {@const eligible = !tacticsSubIn || subOutOptions.some(option => option.id === player.id)}
+                    <button
+                      class="match-tactics-slot pos-{positionGroup(player.position)}"
+                      class:selected={tacticsSubOutId === player.id}
+                      class:unavailable={!eligible}
+                      style="left:{slot.x}%;top:clamp(32px,{slot.y}%,calc(100% - 52px))"
+                      onclick={() => chooseTacticsStarter(player)}
+                      aria-label="Select {player.name}"
+                      aria-pressed={tacticsSubOutId === player.id}
+                    >
+                      <span class="mts-rating">{primaryRating(player)}</span>
+                      <span class="mts-pos">{player.position}</span>
+                      <small>{player.name.split(' ').pop()}</small>
+                    </button>
+                  {/if}
+                {/each}
+              </div>
+            </div>
 
-        <div class="match-tactics-bench">
-          <div class="mtb-heading">
-            <div><span>Bench</span><small>Tap two players — the change applies immediately</small></div>
-            <strong>{subsLeft} left</strong>
+            <div class="match-tactics-bench">
+              <div class="mtb-heading">
+                <div><span>Bench</span><small aria-live="polite">{tacticsSubHint}</small></div>
+                <strong>{subsLeft} left</strong>
+              </div>
+              <div class="match-tactics-bench-row">
+                {#each benchList as player (player.id)}
+                  {@const fit = Math.round(player.fitness ?? 90)}
+                  <button
+                    class:selected={tacticsSubInId === player.id}
+                    disabled={subsLeft <= 0 || player.injured}
+                    aria-pressed={tacticsSubInId === player.id}
+                    aria-label="Select {player.name}, {player.position}, rating {primaryRating(player)}, fitness {fit}%"
+                    onclick={() => chooseTacticsBench(player)}
+                  >
+                    <span class="mtb-avatar pos-{positionGroup(player.position)}">{player.position}</span>
+                    <span class="mtb-name">{player.name.split(' ').pop()}</span>
+                    <span class="mtb-meta">{primaryRating(player)} · {fit}%</span>
+                  </button>
+                {/each}
+              </div>
+            </div>
           </div>
-          <div class="match-tactics-bench-row">
-            {#each benchList as player (player.id)}
-              {@const fit = Math.round(player.fitness ?? 90)}
-              <button class:selected={tacticsSubInId === player.id} onclick={() => chooseTacticsBench(player)}>
-                <span class="mtb-avatar pos-{positionGroup(player.position)}">{player.name.split(' ').map(word => word[0]).join('').slice(0, 2)}</span>
-                <span class="mtb-pos">{player.position}</span>
-                <span class="mtb-name">{player.name.split(' ').pop()}</span>
-                <span class="mtb-meta">{primaryRating(player)} · {fit}%</span>
-              </button>
-            {/each}
-          </div>
-        </div>
+        {/if}
       </div>
     </section>
   {/if}
@@ -1357,22 +1414,20 @@
   }
   .match-tactics-header span { display: block; margin-bottom: 4px; color: var(--color-live); font: 700 9px var(--font-mono); letter-spacing: 1.6px; }
   .match-tactics-header strong { display: block; font: 700 21px var(--font-display); letter-spacing: .4px; }
-  .match-tactics-close { min-width: 88px; height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); font: 700 11px var(--font-body); cursor: pointer; }
-  .match-tactics-formations {
-    flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px;
-    border-bottom: 1px solid var(--color-line); scrollbar-width: none;
-  }
-  .match-tactics-formations::-webkit-scrollbar, .match-tactics-bench-row::-webkit-scrollbar { display: none; }
-  .match-tactics-formations button {
-    flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line);
-    border-radius: 8px; background: var(--color-raised); color: var(--color-tx-2); font: 600 11px var(--font-mono); cursor: pointer;
-  }
-  .match-tactics-formations button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-mentalities { flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px; border-bottom: 1px solid var(--color-line); scrollbar-width: none; }
-  .match-tactics-mentalities::-webkit-scrollbar { display: none; }
-  .match-tactics-mentalities button { flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
-  .match-tactics-mentalities button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+  .match-tactics-close { flex:0 0 auto; min-width:88px; min-height:44px; padding:0 14px; border-radius:999px; border:1px solid var(--color-line); background:var(--color-raised); color:var(--color-tx); font:700 12px var(--font-body); cursor:pointer; }
+  .match-tactics-views { flex:0 0 auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; padding:8px 12px; border-bottom:1px solid var(--color-line); }
+  .match-tactics-views button { min-height:44px; border:1px solid var(--color-line); border-radius:9px; background:var(--color-surface); color:var(--color-tx-2); font:700 13px var(--font-body); cursor:pointer; }
+  .match-tactics-views button[aria-pressed="true"] { border-color:var(--color-club); background:var(--color-club); color:var(--color-on-club,#fff); }
+  .match-tactics-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:12px 12px max(16px,env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:14px; }
+  .match-tactics-scroll > * { min-width:0; flex:0 0 auto; }
+  .match-tactics-settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .match-tactics-settings label { display:grid; gap:6px; min-width:0; }
+  .match-tactics-settings label > span { color:var(--color-tx-2); font:700 11px var(--font-body); }
+  .match-tactics-settings select { width:100%; min-width:0; min-height:44px; padding:0 10px; border:1px solid var(--color-line); border-radius:9px; background:var(--color-surface); color:var(--color-tx); font:700 14px var(--font-body); cursor:pointer; }
+  .match-tactics-help { margin:0 0 12px; color:var(--color-tx-2); font-size:12px; line-height:1.5; }
+  .match-tactics-team { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; }
+  .match-tactics-plan { width:100%; max-width:620px; margin:0 auto; }
+  .match-tactics-close:focus-visible, .match-tactics-views button:focus-visible, .match-tactics-settings select:focus-visible, .match-tactics-slot:focus-visible, .match-tactics-bench-row button:focus-visible { outline:2px solid var(--color-live); outline-offset:3px; }
   .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
   .match-tactics-pitch {
     position: relative; width: 100%; aspect-ratio: 68 / 91; overflow: hidden;
@@ -1397,31 +1452,35 @@
   .match-tactics-slot.pos-ATT { border-color: var(--color-bad); }
   .match-tactics-slot.selected { box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-club) 45%, transparent); border-color: var(--color-club); }
   .match-tactics-slot.unavailable { opacity: .35; }
-  .mts-rating { font: 700 14px/1 var(--font-display); }
-  .mts-pos { color: var(--color-tx-3); font: 700 8px/1.3 var(--font-mono); }
+  .mts-rating { font:700 17px/1 var(--font-display); }
+  .mts-pos { color:var(--color-tx-2); font:700 10px/1.5 var(--font-mono); }
   .match-tactics-slot small {
     position: absolute; top: calc(100% + 3px); max-width: 68px; overflow: hidden; text-overflow: ellipsis;
-    padding: 2px 4px; border-radius: 3px; white-space: nowrap; background: rgba(4,12,8,.82); color: white; font: 9px var(--font-body);
+    padding: 2px 4px; border-radius: 3px; white-space: nowrap; background: rgba(4,12,8,.82); color: white; font: 11px var(--font-body);
   }
-  .match-tactics-bench { width: min(100%, 520px); margin: 14px auto 0; }
+  .match-tactics-bench { min-width:0; width:100%; margin:0 auto; }
   .mtb-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 8px; }
   .mtb-heading span { display: block; font: 700 15px var(--font-display); }
-  .mtb-heading small { display: block; margin-top: 2px; color: var(--color-tx-3); font-size: 9px; }
-  .mtb-heading strong { color: var(--color-warn); font: 700 10px var(--font-mono); }
+  .mtb-heading small { display:block; margin-top:4px; color:var(--color-tx-2); font-size:12px; line-height:1.4; }
+  .mtb-heading strong { flex:0 0 auto; color:var(--color-warn); font:700 12px var(--font-mono); }
   .match-tactics-bench-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
   .match-tactics-bench-row button {
-    flex: 0 0 82px; min-height: 104px; display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 8px 5px; border: 1px solid var(--color-line); border-radius: 10px;
+    flex:0 0 96px; min-height:112px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+    padding:10px 6px; border:1px solid var(--color-line); border-radius:10px;
     background: var(--color-surface); color: var(--color-tx); cursor: pointer;
   }
   .match-tactics-bench-row button.selected { border-color: var(--color-club); background: color-mix(in oklch, var(--color-club) 12%, var(--color-surface)); box-shadow: inset 0 0 0 1px var(--color-club); }
-  .mtb-avatar { width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid; border-radius: 50%; font: 700 10px var(--font-mono); }
+  .match-tactics-bench-row button:disabled { opacity:.45; cursor:default; }
+  .match-tactics-bench-row::-webkit-scrollbar { display:none; }
+  .mtb-avatar { width:40px; height:40px; display:grid; place-items:center; border:2px solid; border-radius:50%; font:700 13px var(--font-mono); }
   .mtb-avatar.pos-GK { border-color: #7c83e8; }.mtb-avatar.pos-DEF { border-color: var(--color-live); }.mtb-avatar.pos-MID { border-color: var(--color-warn); }.mtb-avatar.pos-ATT { border-color: var(--color-bad); }
-  .mtb-pos { color: var(--color-tx-3); font: 700 8px var(--font-mono); }
-  .mtb-name { width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; white-space: nowrap; }
-  .mtb-meta { color: var(--color-tx-3); font: 9px var(--font-mono); }
+  .mtb-name { width:100%; overflow:hidden; text-overflow:ellipsis; color:var(--color-tx); font-size:13px; white-space:nowrap; }
+  .mtb-meta { color:var(--color-tx-2); font:11px var(--font-mono); }
 
   @media (min-width: 900px) {
-    .match-tactics { left: 50%; right: auto; width: min(720px, 100vw); transform: translateX(-50%); border-left: 1px solid var(--color-line); border-right: 1px solid var(--color-line); }
+    .match-tactics { left:50%; right:auto; width:min(900px,100vw); transform:translateX(-50%); border-left:1px solid var(--color-line); border-right:1px solid var(--color-line); }
+    .match-tactics-scroll { padding:18px 24px 24px; }
+    .match-tactics-team { grid-template-columns:minmax(0,1fr) minmax(0,320px); align-items:start; gap:24px; }
+    .match-tactics-bench-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; }
   }
 </style>

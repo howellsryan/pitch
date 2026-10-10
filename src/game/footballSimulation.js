@@ -677,4 +677,12 @@ export function replaceFootballLineups(sim,options) {
     const slotReplacement=sim.players.find(p=>p.teamId===previous.get(sim.ball.ownerId)?.teamId&&p.shirt===previous.get(sim.ball.ownerId)?.shirt);
     sim.ball.ownerId=slotReplacement?.id ?? null;
   }
+  if (sim.deadball) {
+    // Fresh formation targets must not pull players into the opposing half
+    // while a restart is waiting for them. Its taker may also have been replaced.
+    const {type,teamId,spot,takerId}=sim.deadball;
+    const taker=sim.byId.get(takerId) ?? (type==='goal_kick'
+      ? side(sim,teamId).find(p=>p.position==='GK') : kicker(sim,teamId));
+    prepareDeadball(sim,type,teamId,spot,taker?.id);
+  }
 }

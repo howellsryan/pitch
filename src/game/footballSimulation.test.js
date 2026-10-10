@@ -27,6 +27,28 @@ function openScene(sim, actions) {
 }
 
 describe('continuous metric football',()=>{
+  it.each([false,true])('resumes a preparing kickoff after a formation change (replace taker: %s)',replaceTaker=>{
+    const {sim,state}=fixture();
+    sim.deadball.ready=false;
+    sim.deadball.since=sim.clock;
+    const oldTaker=sim.deadball.takerId;
+    const returningWinger=sim.players.find(p=>p.teamId==='h'&&p.position==='RW');
+    returningWinger.y=20;
+    returningWinger.py=20;
+    const options={...footballLineupOptions(state),homeFormation:'4-2-3-1'};
+    if(replaceTaker) options.homePlayers=options.homePlayers.map(p=>p.id===oldTaker?{...p,id:'kickoff-substitute'}:p);
+    const positions=new Map(sim.players.map(p=>[p.id,{x:p.x,y:p.y}]));
+    replaceFootballLineups(sim,options);
+    for(const p of sim.players) {
+      const before=positions.get(p.id);
+      if(before) expect({x:p.x,y:p.y}).toEqual(before);
+    }
+    drain(sim);
+    expect(sim.deadball.ready).toBe(true);
+    expect(sim.byId.has(sim.deadball.takerId)).toBe(true);
+    expect(sim.ball.ownerId).toBe(sim.deadball.takerId);
+    expect(sim.players.every(p=>p.id===sim.deadball.takerId||(p.teamId==='h'?p.y>=53:p.y<=52))).toBe(true);
+  });
   it('checks a marginal offside run behind the defensive line without retreating to halfway',()=>{
     const {sim}=fixture(),actor=sim.byId.get('h5'),receiver=sim.byId.get('h9');
     actor.x=34;actor.y=30;receiver.x=34;receiver.y=18;

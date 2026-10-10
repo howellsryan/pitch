@@ -86,6 +86,10 @@ until the next taker reaches its spot. Live substitutions defer until the active
 scene completes and retain the outgoing slot's position. Tracking is transient;
 neither full frame histories nor action ledgers enter completed career results.
 Background fixtures never integrate or render 22-player tracking.
+When tactics change between scenes during a restart, the tracking adapter
+restores legal restart targets and replaces an outgoing taker. It preserves
+current coordinates, so players continue walking into position rather than
+following formation targets across the halfway line and stalling the kickoff.
 
 ## Rendering and controls
 
@@ -104,17 +108,23 @@ polling. Clock interpolation and narration follow the visible sequence, with
 future shot/interception results withheld until contact.
 
 Pause and the Tactics room freeze the same timeline. Labelled 1×/2×/4× apply
-physical rates 4×/8×/16×: the old 4× pace is the new default 1×. Integration remains
-20 ms and the renderer substeps accelerated time; legacy scheduling uses the same
-rate. The three measured real-squad fixtures take about three minutes at default 1×.
+physical rates 2×/4×/8×: every speed is half the initial continuous broadcast pace.
+Integration remains 20 ms and the renderer substeps accelerated time; legacy
+scheduling uses the same rate. Default 1× therefore takes about twice the watch time of the initial
+continuous broadcast (roughly five to six minutes for the previously measured fixtures).
 Large wall-clock gaps are bounded to prevent background-tab fast-forward. Full
 time waits for the final shot/goal hold, then uses the existing atomic result
 commit. Quick Sim and Skip retain that same engine/result/persistence path.
 Goal takeovers clear when open play resumes so accelerated football remains
 visible while the readable goal notification continues.
-The Tactics room constrains its content grid to the available width; team-plan
-choices remain visible on 320 px phones while formation and bench rows scroll
-independently.
+The Tactics room opens on Line-up, with labelled native formation/mentality
+selects, starting XI and bench; desktop places the bench beside the pitch.
+Substitute badges contain their position, followed by name and rating/fitness.
+Team plan uses opt-in expandable phases with 12 px choices and 44 px targets,
+while pre-match instructions retain their existing presentation. Selections
+apply through the same shared tactical/substitution handlers. The dialog moves
+keyboard focus inside on entry, confines Tab and supports Escape; closing it
+restores both focus and the prior manual pause state.
 
 ## Verification contract
 
@@ -161,3 +171,19 @@ throttling, measured a 17.1 ms 95th-percentile draw interval while play advanced
 from 13:09 to 66:18. Fresh local career setup took 3.86 s and its first world week
 took 2.93 s at 4× CPU: 90 fixtures resolved once, the pending queue emptied and
 the career advanced to GW2. Browser storage used 8.42 MiB after that week.
+
+Pacing/tactics refinement evidence on 2026-10-10: every playback rate was halved
+from physical 4×/8×/16× to 2×/4×/8× for the existing 1×/2×/4× labels. Native live inspection
+covered 320/390/1280 px, readable expandable instructions, formation/mentality
+changes, position-only bench badges, retained selections between views, keyboard
+focus/Escape/Tab, valid outfield/keeper substitutions and the three-change limit.
+Both clock and canvas stayed frozen while Tactics was open and when manually
+paused after closing it. A restart stall discovered during that inspection has
+two regression cases that failed before the fix and pass after it.
+
+Fresh build (198 replacement contracts), 1,083 Vitest tests, lint, accents and the
+unchanged 3,000-match calibration gate passed. A complete rebuilt Sevilla–Madrid
+0–0 match used all three playback labels, reached full time without Skip and
+matched its saved statistics/substitutions. At 4× CPU, saving its world week took
+3.07 s: 90 unique fixtures played once, GW2, empty queue, 7.67 MiB browser storage.
+The result and tactical choices persisted after a cold reload.

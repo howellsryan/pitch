@@ -31,8 +31,15 @@ Carriers keep moving while teammates check runs, and support/cover follows play.
 Interceptions meet the recorded defender and late first touches chase a rolling ball.
 The match clock and commentary follow the visible action, with the score revealed
 when the ball reaches the goal. Pause, speed and the Tactics room control the same
-timeline. The default **1×** now runs at the former **4×** pace; **2×/4×** run at
-the former **8×/16×** pace. Reduced-motion preferences use the fixed overview and remove stride effects.
+timeline. Every speed has been halved from the initial continuous broadcast:
+**1×/2×/4×** now run at the original **2×/4×/8×** presentation rates.
+Reduced-motion preferences use the fixed overview and remove stride effects.
+
+Live **Tactics** opens on **Line-up**, with formation, mentality, your XI and the
+bench together. Substitute circles show positions such as **CM** or **GK**;
+select a substitute and the starter to replace. **Team plan** groups readable
+instruction controls into expandable phases. Choices apply immediately, and
+returning to the match preserves your previous pause state.
 
 Quick Sim and Broadcast share the same seeded action/result engine. The engine
 supplies ordered passes, carries, recoveries, shots and restart ownership; the

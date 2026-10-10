@@ -1,6 +1,6 @@
-/** UI speed labels are relative to the watchable baseline, four times the
+/** UI speed labels are relative to the watchable baseline, twice the
  * original physical presentation. Keep integration steps unchanged. */
-export const MATCH_PLAYBACK_BASE_RATE = 4;
+export const MATCH_PLAYBACK_BASE_RATE = 2;
 export function matchPlaybackRate(multiplier = 1) {
   return MATCH_PLAYBACK_BASE_RATE * ([1,2,4].includes(multiplier) ? multiplier : 1);
 }
