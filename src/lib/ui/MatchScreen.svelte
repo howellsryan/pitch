@@ -711,7 +711,8 @@
     }
     if (event.key !== 'Tab') return;
     const controls = Array.from(tacticsDialog?.querySelectorAll('button:not([disabled]), select:not([disabled]), summary') ?? [])
-      .filter(element => element.getClientRects().length);
+      .filter(element => element.getClientRects().length
+        && (element.tagName === 'SUMMARY' || !element.closest('details:not([open])')));
     const first = controls[0], last = controls.at(-1);
     if (event.shiftKey && (document.activeElement === first || !tacticsDialog?.contains(document.activeElement))) {
       event.preventDefault();

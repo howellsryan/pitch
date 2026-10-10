@@ -121,10 +121,10 @@ The Tactics room opens on Line-up, with labelled native formation/mentality
 selects, starting XI and bench; desktop places the bench beside the pitch.
 Substitute badges contain their position, followed by name and rating/fitness.
 Team plan uses opt-in expandable phases with 12 px choices and 44 px targets,
-while pre-match instructions retain their existing presentation. Selections
-apply through the same shared tactical/substitution handlers. The dialog moves
-keyboard focus inside on entry, confines Tab and supports Escape; closing it
-restores both focus and the prior manual pause state.
+retaining expanded sections after changes. Pre-match instructions retain their
+existing presentation. Selections apply through the same shared tactical/substitution
+handlers. The dialog moves keyboard focus inside on entry, confines Tab to visible
+controls and supports Escape; closing it restores focus and the prior manual pause state.
 
 ## Verification contract
 
@@ -187,3 +187,9 @@ unchanged 3,000-match calibration gate passed. A complete rebuilt Sevilla–Madr
 matched its saved statistics/substitutions. At 4× CPU, saving its world week took
 3.07 s: 90 unique fixtures played once, GW2, empty queue, 7.67 MiB browser storage.
 The result and tactical choices persisted after a cold reload.
+
+The public preview also completed Madrid–Elche 2–0 without Skip; Bellingham (66')
+and Rodrygo (84'), report statistics and the 90-fixture world week matched the
+saved career. The last interaction check caught disclosure sections closing on
+selection and focus targeting hidden controls. Native rechecks confirm expanded
+sections now stay open and keyboard navigation excludes collapsed content.

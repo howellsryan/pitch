@@ -22,6 +22,7 @@
     ['shape', 'Shape'],
     ['set_pieces', 'Set pieces'],
   ];
+  let expandedPhases = $state({ in_possession:true });
 
   const normalized = $derived.by(() => normalizeTeamInstructions(instructions));
   const feedback = $derived.by(() => buildTacticalPlanFeedback({
@@ -39,6 +40,11 @@
     if (!changed.length) return 'Balanced defaults';
     const labels = changed.slice(0, 2).map(def => def.values.find(([value]) => value === normalized[def.id])?.[1]);
     return labels.join(' · ') + (changed.length > 2 ? ` +${changed.length - 2}` : '');
+  }
+
+  function rememberPhase(event, phase) {
+    const open = event.currentTarget.open;
+    if (Boolean(expandedPhases[phase]) !== open) expandedPhases[phase] = open;
   }
 </script>
 
@@ -81,11 +87,11 @@
     </div>
   </section>
 
-  {#each PHASES as [phase, label], index (phase)}
+  {#each PHASES as [phase, label] (phase)}
     {@const defs = defsFor(phase)}
     {#if defs.length}
       {#if collapsible}
-        <details class="phase-disclosure" open={index === 0}>
+        <details class="phase-disclosure" open={Boolean(expandedPhases[phase])} ontoggle={event => rememberPhase(event, phase)}>
           <summary>
             <span><strong>{label}</strong><small>{phaseSummary(defs)}</small></span>
             <svg class="phase-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
