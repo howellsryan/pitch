@@ -58,9 +58,10 @@ export async function handleEndOfSeason(){
   try{
     const {summary,leagueWinner,newSave,prizeMoney,leagueChanges,newYouthCohort}=await processEndOfSeason();
     hideLoader();
+    const managedClub=summary.managedClub!==false;
     const trophies=[];
-    if(leagueWinner?.teamId===newSave.userTeamId) trophies.push('League Champions!');
-    if(summary.cups) for(const[cid,st]of Object.entries(summary.cups)){
+    if(managedClub&&leagueWinner?.teamId===newSave.userTeamId) trophies.push('League Champions!');
+    if(managedClub&&summary.cups) for(const[cid,st]of Object.entries(summary.cups)){
       if(st.status==='winner') trophies.push(`${CUP_META[cid]?.name||cid} Winners!`);
     }
     const tHtml=trophies.length?`<div style="background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:8px;padding:12px;margin-bottom:12px">${trophies.map(t=>`<div style="color:var(--acc2);font-size:14px;font-weight:600">${eosIcon('trophy')}${t}</div>`).join('')}</div>`:'';
@@ -69,7 +70,7 @@ export async function handleEndOfSeason(){
     // Build league changes HTML (promotion/relegation/playoffs)
     let lcHtml='';
     if(leagueChanges){
-      const uri=leagueChanges.userRelInfo||{};
+      const uri=managedClub?(leagueChanges.userRelInfo||{}):{};
       if(uri.promoted&&uri.promotedViaPlayoff){
         lcHtml+=`<div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:10px;margin-bottom:8px">
           <div style="font-size:13px;font-weight:700;color:#3b82f6">${eosIcon('up')}PROMOTED via Play-offs!</div>
@@ -105,7 +106,7 @@ export async function handleEndOfSeason(){
       }
 
       // Show movements summary
-      const mvs=(leagueChanges.movements||[]).filter(m=>m.teamId!==newSave.userTeamId);
+      const mvs=(leagueChanges.movements||[]).filter(m=>!managedClub||m.teamId!==newSave.userTeamId);
       if(mvs.length>0){
         const promos=mvs.filter(m=>m.reason.includes('Promoted')||m.reason.includes('Playoff'));
         const rels=mvs.filter(m=>m.reason==='Relegated');
@@ -118,7 +119,7 @@ export async function handleEndOfSeason(){
 
     // ── Board objective outcome ──────────────────────────────
     let boardHtml='';
-    if(summary.boardObjective){
+    if(managedClub&&summary.boardObjective){
       const metColor=summary.objectiveMet?'var(--acc)':'var(--acc3)';
       const metLabel=summary.objectiveMet?'MET':'MISSED';
       // P7 WP7: the sporting MET/MISSED line above is the pre-P7 contract,
@@ -158,42 +159,40 @@ export async function handleEndOfSeason(){
     // the modal just tells the user, and the normal season-complete flow
     // below still runs (new fixtures, inbox news) since the club's own
     // season genuinely did complete, just under a new caretaker going
-    // forward. Known limitation: Home/Squad/Transfers aren't yet
-    // unemployment-aware, so this club stays nominally playable from Home
-    // until the user accepts a new job via Settings — see CLAUDE.md.
+    // forward. Managers already between clubs only receive the world update.
     const sackedHtml=summary.sacked?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
       <div style="font-size:13px;color:var(--acc3);font-weight:600">${eosIcon('user')}The board has run out of patience and relieved you of your duties.</div>
       <div style="font-size:12px;color:var(--tx2);margin-top:4px">A caretaker takes over immediately. Your honors and career history are kept — you're a free agent now, and can browse or be approached for a new job from Settings.</div>
     </div>`:'';
 
-    showModal(summary.sacked?'You Were Sacked':'Season Complete!',`<div>${tHtml}
-      <div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>
-      ${prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">${eosIcon('money')}Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
+    showModal(summary.sacked?'You Were Sacked':managedClub?'Season Complete!':'Season Advanced',`<div>${tHtml}
+      ${managedClub?`<div style="font-size:13px;color:var(--tx2);margin-bottom:8px">Finished <strong style="color:var(--tx)">${ord(summary.userFinish)}</strong> in the league.</div>`:`<div style="font-size:13px;color:var(--tx2);margin-bottom:8px">The world has moved into <strong style="color:var(--tx)">${newSave.season}</strong>. You're between clubs. Browse managerial vacancies in Settings to find your next job.</div>`}
+      ${managedClub&&prizeMoney?`<div style="font-size:13px;color:var(--acc);margin-bottom:8px">${eosIcon('money')}Prize money: <strong>${fmt.money(prizeMoney)}</strong></div>`:''}
       ${sackedHtml}
       ${boardHtml}
       ${lcHtml}
-      ${summary.retirements&&summary.retirements.length?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
+      ${managedClub&&summary.retirements&&summary.retirements.length?`<div style="background:rgba(232,72,85,.08);border:1px solid rgba(232,72,85,.2);border-radius:8px;padding:10px;margin-bottom:8px">
         <div style="font-size:12px;font-weight:600;color:var(--acc3);margin-bottom:4px">${eosIcon('user')}Retirements</div>
         ${summary.retirements.map(r=>`<div style="font-size:12px;color:var(--tx2)">${r.name} (${r.position}, ${r.age}) has retired</div>`).join('')}
       </div>`:''}
       <div style="font-size:12px;color:var(--tx2)">All players aged +1 year. New season fixtures generated.</div>
     </div>`,
-    [{id:'ok',label:summary.sacked?'Continue →':'Start Next Season →',cls:'btn-p',handler:async()=>{await renderHome();}}]);
+    [{id:'ok',label:summary.sacked||!managedClub?'Continue →':'Start Next Season →',cls:'btn-p',handler:async()=>{await renderHome();}}]);
     // ── Inbox news ──────────────────────────────────────────
-    if(typeof newsSeasonEnd==='function'){
+    if(managedClub&&typeof newsSeasonEnd==='function'){
       const _uTeam=await getTeam(newSave.userTeamId);
       newsSeasonEnd(summary.userFinish,newSave.userLeague||_uTeam?.league||'League',trophies,prizeMoney,newSave).catch(()=>{});
       if(summary.sacked&&typeof newsManagerDismissed==='function') newsManagerDismissed(_uTeam?.name||'the club',newSave).catch(()=>{});
     }
-    if(typeof newsPromotion==='function'&&leagueChanges?.userRelInfo?.promoted){
+    if(managedClub&&typeof newsPromotion==='function'&&leagueChanges?.userRelInfo?.promoted){
       const _uTeam=await getTeam(newSave.userTeamId);
       newsPromotion(_uTeam?.name||'Your club',newSave.userLeague||'the division above',newSave).catch(()=>{});
     }
-    if(typeof newsRelegation==='function'&&leagueChanges?.userRelInfo?.relegated){
+    if(managedClub&&typeof newsRelegation==='function'&&leagueChanges?.userRelInfo?.relegated){
       const _uTeam=await getTeam(newSave.userTeamId);
       newsRelegation(_uTeam?.name||'Your club',newSave.userLeague||'the division below',newSave).catch(()=>{});
     }
-    if(typeof newsYouthIntake==='function'&&newYouthCohort?.length){
+    if(managedClub&&!summary.sacked&&typeof newsYouthIntake==='function'&&newYouthCohort?.length){
       const wks=newYouthCohort.filter(p=>p.isWonderkid).length;
       newsYouthIntake(newYouthCohort.length,wks,newSave).catch(()=>{});
     }

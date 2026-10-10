@@ -1,5 +1,6 @@
 <script>
-  import { getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
+  import { tick } from 'svelte';
+  import { getManager, getPlayer, getPlayersByTeam, getSave, getTeam, putPlayer, putSave, openDB } from '../../modules/db.js';
   import { FORMATIONS, MAX_MATCHDAY_BENCH, primaryRating, pruneBenchToSquad, selectBench, selectEleven, selectReserves } from '../../modules/matchEngine.js';
   import {
     SQUAD_ROLE_DEFS,
@@ -25,7 +26,9 @@
   import { SLOT_LAYOUT } from '../../game/formationLayout.js';
   import { reconcileBenchWithLineup } from '../../game/matchdaySquad.js';
   import { contractYearsRemaining, renewContract, setManagedPlayerTransferListing } from '../../modules/transfers.js';
-  import { fmt, posGroup, toast } from '../../ui/helpers.js';
+  import { fmt, navigateTo, posGroup, toast } from '../../ui/helpers.js';
+  import { canManageClub, requireClubEmployment } from '../../modules/managerEmployment.js';
+  import { isAcademyPlayer } from '../../modules/playerStatus.js';
   import { screenTicks } from '../state/screens.svelte.js';
   import DevelopmentPlanPanel from './DevelopmentPlanPanel.svelte';
   import SquadPlanningPanel from './SquadPlanningPanel.svelte';
@@ -51,6 +54,7 @@
   let formationOpen = $state(false);
   let mentalityOpen = $state(false);
   let instructionsOpen = $state(false);
+  let dnaOpen = $state(false);
   let planningOpen = $state(false);
   let swapSlotIdx = $state(null);
   let rosterOpen = $state(false);
@@ -58,13 +62,32 @@
   let draggedPlayerId = $state(null);
   let benchSlotIdx = $state(null);
 
+  async function currentClubSave() {
+    try {
+      const sv = await requireClubEmployment();
+      if (save?.userTeamId && String(sv.userTeamId) !== String(save.userTeamId)) {
+        await navigateTo('home');
+        return null;
+      }
+      return sv;
+    }
+    catch (error) {
+      if (error.message !== 'MANAGER_NOT_EMPLOYED' && error.message !== 'NO_ACTIVE_SAVE') throw error;
+      toast('You need a club appointment before managing a squad.', 'info');
+      await navigateTo('home');
+      return null;
+    }
+  }
+
   async function load() {
     await openDB();
     const currentSave = await getSave();
     if (!currentSave || currentSave._deleted) return;
+    const manager = currentSave.userManagerId ? await getManager(currentSave.userManagerId) : null;
+    if (!canManageClub(currentSave, manager)) { loaded = false; return; }
     save = currentSave;
     team = await getTeam(save.userTeamId);
-    players = await getPlayersByTeam(save.userTeamId);
+    players = (await getPlayersByTeam(save.userTeamId)).filter(player => !isAcademyPlayer(player));
     if (playerSheet) playerSheet = players.find(p => p.id === playerSheet.id) ?? null;
     formation = save.formation ?? '4-3-3';
     savedLineup = save.lineup ?? [];
@@ -97,6 +120,23 @@
     return changedInstructions.slice(0, 2).map(def => instructionValueLabel(def, instructions[def.id])).join(' · ')
       + (changedInstructions.length > 2 ? ` +${changedInstructions.length - 2}` : '');
   });
+
+  async function openDNA() {
+    dnaOpen = true;
+    await tick();
+    document.getElementById('squad-dna-close')?.focus();
+  }
+
+  function closeDNA() {
+    dnaOpen = false;
+    document.getElementById('squad-dna-button')?.focus();
+  }
+
+  function keepDNAFocus(event) {
+    if (event.key !== 'Tab') return;
+    event.preventDefault();
+    document.getElementById('squad-dna-close')?.focus();
+  }
 
   function slotLevel(player, position) {
     return Number(currentEffectiveLevel(player, { position }) ?? primaryRating(player) ?? 0);
@@ -164,7 +204,8 @@
   /** Takes the *named* ids, not resolved players, so an unavailable substitute
    *  keeps their seat instead of being edited out of the save. */
   async function persistBench(nextBenchIds) {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const bench = [];
     for (const id of nextBenchIds) {
       if (id == null || bench.some(taken => String(taken) === String(id))) continue;
@@ -212,7 +253,8 @@
   }
 
   async function resetBench() {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     await putSave({ ...sv, bench:null });
     savedBench = null;
     screenTicks.squad++;
@@ -250,7 +292,8 @@
 
   async function pickFormation(f) {
     formationOpen = false;
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     // The new shape is filled automatically, and that XI can absorb someone the
     // manager had named as a substitute — leaving their id on the bench, where
     // the engine skips it and plays a substitute short.
@@ -260,14 +303,16 @@
   }
   async function pickMentality(m) {
     mentalityOpen = false;
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     await putSave({ ...sv, mentality: m.id });
     toast(`Mentality: ${m.fullLabel}`, 'info', 2000);
     screenTicks.squad++;
   }
 
   async function pickInstruction(key, value) {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const nextInstructions = normalizeTeamInstructions({ ...instructions, [key]:value });
     const updated = { ...sv, tactics:createUserTacticalPlan(nextInstructions) };
     await putSave(updated);
@@ -276,7 +321,8 @@
   }
 
   async function pickPlayerRole(player, roleId) {
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const nextRoles = { ...(sv.playerRoles ?? {}) };
     if (roleId) nextRoles[player.id] = roleId;
     else delete nextRoles[player.id];
@@ -288,6 +334,8 @@
   }
 
   async function pickSquadRole(player, roleId) {
+    const sv = await currentClubSave();
+    if (!sv || String(player.teamId) !== String(sv.userTeamId)) return;
     const updated = setPlayerSquadRole(player, roleId, { source:'manager', teamId:save?.userTeamId ?? player.teamId });
     if (updated === player) return;
     await putPlayer(updated);
@@ -309,10 +357,13 @@
   function openPlayer(p) { playerSheet = p; rosterOpen = false; }
   function closePlayer() { playerSheet = null; }
   async function toggleSquad(p) {
-    const adding = p.inSquad === false;
-    const updatedPlayer = { ...p, inSquad:adding };
+    const sv = await currentClubSave();
+    if (!sv) return;
+    const current = await getPlayer(p.id);
+    if (!current || isAcademyPlayer(current) || String(current.teamId) !== String(sv.userTeamId)) return;
+    const adding = current.inSquad === false;
+    const updatedPlayer = { ...current, inSquad:adding };
     await putPlayer(updatedPlayer);
-    const sv = await getSave();
     if (!adding) {
       const eligiblePlayers = players.map(player => player.id === p.id ? updatedPlayer : player);
       const nextSave = { ...sv };
@@ -325,7 +376,7 @@
       if (Array.isArray(sv?.bench)) nextSave.bench = sv.bench.filter(id => String(id) !== String(p.id));
       await putSave(nextSave);
     }
-    toast(`${p.name} ${p.inSquad === false ? 'added to' : 'excluded from'} squad`, 'info', 2000);
+    toast(`${current.name} ${adding ? 'added to' : 'excluded from'} squad`, 'info', 2000);
     screenTicks.squad++;
   }
   async function toggleListed(p) {
@@ -391,7 +442,8 @@
     newAssignment[idx] = newPlayer;
     if (otherIdx >= 0) newAssignment[otherIdx] = currentPlayer ?? null;
 
-    const sv = await getSave();
+    const sv = await currentClubSave();
+    if (!sv) return;
     const lineup = newAssignment.filter(Boolean).map(p => p.id);
     await putSave({ ...sv, lineup, formation, bench:reconcileBenchWithLineup(sv.bench, lineup, newPlayer, currentPlayer) });
     const fit = positionFitLabel(slotFit(newPlayer, slots[idx].p));
@@ -400,7 +452,7 @@
   }
 </script>
 
-<svelte:window onclick={(e) => { if (!e.target.closest?.('.tac-dropdown')) { formationOpen = false; mentalityOpen = false; } }} />
+<svelte:window onclick={(e) => { if (!e.target.closest?.('.tac-dropdown')) { formationOpen = false; mentalityOpen = false; } }} onkeydown={(e) => { if (e.key === 'Escape') { formationOpen = false; mentalityOpen = false; if (dnaOpen) closeDNA(); } }} />
 
 <div class="tactics-screen">
   {#if !loaded}
@@ -416,7 +468,7 @@
     <div class="tac-controls">
       <div class="tac-dd-half">
         <div class="tac-dropdown">
-          <button class="tac-dd-btn" onclick={() => { mentalityOpen = false; formationOpen = !formationOpen; }}>
+          <button class="tac-dd-btn" aria-expanded={formationOpen} aria-label={`Formation: ${formation}`} onclick={() => { mentalityOpen = false; formationOpen = !formationOpen; }}>
             <span class="tac-dd-copy">
               <span class="tac-dd-label">Formation</span>
               <span class="tac-dd-val">{formation}</span>
@@ -443,7 +495,7 @@
       </div>
       <div class="tac-dd-half">
         <div class="tac-dropdown">
-          <button class="tac-dd-btn" onclick={() => { formationOpen = false; mentalityOpen = !mentalityOpen; }}>
+          <button class="tac-dd-btn" aria-expanded={mentalityOpen} aria-label={`Mentality: ${curMentObj.fullLabel}`} onclick={() => { formationOpen = false; mentalityOpen = !mentalityOpen; }}>
             <span class="tac-dd-copy">
               <span class="tac-dd-label">Mentality</span>
               <span class="tac-dd-val">{curMentObj.fullLabel}</span>
@@ -466,16 +518,17 @@
           {/if}
         </div>
       </div>
-      <button class="team-plan-button" onclick={() => instructionsOpen = true}>
+      <button class="team-plan-button" title={planSummary} aria-label={`Team plan: ${planSummary}`} onclick={() => instructionsOpen = true}>
         <span>Team plan</span>
-        <strong>{planSummary}</strong>
+        <strong class="control-full-value">{planSummary}</strong>
+        <strong class="control-compact-value">{changedInstructions.length ? 'Custom' : 'Balanced'}</strong>
         <small>{changedInstructions.length ? `${changedInstructions.length} instruction${changedInstructions.length === 1 ? '' : 's'} customised` : 'Tap to shape how your XI plays'}</small>
       </button>
-      <div class="dna-card" aria-label="Manager DNA">
+      <button id="squad-dna-button" class="dna-card" aria-haspopup="dialog" aria-expanded={dnaOpen} aria-label={`Manager DNA: ${managerDNA.matches ? managerDNA.style : 'Forming'}. View details`} onclick={openDNA}>
         <span>Manager DNA</span>
         <strong>{managerDNA.matches ? managerDNA.style : 'Forming'}</strong>
         <small>{managerDNA.matches ? `${managerDNA.pressing} · ${managerDNA.averagePossession}% poss.` : 'Builds from matches'}</small>
-      </div>
+      </button>
     </div>
 
     <div class="tac-pitch-area">
@@ -493,7 +546,7 @@
             {@const role = activeRoleFor(pl)}
             {@const fitScore = pl ? slotFit(pl, slot.p) : 1}
             {@const fitLabel = pl ? positionFitLabel(fitScore) : ''}
-            <button class="pitch-slot" style="left:{slot.x}%;top:{slot.y}%" draggable={!!pl} onclick={() => openSlotSwap(i)} ondragstart={() => beginDrag(pl)} ondragover={(e) => e.preventDefault()} ondrop={() => dropOnSlot(i)} aria-label="{slot.p} slot{pl ? ` · ${pl.name} · ${fitLabel}${role ? ` · ${role.label}` : ''}` : ''}">
+            <button class="pitch-slot" class:central-defender={slot.p === 'CB' && slot.x === 50} style="left:{slot.x}%;top:{slot.y}%" draggable={!!pl} onclick={() => openSlotSwap(i)} ondragstart={() => beginDrag(pl)} ondragover={(e) => e.preventDefault()} ondrop={() => dropOnSlot(i)} aria-label="{slot.p} slot{pl ? ` · ${pl.name} · ${fitLabel}${role ? ` · ${role.label}` : ''}` : ''}">
               <div class="slot-inner pos-{g} {!pl ? 'pos-empty' : ''} {pl?.injured ? 'slot-injured' : ''} {fitScore < .55 ? 'slot-mismatch' : ''}">
                 {#if pl}
                   <div class="slot-rating">{Math.round(slotLevel(pl, slot.p))}</div>
@@ -571,6 +624,32 @@
         </div>
       {/each}
     </div>
+  </div>
+{/if}
+
+{#if dnaOpen}
+  <button class="sheet-backdrop" onclick={closeDNA} aria-label="Close Manager DNA"></button>
+  <div class="sheet dna-sheet" role="dialog" aria-modal="true" aria-labelledby="squad-dna-title" tabindex="-1" onkeydown={keepDNAFocus}>
+    <div class="sheet-handle"></div>
+    <div class="swap-hdr">
+      <span id="squad-dna-title" class="swap-title">Manager DNA</span>
+      <button id="squad-dna-close" class="sheet-close" onclick={closeDNA} aria-label="Close Manager DNA">✕</button>
+    </div>
+    <p class="dna-explanation">Your management style develops from the tactics and decisions you use in matches.</p>
+    {#if managerDNA.matches}
+      <dl class="dna-details">
+        <div><dt>Style</dt><dd>{managerDNA.style}</dd></div>
+        <div><dt>Pressing</dt><dd>{managerDNA.pressing}</dd></div>
+        <div><dt>Risk</dt><dd>{managerDNA.risk}</dd></div>
+        <div><dt>Use of space</dt><dd>{managerDNA.space}</dd></div>
+        <div><dt>Ball carrying</dt><dd>{managerDNA.carrying}</dd></div>
+        <div><dt>Shot selection</dt><dd>{managerDNA.shotSelection}</dd></div>
+        <div><dt>Average possession</dt><dd>{managerDNA.averagePossession}%</dd></div>
+        <div><dt>Matches</dt><dd>{managerDNA.matches}</dd></div>
+      </dl>
+    {:else}
+      <p class="dna-forming">Play your first match to start building your DNA.</p>
+    {/if}
   </div>
 {/if}
 
@@ -761,7 +840,7 @@
       </div>
     </section>
 
-    <div class="player-finance"><span>{fmt.money(p.value)}</span><span>{fmt.wage(p.wage)}/wk</span></div>
+    <div class="player-finance"><span>{fmt.money(p.value)}</span><span>{fmt.wage(p.wage)}</span></div>
     <div class="player-actions">
       {#if yearsLeft !== null && !p.onLoan}<button class="player-primary" onclick={() => renewPlayerContract(p)}>Renew contract</button>{/if}
       <button onclick={() => toggleSquad(p)}>{p.inSquad === false ? 'Add to squad' : 'Exclude from squad'}</button>
@@ -809,6 +888,16 @@
   .team-plan-button small, .dna-card small { display:block; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-tx-3); font:9px/1.2 var(--font-body); }
   .dna-card { background:color-mix(in oklch,var(--color-club) 7%,var(--color-surface)); }
   .dna-card strong { color:var(--color-club); }
+  .dna-card { cursor:pointer; }
+  .team-plan-button .control-compact-value { display:none; }
+  .tac-controls button:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+  .dna-sheet { overflow-y:auto; }
+  .dna-sheet .sheet-close { width:44px; height:44px; }
+  .dna-explanation, .dna-forming { color:var(--color-tx-2); font:12px/1.5 var(--font-body); margin:0 0 14px; }
+  .dna-details { display:grid; gap:10px; margin:0; }
+  .dna-details > div { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .dna-details dt { color:var(--color-tx-3); font:11px var(--font-body); }
+  .dna-details dd { margin:0; text-align:right; font:600 12px var(--font-body); }
 
   /* The pitch takes the remaining height above the bench strip. */
   .tac-pitch-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 6px 10px 4px; }
@@ -934,15 +1023,39 @@
     .sheet { left:50%; right:auto; width:min(560px,calc(100vw - 32px)); transform:translateX(-50%); }
     .sheet.planning-sheet { width:min(920px,calc(100vw - 32px)); }
   }
-  /* Four cards abreast need real width; on a phone they wrap to two rows and
-     the pitch keeps everything below them. */
-  @media (max-width: 600px) {
-    .tac-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-inline: 12px; }
-    .pitch-wrap { max-width: min(560px, calc((100dvh - 300px) * .68)); }
+  /* Compact controls reclaim pitch height; menus keep the full row's width. */
+  @media (max-width: 768px) {
+    .tac-controls { gap:6px; padding-inline:12px; }
+    .tac-dd-half, .tac-dropdown { position:static; }
+    .tac-dd-btn, .team-plan-button, .dna-card { min-height:50px; padding:7px 6px; border-radius:8px; }
+    .tac-dd-btn { position:relative; display:block; }
+    .tac-dd-copy { display:block; }
+    .tac-dd-label, .team-plan-button span, .dna-card span { font-size:8px; letter-spacing:.2px; }
+    .tac-dd-val, .team-plan-button strong, .dna-card strong { font-size:11px; }
+    .tac-dd-arrow { position:absolute; top:5px; right:5px; font-size:10px; }
+    .tac-dd-copy small, .team-plan-button small, .dna-card small, .team-plan-button .control-full-value { display:none; }
+    .team-plan-button .control-compact-value { display:block; }
+    .tac-dd-list { left:12px; right:12px; }
+    .tac-dd-option, .m-option { min-height:44px; }
+    .pitch-bg { container-type:inline-size; }
+    .pitch-slot { width:56px; min-height:74px; }
+    .slot-inner { width:56px; height:56px; }
+    .slot-rating { font-size:20px; }
+    .slot-pos { font-size:9px; }
+    .slot-role { font-size:7px; }
+    .slot-name { font-size:11px; max-width:72px; max-width:min(84px,18cqw); }
+    /* The central defender sits above the keeper in three/five-back shapes. */
+    .pitch-slot.central-defender { min-height:80px; }
+    .central-defender .slot-name { position:absolute; bottom:calc(100% + 2px); }
   }
   @media (max-width: 380px) {
-    .pitch-slot { width: 46px; min-height: 62px; }
-    .slot-inner { width: 46px; height: 46px; }
-    .slot-rating { font-size: 15px; }
+    .pitch-slot { width:50px; min-height:68px; }
+    .slot-inner { width:50px; height:50px; }
+    .slot-rating { font-size:18px; }
+    .pitch-slot.central-defender { min-height:74px; }
+  }
+  @media (max-width:768px) and (max-height:700px) {
+    :global(#screen-squad) .tactics-screen { overflow-y:auto !important; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--color-line) transparent; }
+    :global(#screen-squad) .tac-pitch-area { flex:0 0 420px; min-height:420px !important; }
   }
 </style>

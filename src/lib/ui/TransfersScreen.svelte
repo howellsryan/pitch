@@ -17,7 +17,6 @@
   import { screenTicks } from '../state/screens.svelte.js';
 
   const POT_COLORS = ['', '#8a9ab0', 'var(--color-live)', '#3b82f6', 'var(--color-warn)', 'var(--color-bad)'];
-  const LEAGUE_NATION = { 'Premier League': 'ENG', 'Championship': 'ENG', 'League One': 'ENG', 'League Two': 'ENG', 'La Liga': 'ESP', 'Bundesliga': 'GER', 'Serie A': 'ITA', 'Ligue 1': 'FRA', 'Eredivisie': 'NED' };
   const BUY_MSGS = { INSUFFICIENT_FUNDS: 'Not enough budget.', ALREADY_IN_SQUAD: 'Already in your squad.', REP_TOO_LOW: "Your club's reputation is too low to attract this calibre of player.", WINDOW_CLOSED: 'The transfer window is closed. You can only sign players in the summer (Aug) or winter (Jan) windows.', SIGNED_THIS_SEASON: 'This player has already transferred once this season and cannot move again until next season.' };
   const SELL_MSGS = { WINDOW_CLOSED: 'The transfer window is closed. You can only sell players in the summer (Aug) or winter (Jan) windows.', NO_BUYERS: 'No clubs could be found willing to buy this player right now.', PLAYER_NOT_IN_SQUAD: 'Player not found in your squad.', SIGNED_THIS_SEASON: 'This player joined during the current season and cannot be sold again until next season.', ALREADY_ON_LOAN: 'A player on loan cannot be transfer listed.' };
   const LOAN_IN_MSGS = { WINDOW_CLOSED: 'Transfer window is closed.', ALREADY_ON_LOAN: 'Player is already out on loan.', SIGNED_THIS_SEASON: 'Player already moved this season.', INSUFFICIENT_FUNDS: 'Not enough budget.', CLUB_WONT_LOAN: "This club won't loan out this player." };
@@ -262,7 +261,6 @@
   let detailFresh = $state(null); // projected fresh copy, canonical row stays in DB
   let offerAmount = $state(0);
   let offerInstallment = $state(0);
-  let offerSellOn = $state(0);
 
   async function openDetail(p) {
     detailPlayer = p;
@@ -271,7 +269,6 @@
     const fv = scoutedValue(detailFresh);
     offerAmount = Math.floor(fv * 0.95);
     offerInstallment = 0;
-    offerSellOn = 0;
   }
   function closeDetail() { detailPlayer = null; detailFresh = null; }
 
@@ -339,7 +336,7 @@
   async function sendOffer() {
     const { player, offer } = confirmOffer;
     try {
-      await createUserMarketDeal(player.id, { type:'transfer', terms:{ fee:{ upfront:offer, installments:offerInstallment > 0 ? [{ amount:offerInstallment, dueSeason:save.season, dueGameweek:(save.currentGameweek ?? 1) + 8 }]:[], sellOnPercentage:offerSellOn } } });
+      await createUserMarketDeal(player.id, { type:'transfer', terms:{ fee:{ upfront:offer, installments:offerInstallment > 0 ? [{ amount:offerInstallment, dueSeason:save.season, dueGameweek:(save.currentGameweek ?? 1) + 8 }]:[] } } });
       toast(`Enquiry sent for ${player.name}. The club will respond at the next market update.`, 'success', 5000);
       confirmOffer = null;
       closeDetail();
@@ -396,7 +393,7 @@
     loanBusy = true;
     try {
       const cost = loanCost(player);
-      await createUserMarketDeal(player.id, { type:'loan', terms:{ loan:{ fee:cost.fee, wageContributionPercentage:100, recall:false, optionToBuy:Math.round(scoutedValue(player) * .9) }, contract:{ wage:player.wage ?? 10_000, duration:1, squadRole:'rotation' } } });
+      await createUserMarketDeal(player.id, { type:'loan', terms:{ loan:{ fee:cost.fee, wageContributionPercentage:100, recall:false }, contract:{ wage:player.wage ?? 10_000, duration:1, squadRole:'rotation' } } });
       toast(`Loan enquiry sent for ${player.name}`, 'success', 5000);
       loanDetail = null;
       screenTicks.transfers++;
@@ -567,6 +564,16 @@
   }
 </script>
 
+{#snippet playerAffiliation(player, club)}
+  <span class="pl-tag" title="Nationality">{playerNationality(player, club?.league)}</span>
+  {#if club}
+    <span class="pl-tag" title={club.name}>{club.shortName || (club.name || '').slice(0, 3).toUpperCase()}</span>
+    <span class="pl-league" title={club.league}>{club.league}</span>
+  {:else}
+    <span>{player.teamId === 'free_agents' ? 'Free agent' : 'Unknown club'}</span>
+  {/if}
+{/snippet}
+
 <div class="transfers-screen">
   <div class="tr-hdr">
     <div>
@@ -733,16 +740,14 @@
                   onclick={() => openDetail(p)}
                   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(p); } }}
                 >
-                  <div class="pl-flag">{playerNationality(p, teamRec?.league)}</div>
+                  <div class="pl-flag-sm player-position pos-{g}">{p.position}</div>
                   <div class="pl-info">
                     <div class="pl-name">
                       {p.name}
                       {#if seasonLocked}<span class="lock-badge" title="Already transferred this season">TR</span>{:else if rep.blocked}<span class="lock-badge" title="Scouting suggests rep {rep.adjMin}+ required">REP</span>{/if}
                     </div>
                     <div class="pl-meta">
-                      <span class="pos-badge pos-{g}">{p.position}</span>
-                      <span class="pl-tag">{teamRec?.shortName || (teamRec?.name || '').slice(0, 3).toUpperCase()}</span>
-                      <span class="pl-tag">{LEAGUE_NATION[teamRec?.league] || 'INT'}</span>
+                      {@render playerAffiliation(p, teamRec)}
                       <span>Age {p.age}</span>
                       {#if potStars}<span style="color:{POT_COLORS[potStars]}">{'★'.repeat(potStars)}</span>{/if}
                     </div>
@@ -774,10 +779,10 @@
             {@const fv = scoutedValue(p)}
             {@const isListed = p.transferListed === true}
             <div class="sell-row">
-              <div class="pl-flag-sm pos-{g}">{g}</div>
+              <div class="pl-flag-sm player-position pos-{g}">{p.position}</div>
               <div class="pl-info">
                 <div class="pl-name">{p.name}{#if isListed}<span class="sq-listed-badge">TL</span>{/if}</div>
-                <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span></div>
+                <div class="pl-meta">{@render playerAffiliation(p, byId.get(p.teamId))}<span>Age {p.age}</span></div>
               </div>
               <div class="pl-val">{fmt.money(fv)}</div>
               <div class="pl-rat">{r}</div>
@@ -791,11 +796,12 @@
         <div class="tr-panel-title">Squad Contracts</div>
         <div class="sell-scroll">
           {#each [...squadPlayers].sort((a, b) => contractYearsRemaining(a, save) - contractYearsRemaining(b, save)) as p (p.id)}
+            {@const g = posGroup(p.position)}
             {@const years = contractYearsRemaining(p, save)}
             {@const renewal = activeDeals.find(deal => deal.type === 'renewal' && deal.playerId === String(p.id))}
             <div class="sell-row">
-              <div class="pl-flag-sm">CT</div>
-              <div class="pl-info"><div class="pl-name">{p.name}</div><div class="pl-meta"><span>{years} year{years === 1 ? '' : 's'} remaining</span><span>{fmt.wage(p.wage)}</span><span>{p.squadRole ?? 'rotation'}</span>{#if renewal}<span class="pl-tag">{renewal.awaiting === 'user' ? 'Counter received' : 'Negotiating'}</span>{/if}</div></div>
+              <div class="pl-flag-sm player-position pos-{g}">{p.position}</div>
+              <div class="pl-info"><div class="pl-name">{p.name}</div><div class="pl-meta">{@render playerAffiliation(p, byId.get(p.teamId))}<span>{years} year{years === 1 ? '' : 's'} remaining</span><span>{fmt.wage(p.wage)}</span><span>{p.squadRole ?? 'rotation'}</span>{#if renewal}<span class="pl-tag">{renewal.awaiting === 'user' ? 'Counter received' : 'Negotiating'}</span>{/if}</div></div>
               <button class="sell-btn" disabled={p.onLoan} onclick={() => openRenewal(p)}>{renewal?.awaiting === 'user' ? 'Review' : renewal ? 'View' : 'Negotiate'}</button>
             </div>
           {/each}
@@ -825,10 +831,10 @@
                   onclick={() => openLoanDetail('in', p)}
                   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLoanDetail('in', p); } }}
                 >
-                  <div class="pl-flag-sm pos-{g}">{g}</div>
+                  <div class="pl-flag-sm player-position pos-{g}">{p.position}</div>
                   <div class="pl-info">
                     <div class="pl-name">{p.name}</div>
-                    <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span class="pl-tag">{parentTeam?.shortName || ''}</span><span>Age {p.age}</span></div>
+                    <div class="pl-meta">{@render playerAffiliation(p, parentTeam)}<span>Age {p.age}</span></div>
                   </div>
                   <div class="pl-right">
                     <div class="pl-val" style="color:{canAfford ? 'var(--color-live)' : 'var(--color-bad)'}">~{fmt.money(cost.total)}</div>
@@ -851,10 +857,10 @@
                 onclick={() => openLoanDetail('out', p)}
                 onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLoanDetail('out', p); } }}
               >
-                <div class="pl-flag-sm pos-{g}">{g}</div>
+                <div class="pl-flag-sm player-position pos-{g}">{p.position}</div>
                 <div class="pl-info">
                   <div class="pl-name">{p.name}</div>
-                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>{fmt.wage(p.wage)}/wk</span></div>
+                  <div class="pl-meta">{@render playerAffiliation(p, byId.get(p.teamId))}<span>Age {p.age}</span><span>{fmt.wage(p.wage)}</span></div>
                 </div>
                 <div class="pl-right">
                   <div class="pl-val" style="color:var(--color-live)">+{fmt.money(cost.total)}</div>
@@ -876,10 +882,10 @@
               {@const g = posGroup(p.position)}
               {@const blocked = !canClubSignPlayer(team, p)}
               <div class="sell-row {blocked ? 'is-locked' : ''}">
-                <div class="pl-flag-sm pos-{g}">{g}</div>
+                <div class="pl-flag-sm player-position pos-{g}">{p.position}</div>
                 <div class="pl-info">
                   <div class="pl-name">{p.name}</div>
-                  <div class="pl-meta"><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span><span>~{fmt.wage(p.wage)}/wk</span></div>
+                  <div class="pl-meta">{@render playerAffiliation(p, null)}<span>Age {p.age}</span><span>~{fmt.wage(p.wage)}</span></div>
                 </div>
                 <div class="pl-val range-rating">{abilityLabel(p)}</div>
                 <button class="sell-btn" disabled={blocked} title={blocked ? "Scouting suggests your club's reputation may be too low" : ''} onclick={() => signFree(p)}>Sign</button>
@@ -908,10 +914,10 @@
     <div class="sheet-handle"></div>
     <div class="det-hero">
       <div class="det-rating" style="color:{r >= 80 ? 'var(--color-live)' : 'var(--color-club)'}">{abilityLabel(p)}</div>
-      <div class="det-flag">{playerNationality(p, teamRec?.league)}</div>
+      <div class="det-position pl-flag-sm pos-{g}">{p.position}</div>
       <div class="det-name">{p.name}</div>
       {#if p.isWonderkid}<div class="det-wk">HIGH UPSIDE</div>{/if}
-      <div class="det-meta"><span class="pl-tag">{teamRec?.shortName || ''}</span><span>{teamRec?.name || ''}</span><span class="pos-badge pos-{g}">{p.position}</span><span>Age {p.age}</span></div>
+      <div class="det-meta"><span class="pl-tag" title="Nationality">{playerNationality(p, teamRec?.league)}</span><span>{teamRec?.name || (p.teamId === 'free_agents' ? 'Free agent' : 'Unknown club')}</span>{#if teamRec?.league}<span>{teamRec.league}</span>{/if}<span>Age {p.age}</span></div>
       <div class="det-badges">
         <span class="form-badge form-{fl.cls}">{fl.text}</span>
         <span style="color:{fitnessColor(p.fitness ?? 100)}">{Math.round(p.fitness ?? 100)}% fit</span>
@@ -983,7 +989,6 @@
           <div class="tr-adv-body">
             <div class="tr-adv-grid">
               <label><span class="tr-adv-lbl-inline">Installment</span><input type="number" min="0" step="100000" bind:value={offerInstallment} /></label>
-              <label><span class="tr-adv-lbl-inline">Sell-on %</span><input type="number" min="0" max="50" bind:value={offerSellOn} /></label>
             </div>
           </div>
         </details>
@@ -1228,7 +1233,6 @@
   .deal-row { cursor: default; flex-wrap: wrap; }
   .deal-actions { width: 100%; display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 
-  .pl-flag { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 22px; color: var(--color-tx-3); font: 700 8px/1 var(--font-mono); letter-spacing: .06em; }
   .pl-flag-sm {
     width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     font-family: var(--font-mono); font-size: 9px; font-weight: 700; border: 1px solid;
@@ -1237,11 +1241,13 @@
   .pl-flag-sm.pos-DEF { color: var(--color-live); border-color: var(--color-live); }
   .pl-flag-sm.pos-MID { color: var(--color-warn); border-color: var(--color-warn); }
   .pl-flag-sm.pos-ATT { color: var(--color-bad); border-color: var(--color-bad); }
+  .player-position { width:32px; height:32px; font-size:10px; }
 
   .pl-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .pl-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
   .pl-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--color-tx-2); font-family: var(--font-mono); flex-wrap: wrap; }
   .pl-tag { background: var(--color-raised); border: 1px solid var(--color-line); padding: 0 4px; border-radius: 4px; }
+  .pl-league { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .lock-badge { font-size: 8px; font-family: var(--font-mono); font-weight: 700; padding: 1px 4px; border-radius: 4px; background: color-mix(in oklch, var(--color-bad) 20%, transparent); color: var(--color-bad); }
 
   .pl-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
@@ -1287,7 +1293,7 @@
 
   .det-hero { text-align: center; padding-bottom: 14px; border-bottom: 1px solid var(--color-line); }
   .det-rating { font-family: var(--font-display); font-size: 40px; line-height: 1; }
-  .det-flag { font-size: 26px; margin-top: 2px; }
+  .det-position { width:44px; height:44px; margin:8px auto 4px; font-size:14px; }
   .det-name { font-family: var(--font-display); font-size: 19px; letter-spacing: 0.5px; margin-top: 4px; }
   .det-wk { display: inline-block; margin-top: 4px; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px; background: linear-gradient(135deg, var(--color-warn), #f97316); color: #14171c; }
   .det-meta { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; color: var(--color-tx-2); margin-top: 6px; flex-wrap: wrap; }

@@ -1,11 +1,12 @@
-import { getCompetitionRules, isTwoLegRound } from './competitionRules.js';
-import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getSave, putPlayersBulk } from './db.js';
+import { buildKnockoutRoundDraw, getCompetitionRules, isTwoLegRound } from './competitionRules.js';
+import { _db, SAVE_SCHEMA_VERSION, getAllPlayers, getAllStandings, getPlayersByTeams, getSave, prepareStoredPlayer, putPlayersBulk } from './db.js';
 import { applyInjury } from './injuries.js';
 import { buildPersonalStatePatches } from './playerModel.js';
 import { mutateRow, sortTable } from './standings.js';
 import {
   WORLD_RECORD_VERSION,
   applyWorldPlayerStats,
+  compactAppliedLeagueRecord,
   resultFromCanonicalLeagueRecord,
   tickPlayerSuspensions,
 } from './world.js';
@@ -112,6 +113,10 @@ function nonLeagueParticipantTeamIds(results) {
   return ids;
 }
 
+async function readNonLeagueParticipants(results) {
+  return getPlayersByTeams([...nonLeagueParticipantTeamIds(results)]);
+}
+
 function shallowRowChanged(before, after) {
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
@@ -188,17 +193,6 @@ function roundRobinPlayingTeamIds(teamIds, roundIndex) {
   return ids;
 }
 
-function knockoutPlayingTeamIds(teamIds) {
-  const ids = [...new Set(teamIds ?? [])].sort();
-  const playing = new Set();
-  for (let index = 0; index < ids.length; index += 2) {
-    if (!ids[index + 1]) continue;
-    playing.add(ids[index]);
-    playing.add(ids[index + 1]);
-  }
-  return playing;
-}
-
 /**
  * Return background clubs whose world week is not complete after league
  * projection because they will actually play a domestic/European fixture in
@@ -245,7 +239,8 @@ export function scheduledWorldCompetitionTeamIds(worldState, gameweek) {
       ...(comp.activeTeamIds ?? []),
       ...(comp.entrantsByRound?.[roundIndex] ?? []),
     ];
-    for (const teamId of knockoutPlayingTeamIds(participants)) ids.add(teamId);
+    const draw = buildKnockoutRoundDraw(comp.id, participants, roundIndex, comp.entrantsByRound);
+    for (const teamId of draw.pairs.flat()) ids.add(teamId);
   }
 
   return ids;
@@ -309,7 +304,7 @@ function commitWorldProjection(fixtures, standings, players) {
     const playerStore = tx.objectStore('players');
     fixtures.forEach(fixture => fixtureStore.put(fixture));
     standings.forEach(row => standingStore.put(row));
-    players.forEach(player => playerStore.put(player));
+    players.forEach(player => playerStore.put(prepareStoredPlayer(player)));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
@@ -321,7 +316,7 @@ function commitWorldCompetitionProjection(save, worldCompetitions, players) {
     const tx = _db.transaction(['save', 'players'], 'readwrite');
     const saveStore = tx.objectStore('save');
     const playerStore = tx.objectStore('players');
-    players.forEach(player => playerStore.put(player));
+    players.forEach(player => playerStore.put(prepareStoredPlayer(player)));
     saveStore.put({
       ...save,
       id:'active',
@@ -367,7 +362,7 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
       { deferTeamIds:deferredTeams },
     )
     : { players:projected.players, changedPlayers:projected.changedPlayers };
-  const appliedFixtures = pending.map(fixture => ({ ...fixture, projectionsApplied:true }));
+  const appliedFixtures = pending.map(fixture => compactAppliedLeagueRecord({ ...fixture, projectionsApplied:true }, save?.userTeamId));
   // Keep fixture apply-once flags, standings and every changed/P3-settled player
   // in one transaction, but avoid rewriting thousands of byte-identical rows.
   await commitWorldProjection(appliedFixtures, projected.standings, withPersonalState.changedPlayers);
@@ -384,7 +379,7 @@ export async function applyPendingWorldLeagueProjections(fixtures) {
 export async function applyPendingWorldCompetitionProjections(save) {
   const pending = pendingWorldCompetitionRecords(save?.worldCompetitions);
   if (!pending.length) return { save, results:[] };
-  const players = await getAllPlayers();
+  const players = await readNonLeagueParticipants(pending);
   const projectedPlayers = projectNonLeaguePlayers(players, pending);
   const weekKeys = new Set(pending.map(record => `${record.season ?? ''}:${record.gameweek ?? ''}`));
   const singleWeek = weekKeys.size === 1 ? pending[0] : null;
@@ -408,6 +403,6 @@ export async function applyPendingWorldCompetitionProjections(save) {
 /** Cup matches use the same player-stat projection but have no league table row. */
 export async function applyNonLeaguePlayerResults(results) {
   if (!results.length) return;
-  const players = await getAllPlayers();
+  const players = await readNonLeagueParticipants(results);
   await putPlayersBulk(projectNonLeaguePlayers(players, results));
 }

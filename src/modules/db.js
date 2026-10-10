@@ -8,8 +8,12 @@
  * every existing domain/store API continues to operate on one active DB.
  */
 import { applyLedgerMovement, availableFunds, scheduleObligation } from './clubFinance.js';
+import { buildSettledMarketPlayer } from './transferMarket.js';
+import { isFreeAgentPlayer, isLoanPlayer, compactPlayerHistoryPayload, transitionPlayerStatus } from './playerStatus.js';
+import { decodeStoredPlayer, encodeStoredPlayer } from './playerStorageCodec.js';
+import { decodeStoredSeason, encodeStoredSeason } from './seasonStorageCodec.js';
 export const DB_NAME = 'pitch_fc';
-export const DB_VERSION = 4;
+export const DB_VERSION = 8;
 export const LEGACY_SLOT_ID = 'legacy';
 export const SAVE_SCHEMA_VERSION = 2;
 export const CAREER_SLOT_REGISTRY_VERSION = 1;
@@ -21,6 +25,7 @@ const SAFE_SLOT_ID = /^[a-zA-Z0-9_-]{1,80}$/;
 
 export let _db = null;
 let _dbSlotId = null;
+let _careerWriteTransaction = null;
 
 function _storage() {
   try {
@@ -81,7 +86,7 @@ export function makeCareerSlotId() {
   return `career_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function _upgradeSchema(db) {
+function _upgradeSchema(db, transaction, oldVersion = 0) {
   const make = (name, opts) => {
     if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, opts);
   };
@@ -95,6 +100,8 @@ function _upgradeSchema(db) {
     const ps = db.createObjectStore('players', { keyPath:'id' });
     ps.createIndex('by_team', 'teamId', { unique:false });
   }
+  const players = transaction.objectStore('players');
+  if (!players.indexNames.contains('by_injury')) players.createIndex('by_injury', 'i', { unique:false });
   if (!db.objectStoreNames.contains('fixtures')) {
     const fs = db.createObjectStore('fixtures', { keyPath:'id' });
     fs.createIndex('by_gameweek', 'gameweek', { unique:false });
@@ -103,12 +110,35 @@ function _upgradeSchema(db) {
     const ms = db.createObjectStore('managers', { keyPath:'id' });
     ms.createIndex('by_club', 'currentClubId', { unique:false });
   }
+  // V5/V6 change serialization; V8 indexes its numeric medical projection.
+  // Old clients must not reopen
+  // the database and silently treat packed history as legacy player fields.
+  // The versionchange transaction publishes all rows or preserves the old DB.
+  if (oldVersion < 8) {
+    const request = transaction.objectStore('players').openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      try { cursor.update(prepareStoredPlayer(decodeStoredPlayer(cursor.value))); cursor.continue(); }
+      catch { transaction.abort(); }
+    };
+  }
+  // V7 compacts retained archives; later databases already have this format.
+  if (oldVersion < 7) {
+    const request = transaction.objectStore('seasons').openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      try { cursor.update(encodeStoredSeason(decodeStoredSeason(cursor.value))); cursor.continue(); }
+      catch { transaction.abort(); }
+    };
+  }
 }
 
 function _openNamedDB(name) {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(name, DB_VERSION);
-    req.onupgradeneeded = e => _upgradeSchema(e.target.result);
+    req.onupgradeneeded = e => _upgradeSchema(e.target.result, e.target.transaction, e.oldVersion);
     req.onsuccess = e => resolve(e.target.result);
     req.onerror = e => reject(e.target.error);
   });
@@ -156,9 +186,60 @@ export const req2p = r => new Promise((res, rej) => {
   r.onsuccess = () => res(r.result);
   r.onerror = () => rej(r.error);
 });
-export const store = (name, mode='readonly') => _db.transaction(name, mode).objectStore(name);
+
+/** Canonical players enter/leave persistence only through this wire boundary. */
+export const prepareStoredPlayer = player => encodeStoredPlayer(compactPlayerHistoryPayload(player));
+const prepareStoredRow = (name, row) => name === 'players' ? prepareStoredPlayer(row) : name === 'seasons' ? encodeStoredSeason(row) : row;
+export const store = (name, mode='readonly') => (_careerWriteTransaction ?? _db.transaction(name, mode)).objectStore(name);
+
+/** Keep all rollover reads/writes in one transaction, including async IDB reads.
+ * A closed tab or rejected calculation aborts the entire season instead of
+ * leaving aged players and new fixtures beside the outgoing calendar.
+ */
+export function runSeasonRolloverAtomic(operation) {
+  return runCareerTransitionAtomic(operation);
+}
+
+/** Manager ownership changes use the same all-store transaction lifecycle. */
+export async function runCareerTransitionAtomic(operation) {
+  if (_careerWriteTransaction) throw new Error('CAREER_TRANSITION_ALREADY_RUNNING');
+  const tx = _db.transaction(STORE_NAMES, 'readwrite');
+  const completed = new Promise((resolve, reject) => {
+    tx.oncomplete = resolve;
+    tx.onabort = () => reject(tx.error ?? new Error('Career transition aborted.'));
+    tx.onerror = () => reject(tx.error);
+  });
+  // Attach rejection handling immediately; the operation may still be awaiting
+  // a request when the browser aborts the transaction.
+  completed.catch(() => {});
+  let keepAlive = true;
+  const pulse = () => {
+    if (!keepAlive) return;
+    const request = tx.objectStore('save').getKey('active');
+    request.onsuccess = pulse;
+  };
+  _careerWriteTransaction = tx;
+  pulse();
+  try {
+    const result = await operation();
+    keepAlive = false;
+    await completed;
+    return result;
+  } catch (error) {
+    keepAlive = false;
+    try { tx.abort(); } catch {}
+    await completed.catch(() => {});
+    throw error;
+  } finally {
+    _careerWriteTransaction = null;
+  }
+}
 
 export function bulkPut(storeName, items) {
+  if (_careerWriteTransaction) {
+    const s = _careerWriteTransaction.objectStore(storeName);
+    return Promise.all(items.map(item => req2p(s.put(prepareStoredRow(storeName, item)))));
+  }
   return _bulkPutToDB(_db, storeName, items);
 }
 
@@ -166,18 +247,22 @@ function _bulkPutToDB(db, storeName, items) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
-    items.forEach(item => s.put(item));
+    items.forEach(item => s.put(prepareStoredRow(storeName, item)));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
 }
 
 export function clearAndBulkPut(storeName, items) {
+  if (_careerWriteTransaction) {
+    const s = _careerWriteTransaction.objectStore(storeName);
+    return req2p(s.clear()).then(() => Promise.all(items.map(item => req2p(s.put(prepareStoredRow(storeName, item))))));
+  }
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(storeName, 'readwrite');
     const s = tx.objectStore(storeName);
     const clearReq = s.clear();
-    clearReq.onsuccess = () => items.forEach(item => s.put(item));
+    clearReq.onsuccess = () => items.forEach(item => s.put(prepareStoredRow(storeName, item)));
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -206,16 +291,69 @@ export function putSave(data) {
   return req2p(store('save','readwrite').put(next));
 }
 
+/** The managed outcome, participant projections and queue move together. */
+export function commitMatchEventAtomic({ event, season, gameweek, savePatch, fixture = null, players = [] }) {
+  return new Promise((resolve, reject) => {
+    const tx = _db.transaction(['save', 'fixtures', 'players'], 'readwrite');
+    const saves = tx.objectStore('save');
+    let nextSave = null;
+    let failure = null;
+    const fail = error => {
+      failure = error instanceof Error ? error : new Error(String(error));
+      try { tx.abort(); } catch {}
+    };
+    const request = saves.get('active');
+    request.onerror = () => fail(request.error ?? new Error('MATCH_EVENT_READ_FAILED'));
+    request.onsuccess = () => {
+      try {
+        const active = request.result;
+        if (active?.season !== season || active?.currentGameweek !== gameweek ||
+            JSON.stringify(active.pendingEvents?.[0]) !== JSON.stringify(event)) {
+          throw new Error('MATCH_EVENT_CHANGED: reload the current fixture before saving its result.');
+        }
+        nextSave = {
+          ...active,
+          ...savePatch,
+          id:'active',
+          slotId:active.slotId ?? getActiveSlotId(),
+          saveSchemaVersion:SAVE_SCHEMA_VERSION,
+          lastPlayedAt:new Date().toISOString(),
+        };
+        if (fixture) tx.objectStore('fixtures').put(fixture);
+        const playerStore = tx.objectStore('players');
+        players.forEach(player => playerStore.put(prepareStoredPlayer(player)));
+        saves.put(nextSave);
+      } catch (error) { fail(error); }
+    };
+    tx.oncomplete = () => resolve(nextSave);
+    tx.onerror = () => reject(failure ?? tx.error ?? new Error('MATCH_EVENT_WRITE_FAILED'));
+    tx.onabort = () => reject(failure ?? tx.error ?? new Error('MATCH_EVENT_WRITE_ABORTED'));
+  });
+}
+
 export const getAllTeams = () => req2p(store('teams').getAll());
 export const getTeam = id => req2p(store('teams').get(id));
 export const putTeam = t => req2p(store('teams','readwrite').put(t));
 export const putTeamsBulk = ts => bulkPut('teams', ts);
-export const getAllPlayers = () => req2p(store('players').getAll());
-export const getPlayer = id => req2p(store('players').get(id));
-export const getPlayersByTeam = tid => req2p(store('players').index('by_team').getAll(tid));
-export const putPlayer = p => req2p(store('players','readwrite').put(p));
+export const getAllPlayers = async () => (await req2p(store('players').getAll())).map(decodeStoredPlayer);
+export const getPlayer = async id => decodeStoredPlayer(await req2p(store('players').get(id)));
+export const getPlayersByTeam = async tid => (await req2p(store('players').index('by_team').getAll(tid))).map(decodeStoredPlayer);
+export const getInjuredPlayers = async () => (await req2p(store('players').index('by_injury').getAll(1))).map(decodeStoredPlayer);
+/** One indexed snapshot of the requested clubs, excluding unrelated free agents. */
+export async function getPlayersByTeams(teamIds) {
+  const ids = [...new Set(teamIds)];
+  if (!ids.length) return [];
+  const index = store('players').index('by_team');
+  const squads = await Promise.all(ids.map(id => req2p(index.getAll(id))));
+  return squads.flat().map(decodeStoredPlayer);
+}
+export const putPlayer = p => req2p(store('players','readwrite').put(prepareStoredPlayer(p)));
 export const putPlayersBulk = ps => bulkPut('players', ps);
 export function deletePlayersBulk(ids) {
+  if (_careerWriteTransaction) {
+    const s = _careerWriteTransaction.objectStore('players');
+    return Promise.all(ids.map(id => req2p(s.delete(id))));
+  }
   return new Promise((resolve, reject) => {
     const tx = _db.transaction('players', 'readwrite');
     const s = tx.objectStore('players');
@@ -252,23 +390,46 @@ export function settleTransferMarketDealAtomic(dealId) {
     const historyStore = tx.objectStore('transfers');
     let result = null;
     let failure = null;
-    const requests = [saves.get('active'), teamsStore.getAll(), playersStore.getAll(), historyStore.getAll()];
+    const requests = [saves.get('active'), teamsStore.getAll(), historyStore.getAll()];
+    const participantRequests = [];
     let remaining = requests.length;
 
     const fail = error => {
       failure = error instanceof Error ? error : new Error(String(error));
       try { tx.abort(); } catch {}
     };
-    for (const request of requests) {
+    const watch = request => {
       request.onerror = () => fail(request.error ?? new Error('TRANSFER_SETTLEMENT_READ_FAILED'));
       request.onsuccess = () => {
+        if (request === requests[0]) {
+          try {
+            const deal = request.result?.transferMarket?.activeDeals?.find(item => item.id === dealId);
+            const queue = participantRequest => {
+              participantRequests.push(participantRequest);
+              remaining += 1;
+              watch(participantRequest);
+            };
+            if (deal) {
+              for (const reference of [deal.playerId, deal.terms?.fee?.exchangePlayerId]) {
+                if (reference == null) continue;
+                const text = String(reference), numeric = Number(text);
+                // Native primary-key order puts numbers before strings. Retain
+                // the old String(id) lookup for numeric legacy player IDs.
+                const keys = new Set(Number.isFinite(numeric) && String(numeric) === text ? [numeric, reference, text] : [reference, text]);
+                for (const key of keys) queue(playersStore.get(key));
+              }
+              if (deal.sellerTeamId && deal.sellerTeamId !== 'free_agents') queue(playersStore.index('by_team').getAll(deal.sellerTeamId));
+            }
+          } catch (error) { fail(error); return; }
+        }
         remaining -= 1;
         if (remaining || failure) return;
         try {
-          const [saveReq, teamReq, playerReq, historyReq] = requests;
+          const [saveReq, teamReq, historyReq] = requests;
           const save = saveReq.result;
           const allTeams = teamReq.result ?? [];
-          const allPlayers = playerReq.result ?? [];
+          const rows = participantRequests.flatMap(item => Array.isArray(item.result) ? item.result : item.result ? [item.result] : []);
+          const allPlayers = [...new Map(rows.map(row => [row.id, row])).values()].map(decodeStoredPlayer);
           const history = historyReq.result ?? [];
           const market = save?.transferMarket;
           const existingByDeal = history.find(item => item.dealId === dealId);
@@ -297,6 +458,8 @@ export function settleTransferMarketDealAtomic(dealId) {
           const buyer = allTeams.find(item => item.id === deal.buyerTeamId);
           const seller = allTeams.find(item => item.id === deal.sellerTeamId);
           if (!player) { rejectSettlement('player_not_found'); return; }
+          if (deal.type === 'free_agent' && !isFreeAgentPlayer(player)) { rejectSettlement('player_ownership_changed'); return; }
+          if (deal.type === 'renewal' && isLoanPlayer(player)) { rejectSettlement('player_on_loan'); return; }
           if (deal.type !== 'renewal' && deal.type !== 'free_agent' && player.teamId !== deal.sellerTeamId) { rejectSettlement('player_ownership_changed'); return; }
           if (deal.type === 'renewal' && player.teamId !== deal.buyerTeamId) { rejectSettlement('player_ownership_changed'); return; }
           if (!buyer) { rejectSettlement('buyer_not_found'); return; }
@@ -314,15 +477,16 @@ export function settleTransferMarketDealAtomic(dealId) {
 
           const exchangePlayerId = terms.fee?.exchangePlayerId;
           const exchangePlayer = exchangePlayerId ? allPlayers.find(item => String(item.id) === String(exchangePlayerId)) : null;
-          if (exchangePlayerId && (!exchangePlayer || exchangePlayer.teamId !== buyer.id || buyer.id === seller?.id)) { rejectSettlement('invalid_exchange_player'); return; }
+          if (exchangePlayerId && (!exchangePlayer || exchangePlayer.teamId !== buyer.id || isLoanPlayer(exchangePlayer) || buyer.id === seller?.id)) { rejectSettlement('invalid_exchange_player'); return; }
           // P9 academy rows deliberately retain their owning club's `teamId` so
           // the existing by_team index remains canonical. They are not senior
           // registrations, however, and must never satisfy the seller's senior
           // squad/GK safety floor. There is no buyer-side size ceiling: a club
           // may register as many players as it likes.
           const sellerSquad = allPlayers.filter(item => item.teamId === seller?.id && !item.onLoan && item.inSquad !== false);
-          if (seller && !['renewal','free_agent'].includes(deal.type) && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
-          if (seller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
+          const leavesSeller = !['renewal','free_agent'].includes(deal.type) && (deal.type === 'loan' || !terms.fee?.loanBack);
+          if (seller && leavesSeller && sellerSquad.length - 1 + (exchangePlayer ? 1 : 0) < 11) { rejectSettlement('seller_squad_floor'); return; }
+          if (seller && leavesSeller && player.position === 'GK' && !sellerSquad.some(item => item.id !== player.id && item.position === 'GK') && exchangePlayer?.position !== 'GK') { rejectSettlement('seller_no_goalkeeper'); return; }
 
           const settlementWeekKey = market.lastTickKey ?? deal.updatedWeekKey;
           let nextBuyer = applyLedgerMovement(buyer, { category:'transfer_fee_out', amount:-upfrontCost, description:`Deal ${deal.id} settled (upfront)`, weekKey:settlementWeekKey });
@@ -340,18 +504,17 @@ export function settleTransferMarketDealAtomic(dealId) {
           for (const team of changedTeams.values()) teamsStore.put(team);
 
           const seasonYear = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 0;
-          let nextPlayer;
-          if (deal.type === 'renewal') {
-            nextPlayer = { ...player, wage:terms.contract.wage, squadRole:terms.contract.squadRole, contractExpiry:seasonYear + terms.contract.duration, releaseClause:terms.contract.releaseClause || null };
-          } else if (deal.type === 'loan') {
-            nextPlayer = { ...player, teamId:buyer.id, onLoan:true, loanedFrom:deal.sellerTeamId, loanOriginalTeamId:deal.sellerTeamId, loanSeason:save.season, loanRecallable:Boolean(terms.loan?.recall), signedThisSeason:true };
-          } else if (terms.fee?.loanBack && seller) {
-            nextPlayer = { ...player, teamId:seller.id, wage:terms.contract.wage, squadRole:terms.contract.squadRole, contractExpiry:seasonYear + terms.contract.duration, releaseClause:terms.contract.releaseClause || null, signedThisSeason:true, onLoan:true, loanedFrom:buyer.id, loanOriginalTeamId:buyer.id, loanSeason:save.season, loanRecallable:false };
-          } else {
-            nextPlayer = { ...player, teamId:buyer.id, wage:terms.contract.wage, squadRole:terms.contract.squadRole, contractExpiry:seasonYear + terms.contract.duration, releaseClause:terms.contract.releaseClause || null, signedThisSeason:true, onLoan:false, loanedFrom:null, loanedTo:null };
-          }
-          playersStore.put(nextPlayer);
-          if (exchangePlayer && seller) playersStore.put({ ...exchangePlayer, teamId:seller.id, signedThisSeason:true, contractExpiry:seasonYear + 3, onLoan:false, loanedFrom:null, loanedTo:null });
+          const nextPlayer = buildSettledMarketPlayer(player, deal, save);
+          playersStore.put(prepareStoredPlayer(nextPlayer));
+          if (exchangePlayer && seller) playersStore.put(prepareStoredPlayer(transitionPlayerStatus({
+            ...exchangePlayer, signedThisSeason:true, contractExpiry:seasonYear + 3,
+            squadRole:null, squadRoleTeamId:null, squadRoleSource:null, playingTimeAgreement:null,
+          }, {
+            status:'first_team', contractTeamId:seller.id, registeredTeamId:seller.id,
+            season:save.season, gameweek:save.currentGameweek,
+            reason:'exchange', idempotencyKey:`deal:${deal.id}:exchange`,
+            patch:{ inSquad:true },
+          })));
 
           const completedDeal = { ...deal, state:'completed', awaiting:null, stateOwner:'system', updatedWeekKey:market.lastTickKey ?? deal.updatedWeekKey, decisionLog:[...(deal.decisionLog ?? []), { eventKey:`${deal.idempotencyKey}:completed`, weekKey:market.lastTickKey ?? deal.updatedWeekKey, from:'agreed', to:'completed', actor:'system', reasonCode:'settled' }].slice(-24) };
           const activeDeals = market.activeDeals.map(item => item.id === deal.id ? completedDeal : item);
@@ -381,7 +544,8 @@ export function settleTransferMarketDealAtomic(dealId) {
           fail(error);
         }
       };
-    }
+    };
+    for (const request of requests) watch(request);
     tx.oncomplete = () => resolve(result);
     tx.onerror = () => reject(failure ?? tx.error ?? new Error('TRANSFER_SETTLEMENT_FAILED'));
     tx.onabort = () => reject(failure ?? tx.error ?? new Error('TRANSFER_SETTLEMENT_ABORTED'));
@@ -389,8 +553,9 @@ export function settleTransferMarketDealAtomic(dealId) {
 }
 export const getAllHonors = () => req2p(store('honors').getAll());
 export const addHonor = h => req2p(store('honors','readwrite').add(h));
-export const getAllSeasons = () => req2p(store('seasons').getAll());
-export const addSeason = s => req2p(store('seasons','readwrite').add(s));
+export const getAllSeasons = async () => (await req2p(store('seasons').getAll())).map(decodeStoredSeason);
+export const putSeasonsBulk = seasons => bulkPut('seasons', seasons);
+export const addSeason = s => req2p(store('seasons','readwrite').add(encodeStoredSeason(s)));
 export const getAllManagers = () => req2p(store('managers').getAll());
 export const getManager = id => req2p(store('managers').get(id));
 export const putManager = m => req2p(store('managers','readwrite').put(m));
@@ -599,11 +764,11 @@ async function _snapshotSlot(slotId) {
   const isActive = slotId === getActiveSlotId();
   const db = isActive ? await openDB() : await _openNamedDB(careerSlotDbName(slotId));
   try {
-    const snapshot = {};
-    for (const name of STORE_NAMES) {
-      snapshot[name] = await req2p(db.transaction(name, 'readonly').objectStore(name).getAll());
-    }
-    return snapshot;
+    // Export/cloud work can overlap the next match or rollover. Queue every
+    // store read in one transaction so the envelope represents one checkpoint.
+    const tx = db.transaction(STORE_NAMES, 'readonly');
+    const rows = await Promise.all(STORE_NAMES.map(name => req2p(tx.objectStore(name).getAll())));
+    return Object.fromEntries(STORE_NAMES.map((name, index) => [name, name === 'players' ? rows[index].map(decodeStoredPlayer) : name === 'seasons' ? rows[index].map(decodeStoredSeason) : rows[index]]));
   } finally {
     if (!isActive) {
       try { db.close(); } catch {}
@@ -774,20 +939,38 @@ export async function _restoreFromEnvelope(envelopeStr, targetSlotId = getActive
   if (!SAFE_SLOT_ID.test(targetSlotId)) throw new Error('Invalid career slot ID.');
   const data = parseAndMigrateEnvelope(envelopeStr, targetSlotId);
   const snapshot = data.snapshot;
+  const previousSlotId = getActiveSlotId();
 
   if (_db && _dbSlotId === targetSlotId) {
     try { _db.close(); } catch {}
     _db = null;
     _dbSlotId = null;
   }
-  await _resetNamedSlot(targetSlotId);
   _registerSlot(targetSlotId);
-  await activateCareerSlot(targetSlotId);
-  const db = await openDB();
-
-  for (const name of STORE_NAMES) {
-    const items = snapshot[name];
-    if (items?.length) await _bulkPutToDB(db, name, items);
+  try {
+    await activateCareerSlot(targetSlotId);
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAMES, 'readwrite');
+      let failure = null;
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(failure ?? tx.error);
+      tx.onabort = () => reject(failure ?? tx.error ?? new Error('Save import aborted.'));
+      try {
+        for (const name of STORE_NAMES) {
+          const s = tx.objectStore(name);
+          s.clear();
+          for (const item of snapshot[name] ?? []) s.put(item);
+        }
+      } catch (error) {
+        failure = error;
+        tx.abort();
+      }
+    });
+  } catch (error) {
+    await activateCareerSlot(previousSlotId);
+    await openDB();
+    throw error;
   }
   return data.meta;
 }

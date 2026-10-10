@@ -1,5 +1,9 @@
-import { getAllPlayers, getAllTeams, getSave, putTeam } from './db.js';
-import { LEAGUE_DOMESTIC_CUPS } from './cups.js';
+import { getAllPlayers, getAllTeams, getManager, getSave, putTeam } from './db.js';
+import { LEAGUE_DOMESTIC_CUPS, resolveSingleLegKnockout } from './cups.js';
+import { resolveTwoLegTie } from './competitionRules.js';
+import { createSeededRng, simulateMatch } from './matchEngine.js';
+import { buildManagedMatchInputs } from './managerTactics.js';
+import { canManageClub } from './managerEmployment.js';
 
 /** modules/promotion.js — End-of-season promotion/relegation, playoffs and European qualification */
 
@@ -13,10 +17,22 @@ export function getEuropeanQualifiers(sortedStandings) {
 }
 
 export function getLeagueOutcome24(sortedStandings) {
+  return getLeagueOutcome(sortedStandings, 'Championship');
+}
+
+export function getLeagueMovementRules(league) {
+  if (league === 'League One') return { autoPromoted:2, playoffStart:3, playoffEnd:6, relegated:4 };
+  if (league === 'League Two') return { autoPromoted:3, playoffStart:4, playoffEnd:7, relegated:0 };
+  if (league === 'Championship') return { autoPromoted:2, playoffStart:3, playoffEnd:6, relegated:3 };
+  return null;
+}
+
+export function getLeagueOutcome(sortedStandings, league) {
+  const rules = getLeagueMovementRules(league) ?? getLeagueMovementRules('Championship');
   return {
-    autoPromoted: sortedStandings.slice(0, 2).map(r => r.teamId),
-    playoffTeams: sortedStandings.slice(2, 6).map(r => r.teamId),
-    relegated:    sortedStandings.slice(-3).map(r => r.teamId),
+    autoPromoted: sortedStandings.slice(0, rules.autoPromoted).map(r => r.teamId),
+    playoffTeams: sortedStandings.slice(rules.playoffStart - 1, rules.playoffEnd).map(r => r.teamId),
+    relegated: rules.relegated ? sortedStandings.slice(-rules.relegated).map(r => r.teamId) : [],
   };
 }
 
@@ -25,28 +41,46 @@ export function getChampionshipOutcome(sortedStandings) {
   return { promoted:[...o.autoPromoted], playoffTeams:o.playoffTeams, relegated:o.relegated };
 }
 
-export function simulatePlayoffTie(team1Id, team2Id, allTeams, allPlayers) {
+function simulatePlayoffMatch(homeTeam, awayTeam, allPlayers, options) {
+  const homePlayers = allPlayers.filter(player => player.teamId === homeTeam.id);
+  const awayPlayers = allPlayers.filter(player => player.teamId === awayTeam.id);
+  const { save, ...matchOptions } = options;
+  const managedMatch = save?.userTeamId === homeTeam.id || save?.userTeamId === awayTeam.id;
+  if (!managedMatch) return simulateMatch(homeTeam, awayTeam, homePlayers, awayPlayers,
+    undefined, undefined, undefined, undefined, undefined, undefined, matchOptions);
+  const inputs = buildManagedMatchInputs({
+    save, homeTeam, awayTeam, homePlayers, awayPlayers,
+    userIsHome:save.userTeamId === homeTeam.id,
+  });
+  return simulateMatch(inputs.homeTeam, inputs.awayTeam, inputs.homePlayers, inputs.awayPlayers,
+    inputs.homeFormation, inputs.awayFormation, inputs.homeLineup, inputs.awayLineup,
+    inputs.homeMentality, inputs.awayMentality,
+    { ...matchOptions, homeBench:inputs.homeBench, awayBench:inputs.awayBench });
+}
+
+export function simulatePlayoffTie(team1Id, team2Id, allTeams, allPlayers = [], options = {}) {
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const t1 = teamsById.get(team1Id);
   const t2 = teamsById.get(team2Id);
-  const str1 = (t1?.reputation ?? 65) + (Math.random() * 16 - 8);
-  const str2 = (t2?.reputation ?? 65) + (Math.random() * 16 - 8);
-  const leg1Home = simulatePlayoffLeg(str1, str2);
-  const leg2Home = simulatePlayoffLeg(str2, str1);
-  const agg1 = leg1Home.home + leg2Home.away;
-  const agg2 = leg1Home.away + leg2Home.home;
-  let winnerId;
-  if (agg1 > agg2) winnerId = team1Id;
-  else if (agg2 > agg1) winnerId = team2Id;
-  else winnerId = Math.random() < 0.5 ? team1Id : team2Id;
+  const leg1 = simulatePlayoffMatch(t1, t2, allPlayers, options);
+  const secondLegOptions = options.seed == null
+    ? options
+    : { ...options, seed:Number.isFinite(options.seed) ? options.seed + 1 : `${options.seed}:leg2` };
+  const leg2 = simulatePlayoffMatch(t2, t1, allPlayers, secondLegOptions);
+  const outcome = resolveTwoLegTie(
+    { userGoals:leg1.homeGoals, oppGoals:leg1.awayGoals },
+    { userGoals:leg2.awayGoals, oppGoals:leg2.homeGoals },
+    createSeededRng(leg2.seed),
+  );
+  const winnerId = outcome.userWon ? team1Id : team2Id;
   return {
     winnerId,
     team1:{ id:team1Id, name:t1?.name ?? team1Id, crest:t1?.crest ?? '⚽' },
     team2:{ id:team2Id, name:t2?.name ?? team2Id, crest:t2?.crest ?? '⚽' },
-    leg1:{ home:leg1Home.home, away:leg1Home.away },
-    leg2:{ home:leg2Home.home, away:leg2Home.away },
-    agg:{ team1:agg1, team2:agg2 },
-    penalties:agg1 === agg2,
+    leg1:{ home:leg1.homeGoals, away:leg1.awayGoals },
+    leg2:{ home:leg2.homeGoals, away:leg2.awayGoals },
+    agg:{ team1:outcome.userAgg, team2:outcome.oppAgg },
+    penalties:outcome.penalties,
   };
 }
 
@@ -57,24 +91,19 @@ export function simulatePlayoffLeg(homeStr, awayStr) {
   return { home:poissonGoals(hExpected), away:poissonGoals(aExpected) };
 }
 
-export function simulatePlayoffFinal(team1Id, team2Id, allTeams) {
+export function simulatePlayoffFinal(team1Id, team2Id, allTeams, allPlayers = [], options = {}) {
   const teamsById = new Map(allTeams.map(t => [t.id, t]));
   const t1 = teamsById.get(team1Id);
   const t2 = teamsById.get(team2Id);
-  const str1 = (t1?.reputation ?? 65) + (Math.random() * 14 - 7);
-  const str2 = (t2?.reputation ?? 65) + (Math.random() * 14 - 7);
-  const g1 = poissonGoals(Math.max(0.3, str1 / 58));
-  const g2 = poissonGoals(Math.max(0.3, str2 / 58));
-  let winnerId;
-  if (g1 > g2) winnerId = team1Id;
-  else if (g2 > g1) winnerId = team2Id;
-  else winnerId = Math.random() < 0.5 ? team1Id : team2Id;
+  const match = simulatePlayoffMatch(t1, t2, allPlayers, options);
+  const outcome = resolveSingleLegKnockout(match.homeGoals, match.awayGoals, match.seed);
+  const winnerId = outcome.userWon ? team1Id : team2Id;
   return {
     winnerId,
     team1:{ id:team1Id, name:t1?.name ?? team1Id, crest:t1?.crest ?? '⚽' },
     team2:{ id:team2Id, name:t2?.name ?? team2Id, crest:t2?.crest ?? '⚽' },
-    score:{ team1:g1, team2:g2 },
-    penalties:g1 === g2,
+    score:{ team1:match.homeGoals, team2:match.awayGoals },
+    penalties:outcome.penalties,
   };
 }
 
@@ -84,10 +113,10 @@ export function poissonGoals(lambda) {
   return k - 1;
 }
 
-export function runPlayoffs(playoffTeamIds, allTeams, allPlayers) {
-  const semi1 = simulatePlayoffTie(playoffTeamIds[0], playoffTeamIds[3], allTeams, allPlayers);
-  const semi2 = simulatePlayoffTie(playoffTeamIds[1], playoffTeamIds[2], allTeams, allPlayers);
-  const final = simulatePlayoffFinal(semi1.winnerId, semi2.winnerId, allTeams);
+export function runPlayoffs(playoffTeamIds, allTeams, allPlayers, options = {}) {
+  const semi1 = simulatePlayoffTie(playoffTeamIds[0], playoffTeamIds[3], allTeams, allPlayers, options);
+  const semi2 = simulatePlayoffTie(playoffTeamIds[1], playoffTeamIds[2], allTeams, allPlayers, options);
+  const final = simulatePlayoffFinal(semi1.winnerId, semi2.winnerId, allTeams, allPlayers, options);
   return { promotedViaPlayoff:final.winnerId, playoffResults:{ semi1, semi2, final } };
 }
 
@@ -116,7 +145,10 @@ export async function processLeagueChanges(userLeagueStandings, worldStandings, 
     teamsByLeague.get(league).push(team);
   }
 
-  const userLeagueName = (await getSave())?.userLeague ?? 'Premier League';
+  const save = await getSave();
+  const manager = save?.userManagerId ? await getManager(save.userManagerId) : null;
+  const playoffOptions = { save:canManageClub(save, manager) ? save : null };
+  const userLeagueName = save?.userLeague ?? 'Premier League';
   const persistedByLeague = new Map();
   if (Array.isArray(worldStandings) && worldStandings.length) {
     for (const row of worldStandings) {
@@ -172,7 +204,7 @@ export async function processLeagueChanges(userLeagueStandings, worldStandings, 
       changes.movements.push({ teamId:tid, from:'Championship', to:'Premier League', reason });
       if (tid === userTeamId) changes.userRelInfo.promoted = true;
     });
-    const { promotedViaPlayoff, playoffResults } = runPlayoffs(champOut.playoffTeams, allTeams, allPlayers);
+    const { promotedViaPlayoff, playoffResults } = runPlayoffs(champOut.playoffTeams, allTeams, allPlayers, playoffOptions);
     changes.movements.push({ teamId:promotedViaPlayoff, from:'Championship', to:'Premier League', reason:'Playoff Winner' });
     changes.playoffResults['Championship'] = playoffResults;
     if (promotedViaPlayoff === userTeamId) {
@@ -188,13 +220,13 @@ export async function processLeagueChanges(userLeagueStandings, worldStandings, 
 
   const l1Standings = leagueStandings['League One'];
   if (l1Standings && l1Standings.length >= 6) {
-    const l1Out = getLeagueOutcome24(l1Standings);
+    const l1Out = getLeagueOutcome(l1Standings, 'League One');
     l1Out.autoPromoted.forEach((tid, idx) => {
       const reason = idx === 0 ? 'Champions' : 'Auto Promoted';
       changes.movements.push({ teamId:tid, from:'League One', to:'Championship', reason });
       if (tid === userTeamId) changes.userRelInfo.promoted = true;
     });
-    const { promotedViaPlayoff, playoffResults } = runPlayoffs(l1Out.playoffTeams, allTeams, allPlayers);
+    const { promotedViaPlayoff, playoffResults } = runPlayoffs(l1Out.playoffTeams, allTeams, allPlayers, playoffOptions);
     changes.movements.push({ teamId:promotedViaPlayoff, from:'League One', to:'Championship', reason:'Playoff Winner' });
     changes.playoffResults['League One'] = playoffResults;
     if (promotedViaPlayoff === userTeamId) {
@@ -208,14 +240,14 @@ export async function processLeagueChanges(userLeagueStandings, worldStandings, 
   }
 
   const l2Standings = leagueStandings['League Two'];
-  if (l2Standings && l2Standings.length >= 6) {
-    const l2Out = getLeagueOutcome24(l2Standings);
+  if (l2Standings && l2Standings.length >= 7) {
+    const l2Out = getLeagueOutcome(l2Standings, 'League Two');
     l2Out.autoPromoted.forEach((tid, idx) => {
       const reason = idx === 0 ? 'Champions' : 'Auto Promoted';
       changes.movements.push({ teamId:tid, from:'League Two', to:'League One', reason });
       if (tid === userTeamId) changes.userRelInfo.promoted = true;
     });
-    const { promotedViaPlayoff, playoffResults } = runPlayoffs(l2Out.playoffTeams, allTeams, allPlayers);
+    const { promotedViaPlayoff, playoffResults } = runPlayoffs(l2Out.playoffTeams, allTeams, allPlayers, playoffOptions);
     changes.movements.push({ teamId:promotedViaPlayoff, from:'League Two', to:'League One', reason:'Playoff Winner' });
     changes.playoffResults['League Two'] = playoffResults;
     if (promotedViaPlayoff === userTeamId) {
@@ -255,7 +287,28 @@ export function assignCupsFromPosition(position, userLeague, cupState) {
   return cups;
 }
 
-export function getZoneInfo(position, totalTeams = 20) {
+export function getZoneInfo(position, totalTeams = 20, leagueName = null) {
+  if (leagueName) {
+    const movement = getLeagueMovementRules(leagueName);
+    if (movement) {
+      if (position <= movement.autoPromoted) return { zone:'auto', color:'#3b82f6', label:'Automatic Promotion' };
+      if (position >= movement.playoffStart && position <= movement.playoffEnd) return { zone:'playoff', color:'#22c55e', label:'Play-off Place' };
+      if (movement.relegated > 0 && position > totalTeams - movement.relegated) return { zone:'rel', color:'#e84855', label:'Relegation' };
+      return { zone:'mid', color:'transparent', label:'' };
+    }
+    // Supported continental leagues have no simulated lower division. Their
+    // qualification zones follow the same simplified allocation as rollover,
+    // independent of the number of clubs present in the starting dataset.
+    const qualification = assignCupsFromPosition(position, leagueName);
+    if (qualification.includes('ucl')) return { zone:'ucl', color:'#3b82f6', label:'Champions League' };
+    if (qualification.includes('uel')) return { zone:'uel', color:'#f97316', label:'Europa League' };
+    if (qualification.includes('uecl')) return { zone:'uecl', color:'#22c55e', label:'Conference League' };
+    if (leagueName === 'Premier League') {
+      if (position > totalTeams - 3) return { zone:'rel', color:'#e84855', label:'Relegation' };
+      if (position > totalTeams - 6) return { zone:'risk', color:'#f5c842', label:'Danger Zone' };
+    }
+    return { zone:'mid', color:'transparent', label:'' };
+  }
   if (totalTeams === 20) {
     if (position <= 4) return { zone:'ucl', color:'#3b82f6', label:'Champions League' };
     if (position <= 6) return { zone:'uel', color:'#f97316', label:'Europa League' };

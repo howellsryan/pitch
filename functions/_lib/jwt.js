@@ -58,11 +58,13 @@ export async function verifyJWT(token, secret) {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   const [headerB64, payloadB64, sigB64] = parts;
+  let signature;
+  try { signature = b64urlDecodeToBytes(sigB64); } catch { return null; }
   const key = await getKey(secret);
   const valid = await crypto.subtle.verify(
     'HMAC',
     key,
-    b64urlDecodeToBytes(sigB64),
+    signature,
     enc.encode(`${headerB64}.${payloadB64}`),
   );
   if (!valid) return null;

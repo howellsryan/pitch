@@ -27,9 +27,9 @@ export const FACILITY_LEAD_TIME_WEEKS = 6;
 export const FACILITY_LEVEL_COST = 4_000_000;
 
 const FACILITY_CONSUMER = Object.freeze({
-  training:'P3/P5 development-plan efficiency',
-  medical:'P3 injury recovery speed',
-  scouting:'P5 scouting assignment capacity',
+  training:'Improves training and player development',
+  medical:'Improves injury recovery',
+  scouting:'Expands scouting assignment capacity',
 });
 
 export function createFacilities() {

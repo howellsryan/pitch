@@ -1,5 +1,8 @@
 /** ui/helpers.js — fmt.money/wage/date, toast, showModal, showLoader, navigateTo */
 
+import { nationalityCode } from '../lib/nationality.mjs';
+import { requireClubEmployment } from '../modules/managerEmployment.js';
+
 // ─── Formatting ───────────────────────────────────────────────
 export const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 export const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
@@ -7,7 +10,15 @@ export const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 export const fmt = {
   date:      (d) => { const dt = new Date(d); return `${DAYS[dt.getDay()]} ${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`; },
   dateShort: (d) => { const dt = new Date(d); return `${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]}`; },
-  money:     (v) => { v = Number(v) || 0; return v <= 0 ? 'Free' : v >= 1e9 ? `£${(v/1e9).toFixed(1)}B` : v >= 1e6 ? `£${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `£${(v/1e3).toFixed(0)}K` : `£${v}`; },
+  money:     (v) => {
+    const amount = Number(v) || 0;
+    const magnitude = Math.abs(amount);
+    if (magnitude === 0) return 'Free';
+    const formatted = magnitude >= 1e9 ? `£${(magnitude/1e9).toFixed(1)}B`
+      : magnitude >= 1e6 ? `£${(magnitude/1e6).toFixed(1)}M`
+        : magnitude >= 1e3 ? `£${(magnitude/1e3).toFixed(0)}K` : `£${magnitude}`;
+    return (amount < 0 ? '-' : '') + formatted;
+  },
   wage:      (v) => { v = Number(v) || 0; return v <= 0 ? 'Free' : v >= 1000 ? `£${(v/1000).toFixed(0)}K/w` : `£${v}/w`; },
 };
 
@@ -108,7 +119,11 @@ export const _LEAGUE_FLAG = {
 };
 
 export function playerNationality(player, teamLeague) {
-  return _NAT[player.id] || _LEAGUE_FLAG[teamLeague] || 'INT';
+  // A present but unknown source nationality stays unknown; a club's league
+  // cannot establish a player's nationality. Only old rows without metadata
+  // use the historical compatibility lookup and generated-player fallback.
+  if (String(player?.nationality ?? '').trim()) return nationalityCode(player.nationality);
+  return _NAT[player?.id] || _LEAGUE_FLAG[teamLeague] || 'INT';
 }
 
 // ─── Toast ───────────────────────────────────────────────────
@@ -118,7 +133,13 @@ export function toast(msg, type = 'info', duration = 3500) {
   const el   = document.createElement('div');
   el.className = `toast toast-${type}`;
   const icons  = { success: 'OK', error: 'X', info: 'i', warning: '!' };
-  el.innerHTML = `<span class="toast-icon">${icons[type] ?? 'i'}</span><span>${msg}</span>`;
+  const icon = document.createElement('span');
+  icon.className = 'toast-icon';
+  icon.textContent = icons[type] ?? 'i';
+  const message = document.createElement('span');
+  message.textContent = String(msg);
+  el.appendChild(icon);
+  el.appendChild(message);
   container.appendChild(el);
   requestAnimationFrame(() => el.classList.add('vis'));
   setTimeout(() => { el.classList.remove('vis'); el.addEventListener('transitionend', () => el.remove(), { once: true }); }, duration);
@@ -203,6 +224,17 @@ export async function navigateTo(id, { history: historyMode = 'push' } = {}) {
   if (_matchNavigationLocked && _active === 'match' && id !== 'match') {
     writeRoute('match', 'replace');
     return false;
+  }
+  if (['match', 'squad', 'transfers', 'academy'].includes(id)) {
+    try {
+      await requireClubEmployment();
+    } catch (error) {
+      if (error.message !== 'MANAGER_NOT_EMPLOYED' && error.message !== 'NO_ACTIVE_SAVE') throw error;
+      toast('You are between clubs. Find your next job in Settings.', 'info');
+      id = 'home';
+      historyMode = 'replace';
+      writeRoute(id, historyMode);
+    }
   }
   if (!_screens.has(id) || _active === id) return;
   if (_active) {

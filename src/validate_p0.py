@@ -180,12 +180,26 @@ SUPERSEDED_LEGACY_CHECKS = {
     'AI auto-promotes talented youth',
     'Youth promotion (AI) sets a 3-year contract',
     'youthCohort seeded in startNewGame',
+
+    # Managed fixture writes now checkpoint the result, queue and Manager DNA
+    # together. dbMatchEvent/gameweekReplay exercise abort and resume directly;
+    # a standalone putFixture in Broadcast would reopen the crash window.
+    'advanceOneFixtureWithResult calls putFixture',
 }
 
 P0_TEST_FILES = [
+    'src/modules/dbMatchEvent.test.js',
+    'src/modules/gameweekReplay.test.js',
+    'src/modules/seasonAtomic.test.js',
+    'src/modules/careerFinanceReview.test.js',
+    'src/modules/promotion.test.js',
+    'src/modules/managerEmployment.test.js',
+    'src/game/managerWorldAdvance.test.js',
     'src/modules/competitionRules.test.js',
     'src/modules/competitionIntegration.test.js',
     'src/modules/dbSaveMigration.test.js',
+    'src/modules/playerStorageCodec.test.js',
+    'src/modules/seasonStorageCodec.test.js',
     'src/modules/seasonP0.test.js',
     'src/modules/seasonP1.test.js',
     # P1 replacements for the living-world source-shape assertions above.
@@ -250,6 +264,10 @@ def run_legacy_validator(env: dict[str, str]) -> bool:
 def run_home_shortcut_contract() -> bool:
     """Protect P2's intentionally simplified Home information architecture."""
     src = HOME_SCREEN.read_text()
+    # The employed season spine remains unchanged. Between clubs, the career
+    # Home deliberately provides the job-search route verified in the manual
+    # mobile journey; it is not a secondary club-management shortcut.
+    src = re.sub(r'\{:else if !managingClub\}.*?\n  \{:else\}', '\n  {:else}', src, flags=re.S)
     retired = {
         'Academy': "navigateTo('academy')",
         'Trophies': "navigateTo('trophies')",

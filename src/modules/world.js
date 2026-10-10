@@ -1,6 +1,7 @@
 import { generateLeagueFixtures } from './fixtures.js';
 import { primaryRating } from './matchEngine.js';
 import { normalizePlayerModel } from './playerModel.js';
+import { transitionPlayerStatus } from './playerStatus.js';
 import { blankStandingRow, sortTable } from './standings.js';
 import { calcYouthPeakAge, distributeAttributes, randName } from './youthAcademy.js';
 import { buildWorldCompetitionHistory, worldCompetitionRunsForTeam } from './worldCompetitions.js';
@@ -88,6 +89,11 @@ export function toCanonicalLeagueRecord(fixture, result, season) {
     awayFormation:result.awayFormation ?? null,
     homeMentality:result.homeMentality ?? 'balanced',
     awayMentality:result.awayMentality ?? 'balanced',
+    homeTactics:result.homeTactics ?? null,
+    awayTactics:result.awayTactics ?? null,
+    seed:result.seed ?? null,
+    // Keep the managed report compact; never persist the action ledger.
+    tacticalAnalysis:result.tacticalAnalysis ?? null,
   };
 }
 
@@ -110,6 +116,24 @@ export function resultFromCanonicalLeagueRecord(fixture) {
     awayFormation:fixture.awayFormation ?? null,
     homeMentality:fixture.homeMentality ?? 'balanced',
     awayMentality:fixture.awayMentality ?? 'balanced',
+    homeTactics:fixture.homeTactics ?? null,
+    awayTactics:fixture.awayTactics ?? null,
+    seed:fixture.seed ?? null,
+    tacticalAnalysis:fixture.tacticalAnalysis ?? null,
+  };
+}
+
+/** Keep managed reports intact; applied AI exposure no longer needs replay data. */
+export function compactAppliedLeagueRecord(fixture, userTeamId = null) {
+  if (fixture?.worldRecordVersion !== WORLD_RECORD_VERSION || fixture.played !== true
+    || fixture.projectionsApplied !== true || fixture.projectionPayloadCompactedVersion >= 1
+    || fixture.homeTeamId === userTeamId || fixture.awayTeamId === userTeamId
+    || fixture.tacticalAnalysis) return fixture;
+  return {
+    ...fixture,
+    events:(fixture.events ?? []).filter(event => event.type === 'goal'),
+    fitnessUpdates:[],
+    projectionPayloadCompactedVersion:1,
   };
 }
 
@@ -293,20 +317,6 @@ function worldSpellSeniorStats(player) {
   };
 }
 
-function worldSpellAcademyStats(player) {
-  const evidence = player?.academyEvidence ?? {};
-  return {
-    appearances:Math.max(0, Number(evidence.appearances ?? 0)),
-    starts:Math.max(0, Number(evidence.starts ?? 0)),
-    minutes:Math.max(0, Number(evidence.minutes ?? 0)),
-    goals:Math.max(0, Number(evidence.goals ?? 0)),
-    assists:Math.max(0, Number(evidence.assists ?? 0)),
-    cleanSheets:Math.max(0, Number(evidence.cleanSheets ?? 0)),
-    ratingTotal:Math.max(0, Number(evidence.ratingTotal ?? 0)),
-    ratingApps:Math.max(0, Number(evidence.ratingApps ?? 0)),
-  };
-}
-
 function worldSpellDelta(end, start = {}) {
   const out = {};
   for (const key of ['appearances','starts','minutes','goals','assists','cleanSheets','ratingTotal','ratingApps']) {
@@ -320,7 +330,6 @@ function worldSpellDelta(end, start = {}) {
 export function compactPlayerRegistrationSpells(player, season) {
   const spells = Array.isArray(player?.registrationSpells) ? player.registrationSpells : [];
   const currentSenior = worldSpellSeniorStats(player);
-  const currentAcademy = worldSpellAcademyStats(player);
   return spells.flatMap(spell => {
     const belongsToSeason = String(spell.startSeason ?? '') === String(season)
       || String(spell.endSeason ?? '') === String(season)
@@ -329,11 +338,12 @@ export function compactPlayerRegistrationSpells(player, season) {
     const seniorEnd = spell.endSeason != null
       ? (spell.endStats ?? {})
       : currentSenior;
-    const academyEnd = spell.endSeason != null
-      ? (spell.endAcademyEvidence ?? {})
-      : currentAcademy;
+    const academyEvidence = spell.endSeason != null ? spell.endAcademyEvidence : player?.academyEvidence;
+    const academyEnd = spell.status === 'academy'
+      && (!academyEvidence?.season || String(academyEvidence.season) === String(season))
+      ? (academyEvidence ?? {}) : {};
     const seniorStart = String(spell.startSeason ?? '') === String(season) ? (spell.startStats ?? {}) : {};
-    const academyStart = String(spell.startSeason ?? '') === String(season) ? (spell.startAcademyEvidence ?? {}) : {};
+    const academyStart = spell.status === 'academy' && String(spell.startSeason ?? '') === String(season) ? (spell.startAcademyEvidence ?? {}) : {};
     return [{
       id:spell.id,
       status:spell.status ?? 'first_team',
@@ -347,6 +357,66 @@ export function compactPlayerRegistrationSpells(player, season) {
       academy:worldSpellDelta(academyEnd, academyStart),
     }];
   });
+}
+
+/** Idle free agents have no seasonal history to duplicate; retained rows stay full. */
+export function omitIdleUnattachedHistory(summary) {
+  if (!Array.isArray(summary?.playerHistory)) return summary;
+  const hasTotals = row => ['appearances','starts','minutes','goals','assists','cleanSheets','ratingTotal','ratingApps','averageRating','yellowCards','redCards']
+    .some(key => Number(row?.[key] ?? 0) !== 0);
+  const playerHistory = summary.playerHistory.filter(row => {
+    if (!row || !Array.isArray(row.clubs) || !row.clubs.length || row.clubs.some(id => id !== 'free_agents')) return true;
+    if (hasTotals(row) || hasTotals(row.academy) || (row.transfers ?? []).length
+      || (row.individualAwards ?? []).length || (row.majorInjuries ?? []).length || row.majorInjuryCount) return true;
+    if (row.spells != null && !Array.isArray(row.spells)) return true;
+    return (row.spells ?? []).some(spell => !spell || spell.status !== 'free_agent'
+      || spell.registeredTeamId && spell.registeredTeamId !== 'free_agents'
+      || spell.contractTeamId && spell.contractTeamId !== 'free_agents'
+      || hasTotals(spell.senior) || hasTotals(spell.academy));
+  });
+  return playerHistory.length === summary.playerHistory.length ? summary : { ...summary, playerHistory };
+}
+
+/** Recent world totals and lifelong manager/leader records keep archives bounded. */
+export function compactHistoricalSeason(summary, currentSeasonStartYear = null) {
+  const archiveYear = Number.parseInt(summary?.season, 10);
+  const retainWorldTotals = currentSeasonStartYear == null || !Number.isFinite(archiveYear) || archiveYear >= currentSeasonStartYear - 3;
+  if (!Array.isArray(summary?.playerHistory)
+    || summary.playerHistoryCompacted && (retainWorldTotals || summary.playerHistorySummaryOnly)) return summary;
+  const managedTeamId = summary.managedClub === false ? null
+    : summary.userTeamId ?? summary.table?.[Number(summary.userFinish) - 1]?.teamId;
+  const leaders = new Set([
+    ...(summary.topScorers ?? []).map(row => row.id),
+    ...(summary.topAssists ?? []).map(row => row.id),
+    ...(summary.competitionHistory ?? []).flatMap(row => [row.topScorer?.playerId, row.topAssists?.playerId]),
+  ].filter(Boolean));
+  const playerHistory = [];
+  for (const row of summary.playerHistory) {
+    if (!row || typeof row !== 'object') continue;
+    if (managedTeamId && Array.isArray(row.clubs) && row.clubs.includes(managedTeamId)) {
+      playerHistory.push(row);
+      continue;
+    }
+    if (!retainWorldTotals && !leaders.has(row.playerId) && !(row.individualAwards ?? []).length) continue;
+    const academy = { appearances:0, starts:0, minutes:0, goals:0, assists:0, cleanSheets:0, ratingTotal:0, ratingApps:0 };
+    for (const spell of Array.isArray(row.spells) ? row.spells : []) {
+      if (spell?.status !== 'academy') continue;
+      for (const key of Object.keys(academy)) academy[key] += Number(spell.academy?.[key]) || 0;
+    }
+    const contributed = Number(row.appearances) > 0 || Number(row.minutes) > 0
+      || Number(row.goals) > 0 || Number(row.assists) > 0 || academy.appearances > 0
+      || (row.transfers ?? []).length > 0 || (row.individualAwards ?? []).length > 0;
+    if (!contributed) continue;
+    const compact = { ...row };
+    delete compact.spells;
+    delete compact.majorInjuries;
+    if (academy.appearances > 0) {
+      compact.academy = { ...academy, averageRating:academy.ratingApps ? Math.round(academy.ratingTotal / academy.ratingApps * 100) / 100 : null };
+    }
+    if (row.majorInjuries?.length) compact.majorInjuryCount = row.majorInjuries.length;
+    playerHistory.push(compact);
+  }
+  return { ...summary, playerHistory, playerHistoryCompacted:true, playerHistorySummaryOnly:!retainWorldTotals };
 }
 
 export function buildLivingWorldSeasonSummary({ save, teams, standings, players, transfers = [], leagueChanges = null, awards = [] }) {
@@ -440,7 +510,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
     save.cups ?? {},
   ));
 
-  return {
+  return omitIdleUnattachedHistory({
     version:WORLD_RECORD_VERSION,
     season:save.season,
     playerHistory,
@@ -448,7 +518,7 @@ export function buildLivingWorldSeasonSummary({ save, teams, standings, players,
     competitionHistory,
     awards,
     leagueChanges:leagueChanges ?? null,
-  };
+  });
 }
 
 export function groupStandingsByLeague(standings) {
@@ -514,7 +584,7 @@ export function generateReplacementNewgens(retirees, teams, season) {
       const attrs = distributeAttributes(position, base);
       const potential = Math.max(base + 4, Math.min(92, base + 8 + Math.floor(Math.random() * 12)));
       const age = 17 + Math.floor(Math.random() * 4);
-      return normalizePlayerModel(resetSeasonPlayerStats({
+      return transitionPlayerStatus(normalizePlayerModel(resetSeasonPlayerStats({
         id:`newgen_${team.id}_${seasonKey}_${index}_${Math.floor(Math.random() * 1e9).toString(36)}`,
         name:randName(league),
         position,
@@ -535,7 +605,10 @@ export function generateReplacementNewgens(retirees, teams, season) {
         generated:true,
         generatedSeason:season,
         generatedLeague:league,
-      }));
+      })), {
+        status:'first_team', contractTeamId:team.id, registeredTeamId:team.id,
+        season, gameweek:1, reason:'retirement_replacement',
+      });
     });
 }
 

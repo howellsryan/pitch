@@ -189,6 +189,35 @@ export function isTwoLegRound(cupId, roundName, legNum) {
   return pairs.some(([leg1, leg2]) => (legNum === 1 ? leg1 : leg2) === roundName);
 }
 
+/**
+ * Allocate a reduced domestic field across the competition's actual stages.
+ * Later entrants consume bracket places before earlier survivors arrive; a
+ * second leg belongs to its first-leg tie rather than another elimination.
+ * Shared by simulation and weekly participation prediction so byes never
+ * defer player settlement for a match that will not take place.
+ */
+export function buildKnockoutRoundDraw(cupId, teamIds, roundIndex, entrantsByRound = {}) {
+  const ids = [...new Set((teamIds ?? []).filter(Boolean))].sort();
+  const rules = getCompetitionRules(cupId);
+  let pairCount = Math.floor(ids.length / 2);
+  if (rules && !isUefaCompetition(cupId)) {
+    const eliminationIndex = isTwoLegRound(cupId, rules.rounds[roundIndex], 1)
+      ? roundIndex + 1
+      : roundIndex;
+    let survivorCapacity = 1;
+    for (let index = rules.rounds.length - 1; index > eliminationIndex; index--) {
+      if (!isTwoLegRound(cupId, rules.rounds[index], 1)) survivorCapacity *= 2;
+      survivorCapacity -= new Set(entrantsByRound[index] ?? []).size;
+    }
+    pairCount = Math.min(pairCount, Math.max(0, ids.length - Math.max(1, survivorCapacity)));
+  }
+  const pairs = [];
+  for (let index = 0; index < pairCount * 2; index += 2) {
+    pairs.push(roundIndex % 2 ? [ids[index + 1], ids[index]] : [ids[index], ids[index + 1]]);
+  }
+  return { pairs, byes:ids.slice(pairCount * 2) };
+}
+
 export function resolveTwoLegTie(leg1, leg2, rng = Math.random) {
   const userAgg = Number(leg1?.userGoals ?? 0) + Number(leg2?.userGoals ?? 0);
   const oppAgg = Number(leg1?.oppGoals ?? 0) + Number(leg2?.oppGoals ?? 0);

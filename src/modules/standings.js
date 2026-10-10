@@ -110,11 +110,13 @@ export function moraleDevMultiplier(morale) {
 }
 
 export async function updateTeamMorale(teamId) {
-  const [team, row] = await Promise.all([getTeam(teamId), getStanding(teamId)]);
+  const [team, row, save] = await Promise.all([getTeam(teamId), getStanding(teamId), getSave()]);
   if (!team) return;
+  const weekKey = save ? `${save.season}:${save.currentGameweek}` : null;
+  if (weekKey && team.moraleSettledWeekKey === weekKey) return;
   const target    = moraleTargetFromForm(row?.form);
   const newMorale = easeMorale(team.morale, target);
-  if (newMorale !== (team.morale ?? 50)) await putTeam({ ...team, morale: newMorale });
+  if (newMorale !== (team.morale ?? 50) || weekKey) await putTeam({ ...team, morale:newMorale, ...(weekKey ? { moraleSettledWeekKey:weekKey } : {}) });
 }
 
 // ─── Build blank standings row ───────────────────────────────

@@ -1,3 +1,4 @@
+import { requireClubEmployment } from './managerEmployment.js';
 import { getPlayer, getPlayersByTeam, getSave, getTeam, putSave, settleTransferMarketDealAtomic } from './db.js';
 import { formAdjustedValue } from './transfers.js';
 import {
@@ -314,6 +315,7 @@ async function persistDeal(save, market, deal) {
 /** Counter the current club-level fee in a user-visible transfer negotiation. */
 export async function counterMarketDeal(dealId, feeAmount) {
   const save = await getSave();
+  await requireClubEmployment(save);
   if (!save) throw new Error('SAVE_NOT_FOUND');
   const market = normalizeTransferMarket(save.transferMarket);
   const deal = market.activeDeals.find(item => item.id === dealId);
@@ -367,6 +369,7 @@ export async function counterMarketDeal(dealId, feeAmount) {
  */
 export async function submitContractTerms({ playerId = null, dealId = null, contract = {} } = {}) {
   const save = await getSave();
+  await requireClubEmployment(save);
   if (!save) throw new Error('SAVE_NOT_FOUND');
   let market = normalizeTransferMarket(save.transferMarket);
   const weekKey = marketWeekKey(save);

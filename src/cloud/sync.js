@@ -4,6 +4,8 @@ import {
   buildCloudSaveBlob,
   deleteCareerSlot,
   getActiveSlotId,
+  getCareerSlotSummaries,
+  getSave,
   restoreFromCloudBlob,
 } from '../modules/db.js';
 import { api, isSignedIn } from './api.js';
@@ -62,11 +64,30 @@ export async function deleteCareerEverywhere(slotId = getActiveSlotId()) {
   }
 }
 
-export async function pullAndApplyCloudSave(slotId = getActiveSlotId()) {
+export async function pullAndApplyCloudSave(slotId = null) {
   if (!isSignedIn()) return { applied:false, reason:'signed_out' };
+  const initialSlotId = getActiveSlotId();
   try {
+    const localSave = await getSave();
+    if (localSave && !localSave._deleted) return { applied:false, reason:'local_career_exists', slotId:initialSlotId };
+    // New careers use generated IDs. A clean browser has only the default
+    // legacy pointer, so discover the latest remote career before restoring.
+    if (!slotId) {
+      const slots = await listCloudCareerSlots();
+      const latest = slots
+        .filter(slot => typeof slot?.slotId === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(slot.slotId))
+        .sort((a, b) => Number(b.updatedAt ?? 0) - Number(a.updatedAt ?? 0) || a.slotId.localeCompare(b.slotId))[0];
+      slotId = latest?.slotId ?? initialSlotId;
+    }
     const res = await api.getSave(slotId);
     if (!res?.save?.save_blob) return { applied:false, reason:'no_cloud_save', slotId };
+    // Network waits must not let a late restore overwrite a career started
+    // meanwhile, or an existing career in a different local slot.
+    const freshSave = await getSave();
+    const localSlots = await getCareerSlotSummaries();
+    if (getActiveSlotId() !== initialSlotId || freshSave && !freshSave._deleted || localSlots.some(slot => slot.slotId === slotId)) {
+      return { applied:false, reason:'local_career_exists', slotId };
+    }
     const meta = await restoreFromCloudBlob(res.save.save_blob, slotId);
     return { applied:true, slotId, meta };
   } catch (err) {

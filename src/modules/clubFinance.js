@@ -14,6 +14,7 @@
  */
 
 export const CLUB_FINANCE_VERSION = 1;
+export const CLUB_OPERATING_INCOME_VERSION = 1;
 export const MAX_RECENT_LEDGER_ENTRIES = 20;
 
 /** Documented reference list of categories in use across P7. Not enforced at runtime — a new category string is always legal, this just keeps naming consistent. */
@@ -36,7 +37,8 @@ export function createClubFinance(openingCash = 0) {
 }
 
 export function financeNeedsBackfill(save) {
-  return !save || Number(save.clubFinanceVersion ?? 0) < CLUB_FINANCE_VERSION;
+  return !save || Number(save.clubFinanceVersion ?? 0) < CLUB_FINANCE_VERSION
+    || Number(save.clubOperatingIncomeVersion ?? 0) < CLUB_OPERATING_INCOME_VERSION;
 }
 
 /**
@@ -45,17 +47,80 @@ export function financeNeedsBackfill(save) {
  * career shows the same immediately available funds (no opening double
  * income). Only patches teams missing a current-version ledger, so a second
  * call against an already-migrated save never re-seeds a club whose ledger
- * has since moved.
+ * has since moved. The separate operating-income version adds recurring
+ * revenue without changing the ledger version or discarding accrued state.
  */
-export function buildClubFinanceBackfill(save, teams = []) {
+export function buildClubFinanceBackfill(save, teams = [], { seedTeams = [], weeklyCoachingFor = () => 0, weeksPerSeason = 46 } = {}) {
   if (!save) return { save, teamPatches:[] };
+  const sourceById = new Map(seedTeams.map(team => [team.id, team]));
   const teamPatches = teams
-    .filter(team => !team.finance || Number(team.finance.version ?? 0) < CLUB_FINANCE_VERSION)
-    .map(team => ({ ...team, finance:createClubFinance(team.budget ?? 0) }));
+    .map(team => {
+      const source = sourceById.get(team.id) ?? team;
+      return seedClubOperatingIncome(team, {
+        baselineWeeklyWages:(source.players ?? []).reduce((sum, player) => sum + Math.max(0, Number(player.wage) || 0), 0),
+        baselineWeeklyCoaching:weeklyCoachingFor(source),
+        weeksPerSeason,
+        season:save.season,
+      });
+    })
+    .filter((team, index) => team !== teams[index]);
   return {
-    save:{ ...save, clubFinanceVersion:CLUB_FINANCE_VERSION },
+    save:{ ...save, clubFinanceVersion:CLUB_FINANCE_VERSION, clubOperatingIncomeVersion:CLUB_OPERATING_INCOME_VERSION },
     teamPatches,
   };
+}
+
+/**
+ * Revenue is fixed from the shipped club squad and coaching, with a bounded
+ * reputation surplus. Buying a player or hiring a coach adds a real expense;
+ * it never raises revenue to reimburse the manager's new spending. Existing
+ * careers receive this field additively without resetting cash or obligations.
+ */
+export function seedClubOperatingIncome(team, { baselineWeeklyWages = 0, baselineWeeklyCoaching = 0, weeksPerSeason = 46, season = null } = {}) {
+  const current = team?.finance;
+  if (current?.version === CLUB_FINANCE_VERSION
+    && current.operatingIncomeVersion === CLUB_OPERATING_INCOME_VERSION
+    && Number.isFinite(current.operatingIncomePerWeek)
+    && current.operatingIncomePerWeek >= 0) return team;
+  const finance = normalizedFinance(team);
+  const weeks = Math.max(1, Number(weeksPerSeason) || 46);
+  const baseline = Math.max(0, Number(baselineWeeklyWages) || 0) + Math.max(0, Number(baselineWeeklyCoaching) || 0);
+  return {
+    ...team,
+    finance:{
+      ...finance,
+      operatingIncomeVersion:CLUB_OPERATING_INCOME_VERSION,
+      operatingIncomePerWeek:Math.round(baseline + operatingIncomeFor(team?.reputation ?? 65) / weeks),
+      periodSeason:finance.periodSeason ?? season,
+    },
+  };
+}
+
+/** Income and payroll share one team-row write and one retry key. */
+export function settleClubPayrollWeek(team, weeklyWages, save) {
+  const weekKey = `${save.season}:${save.currentGameweek}`;
+  const finance = normalizedFinance(team);
+  if (finance.payrollSettledWeekKey === weekKey) return team;
+  let next = {
+    ...team,
+    finance:{
+      ...finance,
+      periodSeason:save.season,
+      seasonTotals:finance.periodSeason && finance.periodSeason !== save.season ? {} : finance.seasonTotals,
+    },
+  };
+  const income = Math.max(0, Number(finance.operatingIncomePerWeek) || 0);
+  const bill = Math.max(0, Number(weeklyWages) || 0);
+  if (income > 0) next = applyLedgerMovement(next, { category:'operating_income', amount:income, description:'Weekly commercial and matchday income', weekKey });
+  if (bill > 0) next = applyLedgerMovement(next, { category:'wages', amount:-bill, description:'Weekly wages', weekKey });
+  return { ...next, finance:{ ...next.finance, payrollSettledWeekKey:weekKey } };
+}
+
+/** Start a fresh accounting period after the outgoing season is archived. */
+export function beginClubFinanceSeason(team, season) {
+  const finance = normalizedFinance(team);
+  if (finance.periodSeason === season) return team;
+  return { ...team, finance:{ ...finance, periodSeason:season, seasonTotals:{} } };
 }
 
 /**
@@ -107,7 +172,13 @@ export function scheduleObligation(team, { id, category = 'other', amount = 0, d
 /** An obligation is due once its gameweek is reached in the season it was scheduled for, or — the catch-up safety net — once the save has moved past that season entirely without it ever coming due (a deal made late enough in a season that dueGameweek would fall after season rollover). */
 export function isObligationDue(obligation, save) {
   if (!obligation?.dueSeason) return true;
-  if (String(obligation.dueSeason) !== String(save?.season ?? '')) return true;
+  if (String(obligation.dueSeason) !== String(save?.season ?? '')) {
+    const dueYear = Number.parseInt(String(obligation.dueSeason), 10);
+    const currentYear = Number.parseInt(String(save?.season ?? ''), 10);
+    // A future installment remains a commitment, not an immediate payment.
+    // Only a missed installment from an earlier season needs catching up.
+    return Number.isFinite(dueYear) && Number.isFinite(currentYear) && currentYear > dueYear;
+  }
   return Number(save?.currentGameweek ?? 0) >= Number(obligation.dueGameweek ?? 0);
 }
 
@@ -166,14 +237,10 @@ export function availableFunds(team, transferMarket = null, ignoreDealId = null)
 }
 
 /**
- * A club's simple recurring commercial/operating income for one season,
- * scaled by reputation (a top club's global commercial deals/sponsorship
- * dwarf a lower-league club's matchday-only revenue). Deterministic — no
- * variance — since this replaces the old `reputationBudget()` formula's
- * unseeded-`Math.random()` annual reset, not another random draw. Applied
- * identically to every club (P7's own "AI uses the same affordability and
- * solvency rules as the user" decision), on top of whatever cash a club
- * already carries — this is income, not a reset toward a target.
+ * Bounded annual operating surplus, scaled by reputation. The fixed weekly
+ * revenue baseline covers the source squad and coaching; this surplus leaves
+ * room for modest improvements. It is spread across the world-season weeks,
+ * never credited a second time at rollover and never resets existing cash.
  */
 export function operatingIncomeFor(reputation = 65) {
   const rep = Math.max(1, Number(reputation) || 65);

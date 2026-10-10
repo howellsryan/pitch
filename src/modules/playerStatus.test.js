@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compactPlayerHistoryPayload,
+  sharePlayerHistorySnapshots,
   ensureOpenRegistrationSpell,
   isAcademyPlayer,
   isOwnedByTeam,
@@ -8,6 +10,7 @@ import {
   playerStatusNeedsNormalization,
   transitionPlayerStatus,
 } from './playerStatus.js';
+import { compactPlayerRegistrationSpells } from './world.js';
 
 function player(overrides = {}) {
   return {
@@ -130,5 +133,77 @@ describe('P9 canonical player lifecycle', () => {
     expect(normalized.playerStatus).toBe('first_team');
     expect(normalized.contractTeamId).toBe('buyer');
     expect(normalized.registeredTeamId).toBe('buyer');
+  });
+
+  it('keeps valid registration evidence and sanitizes malformed bounded histories', () => {
+    const canonical = normalizePlayerStatus(player());
+    const spells = Array.from({ length:30 }, (_, i) => ({ id:`s${i}`, startStats:{ goals:i }, endSeason:'2024/25' }));
+    const input = { ...canonical, registrationSpells:[null, {}, ...spells], lifecycleTransitionKeys:[null, ...spells.map(s => s.id)] };
+    const result = normalizePlayerStatus(input);
+    expect(result.registrationSpells.map(s => s.id)).toEqual(spells.slice(-24).map(s => s.id));
+    expect(result.registrationSpells.at(-1).startStats).toEqual({ goals:29 });
+    expect(result.lifecycleTransitionKeys).toEqual(spells.slice(-24).map(s => s.id));
+    expect(input.registrationSpells).toHaveLength(32);
+    expect(normalizePlayerStatus(result)).toBe(result);
+    expect(isSeniorEligiblePlayer(result, 'parent')).toBe(true);
+  });
+
+  it('restores missing history arrays on otherwise canonical imported rows', () => {
+    const input = normalizePlayerStatus(player());
+    delete input.registrationSpells;
+    delete input.lifecycleTransitionKeys;
+    const result = normalizePlayerStatus(input);
+    expect(result.registrationSpells).toEqual([]);
+    expect(result.lifecycleTransitionKeys).toEqual([]);
+    expect(() => transitionPlayerStatus(result, { status:'free_agent', idempotencyKey:'release' })).not.toThrow();
+  });
+});
+
+describe('lossless history snapshot sharing', () => {
+  it('shares identical snapshots without changing values, inputs or lifecycle identity', () => {
+    const stats = { appearances:3, minutes:120 };
+    const evidence = { season:'2026/27', appearances:20, minutes:1300 };
+    const source = player({ academyEvidence:evidence, registrationSpells:[
+      { id:'old', startStats:{ ...stats }, endStats:{ ...stats }, endAcademyEvidence:{ ...evidence } },
+      { id:'open', startStats:{ ...stats }, startAcademyEvidence:{ ...evidence }, endSeason:null },
+    ] });
+    const result = sharePlayerHistorySnapshots(source);
+    expect(JSON.stringify(result)).toBe(JSON.stringify(source));
+    expect(result.registrationSpells[0].startStats).toBe(result.registrationSpells[1].startStats);
+    expect(result.registrationSpells[0].endAcademyEvidence).toBe(result.academyEvidence);
+    expect(source.registrationSpells[0].startStats).not.toBe(source.registrationSpells[1].startStats);
+    expect(sharePlayerHistorySnapshots(result)).toBe(result);
+    const restored = structuredClone(result);
+    expect(restored.registrationSpells[0].startStats).toBe(restored.registrationSpells[1].startStats);
+    expect(sharePlayerHistorySnapshots(restored)).toBe(restored);
+  });
+  it('keeps distinct snapshots and copies changed evidence without changing historical totals', () => {
+    const source = player({ academyEvidence:{ appearances:5 }, registrationSpells:[
+      { id:'old', startStats:{ appearances:2 }, endStats:{ appearances:3 }, endAcademyEvidence:{ appearances:5 } },
+    ] });
+    const result = sharePlayerHistorySnapshots(source);
+    expect(result.registrationSpells[0].startStats).not.toBe(result.registrationSpells[0].endStats);
+    const advanced = { ...result, academyEvidence:{ ...result.academyEvidence, appearances:6 } };
+    expect(advanced.registrationSpells[0].endAcademyEvidence.appearances).toBe(5);
+    expect(sharePlayerHistorySnapshots({ ...source, registrationSpells:[] })).toEqual({ ...source, registrationSpells:[] });
+  });
+});
+
+describe('registration bookkeeping payload', () => {
+  it('preserves every seasonal history projection and nonzero snapshot field', () => {
+    const source = player({ academyEvidence:{ season:'2026/27', appearances:12, minutes:800 }, registrationSpells:[
+      { id:'youth', status:'academy', startSeason:'2025/26', endSeason:'2026/27', startStats:{ appearances:0, minutes:0 }, endStats:{ appearances:0, minutes:0 }, startAcademyEvidence:{ appearances:0, minutes:0 }, endAcademyEvidence:{ season:'2026/27', appearances:12, minutes:800, goals:0 } },
+      { id:'senior', status:'first_team', startSeason:'2026/27', endSeason:'2027/28', startStats:{ appearances:0, minutes:0, futureCounter:0 }, endStats:{ appearances:3, minutes:120, goals:0 }, startAcademyEvidence:{ season:'2026/27', appearances:12 }, endAcademyEvidence:{ season:'2026/27', appearances:12 } },
+      { id:'loan', status:'loan', startSeason:'2027/28', endSeason:null, startStats:{ appearances:2, minutes:90, goals:0 }, startAcademyEvidence:{ season:'2026/27', appearances:12 } },
+    ] });
+    const result = compactPlayerHistoryPayload(source);
+    for (const season of ['2025/26','2026/27','2027/28']) expect(compactPlayerRegistrationSpells(result, season)).toEqual(compactPlayerRegistrationSpells(source, season));
+    expect(result.registrationSpells.map(spell => spell.id)).toEqual(source.registrationSpells.map(spell => spell.id));
+    expect(result.registrationSpells[1].startStats.futureCounter).toBe(0);
+    expect(result.registrationSpells[1].endStats).toEqual({ appearances:3, minutes:120 });
+    expect(result.registrationSpells[1].endAcademyEvidence).toBeNull();
+    expect(source.registrationSpells[1].startStats).toHaveProperty('appearances', 0);
+    expect(result.academyEvidence).toBe(source.academyEvidence);
+    expect(compactPlayerHistoryPayload(result)).toBe(result);
   });
 });

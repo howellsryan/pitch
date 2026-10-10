@@ -1,4 +1,5 @@
-import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam, settleTransferMarketDealAtomic } from './db.js';
+import { canManageClub, requireClubEmployment } from './managerEmployment.js';
+import { addTransfer, bulkPut, getAllPlayers, getAllTeams, getManager, getPlayer, getPlayersByTeams, getSave, getTeam, putPlayer, putSave, putTeam, settleTransferMarketDealAtomic } from './db.js';
 import { baselineLevel, currentEffectiveLevel } from './playerModel.js';
 import { patchSave } from './save.js';
 import { bumpMorale } from './standings.js';
@@ -134,7 +135,7 @@ function createTransferSnapshotLookups() {
 }
 
 // ─── Contracts ──────────────────────────────────────────────
-// contractExpiry is the last season-start-year the deal covers; a player
+// contractExpiry is the ending calendar year of the final contracted season; a player
 // with no contractExpiry yet (should only happen on a save from before
 // contracts existed) is treated as having 2 years left rather than 0, so
 // they're never mistaken for an out-of-contract free agent.
@@ -148,6 +149,7 @@ export function contractYearsRemaining(player, save) {
 // rise — not a negotiation, just "extend now while you still can."
 export async function renewContract(playerId, years = 3) {
   const save   = await getSave();
+  await requireClubEmployment(save);
   const player = await getPlayer(playerId);
   if (!player || player.teamId !== save.userTeamId) throw new Error('PLAYER_NOT_IN_SQUAD');
   if (player.onLoan) throw new Error('PLAYER_ON_LOAN');
@@ -173,6 +175,7 @@ export async function getFreeAgents() {
 
 export async function signFreeAgent(playerId) {
   const save   = await getSave();
+  await requireClubEmployment(save);
   const player = await getPlayer(playerId);
   if (!player || player.teamId !== 'free_agents') throw new Error('NOT_A_FREE_AGENT');
   const userTeam = await getTeam(save.userTeamId);
@@ -256,6 +259,7 @@ export function transferListingEligibility(player) {
  */
 export async function setManagedPlayerTransferListing(playerId, listed) {
   const [save, player] = await Promise.all([getSave(), getPlayer(playerId)]);
+  await requireClubEmployment(save);
   if (!save || !player || String(player.teamId) !== String(save.userTeamId)) throw new Error('PLAYER_NOT_IN_SQUAD');
   if (listed) {
     const eligibility = transferListingEligibility(player);
@@ -282,15 +286,14 @@ export function repGateReason(team, player) {
 // ─── Buy a player ─────────────────────────────────────────────
 export async function buyPlayer(playerId, offerAmount) {
   const save   = await getSave();
+  await requireClubEmployment(save);
+  if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
   const player = await getPlayer(playerId);
   if (!player)                           throw new Error('PLAYER_NOT_FOUND');
   if (player.teamId === save.userTeamId) throw new Error('ALREADY_IN_SQUAD');
 
   const userTeam   = await getTeam(save.userTeamId);
   if (!userTeam || userTeam.budget < offerAmount) throw new Error('INSUFFICIENT_FUNDS');
-
-  // Transfer window gate: both buyer and seller must be within a valid window.
-  if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
 
   // Already transferred this season — hard block before rep check
   if (player.signedThisSeason) throw new Error('SIGNED_THIS_SEASON');
@@ -348,6 +351,7 @@ export function _pickBuyerWeighted(teams, playerValue, playerRating) {
 // ─── Sell a player ────────────────────────────────────────────
 export async function sellPlayer(playerId) {
   const save   = await getSave();
+  await requireClubEmployment(save);
   if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
   const player = await getPlayer(playerId);
   if (!player || player.teamId !== save.userTeamId) throw new Error('PLAYER_NOT_IN_SQUAD');
@@ -419,6 +423,7 @@ export async function generateAIOffers() {
 // ─── Accept an inbound offer ──────────────────────────────────
 export async function acceptOffer(playerId) {
   const save   = await getSave();
+  await requireClubEmployment(save);
   const offer  = save.inboundOffers?.find(o => o.playerId === playerId && o.status === 'pending');
   if (!offer) throw new Error('OFFER_NOT_FOUND');
 
@@ -451,6 +456,7 @@ function _benchWithout(bench, playerId) {
 // ─── Reject an offer ──────────────────────────────────────────
 export async function rejectOffer(playerId) {
   const save  = await getSave();
+  await requireClubEmployment(save);
   const updated = (save.inboundOffers ?? []).map(o => o.playerId === playerId && o.status === 'pending' ? { ...o, status: 'rejected' } : o);
   await putSave({ ...save, inboundOffers: updated });
 }
@@ -458,6 +464,7 @@ export async function rejectOffer(playerId) {
 // ─── Counter an offer — instant negotiation ─────────────────
 export async function counterOffer(playerId, askingPrice) {
   const save   = await getSave();
+  await requireClubEmployment(save);
   const player = await getPlayer(playerId);
   const fav    = player ? formAdjustedValue(player) : askingPrice;
   let result   = { outcome: 'rejected' };
@@ -789,6 +796,7 @@ export function loanTotalCost(player, save) {
 // Budget effect: user receives loanFee + projected wage cost back.
 export async function loanOutPlayer(playerId) {
   const save = await getSave();
+  await requireClubEmployment(save);
   if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
 
   const player = await getPlayer(playerId);
@@ -848,6 +856,7 @@ export async function loanOutPlayer(playerId) {
 // Budget effect: user pays loanFee + projected wages upfront.
 export async function loanInPlayer(playerId) {
   const save = await getSave();
+  await requireClubEmployment(save);
   if (!isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
 
   const player = await getPlayer(playerId);
@@ -1079,6 +1088,7 @@ function _p4PersistMarket(save, market) {
 /** Open a staged user negotiation. No money or ownership changes here. */
 export async function createUserMarketDeal(playerId, { type = 'transfer', terms = {}, delegated = false } = {}) {
   const [save, player] = await Promise.all([getSave(), getPlayer(playerId)]);
+  await requireClubEmployment(save);
   if (!save || !player) throw new Error('PLAYER_NOT_FOUND');
   if (type !== 'renewal' && !isTransferWindowOpen(save).open) throw new Error('WINDOW_CLOSED');
   if (player.signedThisSeason && type !== 'renewal') throw new Error('SIGNED_THIS_SEASON');
@@ -1116,6 +1126,7 @@ export async function createUserMarketDeal(playerId, { type = 'transfer', terms 
 
 export async function withdrawMarketDeal(dealId) {
   const save = await getSave();
+  await requireClubEmployment(save);
   const market = normalizeTransferMarket(save?.transferMarket);
   const deal = market.activeDeals.find(item => item.id === dealId);
   if (!deal) throw new Error('DEAL_NOT_FOUND');
@@ -1127,6 +1138,7 @@ export async function withdrawMarketDeal(dealId) {
 /** Accept a seller/player counter or an inbound bid; completion remains atomic. */
 export async function acceptMarketDeal(dealId, terms = null) {
   const save = await getSave();
+  await requireClubEmployment(save);
   const market = normalizeTransferMarket(save?.transferMarket);
   const deal = market.activeDeals.find(item => item.id === dealId);
   if (!deal) throw new Error('DEAL_NOT_FOUND');
@@ -1236,15 +1248,54 @@ function _p4GenerateAIDeals(save, marketInput, teams, players, tickKey) {
 }
 
 /** Advance the market exactly once at a completed world-week boundary. */
+/** A club's negotiations continue with its AI staff after the manager leaves. */
+export function delegateFormerClubMarketDeals(marketInput, formerClubId) {
+  const market = normalizeTransferMarket(marketInput);
+  return normalizeTransferMarket({
+    ...market,
+    activeDeals:market.activeDeals.map(deal => {
+      if (isTerminalDeal(deal) || deal.state === 'agreed') return deal;
+      if (![deal.buyerTeamId, deal.sellerTeamId].some(id => String(id) === String(formerClubId))) return deal;
+      const awaiting = deal.awaiting === 'user'
+        ? (deal.state === 'player_negotiation' ? 'player' : 'seller') : deal.awaiting;
+      return { ...deal, delegated:true, userSide:null, awaiting, stateOwner:deal.stateOwner === 'user' ? awaiting : deal.stateOwner };
+    }),
+  });
+}
+
+export async function readMarketWeekPlayers(save, market, teams = null) {
+  const open = isTransferWindowOpen(save).open;
+  const active = market.activeDeals.filter(deal => !isTerminalDeal(deal));
+  // AI candidate ranking excludes unattached players. Keep all registered
+  // clubs in open windows and separately retain named free-agent agreements.
+  const teamIds = open ? (teams ?? await getAllTeams()).map(team => team.id)
+    : [...new Set(active.flatMap(deal => [deal.buyerTeamId, deal.sellerTeamId]).filter(id => id && id !== 'free_agents'))];
+  const players = await getPlayersByTeams(teamIds);
+  if (open) players.sort((a,b) => typeof a.id !== typeof b.id ? typeof a.id === 'number' ? -1 : 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const knownIds = new Set(players.map(player => String(player.id)));
+  const missingIds = [...new Set(active.map(deal => deal.playerId).filter(id => id != null && !knownIds.has(String(id))))];
+  const targets = await Promise.all(missingIds.map(async id => {
+    const player = await getPlayer(id);
+    const numeric = Number(id);
+    return player ?? (typeof id === 'string' && Number.isFinite(numeric) && String(numeric) === id ? getPlayer(numeric) : null);
+  }));
+  return [...players, ...targets.filter(Boolean)];
+}
+
 export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput = null) {
   const save = saveInput ?? await getSave();
   if (!save) return { newOffers:[], playerResponses:[], settled:[] };
+  const manager = save.userManagerId ? await getManager(save.userManagerId) : null;
+  const managesClub = canManageClub(save, manager);
+  const marketSave = managesClub ? save : { ...save, userTeamId:null };
   const tickKey = tickKeyInput ?? marketWeekKey(save);
   let market = normalizeTransferMarket(save.transferMarket);
   const alreadyProcessed = market.processedTickKeys.includes(tickKey);
   let playerResponses = [];
   if (!alreadyProcessed) {
-    const [teams, players] = await Promise.all([getAllTeams(), getAllPlayers()]);
+    if (!managesClub) market = delegateFormerClubMarketDeals(market, save.userTeamId);
+    const teams = await getAllTeams();
+    const players = await readMarketWeekPlayers(save, market, teams);
     const teamById = new Map(teams.map(team => [team.id, team]));
     const playerById = new Map(players.map(player => [String(player.id), player]));
     const squads = new Map();
@@ -1252,17 +1303,17 @@ export async function advanceTransferMarketWeek(saveInput = null, tickKeyInput =
       if (!squads.has(player.teamId)) squads.set(player.teamId, []);
       squads.get(player.teamId).push(player);
     }
-    if (isTransferWindowOpen(save).open) market = _p4GenerateAIDeals(save, market, teams, players, tickKey);
+    if (isTransferWindowOpen(save).open) market = _p4GenerateAIDeals(marketSave, market, teams, players, tickKey);
     const activeDeals = market.activeDeals.map(deal => {
       const player = playerById.get(String(deal.playerId));
       const buyer = teamById.get(deal.buyerTeamId);
       const seller = teamById.get(deal.sellerTeamId);
       if (!player || !buyer || deal.awaiting === 'user') return deal;
-      const interest = deal.state === 'player_negotiation' ? evaluatePlayerInterest({ player, buyer, seller, buyerSquad:squads.get(buyer.id) ?? [], terms:deal.terms, save }) : null;
-      return advanceMarketDeal(deal, { player, buyer, seller, buyerSquad:squads.get(buyer.id) ?? [], sellerSquad:squads.get(seller?.id) ?? [], marketValue:formAdjustedValue(player), interest, save, windowOpen:['renewal','free_agent'].includes(deal.type) || isTransferWindowOpen(save).open }, tickKey);
+      const interest = deal.state === 'player_negotiation' ? evaluatePlayerInterest({ player, buyer, seller, buyerSquad:squads.get(buyer.id) ?? [], terms:deal.terms, save:marketSave }) : null;
+      return advanceMarketDeal(deal, { player, buyer, seller, buyerSquad:squads.get(buyer.id) ?? [], sellerSquad:squads.get(seller?.id) ?? [], marketValue:formAdjustedValue(player), interest, save:marketSave, windowOpen:['renewal','free_agent'].includes(deal.type) || isTransferWindowOpen(save).open }, tickKey);
     });
     market = markTransferMarketTick(normalizeTransferMarket({ ...market, activeDeals }), tickKey);
-    playerResponses = projectPlayerDecisionNotifications(market.activeDeals, save.userTeamId, tickKey);
+    playerResponses = projectPlayerDecisionNotifications(market.activeDeals, marketSave.userTeamId, tickKey);
     await _p4PersistMarket(save, market);
   }
   const fresh = await getSave();

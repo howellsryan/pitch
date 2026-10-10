@@ -16,7 +16,7 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(source).toContain('const billByTeam = new Map()');
     expect(source).toContain('if (!player.teamId || player.onLoan) continue');
     expect(source).toContain("billByTeam.set(player.teamId, (billByTeam.get(player.teamId) ?? 0) + (player.wage ?? 0))");
-    expect(source).toContain("applyLedgerMovement(team, { category:'wages', amount:-bill, description:'Weekly wages' })");
+    expect(source).toContain('settleClubPayrollWeek(team, bill, save)');
   });
 
   it('returns loans to their parent club and clears every loan marker before aging', () => {
@@ -25,13 +25,11 @@ describe('P1 season rollover compatibility contracts', () => {
     expect(returnStart).toBeGreaterThan(-1);
     expect(agingStart).toBeGreaterThan(returnStart);
     const source = seasonSource.slice(returnStart, agingStart);
-    expect(source).toContain('teamId:player.loanOriginalTeamId');
-    expect(source).toContain('onLoan:false');
-    expect(source).toContain('loanedFrom:null');
-    expect(source).toContain('loanedTo:null');
-    expect(source).toContain('loanOriginalTeamId:null');
+    expect(source).toContain('transitionPlayerStatus(player');
+    expect(source).toContain("status:'first_team', contractTeamId:parentTeamId, registeredTeamId:parentTeamId");
+    expect(source).toContain("reason:'loan_return'");
+    expect(source).toContain('idempotencyKey:`season-loan-return:${save.season}:${player.id}`');
     expect(source).toContain('loanSeason:null');
-    expect(source).toContain('loanRecallable:false');
   });
 
   it('clears one-season transfer locks and collapsed negotiations at rollover', () => {
@@ -64,7 +62,7 @@ describe('P1 season rollover compatibility contracts', () => {
 
   it('P7 WP7: executes dismissal (job security or the board contract judgment) through the soft dismissAndCaretake path, never a hard reset', () => {
     const source = functionBody('processEndOfSeason');
-    expect(source).toContain('const dismissed = sacked || dismissalRecommended');
+    expect(source).toContain('const dismissed = managesClub && (sacked || dismissalRecommended)');
     expect(source).toContain('summary.sacked = dismissed');
     expect(source).toContain("dismissAndCaretake(userManagerRow, caretaker, { weekKey, reason:'dismissed' })");
     expect(source).toContain('createCaretakerManager(userTeamRec');

@@ -116,7 +116,7 @@
     <div>
       <div class="eyebrow">Youth development</div>
       <h1>Academy</h1>
-      <p>One player, one career path — academy evidence, development and promotion all stay on the same record.</p>
+      <p>Scout promising players, guide their development and promote them to your first team.</p>
     </div>
     {#if info}
       <div class="quality"><strong>{'★'.repeat(info.stars)}{'☆'.repeat(5 - info.stars)}</strong><span>{info.label}</span></div>
@@ -128,7 +128,7 @@
   {:else}
     <div class="scroll">
       <section class="summary-grid">
-        <article><span>Prospects</span><strong>{players.length}/24</strong><small>canonical player rows</small></article>
+        <article><span>Prospects</span><strong>{players.length}/24</strong><small>in your academy</small></article>
         <article><span>Investment</span><strong>{info?.investment ?? 0}/100</strong><small>{info?.cohortSize ?? 10} intake baseline</small></article>
         <article><span>Scouts out</span><strong>{activeAssignments.length}</strong><small>regional assignments</small></article>
       </section>

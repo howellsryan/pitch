@@ -5,6 +5,11 @@ const mocks = vi.hoisted(() => ({
   deleteCareerSlot:vi.fn(),
   deleteSave:vi.fn(),
   getActiveSlotId:vi.fn(() => 'legacy'),
+  getCareerSlotSummaries:vi.fn(async () => []),
+  getSave:vi.fn(async () => null),
+  getCloudSave:vi.fn(),
+  listSaves:vi.fn(),
+  restoreFromCloudBlob:vi.fn(),
   isSignedIn:vi.fn(),
   putSave:vi.fn(),
 }));
@@ -13,20 +18,72 @@ vi.mock('../modules/db.js', () => ({
   buildCloudSaveBlob:mocks.buildCloudSaveBlob,
   deleteCareerSlot:mocks.deleteCareerSlot,
   getActiveSlotId:mocks.getActiveSlotId,
-  restoreFromCloudBlob:vi.fn(),
+  getCareerSlotSummaries:mocks.getCareerSlotSummaries,
+  getSave:mocks.getSave,
+  restoreFromCloudBlob:mocks.restoreFromCloudBlob,
 }));
 
 vi.mock('./api.js', () => ({
   api:{
     deleteSave:mocks.deleteSave,
-    getSave:vi.fn(),
-    listSaves:vi.fn(),
+    getSave:mocks.getCloudSave,
+    listSaves:mocks.listSaves,
     putSave:mocks.putSave,
   },
   isSignedIn:mocks.isSignedIn,
 }));
 
-import { deleteCareerEverywhere, pushSaveToCloud } from './sync.js';
+import { deleteCareerEverywhere, pullAndApplyCloudSave, pushSaveToCloud } from './sync.js';
+
+describe('empty-device cloud restore', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.isSignedIn.mockReturnValue(true);
+    mocks.getActiveSlotId.mockReturnValue('legacy');
+    mocks.getSave.mockResolvedValue(null);
+    mocks.getCareerSlotSummaries.mockResolvedValue([]);
+    mocks.listSaves.mockResolvedValue({ slots:[{ slotId:'career_latest', updatedAt:200 }, { slotId:'legacy', updatedAt:100 }] });
+    mocks.getCloudSave.mockResolvedValue({ save:{ save_blob:'cloud-blob' } });
+    mocks.restoreFromCloudBlob.mockResolvedValue({ teamId:'club' });
+  });
+
+  it('discovers the latest generated career slot on a fresh device rather than requesting only legacy', async () => {
+    const result = await pullAndApplyCloudSave();
+    expect(result).toMatchObject({ applied:true, slotId:'career_latest' });
+    expect(mocks.getCloudSave).toHaveBeenCalledWith('career_latest');
+    expect(mocks.restoreFromCloudBlob).toHaveBeenCalledWith('cloud-blob', 'career_latest');
+  });
+
+  it('preserves an existing local career without even fetching a cloud replacement', async () => {
+    mocks.getSave.mockResolvedValue({ userTeamId:'local_club' });
+    const result = await pullAndApplyCloudSave();
+    expect(result).toMatchObject({ applied:false, reason:'local_career_exists' });
+    expect(mocks.listSaves).not.toHaveBeenCalled();
+    expect(mocks.getCloudSave).not.toHaveBeenCalled();
+    expect(mocks.restoreFromCloudBlob).not.toHaveBeenCalled();
+  });
+
+  it('preserves a local career created while the cloud request was pending', async () => {
+    mocks.getCloudSave.mockImplementation(async () => {
+      mocks.getSave.mockResolvedValue({ userTeamId:'new_local_club' });
+      return { save:{ save_blob:'old_cloud' } };
+    });
+    expect(await pullAndApplyCloudSave()).toMatchObject({ applied:false, reason:'local_career_exists' });
+    expect(mocks.restoreFromCloudBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite a saved target career even when the active local slot is empty', async () => {
+    mocks.getCareerSlotSummaries.mockResolvedValue([{ slotId:'career_latest', clubName:'Existing club' }]);
+    expect(await pullAndApplyCloudSave()).toMatchObject({ applied:false, reason:'local_career_exists' });
+    expect(mocks.restoreFromCloudBlob).not.toHaveBeenCalled();
+  });
+
+  it('retains legacy restore compatibility when no slot-list entries exist', async () => {
+    mocks.listSaves.mockResolvedValue({ slots:[] });
+    expect(await pullAndApplyCloudSave()).toMatchObject({ applied:true, slotId:'legacy' });
+    expect(mocks.getCloudSave).toHaveBeenCalledWith('legacy');
+  });
+});
 
 describe('deleteCareerEverywhere', () => {
   beforeEach(() => {

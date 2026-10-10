@@ -39,6 +39,16 @@ function deleteEnv(changes = 1) {
 }
 
 describe('DELETE /api/save', () => {
+  it('returns unauthorized for malformed bearer tokens instead of throwing a server error', async () => {
+    const { env } = deleteEnv();
+    const request = new Request('https://pitch.test/api/save?slotId=legacy', {
+      method:'DELETE', headers:{ Authorization:'Bearer x.y.!!!' },
+    });
+    const response = await worker.fetch(request, env, {});
+    expect(response.status).toBe(401);
+    expect(env.DB.prepare).not.toHaveBeenCalled();
+  });
+
   it('deletes only the authenticated user and requested career slot', async () => {
     const { env, statements } = deleteEnv();
     const request = await authenticatedRequest('https://pitch.test/api/save?slotId=career_alpha');
@@ -48,8 +58,8 @@ describe('DELETE /api/save', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok:true, slotId:'career_alpha', deleted:true });
     expect(statements).toHaveLength(1);
-    expect(statements[0].sql).toContain('DELETE FROM saves WHERE user_id = ? AND slot_id = ?');
-    expect(statements[0].bindings).toEqual([42, 'career_alpha']);
+    expect(statements[0].sql).toContain('DELETE FROM saves WHERE user_id = ? AND (slot_id = ?');
+    expect(statements[0].bindings).toEqual([42, 'career_alpha', 'career_alpha.chunk.', 'career_alpha.chunk.']);
   });
 
   it('rejects an invalid slot without touching D1', async () => {

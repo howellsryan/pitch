@@ -418,15 +418,16 @@ export function simulateCupRound(userTeam, userPlayers, allTeams, playersByTeam,
   const away = userIsHome ? opponent : userTeam;
   const hPl = userIsHome ? userPlayers : oppPlayers;
   const aPl = userIsHome ? oppPlayers : userPlayers;
-  const userFormation = event?.userFormation ?? '4-3-3';
-  const userLineup = event?.userLineup ?? null;
-  const userBench = event?.userBench ?? null;
+  const userManaged = event?.userManaged !== false;
+  const userFormation = userManaged ? event?.userFormation ?? '4-3-3' : undefined;
+  const userLineup = userManaged ? event?.userLineup ?? null : null;
+  const userBench = userManaged ? event?.userBench ?? null : null;
   const hFormation = userIsHome ? userFormation : undefined;
   const aFormation = userIsHome ? undefined : userFormation;
   const hLineup = userIsHome ? userLineup : null;
   const aLineup = userIsHome ? null : userLineup;
-  const hMentality = userIsHome ? (event?.userMentality ?? 'balanced') : undefined;
-  const aMentality = userIsHome ? undefined : (event?.userMentality ?? 'balanced');
+  const hMentality = userIsHome && userManaged ? (event?.userMentality ?? 'balanced') : undefined;
+  const aMentality = !userIsHome && userManaged ? (event?.userMentality ?? 'balanced') : undefined;
   const result = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality, {
     homeBench:userIsHome ? userBench : null,
     awayBench:userIsHome ? null : userBench,
@@ -478,6 +479,7 @@ export function simulateEuropeanLeaguePhaseMatchday(
   userFormation = '4-3-3',
   userLineup = null,
   userBench = null,
+  options = {},
 ) {
   const rules = getCompetitionRules(cupId)?.leaguePhase;
   const lp = cupState?.leaguePhase;
@@ -492,15 +494,16 @@ export function simulateEuropeanLeaguePhaseMatchday(
   const away = userIsHome ? { id:opp.id, name:opp.name, crest:opp.nation ?? '⚽', strength:opp.strength } : userTeam;
   const hPl = userIsHome ? userPlayers : oppPlayers;
   const aPl = userIsHome ? oppPlayers : userPlayers;
-  const hFormation = userIsHome ? userFormation : undefined;
-  const aFormation = userIsHome ? undefined : userFormation;
-  const hLineup = userIsHome ? userLineup : null;
-  const aLineup = userIsHome ? null : userLineup;
-  const hMentality = userIsHome ? (userMentality ?? 'balanced') : undefined;
-  const aMentality = userIsHome ? undefined : (userMentality ?? 'balanced');
+  const userManaged = options.userManaged !== false;
+  const hFormation = userIsHome && userManaged ? userFormation : undefined;
+  const aFormation = !userIsHome && userManaged ? userFormation : undefined;
+  const hLineup = userIsHome && userManaged ? userLineup : null;
+  const aLineup = !userIsHome && userManaged ? userLineup : null;
+  const hMentality = userIsHome && userManaged ? (userMentality ?? 'balanced') : undefined;
+  const aMentality = !userIsHome && userManaged ? (userMentality ?? 'balanced') : undefined;
   const r = simulateMatch(home, away, hPl, aPl, hFormation, aFormation, hLineup, aLineup, hMentality, aMentality, {
-    homeBench:userIsHome ? userBench : null,
-    awayBench:userIsHome ? null : userBench,
+    homeBench:userIsHome && userManaged ? userBench : null,
+    awayBench:!userIsHome && userManaged ? userBench : null,
   });
   const userG = userIsHome ? r.homeGoals : r.awayGoals;
   const oppG = userIsHome ? r.awayGoals : r.homeGoals;

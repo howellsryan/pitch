@@ -30,5 +30,7 @@ describe('signJWT / verifyJWT', () => {
   it('rejects malformed input', async () => {
     expect(await verifyJWT(null, 'test-secret')).toBeNull();
     expect(await verifyJWT('not-a-jwt', 'test-secret')).toBeNull();
+    expect(await verifyJWT('x.y.!!!', 'test-secret')).toBeNull();
+    expect(await verifyJWT('x.y._', 'test-secret')).toBeNull();
   });
 });

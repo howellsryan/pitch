@@ -6,6 +6,7 @@ Paths are repository-relative.
 ## 5) Data and simulation hygiene
 
 - `src/data/` contains league/team/player data; use the existing CSV/reconciliation tooling rather than hand-editing generated league JS when a pipeline exists.
+- `tools/csv-to-league.mjs` validates every targeted league before writing any generated file. Invalid rosters, missing/duplicate IDs and orphan registrations fail the command; player IDs are checked across all available leagues even for a single-league generation. Use `--dry-run` to review a refresh before replacing source data.
 - Preserve licensing/provenance discipline. Do not copy protected game assets/data to close content gaps.
 - P1 onward must be benchmarked for long-career IndexedDB growth, gameweek processing and mobile load time. A 15-season career must remain practical on a phone.
 - Avoid full-world writes when only a bounded subset changed. P1 deliberately narrows cup persistence to participating clubs and league persistence to changed player rows.

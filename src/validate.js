@@ -867,9 +867,11 @@ chk('TransfersScreen has a Free Agents tab', transfersScreenSrc.includes("select
   chk('Season-end: user player past expiry is the one that should become a free agent', expiredUserPlayer.contractExpiry <= currentYear && expiredUserPlayer.teamId === userTeamId);
   chk('Season-end: player with years left is untouched', activePlayer.contractExpiry > currentYear);
 })();
-const seasonEndSrc = code.slice(code.indexOf('async function processEndOfSeason'), code.indexOf('async function processEndOfSeason')+7000);
+const seasonEndStart = code.indexOf('async function processEndOfSeason');
+const seasonEndNext = code.indexOf('function _retirePrimaryRating', seasonEndStart);
+const seasonEndSrc = seasonEndStart >= 0 && seasonEndNext > seasonEndStart ? code.slice(seasonEndStart, seasonEndNext) : '';
 chk('Season end backfills missing contractExpiry rather than releasing', seasonEndSrc.includes('contractExpiry == null'));
-chk("Season end sends the user's own expired players to free_agents", seasonEndSrc.includes("teamId = 'free_agents'"));
+chk("Season end sends the user's own expired players to free_agents", seasonEndSrc.includes('releasePlayerToFreeAgency(declined') && seasonEndSrc.includes("reason:'contract_expired'"));
 chk('Season end tracks expired contracts in the summary', seasonEndSrc.includes('summary.expiredContracts'));
 chk('Season end never auto-releases players already on free_agents', seasonEndSrc.includes("teamId !== 'free_agents'"));
 
@@ -1751,10 +1753,10 @@ chk('REG: final teams are from semi winners', poFin.team1.id === sf1.winnerId &&
 chk('REG: final winner is one of semi-final winners',
   poResult.promotedViaPlayoff === sf1.winnerId || poResult.promotedViaPlayoff === sf2.winnerId);
 
-// --- REG-37P: Multiple playoff runs produce variability ---
+// --- REG-37P: Different authoritative match seeds produce variability ---
 let poWinners = new Set();
 for (let i = 0; i < 20; i++) {
-  const r = runPlayoffs(['po3','po4','po5','po6'], playoffMockTeams, playoffMockPlayers);
+  const r = runPlayoffs(['po3','po4','po5','po6'], playoffMockTeams, playoffMockPlayers, { seed:i + 1 });
   poWinners.add(r.promotedViaPlayoff);
 }
 chk('REG: playoff produces at least 2 different winners over 20 runs', poWinners.size >= 2, 'unique winners: ' + poWinners.size);
@@ -2019,8 +2021,10 @@ chk('INJ: processInjuryRecovery saves ALL injured players not just recovered', (
   if (fnStart === -1) return false;
   const fnEnd = code.indexOf('}', code.indexOf('return recovered', fnStart));
   const fn = code.slice(fnStart, fnEnd + 1);
-  // Must check for any injured player (hadInjured), not just recovered.length
-  return fn.includes('hadInjured') || fn.includes('.some(p => p.injured)');
+  // Persist the complete keyed medical write set, including players whose
+  // recovery clock decremented but who have not recovered yet.
+  return fn.includes('settleInjuryRecovery(allPlayers, save)')
+    && fn.includes('if (rows.length) await putPlayersBulk(rows)');
 })());
 chk('INJ: updateCache reads fresh from DB (not stale allPlayers)', (() => {
   const fnStart = code.indexOf('async function updateCache(');

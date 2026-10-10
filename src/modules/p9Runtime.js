@@ -1,3 +1,4 @@
+import { requireClubEmployment } from './managerEmployment.js';
 import {
   getAllPlayers,
   getAllTeams,
@@ -273,7 +274,7 @@ export async function compareLoanDestinations(playerId, { limit = 8 } = {}) {
 }
 
 export async function promoteManagedAcademyPlayer(playerId) {
-  const save = await ensureP9CareerPathways();
+  const save = await ensureP9CareerPathways(await requireClubEmployment());
   const player = await getPlayer(playerId);
   const normalized = normalizePlayerStatus(player);
   if (!save || !normalized || !isAcademyPlayer(normalized, save.userTeamId)) throw new Error('ACADEMY_PLAYER_NOT_FOUND');
@@ -302,7 +303,7 @@ export async function promoteManagedAcademyPlayer(playerId) {
 }
 
 export async function releaseManagedAcademyPlayer(playerId) {
-  const save = await ensureP9CareerPathways();
+  const save = await ensureP9CareerPathways(await requireClubEmployment());
   const player = normalizePlayerStatus(await getPlayer(playerId));
   if (!save || !player || !isAcademyPlayer(player, save.userTeamId)) throw new Error('ACADEMY_PLAYER_NOT_FOUND');
   const released = transitionPlayerStatus(player, {
@@ -318,7 +319,7 @@ export async function releaseManagedAcademyPlayer(playerId) {
 }
 
 export async function recallManagedLoan(playerId) {
-  const save = await ensureP9CareerPathways();
+  const save = await ensureP9CareerPathways(await requireClubEmployment());
   const player = normalizePlayerStatus(await getPlayer(playerId));
   if (!save || !player || !isLoanPlayer(player) || !isOwnedByTeam(player, save.userTeamId)) throw new Error('LOAN_NOT_FOUND');
   if (!player.activeLoanAgreement?.recallAllowed) throw new Error('LOAN_NOT_RECALLABLE');
@@ -337,7 +338,7 @@ export async function recallManagedLoan(playerId) {
 }
 
 export async function createManagedYouthScoutingAssignment(input) {
-  const save = await ensureP9CareerPathways();
+  const save = await ensureP9CareerPathways(await requireClubEmployment());
   const team = await getTeam(save.userTeamId);
   const assignmentCap = Math.min(4, 2 + scoutingCapacityBonus(team));
   const academyPathways = createYouthScoutingAssignment(save.academyPathways, input, {
@@ -352,7 +353,7 @@ export async function createManagedYouthScoutingAssignment(input) {
 }
 
 export async function cancelManagedYouthScoutingAssignment(assignmentId) {
-  const save = await ensureP9CareerPathways();
+  const save = await ensureP9CareerPathways(await requireClubEmployment());
   const academyPathways = cancelYouthScoutingAssignment(save.academyPathways, assignmentId);
   await putSave({ ...save, academyPathways });
   return academyPathways;

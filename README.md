@@ -1,108 +1,120 @@
 # PITCH — Football Career Simulator
 
-A single-file football career manager built with vanilla JS, CSS, and IndexedDB. No framework, no dependencies, no server — just one HTML file you open in a browser and you're managing a club.
+[Play at pitch-sim.com](https://pitch-sim.com).
 
-## Features
+Pitch is a free, browser-first football management game. Choose a club, build
+your squad, set its tactics and take your career through successive seasons.
+Matches are simulated: you make management decisions and can watch the action
+or get an instant result. No account is required for local play.
 
-### Leagues & Competitions
-- **9 leagues, 186 clubs** — Premier League, Championship, League One, League Two, La Liga, Bundesliga, Serie A, Ligue 1, Eredivisie
-- **Full English football pyramid** — promotion and relegation across all four English tiers with realistic playoff system
-- **Domestic cups** — FA Cup, League Cup, Copa del Rey, DFB-Pokal, Coppa Italia, Coupe de France, KNVB Beker
-- **European football** — Champions League (league phase + knockouts), Europa League, Conference League
-- **Honours cabinet** — real historical trophy tallies + in-game wins, localised per nation
+## What is playable
 
-### Promotion & Relegation
-- **Automatic promotion** — top 2 in Championship, League One, and League Two go up
-- **Play-offs** — 3rd to 6th contest two-legged semi-finals and a neutral-venue final for the last promotion spot
-- **Relegation** — bottom 3 from the Premier League, Championship, and League One drop down
-- **Full pyramid simulation** — AI leagues resolve standings by reputation at end of season, so clubs move realistically even in leagues you're not playing in
+- **9 leagues, 181 clubs and 5,092 starting players** across England's four
+  divisions, La Liga, Bundesliga, Serie A, Ligue 1 and the Eredivisie.
+- **A living football world:** every supported league plays fixtures through
+  the match engine, with standings, player statistics and season history.
+- **Domestic and European cups**, including current 36-team UEFA league phases,
+  knockout play-offs, two-legged ties and no away-goals tiebreak.
+- **Quick Sim and Broadcast** use the same authoritative football simulation.
+  Broadcast supports substitutions and tactical changes during the match.
+- **Squad and tactics:** 14 formations, a named XI and bench, team instructions,
+  player roles, fitness, injuries, rehabilitation, morale and development.
+- **Recruitment:** scouting reports, staged transfer negotiations, personal
+  terms, loans, free agents, contracts and AI recruitment.
+- **Club and career:** academy pathways, training, staff, facilities, finances,
+  board objectives, inbox decisions and manager jobs.
+- **Independent career slots**, browser autosaving and `.pitch` export/import.
+  Optional Google cloud backup uses the deployed server configuration.
 
-### Match Day
-- **Watch Match** — live tick-by-tick simulation with real-time commentary, substitutions, and tactical changes
-- **Quick Sim** — instant results with full match report, stats, and scorers
-- **Mentality system** — Defensive, Balanced, Possession, or Attacking; affects goals, shots, possession, and counter-attack exposure
-- **Tactics** — lineup builder with 7 formations, drag-to-swap pitch slots, mentality picker
-- **Match stats** — possession, shots, xG, corners, fouls, yellow cards
+Read the [player guide and feature decisions](docs/features.md) for the
+management loop and the current simulation boundaries. The
+[October launch review](docs/reviews/2026-10-08-launch-readiness.md) records the
+main-branch findings, fixes, fifteen-season simulation and remaining limits.
 
-### Squad & Transfers
-- **Transfer market** — filter by position, league, age, rating, potential, price; slider-based offers with acceptance likelihood hints
-- **Negotiation** — rejected offers trigger counter-offers; slider-based haggling with live acceptance hints
-- **Squad management** — potential star ratings, transfer listing, fitness tracking, form indicators
-- **Youth academy** — intake quality tiered by club reputation, wonderkid system, promote or release decisions
-- **Player development** — all match participants earn growth points; defenders get clean sheet bonuses; position-appropriate stat boosts
+## Start playing
 
-### Season Management
-- **Multi-season career** — season rollover with aging, retirement, prize money, and cup reallocation
-- **Aging system** — stat decline past peak age (15–85% chance scaling), age-based fitness drain in matches, recovery penalties for older players
-- **Retirement** — players 36+ retire at end of season; elite players get a small reprieve chance
-- **Save/Load** — export save as base64 code or `.pitch` file; import on any device; integrity-checked with FNV-1a hash
+1. Open [pitch-sim.com](https://pitch-sim.com), choose a club and optionally enter
+   your manager name.
+2. Review **Squad** to set the XI, bench and tactics. Use **Market** for scouting
+   and recruitment; **More** opens the table, academy, inbox and settings.
+3. Select **Play**, review team news and choose an instant simulation or Broadcast.
+4. Continue through the result report. A week may contain several league or cup
+   matches; each Play action resolves the next event before the world advances.
 
-## Getting Started
+Progress saves in this browser. **Settings → Export Save** downloads a backup;
+**Import Save** restores a file or code. **Settings → Main Menu → New career**
+creates a separate slot. Import from that new-career picker also creates a
+separate slot; importing within an existing career replaces that slot.
 
-1. Download `index.html`
-2. Open in any modern browser (Chrome, Firefox, Safari, Edge)
-3. Pick your club and go — works fully offline, saves to browser IndexedDB
+## Player data
+
+The checked-in roster snapshot was refreshed on **4 September 2026**, with
+**1 September 2026** as its reference date, using the public EA SPORTS FC 27
+ratings feed. The [refresh report](tools/player-data-report.json) records
+provenance and coverage; the [data notes](docs/features.md#data-and-format-limits)
+explain age fallbacks, derived detailed attributes and incomplete club fields.
+Existing careers keep their own player snapshots when starting data changes.
 
 ## Development
 
-Source lives in `src/`. The build system concatenates 22 JS modules into a
-single HTML file at the repo root.
+Requires Node.js 22 and Python 3 for the legacy compatibility build.
 
 ```bash
-npm run build      # bundles, validates (1180 checks), assembles → index.html
-npm run validate   # re-run just the validation suite against the last build
-npm run deploy     # build, then wrangler deploy (needs Cloudflare credentials)
+npm ci
+npm run dev              # local Vite server at http://localhost:5173
+npm run build            # legacy compatibility validation + production app
+npm run preview          # build and serve the production app on port 4173
 ```
 
-`index.html` is a build artifact — gitignored, regenerated every build, never
-committed or hand-edited.
+The deployed app is built with **Svelte 5, Vite and Tailwind CSS**. Core
+simulation runs locally; IndexedDB owns career storage. Cloudflare Workers and
+D1 provide optional authentication/cloud-save functionality.
 
-### Architecture
+| Location | Responsibility |
+| --- | --- |
+| `src/modules/` | DOM-free match, career and world simulation; persistence |
+| `src/game/` | Shared game presentation and computation |
+| `src/lib/ui/` | Svelte screens and UI components |
+| `src/data/csv/` | Editable team/player data inputs |
+| `src/data/` | Generated starting rosters |
+| `functions/` | Optional Cloudflare server routes |
+| `docs/engineering/` | Architecture and behavioural contracts |
 
-```
-src/data/      → Static team & player data (10 files, 186 clubs)
-src/modules/   → Game logic — no DOM access (13 files)
-src/ui/        → DOM rendering (8 files)
-src/build.py   → Concatenation pipeline + syntax validation
-src/validate.js → 1180 automated checks, 0 failures required
-src/shell.html → HTML/CSS shell (no JS)
-```
+`npm run build:app` generates the deployed `dist/` artifact. `build:legacy`
+generates a compatibility `index.html` used by the validator; it is not the
+production UI. Neither build output is hand-edited or committed. Cloudflare
+Workers Builds owns deployments; GitHub Actions verifies both build paths.
 
-### Tech Stack
-
-- **Vanilla JS** — no framework, no dependencies, no build tools at runtime
-- **IndexedDB** — persistent game state via a thin async wrapper
-- **CSS custom properties** — dark theme design tokens, fully responsive layout
-- **build.py** — Python concatenation pipeline with JS syntax validation
-- **validate.js** — 1180 automated checks run on every build (0 failures required to ship)
-
-### Adding League Data
-
-Leagues are added via a CSV pipeline — no hand-editing JS files:
+### Verification
 
 ```bash
-# Add/edit src/data/csv/<league>_teams.csv and <league>_players.csv, then:
-node tools/csv-to-league.mjs --league=<key>   # e.g. --league=prem; omit for all 7 footy-sim leagues
 npm run build
+npm run test
+npm run lint
+npm run check:accents
+npm run balance:match:deep:check
 ```
 
-Pre-registered slots exist for Segunda División, 2. Bundesliga, Serie B, and Ligue 2 — just add the CSVs and build.
+Vitest contracts and statistical balance gates cover the simulation. Browser
+journeys are checked by hand, including the 390px mobile flow; there is no
+browser test suite. Start with [AGENTS.md](AGENTS.md) before contributing.
 
-Start with [`AGENTS.md`](AGENTS.md); its task routing links to architecture contracts, invariants and verification.
+### Data tooling
 
-## Version History
+```bash
+npm run refresh:players:dry-run    # fetch/report current public source; no writes
+npm run refresh:players            # refresh CSVs and regenerate supported rosters
+node tools/csv-to-league.mjs --dry-run
+node tools/csv-to-league.mjs --league=prem
+```
 
-| Version | Highlights |
-|---|---|
-| v3.4 | Multi-tier promotion/relegation across English pyramid, playoff system (2-leg semis + final), reputation tiering by league |
-| v3.3 | Mentality system (Defensive/Balanced/Possession/Attacking), xG fix, European cups visible on enrolment |
-| v3.2 | National cups per league, super cup fix, advanced transfer filters, honour cabinet localisation |
-| v3.1 | Token-optimised source, multi-league support, Watch Match live viewer |
-| v3.0 | Multi-season, cups, potential system, youth academy |
+Use the existing CSV pipeline and preserve provenance. A roster refresh is an
+explicit data operation, not a requirement for running the game or its tests.
+Historical plans live under `docs/plan/`; they describe decisions at the time
+and can differ from today's implementation.
 
-## Shared agent workflows
+## Agent workflows
 
-Agent contributors start with [AGENTS.md](AGENTS.md) and the
-[shared workflow setup](docs/agent-workflows.md). `npm run agents:install` loads
-the exact central/upstream revisions in `.agents/skills.lock.json`;
-`npm run agents:check` verifies the cached installation offline.
+[AGENTS.md](AGENTS.md) is the contributor contract. Run `npm run agents:install`
+and `npm run agents:check` to install and verify the pinned workflows described
+in [docs/agent-workflows.md](docs/agent-workflows.md).

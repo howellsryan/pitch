@@ -1,11 +1,11 @@
 import {
   getAllTeams, getFixturesByGW, getManager, getSave, getTeam,
-  putManagersBulk, putSave, putTeamsBulk,
+  putManagersBulk, putSave, putTeamsBulk, runCareerTransitionAtomic,
 } from './db.js';
 import { reviewCheckpointKey } from './managerCareer.js';
 import { isVacancyAvailableForNewCandidate } from './managerAppointments.js';
 import {
-  acceptUserOffer, applyToVacancy, beginUserResignation, declineUserOffer,
+  acceptUserOffer, appendUserManagerInterest, applyToVacancy, beginUserResignation, declineUserOffer,
 } from './managerUserJourney.js';
 import { transferClubControl } from './managerClubHandover.js';
 import { createEmptyManagerMarket } from './managers.js';
@@ -36,14 +36,20 @@ export async function getManagerCareerView() {
   const [userManager, allTeams] = await Promise.all([getManager(save.userManagerId), getAllTeams()]);
   const teamsById = new Map(allTeams.map(team => [team.id, team]));
   const isUnemployed = userManager?.status !== 'employed';
-  const pursuedClubIds = new Set((market.userApproaches ?? []).map(approach => approach.clubId));
+  const pursuedClubIds = new Set((market.userApproaches ?? []).filter(approach => approach.status !== 'rejected').map(approach => approach.clubId));
   const openVacancies = market.vacancies
     .filter(vacancy => isVacancyAvailableForNewCandidate(vacancy) && !pursuedClubIds.has(vacancy.clubId))
     .map(vacancy => ({ vacancy, team:teamsById.get(vacancy.clubId) }))
     .filter(entry => entry.team);
   const resolvedApproaches = (market.userApproaches ?? [])
-    .map(approach => ({ approach, vacancy:market.vacancies.find(v => v.id === approach.vacancyId), team:teamsById.get(approach.clubId) }))
-    .filter(entry => entry.vacancy && entry.team);
+    .map(approach => {
+      const vacancy = market.vacancies.find(v => v.id === approach.vacancyId);
+      return {
+        approach, vacancy, team:teamsById.get(approach.clubId),
+        canAccept:userManager?.status === 'unemployed' && vacancy?.status === 'offer_extended' && vacancy.offer?.candidateManagerId === userManager.id,
+      };
+    })
+    .filter(entry => entry.team && (entry.approach.status === 'rejected' || entry.vacancy && entry.vacancy.status !== 'completed'));
   return {
     save, userManager, market,
     currentTeam:isUnemployed ? null : teamsById.get(save.userTeamId),
@@ -62,6 +68,10 @@ export async function getManagerCareerView() {
  * message rather than relying solely on the thrown error.
  */
 export async function resignAsManager() {
+  return runCareerTransitionAtomic(commitManagerResignation);
+}
+
+async function commitManagerResignation() {
   const save = await getSave();
   const [userManager, team] = await Promise.all([getManager(save.userManagerId), getTeam(save.userTeamId)]);
   const weekKey = weekKeyFor(save);
@@ -84,12 +94,13 @@ export async function applyForVacancy(vacancyId) {
   if (market.pendingUserHandover) throw new Error('ALREADY_HAVE_A_PENDING_JOB_OFFER');
   const vacancy = market.vacancies.find(item => item.id === vacancyId);
   if (!vacancy) throw new Error('VACANCY_NOT_FOUND');
-  if ((market.userApproaches ?? []).some(item => item.clubId === vacancy.clubId)) {
+  if ((market.userApproaches ?? []).some(item => item.clubId === vacancy.clubId && item.status !== 'rejected')) {
     throw new Error('ALREADY_PURSUING_THIS_CLUB');
   }
   const weekKey = weekKeyFor(save);
   const application = applyToVacancy(userManager, vacancy, { weekKey });
-  await putSave({ ...save, managerMarket:{ ...market, userApproaches:[...(market.userApproaches ?? []), application] } });
+  const userApproaches = appendUserManagerInterest(market.userApproaches ?? [], application);
+  await putSave({ ...save, managerMarket:{ ...market, userApproaches } });
   return application;
 }
 
@@ -104,22 +115,34 @@ export async function applyForVacancy(vacancyId) {
  * there would be a real module cycle.
  */
 export async function respondToApproach(approachId, outcome) {
+  if (!['accept', 'decline'].includes(outcome)) throw new Error('INVALID_MANAGER_RESPONSE');
   const save = await getSave();
   const userManager = await getManager(save.userManagerId);
   const market = save.managerMarket ?? createEmptyManagerMarket();
   if (outcome === 'accept' && market.pendingUserHandover) throw new Error('ALREADY_HAVE_A_PENDING_JOB_OFFER');
   const approach = (market.userApproaches ?? []).find(item => item.id === approachId);
   if (!approach) throw new Error('APPROACH_NOT_FOUND');
+  const nextApproaches = (market.userApproaches ?? []).filter(item => item.id !== approachId);
+  // Sending an application expresses interest; only the weekly review can
+  // turn it into a club offer. Withdrawing it must not manufacture a decline.
+  if (approach.source === 'application' && approach.status !== 'offered') {
+    if (outcome === 'accept') throw new Error(approach.status === 'rejected' ? 'APPLICATION_REJECTED' : 'APPLICATION_AWAITING_DECISION');
+    await putSave({ ...save, managerMarket:{ ...market, userApproaches:nextApproaches } });
+    return { accepted:false };
+  }
   const vacancy = market.vacancies.find(item => item.id === approach.vacancyId);
   if (!vacancy) throw new Error('VACANCY_NOT_FOUND');
-  // The vacancy may have been filled by an AI candidate since this approach
-  // was generated (protected for one tick, not forever) — surface that
-  // clearly rather than silently no-opping through extendOffer/resolveOffer.
+  // Reloaded or legacy interest may outlive its vacancy; accepting must
+  // never manufacture a replacement offer or replay a completed hire.
+  if (outcome === 'decline' && (vacancy.status !== 'offer_extended' || vacancy.offer?.candidateManagerId !== userManager?.id)) {
+    await putSave({ ...save, managerMarket:{ ...market, userApproaches:nextApproaches } });
+    return { accepted:false };
+  }
   if (vacancy.status === 'completed') throw new Error('VACANCY_NO_LONGER_AVAILABLE');
   const weekKey = weekKeyFor(save);
-  const nextApproaches = (market.userApproaches ?? []).filter(item => item.id !== approachId);
 
   if (outcome === 'accept') {
+    if (!userManager || userManager.status !== 'unemployed') throw new Error('USER_MANAGER_NOT_AVAILABLE');
     const { vacancy:resolved, pendingUserHandover } = acceptUserOffer(vacancy, userManager.id, { weekKey });
     const nextVacancies = market.vacancies.map(item => item.id === vacancy.id ? resolved : item);
     await putSave({ ...save, managerMarket:{ ...market, vacancies:nextVacancies, userApproaches:nextApproaches, pendingUserHandover } });
@@ -133,12 +156,16 @@ export async function respondToApproach(approachId, outcome) {
 
 /**
  * Execute an already-accepted handover immediately, if the event queue is
- * safely empty right now. Used right after `respondToApproach('accept')` so
- * the user doesn't have to wait for the next world-week tick when nothing is
- * actually pending. p6Runtime.js's weekly tick calls the same
- * transferClubControl as a fallback for whenever this couldn't run inline.
+ * safely empty right now. Used right after `respondToApproach('accept')` and
+ * on UI reload so an interrupted move completes once its events settle.
  */
 export async function tryCompletePendingUserHandover() {
+  const save = await getSave();
+  if (!save?.managerMarket?.pendingUserHandover || (save.pendingEvents ?? []).length) return { completed:false };
+  return runCareerTransitionAtomic(commitPendingUserHandover);
+}
+
+async function commitPendingUserHandover() {
   const save = await getSave();
   const market = save.managerMarket ?? createEmptyManagerMarket();
   const pending = market.pendingUserHandover;

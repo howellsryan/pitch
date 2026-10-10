@@ -1,8 +1,43 @@
 import {
   SQUAD_ROLE_DEFS,
   currentEffectiveLevel,
+  setPlayerSquadRole,
 } from './playerModel.js';
 import { evaluateCareerTacticalFit } from './careerTacticalFit.js';
+import { isLoanPlayer, transitionPlayerStatus } from './playerStatus.js';
+
+/** The agreed deal changes one canonical registration and its role promise. */
+export function buildSettledMarketPlayer(player, deal, save) {
+  if (deal.type === 'renewal' && isLoanPlayer(player)) throw new Error('PLAYER_ON_LOAN');
+  const contract = deal.terms.contract;
+  const seasonYear = Number.parseInt(String(save.season ?? '').split('/')[0], 10) || 0;
+  const isLoan = deal.type === 'loan';
+  const loanBack = !isLoan && deal.type !== 'renewal' && Boolean(deal.terms.fee?.loanBack);
+  const contractTeamId = isLoan ? deal.sellerTeamId : deal.buyerTeamId;
+  const registeredTeamId = loanBack ? deal.sellerTeamId : deal.buyerTeamId;
+  const base = isLoan ? { ...player, signedThisSeason:true } : {
+    ...player, wage:contract.wage, contractExpiry:seasonYear + contract.duration,
+    releaseClause:contract.releaseClause || null,
+    signedThisSeason:deal.type === 'renewal' ? player.signedThisSeason : true,
+  };
+  const next = transitionPlayerStatus(base, {
+    status:isLoan || loanBack ? 'loan' : 'first_team',
+    contractTeamId, registeredTeamId,
+    season:save.season, gameweek:save.currentGameweek,
+    reason:deal.type, idempotencyKey:`deal:${deal.id}`,
+    patch:{ inSquad:true },
+    activeLoanAgreement:isLoan || loanBack ? {
+      id:`deal-loan:${deal.id}`, parentTeamId:contractTeamId, loanTeamId:registeredTeamId,
+      startSeason:save.season, startGameweek:save.currentGameweek, dueSeason:save.season,
+      recallAllowed:isLoan && Boolean(deal.terms.loan?.recall),
+      wageContributionPercentage:isLoan ? deal.terms.loan?.wageContributionPercentage : 100,
+      expectedRole:contract.squadRole,
+    } : null,
+  });
+  const role = loanBack ? player.squadRole : contract.squadRole;
+  const withRole = setPlayerSquadRole(next, role, { source:'manager', teamId:registeredTeamId });
+  return { ...withRole, playingTimeAgreement:registeredTeamId === save.userTeamId ? withRole.playingTimeAgreement : null };
+}
 
 /**
  * Pure P4 transfer-market contracts.

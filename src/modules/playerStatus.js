@@ -119,10 +119,78 @@ export function normalizeLoanAgreement(agreement, player = null) {
 
 function playerStatusSpells(spells) {
   if (!Array.isArray(spells)) return [];
+  if (spells.length <= MAX_REGISTRATION_SPELLS
+    && spells.every(spell => spell && typeof spell === 'object' && spell.id)) return spells;
   return spells
     .filter(spell => spell && typeof spell === 'object' && spell.id)
     .map(spell => ({ ...spell }))
     .slice(-MAX_REGISTRATION_SPELLS);
+}
+
+/** IndexedDB preserves shared references: identical historical snapshots need
+ * only one object per row. Values and snapshot field order remain unchanged.
+ * Consumers copy evidence before changing it; historical snapshots are read-only.
+ */
+export function sharePlayerHistorySnapshots(player) {
+  if (!Array.isArray(player?.registrationSpells) || !player.registrationSpells.length) return player;
+  const seen = [];
+  const intern = snapshot => {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return snapshot;
+    if (seen.some(item => item.snapshot === snapshot)) return snapshot;
+    const keys = Object.keys(snapshot);
+    if (keys.some(key => snapshot[key] !== null && typeof snapshot[key] === 'object')) return snapshot;
+    const previous = seen.find(item => item.keys.length === keys.length
+      && keys.every((key, index) => key === item.keys[index] && snapshot[key] === item.snapshot[key]));
+    if (previous) return previous.snapshot;
+    seen.push({ snapshot, keys });
+    return snapshot;
+  };
+  intern(player.academyEvidence);
+  let changed = false;
+  const registrationSpells = player.registrationSpells.map(spell => {
+    if (!spell || typeof spell !== 'object') return spell;
+    let next = spell;
+    for (const key of ['startStats','endStats','startAcademyEvidence','endAcademyEvidence']) {
+      const snapshot = intern(spell[key]);
+      if (snapshot === spell[key]) continue;
+      if (next === spell) next = { ...spell };
+      next[key] = snapshot;
+      changed = true;
+    }
+    return next;
+  });
+  return changed ? { ...player, registrationSpells } : player;
+}
+
+/** Missing historical counters already mean zero. Academy evidence belongs to
+ * academy spells; senior/loan/free-agent projections never consume those copies.
+ * Keep every ID, club, date, reason and nonzero counter, including unknown fields.
+ */
+export function compactPlayerHistoryPayload(player) {
+  if (!Array.isArray(player?.registrationSpells)) return player;
+  const counters = new Set(['appearances','starts','minutes','goals','assists','cleanSheets','ratingTotal','ratingApps']);
+  const compactStats = stats => {
+    if (!stats || typeof stats !== 'object' || Array.isArray(stats)) return stats;
+    const entries = Object.entries(stats);
+    const kept = entries.filter(([key, value]) => !counters.has(key) || value !== 0);
+    return kept.length === entries.length ? stats : Object.fromEntries(kept);
+  };
+  let changed = false;
+  const registrationSpells = player.registrationSpells.map(spell => {
+    if (!spell || typeof spell !== 'object') return spell;
+    let next = spell;
+    for (const key of ['startStats','endStats','startAcademyEvidence','endAcademyEvidence']) {
+      const snapshot = ['first_team','loan','free_agent'].includes(spell.status) && key.includes('Academy')
+        ? spell[key] == null ? spell[key] : null
+        : compactStats(spell[key]);
+      if (snapshot === spell[key]) continue;
+      if (next === spell) next = { ...spell };
+      next[key] = snapshot;
+      changed = true;
+    }
+    return next;
+  });
+  return sharePlayerHistorySnapshots(changed ? { ...player, registrationSpells } : player);
 }
 
 function playerStatusIds(player, status, agreement) {
@@ -160,11 +228,13 @@ export function normalizePlayerStatus(player) {
   const playerStatus = inferPlayerStatus(player);
   const activeLoanAgreement = playerStatus === 'loan' ? normalizeLoanAgreement(player.activeLoanAgreement, player) : null;
   const ids = playerStatusIds(player, playerStatus, activeLoanAgreement);
-  const transitionKeys = Array.isArray(player.lifecycleTransitionKeys)
-    ? player.lifecycleTransitionKeys.filter(key => typeof key === 'string').slice(-MAX_LIFECYCLE_TRANSITION_KEYS)
+  const rawKeys = player.lifecycleTransitionKeys;
+  const transitionKeys = Array.isArray(rawKeys)
+    ? rawKeys.length <= MAX_LIFECYCLE_TRANSITION_KEYS && rawKeys.every(key => typeof key === 'string')
+      ? rawKeys
+      : rawKeys.filter(key => typeof key === 'string').slice(-MAX_LIFECYCLE_TRANSITION_KEYS)
     : [];
   const normalized = {
-    ...player,
     lifecycleVersion:PLAYER_LIFECYCLE_VERSION,
     playerStatus,
     contractTeamId:ids.contractTeamId,
@@ -173,6 +243,9 @@ export function normalizePlayerStatus(player) {
     activeLoanAgreement,
     registrationSpells:playerStatusSpells(player.registrationSpells),
     lifecycleTransitionKeys:transitionKeys,
+    inSquad:player.inSquad,
+    wage:player.wage,
+    squadRole:player.squadRole,
   };
 
   // Compatibility projections. These are deliberately derived from canonical
@@ -203,8 +276,8 @@ export function normalizePlayerStatus(player) {
     && player.registeredTeamId === normalized.registeredTeamId
     && player.activeAgreementId === normalized.activeAgreementId
     && JSON.stringify(player.activeLoanAgreement ?? null) === JSON.stringify(normalized.activeLoanAgreement ?? null)
-    && JSON.stringify(player.registrationSpells ?? []) === JSON.stringify(normalized.registrationSpells ?? [])
-    && JSON.stringify(player.lifecycleTransitionKeys ?? []) === JSON.stringify(normalized.lifecycleTransitionKeys ?? [])
+    && player.registrationSpells === normalized.registrationSpells
+    && player.lifecycleTransitionKeys === normalized.lifecycleTransitionKeys
     && player.teamId === normalized.teamId
     && player.isYouth === normalized.isYouth
     && player.youthTeamId === normalized.youthTeamId
@@ -216,7 +289,7 @@ export function normalizePlayerStatus(player) {
     && player.inSquad === normalized.inSquad
     && player.wage === normalized.wage
     && player.squadRole === normalized.squadRole;
-  return unchanged ? player : normalized;
+  return unchanged ? player : { ...player, ...normalized };
 }
 
 export function playerStatusNeedsNormalization(player) {

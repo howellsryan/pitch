@@ -262,7 +262,7 @@
       <p class="eyebrow">Free · Plays in your browser</p>
       <h1 class="mark">PITCH</h1>
       <p class="offer">
-        Take charge of any club in Europe and manage it season after season —
+        Choose a club from nine European leagues and manage it season after season —
         transfers, tactics, the academy, and every match tick by tick.
       </p>
 

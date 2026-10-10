@@ -1,4 +1,4 @@
-import { compareLeaguePhaseRows, getCompetitionRules, isTwoLegRound } from './competitionRules.js';
+import { buildKnockoutRoundDraw, compareLeaguePhaseRows, getCompetitionRules, isTwoLegRound } from './competitionRules.js';
 import { pickAIFormation, simulateMatch } from './matchEngine.js';
 
 /**
@@ -265,17 +265,6 @@ function roundRobinPairs(teamIds, roundIndex) {
   return { pairs, byes };
 }
 
-function knockoutPairs(teamIds, roundIndex) {
-  const ids = [...teamIds].sort();
-  const pairs = [];
-  const byes = [];
-  for (let i = 0; i < ids.length; i += 2) {
-    if (!ids[i + 1]) byes.push(ids[i]);
-    else pairs.push(roundIndex % 2 ? [ids[i + 1], ids[i]] : [ids[i], ids[i + 1]]);
-  }
-  return { pairs, byes };
-}
-
 function freshPlayers(players) {
   return (players ?? []).map(player => {
     const copy = { ...player };
@@ -441,7 +430,7 @@ async function advanceKnockout(comp, gw, teamsById, playersByTeam) {
   const entrants = comp.entrantsByRound?.[roundIndex] ?? [];
   const participants = uniqueCompetitionTeams([...(comp.activeTeamIds ?? []), ...entrants]);
   markActive(comp, participants, roundIndex, roundName);
-  const { pairs, byes } = knockoutPairs(participants, roundIndex);
+  const { pairs, byes } = buildKnockoutRoundDraw(comp.id, participants, roundIndex, comp.entrantsByRound);
 
   if (isTwoLegRound(comp.id, roundName, 1)) {
     const ties = [];
@@ -496,10 +485,11 @@ export async function advanceWorldCompetitions(worldState, gw, teams, playersByT
   for (const comp of Object.values(next.competitions)) {
     if (comp.processedGameweeks?.includes(gw)) continue;
     const before = comp.results.length;
+    const beforeRound = comp.roundIndex;
     const generated = comp.format === 'uefa_league_phase' && comp.phase === 'league_phase'
       ? await advanceUefaLeaguePhase(comp, gw, teamsById, playersByTeam)
       : await advanceKnockout(comp, gw, teamsById, playersByTeam);
-    if (generated.length || comp.results.length !== before) {
+    if (generated.length || comp.results.length !== before || comp.roundIndex !== beforeRound) {
       comp.processedGameweeks = [...(comp.processedGameweeks ?? []), gw].slice(-64);
       records.push(...generated);
     }
@@ -675,11 +665,35 @@ export function pendingWorldCompetitionRecords(worldState) {
   return records;
 }
 
+/** Applied AI records retain football history, not a second projection payload. */
+export function compactAppliedWorldCompetitionRecords(worldState) {
+  let changed = false;
+  const competitions = Object.fromEntries(Object.entries(worldState?.competitions ?? {}).map(([id, comp]) => {
+    let compacted = false;
+    const results = (comp.results ?? []).map(record => {
+      if (record.worldCompetitionVersion !== WORLD_COMPETITION_VERSION
+        || record.projectionsApplied !== true || record.projectionPayloadCompactedVersion >= 1) return record;
+      const next = {
+        ...record,
+        events:(record.events ?? []).filter(event => event.type === 'goal'),
+        fitnessUpdates:[],
+        projectionPayloadCompactedVersion:1,
+      };
+      delete next.homeTactics;
+      delete next.awayTactics;
+      compacted = true;
+      return next;
+    });
+    changed ||= compacted;
+    return [id, compacted ? { ...comp, results } : comp];
+  }));
+  return changed ? { ...worldState, competitions } : worldState;
+}
+
 export function markWorldCompetitionRecordsApplied(worldState, recordIds) {
   const ids = new Set(recordIds);
-  const next = clone(worldState);
-  for (const comp of Object.values(next?.competitions ?? {})) {
-    comp.results = (comp.results ?? []).map(record => ids.has(record.id) ? { ...record, projectionsApplied:true } : record);
-  }
-  return next;
+  const competitions = Object.fromEntries(Object.entries(worldState?.competitions ?? {}).map(([id, comp]) => [
+    id, { ...comp, results:(comp.results ?? []).map(record => ids.has(record.id) ? { ...record, projectionsApplied:true } : record) },
+  ]));
+  return compactAppliedWorldCompetitionRecords({ ...worldState, competitions });
 }

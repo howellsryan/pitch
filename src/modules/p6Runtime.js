@@ -10,8 +10,8 @@ import {
   shouldResign,
   shouldRetire,
 } from './managerCareer.js';
-import { applyHireOutcome, assembleCandidates, completeHandover, extendOffer, isVacancyAvailableForNewCandidate, isVacancyOpen, resolveOffer } from './managerAppointments.js';
-import { generateUserApproaches } from './managerUserJourney.js';
+import { applyHireOutcome, assembleCandidates, completeHandover, extendOffer, isVacancyOpen, resolveOffer } from './managerAppointments.js';
+import { APPROACH_FIT_THRESHOLD, MAX_USER_APPROACHES, generateUserApproaches } from './managerUserJourney.js';
 import { MAX_RECENT_MANAGER_APPOINTMENTS, createCaretakerManager, createEmptyManagerMarket } from './managers.js';
 
 // Deliberately does NOT import managerClubHandover.js here: that module
@@ -65,31 +65,53 @@ function decideVacateReason(manager, review, save) {
  * because the checkpoint loop already pointed team.managerId at them the
  * moment the caretaker took over.
  */
-function resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, currentDate, userManagerId, protectedClubIds = new Set()) {
+function resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, currentDate, userManagerId, userInterests = [], canOfferUser = true) {
   const hiredThisTick = new Set();
   const hired = [];
   const completedAppointments = [];
   const nextVacancies = [];
+  const interestsById = new Map(userInterests.map(interest => [interest.id, interest]));
 
-  for (const vacancy of [...vacancies].sort((a, b) => a.clubId.localeCompare(b.clubId))) {
+  for (let vacancy of [...vacancies].sort((a, b) => a.clubId.localeCompare(b.clubId))) {
     if (!isVacancyOpen(vacancy)) { nextVacancies.push(vacancy); continue; }
-    // A club that just approached the user this same tick gives them first
-    // refusal for one tick rather than being instantly filled by an AI
-    // candidate the same week — otherwise AI resolution (below) is
-    // immediate enough that the user would almost never see a live vacancy.
-    if (protectedClubIds.has(vacancy.clubId)) { nextVacancies.push(vacancy); continue; }
     const team = workingTeamsById.get(vacancy.clubId);
     if (!team) { nextVacancies.push(vacancy); continue; }
+    const interest = userInterests.find(item => item.vacancyId === vacancy.id && item.status !== 'rejected');
+    const userManager = canOfferUser ? workingById.get(userManagerId) : null;
+    const userAvailable = userManager?.status === 'unemployed';
 
-    // The user's own manager, while unemployed, is never auto-hired by this
-    // AI pipeline — joining a club is only ever the user's own deliberate
-    // accept action (managerUserActions.js's respondToApproach), even if
-    // they'd otherwise be the best-fitting candidate for this vacancy.
-    const excludeIds = [vacancy.previousManagerId, userManagerId, ...(vacancy.declinedCandidateIds ?? []), ...hiredThisTick];
-    const candidates = assembleCandidates(vacancy, team, [...workingById.values()], { excludeIds });
-    if (!candidates.length) { nextVacancies.push(vacancy); continue; }
+    // A genuine human offer stays reserved until the user responds. Missing
+    // interest or lost availability releases stale reservations back to AI.
+    if (vacancy.status === 'offer_extended' && vacancy.offer?.candidateManagerId === userManagerId) {
+      if (userAvailable && interest) { nextVacancies.push(vacancy); continue; }
+      vacancy = resolveOffer(vacancy, 'declined', { weekKey });
+    }
 
-    const hiredManagerId = candidates[0].managerId;
+    // Applications compete in the same ranked pool as AI hires. A selected
+    // user receives an offer rather than an automatic appointment.
+    const excludeIds = [vacancy.previousManagerId, ...(!interest || !userAvailable ? [userManagerId] : []), ...(vacancy.declinedCandidateIds ?? []), ...hiredThisTick];
+    const candidates = assembleCandidates(vacancy, team, [...workingById.values()], { excludeIds })
+      .filter(candidate => candidate.managerId !== userManagerId || candidate.fit.overall >= APPROACH_FIT_THRESHOLD);
+    let selected = candidates[0];
+    if (vacancy.status === 'offer_extended') {
+      // Respect an imported/in-flight AI offer instead of accepting its offer
+      // while accidentally hiring a different candidate.
+      selected = candidates.find(candidate => candidate.managerId === vacancy.offer?.candidateManagerId);
+      if (!selected) vacancy = resolveOffer(vacancy, 'declined', { weekKey });
+    }
+    if (interest && userAvailable && selected && selected.managerId === userManagerId) {
+      nextVacancies.push(extendOffer(vacancy, userManagerId, { weekKey }));
+      interestsById.set(interest.id, { ...interest, fit:selected.fit.overall, status:interest.source === 'application' ? 'offered' : 'pending', decisionWeekKey:weekKey });
+      continue;
+    }
+    if (interest) {
+      if (interest.source === 'application') {
+        interestsById.set(interest.id, { ...interest, status:'rejected', decision:selected ? 'another_candidate' : 'not_available', decisionWeekKey:weekKey });
+      } else interestsById.delete(interest.id);
+    }
+    if (!selected) { nextVacancies.push(vacancy); continue; }
+
+    const hiredManagerId = selected.managerId;
     const wasCaretaker = hiredManagerId === vacancy.caretakerManagerId;
     const completedVacancy = completeHandover(
       resolveOffer(extendOffer(vacancy, hiredManagerId, { weekKey }), 'accepted', { weekKey }),
@@ -120,7 +142,7 @@ function resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey,
     // `completedAppointments` above is what feeds managerMarket.recentAppointments.
   }
 
-  return { nextVacancies, hired, completedAppointments };
+  return { nextVacancies, hired, completedAppointments, userInterests:[...interestsById.values()] };
 }
 
 /**
@@ -196,34 +218,25 @@ export async function advanceP6ManagerCareerWeek(saveInput = null) {
     reviewedCheckpoints = [...reviewedCheckpoints, weekKey].slice(-MAX_MANAGER_TICK_KEYS);
   }
 
-  // Bounded weekly approach generation while the user is unemployed AND has
-  // no already-accepted offer awaiting handover — at most one new approach
-  // per call (see generateUserApproaches) — runs BEFORE AI resolution below,
-  // using this week's vacancies as they stood at the start of the tick: AI
-  // resolution is otherwise immediate, so a user would almost never see a
-  // genuinely open vacancy if this ran after it.
+  // Generate at most one unsolicited approach, and only when the club would
+  // rank the user ahead of its actual available candidates. Applications are
+  // independently assessed during the deterministic vacancy pass below.
   const userManager = (save.userManagerId && !market.pendingUserHandover) ? workingById.get(save.userManagerId) : null;
-  const previousApproachClubIds = new Set((market.userApproaches ?? []).map(approach => approach.clubId));
+  const existingInterests = (market.userApproaches ?? []).slice(-MAX_USER_APPROACHES);
   const generatedApproaches = userManager
-    ? generateUserApproaches(userManager, vacancies, workingTeamsById, market.userApproaches ?? [], { weekKey })
-    : (market.userApproaches ?? []);
-  // Any club that newly approached the user this tick gives them first
-  // refusal for one tick rather than being auto-filled by AI resolution below.
-  const protectedClubIds = new Set(
-    generatedApproaches.filter(approach => !previousApproachClubIds.has(approach.clubId)).map(approach => approach.clubId),
-  );
+    ? generateUserApproaches(userManager, vacancies, workingTeamsById, existingInterests, { weekKey, managerPool:[...workingById.values()] })
+    : existingInterests;
 
-  const resolution = resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, save.currentDate, save.userManagerId, protectedClubIds);
+  const resolution = resolveOpenVacancies(vacancies, workingById, workingTeamsById, weekKey, save.currentDate, save.userManagerId, generatedApproaches, !market.pendingUserHandover);
   vacancies = resolution.nextVacancies;
   const recentAppointments = resolution.completedAppointments.length
     ? [...(market.recentAppointments ?? []), ...resolution.completedAppointments].slice(-MAX_RECENT_MANAGER_APPOINTMENTS)
     : (market.recentAppointments ?? []);
 
-  // Prune any approach whose vacancy AI resolution just filled (or that no
-  // longer exists) — otherwise generateUserApproaches' alreadyApproachedClubIds
-  // would block that club from ever approaching this manager again.
-  const openVacancyIds = new Set(vacancies.filter(isVacancyAvailableForNewCandidate).map(vacancy => vacancy.id));
-  const userApproaches = generatedApproaches.filter(approach => openVacancyIds.has(approach.vacancyId));
+  const openVacancyIds = new Set(vacancies.filter(isVacancyOpen).map(vacancy => vacancy.id));
+  const userApproaches = resolution.userInterests
+    .filter(interest => interest.status === 'rejected' || openVacancyIds.has(interest.vacancyId))
+    .slice(-MAX_USER_APPROACHES);
 
   const changedTeams = [...workingTeamsById.values()].filter(team => originalTeamsById.get(team.id) !== team);
   if (changedTeams.length) await putTeamsBulk(changedTeams);

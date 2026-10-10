@@ -1,6 +1,6 @@
 <script>
   import { tick } from 'svelte';
-  import { getAllFixtures, getAllPlayers, getAllTeams, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
+  import { getAllFixtures, getAllPlayers, getAllTeams, getManager, getPlayersByTeam, getSave, getTeam, openDB } from '../../modules/db.js';
   import { getUpcomingForTeam } from '../../modules/fixtures.js';
   import { CUP_META, describeCupResult, upcomingCupFixtures } from '../../modules/cups.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
@@ -8,6 +8,10 @@
   import { patchSave } from '../../modules/save.js';
   import { liveBoardConfidence } from '../../modules/season.js';
   import { getEffectiveTotalGW } from '../../modules/gameweek.js';
+  import { canManageClub } from '../../modules/managerEmployment.js';
+  import { isSeniorEligiblePlayer } from '../../modules/playerStatus.js';
+  import { tryCompletePendingUserHandover } from '../../modules/managerUserActions.js';
+  import { advanceUnemployedWorldWeek } from '../../game/managerWorldAdvance.js';
   import { fmt, navigateTo, toast } from '../../ui/helpers.js';
   import { handleEndOfSeason } from '../../ui/home_transfers.js';
   import { _makeNewsItem, addNewsItem } from '../../ui/inbox.js';
@@ -22,6 +26,7 @@
   let loaded = $state(false);
   let cloudSignedIn = $state(false);
   let save = $state(null);
+  let manager = $state(null);
   let team = $state(null);
   let squadSize = $state(0);
   let byId = $state(new Map());
@@ -40,7 +45,12 @@
   let hoursLeft = $state(10);
   let eoyBusy = $state(false);
   let deadlineBusy = $state(false);
+  let worldBusy = $state(false);
 
+  const managingClub = $derived(canManageClub(save, manager));
+  const finishingWeek = $derived(Boolean(save)
+    && save.pendingEventsWeekKey === `${save.season}:${save.currentGameweek}`
+    && (save.pendingEvents ?? []).length === 0);
   const next = $derived(upcoming[0] ?? null);
 
   // The rail is the manager's season, so cups and Europe belong on it. Both come
@@ -221,18 +231,44 @@
     finally { eoyBusy = false; }
   }
 
+  async function doAdvanceWorldWeek() {
+    if (worldBusy || eoyBusy) return;
+    worldBusy = true;
+    try {
+      await advanceUnemployedWorldWeek();
+      const handover = await tryCompletePendingUserHandover();
+      if (handover.completed) { window.location.reload(); return; }
+      screenTicks.settings++;
+      await load();
+    } catch (error) {
+      console.error('World week error:', error);
+      toast(error.message === 'MANAGER_ALREADY_EMPLOYED' ? 'Your new job is ready. Refreshing your career.' : 'Could not finish the world week. Try again to continue.', 'error');
+      await load();
+    } finally {
+      worldBusy = false;
+    }
+  }
+
   async function load() {
     await openDB();
     const s = await getSave();
     if (!s || s._deleted) return;
     cloudSignedIn = isSignedIn();
+    manager = s.userManagerId ? await getManager(s.userManagerId) : null;
     save = s;
+    isEnd = s.currentGameweek > getEffectiveTotalGW(s);
+    if (!canManageClub(s, manager)) {
+      team = null;
+      onDeadlineDay = false;
+      loaded = true;
+      return;
+    }
     const [club, players, allTeams, allPlayers, allFixtures, nextFixtures, tableSlice] = await Promise.all([
       getTeam(s.userTeamId), getPlayersByTeam(s.userTeamId), getAllTeams(), getAllPlayers(), getAllFixtures(),
       getUpcomingForTeam(s.userTeamId), getTableSliceAroundTeam(s.userTeamId, 2),
     ]);
     team = club;
-    squadSize = players.length;
+    squadSize = players.filter((player) => isSeniorEligiblePlayer(player, s.userTeamId)).length;
     byId = new Map(allTeams.map((item) => [item.id, item]));
     playerById = new Map(allPlayers.map((item) => [item.id, item]));
     const userFixtures = allFixtures.filter((fixture) => fixture.homeTeamId === s.userTeamId || fixture.awayTeamId === s.userTeamId);
@@ -273,6 +309,30 @@
 <div class="home-screen">
   {#if !loaded}
     <div class="loading">Loading your season…</div>
+  {:else if !managingClub}
+    <header class="club-bar">
+      <div class="club-copy"><strong>{manager?.name ?? save?.managerName ?? 'The Manager'}</strong><span>{save?.season} · Gameweek {save?.currentGameweek}</span></div>
+      <button class="icon-button" aria-label="Inbox" onclick={() => navigateTo('inbox')}><Icon name="info" size={18} />{#if unread.length}<span class="badge">{unread.length > 9 ? '9+' : unread.length}</span>{/if}</button>
+    </header>
+    <main class="career-home">
+      <section class="career-panel" aria-labelledby="career-title">
+        <span class="section-label">Your manager career</span>
+        <h1 id="career-title">Between clubs.</h1>
+        <p>Your career continues. Explore vacancies and apply for your next job, or advance the football world while clubs consider their next appointment.</p>
+        <div class="career-actions">
+          <Button size="lg" full onclick={() => navigateTo('settings')}>Find a job</Button>
+          {#if isEnd}
+            <Button size="lg" full variant="ghost" disabled={eoyBusy || worldBusy} onclick={doEndOfSeason}>{eoyBusy ? 'Preparing next season…' : 'Start next season'}</Button>
+          {:else}
+            <Button size="lg" full variant="ghost" disabled={worldBusy || eoyBusy} onclick={doAdvanceWorldWeek}>{worldBusy ? 'Advancing the world…' : 'Advance world week'}</Button>
+          {/if}
+        </div>
+        <p class="career-date">{fmt.dateShort(save?.currentDate)} · Matches, transfers and appointments continue each week.</p>
+      </section>
+      {#if unread.length}
+        <button class="career-news" onclick={() => navigateTo('inbox')}><span>{unread.length} unread update{unread.length === 1 ? '' : 's'}</span><strong>{unread[0].title}</strong></button>
+      {/if}
+    </main>
   {:else}
     <header class="club-bar">
       <Crest size={28} label={`${team?.name ?? 'Club'} crest`} />
@@ -358,7 +418,7 @@
 
       <section class="primary-action" aria-label="Next action">
         {#if !isEnd && !onDeadlineDay}
-          <Button id="btn-adv-header" size="lg" full onclick={() => navigateTo('match')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7z" /></svg>Play gameweek {save.currentGameweek}</Button>
+          <Button id="btn-adv-header" size="lg" full onclick={() => navigateTo('match')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7z" /></svg>{finishingWeek ? 'Finish' : 'Play'} gameweek {save.currentGameweek}</Button>
         {:else if isEnd}
           <Button id="btn-eoy-header" size="lg" full disabled={eoyBusy} onclick={doEndOfSeason}>{eoyBusy ? 'Preparing next season…' : 'Start next season'}</Button>
         {:else}
@@ -382,7 +442,7 @@
             <button onclick={() => openWaiting(item)}><span class="waiting-icon {item.tone}"><Icon name={item.tone === 'good' ? 'transfer' : item.tone === 'warn' ? 'warning' : 'info'} size={16} /></span><strong>{item.label}</strong><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></button>
           {/each}
         </div>
-      {:else}<p class="all-clear">Nothing needs a decision. Your next match is ready.</p>{/if}
+      {:else}<p class="all-clear">{finishingWeek ? 'Your matches are complete. Finish the gameweek to continue.' : 'Nothing needs a decision. Your next match is ready.'}</p>{/if}
     </section>
   {/if}
 </div>
@@ -398,6 +458,17 @@
 <style>
   .home-screen { position: relative; min-height: 100%; display: flex; flex-direction: column; color: var(--color-tx); background: radial-gradient(circle at 50% 34%, color-mix(in oklch, var(--color-club) 11%, transparent), transparent 34rem), var(--color-ground); font-family: var(--font-body); }
   .loading { min-height: 100dvh; display: grid; place-items: center; color: var(--color-tx-3); font-size: 13px; }
+  .career-home { padding: 36px 20px; }
+  .career-panel { max-width: 560px; margin: 0 auto; padding: 26px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); }
+  .career-panel .section-label { padding: 0; }
+  .career-panel h1 { margin: 14px 0; font: 800 42px/1 var(--font-display); letter-spacing: -.025em; }
+  .career-panel p { color: var(--color-tx-2); font-size: 14px; line-height: 1.6; }
+  .career-actions { display: grid; gap: 10px; margin-top: 24px; }
+  .career-panel .career-date { margin: 20px 0 0; color: var(--color-tx-3); font-size: 12px; }
+  .career-news { display: flex; flex-direction: column; gap: 7px; width: 100%; max-width: 560px; min-height: 64px; margin: 18px auto 0; padding: 16px 20px; text-align: left; color: var(--color-tx); background: transparent; border: 1px solid var(--color-line); border-radius: var(--radius-card); cursor: pointer; }
+  .career-news span { color: var(--color-tx-3); font-size: 12px; }
+  .career-news strong { font-size: 13px; }
+  .career-news:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
   .club-bar { display: flex; align-items: center; gap: 11px; padding: 18px 20px 0; }
   .club-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
   .club-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }

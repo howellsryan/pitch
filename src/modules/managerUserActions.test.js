@@ -10,6 +10,7 @@ const db = vi.hoisted(() => ({
   putManagersBulk: vi.fn(async () => {}),
   putSave: vi.fn(async () => {}),
   putTeamsBulk: vi.fn(async () => {}),
+  runCareerTransitionAtomic: vi.fn(async operation => operation()),
 }));
 
 vi.mock('./db.js', () => db);
@@ -104,8 +105,42 @@ describe('respondToApproach', () => {
   const vacancy = { id:'vac_weak', clubId:'weak', status:'caretaker', caretakerManagerId:'mgr_caretaker', previousManagerId:null, declinedCandidateIds:[] };
   const approach = { id:'approach_1', clubId:'weak', vacancyId:'vac_weak', fit:70, offeredWeekKey:'x', status:'pending' };
 
+  it('cannot turn a pending application into a job before the weekly hiring decision', async () => {
+    const application = { ...approach, source:'application' };
+    db.getSave.mockResolvedValue(baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[application] } }));
+    db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
+    await expect(respondToApproach(application.id, 'accept')).rejects.toThrow('APPLICATION_AWAITING_DECISION');
+    expect(db.putSave).not.toHaveBeenCalled();
+  });
+
+  it('withdraws a pending application without changing or declining the vacancy', async () => {
+    const application = { ...approach, source:'application' };
+    db.getSave.mockResolvedValue(baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[application] } }));
+    db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
+    await respondToApproach(application.id, 'decline');
+    const saved = db.putSave.mock.calls[0][0];
+    expect(saved.managerMarket.userApproaches).toEqual([]);
+    expect(saved.managerMarket.vacancies).toEqual([vacancy]);
+  });
+
+  it('rejects an approach that has no actual club offer', async () => {
+    db.getSave.mockResolvedValue(baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[approach] } }));
+    db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
+    await expect(respondToApproach(approach.id, 'accept')).rejects.toThrow('USER_OFFER_NOT_AVAILABLE');
+    expect(db.putSave).not.toHaveBeenCalled();
+  });
+
+  it('cannot accept a real offer after already becoming employed elsewhere', async () => {
+    const offeredVacancy = { ...vacancy, status:'offer_extended', offer:{ candidateManagerId:'mgr_user' } };
+    db.getSave.mockResolvedValue(baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[offeredVacancy], userApproaches:[approach] } }));
+    db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'employed', currentClubId:'elsewhere' }));
+    await expect(respondToApproach(approach.id, 'accept')).rejects.toThrow('USER_MANAGER_NOT_AVAILABLE');
+    expect(db.putSave).not.toHaveBeenCalled();
+  });
+
   it('accepting resolves the offer and records pendingUserHandover, clearing the approach', async () => {
-    const save = baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[approach] } });
+    const offeredVacancy = { ...vacancy, status:'offer_extended', offer:{ candidateManagerId:'mgr_user', extendedWeekKey:'x' } };
+    const save = baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[offeredVacancy], userApproaches:[approach] } });
     db.getSave.mockResolvedValue(save);
     db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
 
@@ -139,7 +174,8 @@ describe('respondToApproach', () => {
   });
 
   it('declining returns the vacancy to candidates_assembled and clears the approach', async () => {
-    const save = baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[vacancy], userApproaches:[approach] } });
+    const offeredVacancy = { ...vacancy, status:'offer_extended', offer:{ candidateManagerId:'mgr_user', extendedWeekKey:'x' } };
+    const save = baseSave({ managerMarket:{ ...createEmptyManagerMarket(), vacancies:[offeredVacancy], userApproaches:[approach] } });
     db.getSave.mockResolvedValue(save);
     db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
 
@@ -238,5 +274,17 @@ describe('getManagerCareerView', () => {
     // Only the untouched vacancy remains offered for a fresh application.
     expect(view.openVacancies).toHaveLength(1);
     expect(view.openVacancies[0].team.id).toBe('mid');
+  });
+
+  it('keeps a rejected application visible after the club appointed another manager', async () => {
+    const rejected = { id:'past_application', clubId:'weak', vacancyId:'resolved_vacancy', source:'application', status:'rejected' };
+    db.getSave.mockResolvedValue(baseSave({ managerMarket:{ ...createEmptyManagerMarket(), userApproaches:[rejected] } }));
+    db.getManager.mockResolvedValue(createManager({ id:'mgr_user', isUser:true, status:'unemployed' }));
+    db.getAllTeams.mockResolvedValue([team('weak')]);
+    const view = await getManagerCareerView();
+    expect(view.applications).toHaveLength(1);
+    expect(view.applications[0].canAccept).toBe(false);
+    await respondToApproach(rejected.id, 'decline');
+    expect(db.putSave.mock.calls[0][0].managerMarket.userApproaches).toEqual([]);
   });
 });

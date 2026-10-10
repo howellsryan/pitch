@@ -1,5 +1,7 @@
 import { addTransfer, getPlayer, getSave, getTeam, putPlayer, putSave, putTeam } from './db.js';
 import { applyLedgerMovement } from './clubFinance.js';
+import { transitionPlayerStatus } from './playerStatus.js';
+import { requireClubEmployment } from './managerEmployment.js';
 
 /**
  * Contract termination is a release, not a transfer. The managed club pays
@@ -26,9 +28,12 @@ export function contractTerminationQuote(player, save) {
   return { weeks, weeklyWage, payout:weeks * weeklyWage };
 }
 
-export function releasePlayerToFreeAgency(player) {
+export function releasePlayerToFreeAgency(player, { season = null, gameweek = null, reason = 'contract_termination' } = {}) {
+  const released = transitionPlayerStatus(player, {
+    status:'free_agent', season, gameweek, reason,
+  });
   return {
-    ...player,
+    ...released,
     teamId:'free_agents',
     contractExpiry:null,
     signedThisSeason:false,
@@ -36,8 +41,11 @@ export function releasePlayerToFreeAgency(player) {
     inSquad:false,
     onLoan:false,
     loanedFrom:null,
+    loanedTo:null,
     loanOriginalTeamId:null,
     loanSeason:null,
+    loanRecallable:false,
+    releaseClause:null,
     squadRole:null,
     squadRoleSource:null,
     squadRoleTeamId:null,
@@ -47,6 +55,7 @@ export function releasePlayerToFreeAgency(player) {
 
 export async function terminateManagedPlayerContract(playerId) {
   const [save, player] = await Promise.all([getSave(), getPlayer(playerId)]);
+  await requireClubEmployment(save);
   if (!save || !player || String(player.teamId) !== String(save.userTeamId)) throw new Error('PLAYER_NOT_IN_SQUAD');
   if (player.onLoan || player.loanedFrom) throw new Error('PLAYER_ON_LOAN');
 
@@ -54,7 +63,7 @@ export async function terminateManagedPlayerContract(playerId) {
   if (!team) throw new Error('TEAM_NOT_FOUND');
 
   const quote = contractTerminationQuote(player, save);
-  const releasedPlayer = releasePlayerToFreeAgency(player);
+  const releasedPlayer = releasePlayerToFreeAgency(player, { season:save.season, gameweek:save.currentGameweek });
   const updatedTeam = applyLedgerMovement(team, {
     category:'contract_termination',
     amount:-quote.payout,

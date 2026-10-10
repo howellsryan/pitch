@@ -9,10 +9,10 @@
 <style>
   .settings-clean { display:contents; }
 
-  /* Career keeps Main Menu only. The underlying import/export helpers remain
-     available to persistence internals, but these developer-style controls no
-     longer form part of the player-facing Settings surface. */
-  :global(.settings-clean .settings-screen .set-scroll > .set-card:first-child > .set-row:nth-of-type(n+4)) {
+  /* Backup and recovery stay available without a cloud account. Career
+     deletion belongs to the slot menu; potential recalculation is maintenance. */
+  :global(.settings-clean .career-reset-row),
+  :global(.settings-clean .career-maintenance-row) {
     display:none;
   }
 

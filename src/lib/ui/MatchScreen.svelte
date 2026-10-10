@@ -1,7 +1,8 @@
 <script>
+  import { untrack } from 'svelte';
   import { flip } from 'svelte/animate';
   import {
-    getAllFixtures, getAllTeams, getFixturesByGW, getPlayersByTeam, getSave, openDB, putSave,
+    getAllFixtures, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getSave, openDB, putSave,
   } from '../../modules/db.js';
   import { CUP_META } from '../../modules/cups.js';
   // 🚑 Injuries — legacy validation anchor; UI uses the injury icon/text section below.
@@ -14,12 +15,14 @@
     positionGroup, primaryRating, selectEleven, simulateMatchSegment,
   } from '../../modules/matchEngine.js';
   import { buildManagedMatchInputs, buildOpponentTacticalInsight } from '../../modules/managerTactics.js';
+  import { canManageClub } from '../../modules/managerEmployment.js';
   import { createUserTacticalPlan } from '../../modules/tactics.js';
   import { getTableSliceAroundTeam } from '../../modules/standings.js';
   import { SLOT_LAYOUT, SLOT_POS_MAP } from '../../game/formationLayout.js';
   import { applySubstitution, eligibleSubOutTargets } from '../../game/substitutions.js';
   import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
+  import { lineupAvailability } from '../../game/matchLineupAvailability.js';
   import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
@@ -185,31 +188,23 @@
       keyPlayer:oppInForm,
     });
 
-    const { injuredInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers);
+    const { injuredInLineup, suspendedInLineup, lineupIncomplete, lineupBlocked } = lineupAvailability(userLineup, userPlayers, userFormation);
 
     return {
       event, save, userTeam, oppTeam, oppForm, oppInForm, opponentPlayers, oppTacticalProfile, oppInsight,
       matchTitle, compLabel, compColor, isLeague, userIsHome,
       userPlayers, userFormation, userLineup,
-      injuredInLineup, lineupIncomplete,
+      injuredInLineup, suspendedInLineup, lineupIncomplete,
       lineupBlocked,
     };
-  }
-
-  function lineupAvailability(userLineup, userPlayers) {
-    const injuredInLineup = userLineup
-      ? userPlayers.filter(player => player.injured && userLineup.includes(player.id))
-      : [];
-    const lineupIncomplete = !userLineup || userLineup.length !== 11
-      || new Set(userLineup).size !== 11
-      || userLineup.some(playerId => !userPlayers.some(player => player.id === playerId && player.inSquad !== false));
-    return { injuredInLineup, lineupIncomplete, lineupBlocked:injuredInLineup.length > 0 || lineupIncomplete };
   }
 
   const blockMsg = $derived(
     matchCtx?.injuredInLineup?.length > 0
       ? 'Fix your lineup — injured players selected. Go to Squad.'
-      : 'Set a full starting XI in Squad before playing.'
+      : matchCtx?.suspendedInLineup?.length > 0
+        ? 'Fix your lineup — suspended players selected. Go to Squad.'
+        : 'Set a full starting XI in Squad before playing.'
   );
 
   function diffLabel(rep) {
@@ -255,6 +250,13 @@
     await openDB();
     const save = await getSave();
     if (!save || save._deleted) { active = false; loading = true; return; }
+    const manager = save.userManagerId ? await getManager(save.userManagerId) : null;
+    if (!canManageClub(save, manager)) {
+      active = false;
+      loading = false;
+      await navigateTo('home');
+      return;
+    }
     const event = await getNextMatchEvent();
 
     if (!event || event.type === 'no_user_event') {
@@ -288,7 +290,7 @@
     const freshPlayers = await getPlayersByTeam(freshSave.userTeamId);
     const userFormation = freshSave.formation ?? '4-3-3';
     const userLineup = freshSave.lineup ?? null;
-    const availability = lineupAvailability(userLineup, freshPlayers);
+    const availability = lineupAvailability(userLineup, freshPlayers, userFormation);
     matchCtx = {
       ...matchCtx, save:freshSave, userPlayers:freshPlayers, userFormation, userLineup,
       ...availability,
@@ -310,9 +312,17 @@
   }
 
   $effect(() => {
-    void screenTicks.match;
-    if (!active) loadMatch();
-    else if (beat === 'teamNews') void Promise.resolve().then(refreshTeamNewsLineup);
+    // Islands mount even behind hidden screens. Only an explicit navigation
+    // tick may read/build the match queue; changes to active/beat must never
+    // load another fixture or advance the world when returning to Home.
+    if (screenTicks.match === 0) return;
+    untrack(() => {
+      // Quick Sim has already committed its result. A manager who leaves its
+      // report to change tactics must enter the next fixture on their return.
+      if (resultCommitted && (beat === 'fulltime' || beat === 'after')) resetMatchPresentation();
+      if (!active) void loadMatch();
+      else if (beat === 'teamNews') void Promise.resolve().then(refreshTeamNewsLineup);
+    });
   });
 
   async function resolveMatchTeams(ctx) {
@@ -701,6 +711,7 @@
       committing = true;
       try {
         const res = await advanceOneFixtureWithResult(result, live.matchEvent, live.userIsHome);
+        result = res.singleResult ?? result;
         applyCommitExtras(res);
         resultCommitted = true;
         cloudSaveCheckpoint();
@@ -721,7 +732,7 @@
     }
   }
 
-  async function finishToHome() {
+  function resetMatchPresentation() {
     window.clearTimeout(goalNoticeTimer);
     window.cancelAnimationFrame(presentationFrame);
     active = false;
@@ -729,6 +740,10 @@
     live = null; result = null; matchCtx = null; broadcastSimulation = null;
     resultCommitted = false; beat = 'teamNews'; tableSlice = [];
     beforeTable = []; afterTable = [];
+  }
+
+  async function finishToHome() {
+    resetMatchPresentation();
     await navigateTo('home');
   }
 
@@ -857,6 +872,16 @@
             <div class="tn-warning-line"><strong>{p.name}</strong> — {p.injuryName || 'Injured'} ({injuryDurationLabel(p.injuryGWsLeft)} remaining)</div>
           {/each}
           <div class="tn-warning-cta">Replace the injured player before playing.</div>
+          <button class="tn-squad-link" onclick={openSquadFromTeamNews}>Open Squad →</button>
+        </div>
+      {/if}
+      {#if m.suspendedInLineup.length}
+        <div class="tn-warning tn-warning-bad">
+          <div class="tn-warning-title"><Icon name="warning" size={14} /><span>Suspended Players in Lineup</span></div>
+          {#each m.suspendedInLineup as p (p.id)}
+            <div class="tn-warning-line"><strong>{p.name}</strong> — Suspended</div>
+          {/each}
+          <div class="tn-warning-cta">Replace the suspended player before playing.</div>
           <button class="tn-squad-link" onclick={openSquadFromTeamNews}>Open Squad →</button>
         </div>
       {/if}
@@ -1285,12 +1310,12 @@
   .ft-win { color: var(--color-live); }
   .ft-loss { color: var(--color-bad); }
   .ft-draw { color: var(--color-warn); }
-  .ft-header { display: flex; align-items: center; gap: 20px; }
-  .ft-side { width: 130px; }
+  .ft-header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; width: min(100%, 460px); }
+  .ft-side { min-width: 0; overflow-wrap: anywhere; }
   .ft-crest { min-height: 40px; display: flex; align-items: center; justify-content: center; }
   .ft-tname { font-size: 13px; font-weight: 600; margin-top: 4px; }
   .ft-scorers { font-size: 11px; color: var(--color-tx-2); margin-top: 6px; }
-  .ft-score { font-family: var(--font-display); font-size: 44px; }
+  .ft-score { display: flex; align-items: center; white-space: nowrap; font-family: var(--font-display); font-size: 44px; line-height: 1; }
   .ft-sep { margin: 0 10px; opacity: 0.4; }
   .ft-status { font-size: 10px; font-family: var(--font-mono); letter-spacing: 2px; color: var(--color-tx-3); }
 
