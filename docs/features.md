@@ -26,10 +26,13 @@ to commit the result and see its effect on the table.
 The watched match uses a following **Broadcast** camera; tap its camera control
 for the complete **Tactical** overview. Players accelerate, turn and move into
 restart positions on a proportioned pitch. Passes have fixed destinations and
-distance-based travel time; interceptions cut out the flight before reception.
+distance-based travel time; receiving runs have priority over formation movement.
+Carriers keep moving while teammates check runs, and support/cover follows play.
+Interceptions meet the recorded defender and late first touches chase a rolling ball.
 The match clock and commentary follow the visible action, with the score revealed
 when the ball reaches the goal. Pause, speed and the Tactics room control the same
-timeline. Reduced-motion preferences use the fixed overview and remove stride effects.
+timeline. The default **1×** now runs at the former **4×** pace; **2×/4×** run at
+the former **8×/16×** pace. Reduced-motion preferences use the fixed overview and remove stride effects.
 
 Quick Sim and Broadcast share the same seeded action/result engine. The engine
 supplies ordered passes, carries, recoveries, shots and restart ownership; the

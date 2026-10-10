@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildLiveMatchState, simulateMatchSegment } from '../modules/matchEngine.js';
 import { advanceFootballSimulation, createFootballSimulation, footballLineupOptions, FOOTBALL_MAX_ACCELERATION, footballPlayerMaxSpeed, isFootballReady, queueFootballPhase, replaceFootballLineups, snapshotFootballSimulation } from './footballSimulation.js';
+import { matchPlaybackElapsed } from './matchPlayback.js';
 
 const positions=['GK','RB','CB','CB','LB','CM','CDM','CM','RW','ST','LW'];
 const squad=prefix=>positions.map((position,i)=>({id:`${prefix}${i}`,name:`Player ${prefix}${i}`,position,age:25,attack:77,midfield:77,defence:77,goalkeeping:position==='GK'?78:10,fitness:100,form:50,inSquad:true}));
@@ -20,7 +21,107 @@ function drain(sim,check=()=>{}) {
   throw new Error(`Stalled phase${sim.activePhase?.record.phase}: action${sim.activePhase?.index}/${sim.activePhase?.actions.length} ${sim.action}; mode${sim.mode}; owner${sim.ball.ownerId}`);
 }
 
+function openScene(sim, actions) {
+  sim.mode='live';sim.deadball=null;
+  queueFootballPhase(sim,{phase:2,teamId:'h',route:'direct_pass',football:{version:1,opening:{type:'open_play'},actions}});
+}
+
 describe('continuous metric football',()=>{
+  it('checks a marginal offside run behind the defensive line without retreating to halfway',()=>{
+    const {sim}=fixture(),actor=sim.byId.get('h5'),receiver=sim.byId.get('h9');
+    actor.x=34;actor.y=30;receiver.x=34;receiver.y=18;
+    for(const p of sim.players.filter(p=>p.team==='away'))p.y=p.position==='GK'?3:19;
+    sim.ball.ownerId=actor.id;sim.ball.x=34;sim.ball.y=30;
+    openScene(sim,[{type:'pass',actorId:actor.id,targetId:receiver.id,origin:{x:34,y:30},target:{x:34,y:12},outcome:'complete'}]);
+    advanceFootballSimulation(sim,20);
+    expect(receiver.ty).toBeGreaterThan(19);
+    expect(receiver.ty).toBeLessThan(23);
+  });
+  it('keeps the receiving intent ahead of formation movement on every flight step',()=>{
+    const {sim}=fixture(),actor=sim.byId.get('h5'),receiver=sim.byId.get('h9');
+    actor.x=30;actor.y=55;receiver.x=40;receiver.y=45;
+    sim.ball.ownerId=actor.id;sim.ball.x=30;sim.ball.y=55;
+    openScene(sim,[{type:'pass',actorId:actor.id,targetId:receiver.id,origin:{x:30,y:55},target:{x:42,y:36},outcome:'complete'}]);
+    let flights=0,late=0;
+    for(let i=0;i<400&&!isFootballReady(sim);i++) {
+      advanceFootballSimulation(sim,20);
+      const f=sim.ball.flight;
+      if(f) {
+        flights++;
+        expect(Math.hypot(receiver.tx-f.end.x,receiver.ty-f.end.y)).toBeLessThan(3);
+        if(f.elapsed>=f.duration)late+=20;
+      }
+    }
+    expect(flights).toBeGreaterThan(0);expect(late).toBeLessThan(300);
+    expect(sim.lastContact.playerId).toBe(receiver.id);
+  });
+  it('moves possession through a remote recovery instead of freezing the carrier',()=>{
+    const {sim}=fixture(),carrier=sim.byId.get('a9'),recoverer=sim.byId.get('h2');
+    carrier.x=12;carrier.y=18;recoverer.x=56;recoverer.y=85;
+    sim.ball.ownerId=carrier.id;sim.ball.x=12;sim.ball.y=18;
+    openScene(sim,[{type:'recovery',actorId:recoverer.id,fromId:carrier.id,origin:{x:12,y:18},target:{x:12,y:18}}]);
+    let still=0,maxStill=0;
+    for(let i=0;i<600&&!isFootballReady(sim);i++) {
+      const old={...sim.ball};advanceFootballSimulation(sim,20);
+      still=Math.hypot(old.x-sim.ball.x,old.y-sim.ball.y)<.001?still+20:0;
+      maxStill=Math.max(maxStill,still);
+    }
+    expect(isFootballReady(sim)).toBe(true);expect(sim.ball.ownerId).toBe(recoverer.id);
+    expect(maxStill).toBeLessThan(400);
+  });
+  it('sets a near-goal free-kick wall legally despite a keeper sharing its lane',()=>{
+    const {sim}=fixture(),actor=sim.byId.get('h2');
+    sim.mode='live';sim.deadball=null;
+    for(const p of sim.players.filter(p=>p.team==='away')) {p.x=34;p.y=3.65;}
+    queueFootballPhase(sim,{phase:2,teamId:'h',route:'direct_pass',football:{version:1,opening:{type:'free_kick'},actions:[
+      {type:'pass',actorId:actor.id,targetId:'h5',origin:{x:34,y:13},target:{x:40,y:20},outcome:'complete'},
+    ]}});
+    drain(sim);
+    expect(sim.completedPhase).toBe(2);
+  });
+  it('lets a late first touch chase a rolling ball instead of parking at the pass endpoint',()=>{
+    const {sim}=fixture(),receiver=sim.byId.get('h5');
+    receiver.x=30;receiver.y=52;receiver.vx=0;receiver.vy=0;
+    openScene(sim,[{type:'pass',actorId:'h2',targetId:receiver.id,outcome:'complete',origin:{x:20,y:50},target:{x:30,y:50}}]);
+    sim.ball.ownerId=null;
+    sim.ball.flight={id:1,kind:'pass',fromId:'h2',toId:receiver.id,start:{x:20,y:50},end:{x:30,y:50},duration:1.2,elapsed:1.2,loft:0,action:sim.activePhase.actions[0]};
+    sim.ball.x=30;sim.ball.y=50;
+    advanceFootballSimulation(sim,20);
+    expect(sim.ball.x).toBeGreaterThan(30.1);
+    expect(sim.ball.flight.end).toEqual({x:30,y:50});
+    drain(sim);
+    expect(sim.lastContact.playerId).toBe(receiver.id);
+    expect(Math.hypot(sim.lastContact.ball.x-sim.lastContact.player.x,sim.lastContact.ball.y-sim.lastContact.player.y)).toBeLessThan(1);
+  });
+  it('blocks a forward shot at the foot instead of aiming backwards at a rear challenge',()=>{
+    const {sim}=fixture(),shooter=sim.byId.get('h9'),blocker=sim.byId.get('a2');
+    shooter.x=34;shooter.y=15;blocker.x=34;blocker.y=16;
+    sim.ball.ownerId=shooter.id;sim.ball.x=34;sim.ball.y=15;
+    openScene(sim,[{type:'shot',actorId:shooter.id,defenderId:blocker.id,outcome:'blocked',origin:{x:34,y:15},target:{x:34,y:0}}]);
+    let shots=0;
+    drain(sim,()=>{const f=sim.ball.flight;if(f?.kind==='blocked'){shots++;expect(f.end.y).toBeLessThanOrEqual(f.start.y);}});
+    expect(shots).toBeGreaterThan(0);expect(sim.lastContact.playerId).toBe(blocker.id);
+  });
+  it('brings an outside receiver inside before a crowded short pass near the goal line',()=>{
+    const {sim}=fixture(),actor=sim.byId.get('h5'),receiver=sim.byId.get('h2'),opponent=sim.byId.get('a9');
+    actor.x=49.52;actor.y=2.03;receiver.x=42.87;receiver.y=-.31;receiver.vx=4.27;receiver.vy=.14;
+    opponent.x=44.53;opponent.y=1.71;
+    sim.ball.ownerId=actor.id;sim.ball.x=actor.x;sim.ball.y=actor.y;
+    openScene(sim,[{type:'pass',actorId:actor.id,targetId:receiver.id,origin:{x:49.52,y:2.03},target:{x:43.75,y:3},outcome:'complete'}]);
+    advanceFootballSimulation(sim,20);
+    expect(sim.ball.flight).toBeNull();expect(receiver.ty).toBeGreaterThan(1);
+    drain(sim,()=>{if(sim.ball.flight){expect(sim.ball.y).toBeGreaterThanOrEqual(0);expect(sim.ball.x).toBeGreaterThanOrEqual(0);}});
+    expect(sim.lastContact.playerId).toBe(receiver.id);
+  });
+  it('keeps a late intercepted first touch within a collectable rolling corridor',()=>{
+    const {sim}=fixture(),actor=sim.byId.get('h9'),receiver=sim.byId.get('h2'),defender=sim.byId.get('a5');
+    actor.x=34;actor.y=24;receiver.x=50;receiver.y=35;
+    defender.x=18;defender.y=31;defender.vx=-7;defender.vy=0;
+    sim.ball.ownerId=actor.id;sim.ball.x=actor.x;sim.ball.y=actor.y;
+    openScene(sim,[{type:'pass',actorId:actor.id,targetId:receiver.id,defenderId:defender.id,origin:{x:34,y:24},target:{x:40,y:20},outcome:'intercepted'}]);
+    drain(sim,()=>{if(sim.ball.flight){expect(sim.ball.x).toBeGreaterThanOrEqual(0);expect(sim.ball.y).toBeGreaterThanOrEqual(0);}});
+    expect(sim.lastContact.playerId).toBe(defender.id);
+  });
   it('projects current fitness and canonical roles without mutating the XI',()=>{
     const {state}=fixture();
     const p=state.hActive[1],fitness=p.fitness;
@@ -64,6 +165,18 @@ describe('continuous metric football',()=>{
     expect(run(Array(200).fill(16))).toEqual(exact);
     expect(run(Array(40).fill(80))).toEqual(exact);
   });
+  it.each([1,2,4])('preserves physical state across frame partitions at new%s× playback',rate=>{
+    function run(chunks) {
+      const {sim,state}=fixture();
+      queueFootballPhase(sim,simulateMatchSegment(home,away,state,1,1).updatedState.actionLedger[0]);
+      for(const elapsed of chunks) {
+        let remaining=matchPlaybackElapsed(elapsed,rate);
+        while(remaining>0){const step=Math.min(50,remaining);advanceFootballSimulation(sim,step);remaining-=step;}
+      }
+      return snapshotFootballSimulation(sim);
+    }
+    expect(run(Array(25).fill(16))).toEqual(run(Array(10).fill(40)));
+  });
   it('locks the kick endpoint and receives only at physical contact',()=>{
     const {sim,state}=fixture();
     queueFootballPhase(sim,simulateMatchSegment(home,away,state,1,1).updatedState.actionLedger[0]);
@@ -105,6 +218,7 @@ describe('continuous metric football',()=>{
     let {sim,state}=fixture(seed);
     let interceptions=0,saves=0;
     let maxSpeedRatio=0,maxAcceleration=0,illegalReleases=0,wrongInterceptors=0;
+    let staticMs=0,maxStaticMs=0;
     for(let phase=1;phase<=120;phase++) {
       const next=simulateMatchSegment(home,away,state,phase,phase);
       state=next.updatedState;
@@ -112,7 +226,11 @@ describe('continuous metric football',()=>{
       queueFootballPhase(sim,record);
       replaceFootballLineups(sim,footballLineupOptions(state));
       let lastFlightId=0;
+      let lastBall={x:sim.ball.x,y:sim.ball.y};
       drain(sim,previous=>{
+        const ballStep=Math.hypot(sim.ball.x-lastBall.x,sim.ball.y-lastBall.y);
+        staticMs=sim.mode==='live'&&!sim.ball.hidden&&ballStep<.001?staticMs+20:0;
+        maxStaticMs=Math.max(maxStaticMs,staticMs);lastBall={x:sim.ball.x,y:sim.ball.y};
         for(const old of previous) {
           const p=sim.byId.get(old.id);
           if(!p)continue;
@@ -144,6 +262,7 @@ describe('continuous metric football',()=>{
     expect(maxAcceleration).toBeLessThanOrEqual(FOOTBALL_MAX_ACCELERATION+.00001);
     expect(illegalReleases).toBe(0);
     expect(wrongInterceptors).toBe(0);
+    expect(maxStaticMs).toBeLessThan(500);
   },20000);
   it('keeps an already-resolved scorer until the scene completes and preserves substitution position',()=>{
     let {sim,state}=fixture(34);

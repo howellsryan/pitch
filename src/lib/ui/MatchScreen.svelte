@@ -26,6 +26,7 @@
   import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, snapshotBroadcastSimulation, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
   import { footballLineupOptions } from '../../game/footballSimulation.js';
+  import { matchPlaybackElapsed, matchPlaybackRate } from '../../game/matchPlayback.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, setMatchNavigationLocked, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
@@ -470,7 +471,7 @@
       tickTimer=window.setTimeout(runTick,extraDelay);
       return;
     }
-    const delay = Math.round(WATCH_TICK_MS / (live.speedMultiplier || 1));
+    const delay = Math.round(WATCH_TICK_MS / matchPlaybackRate(live.speedMultiplier));
     tickTimer = window.setTimeout(runTick, delay + extraDelay);
   }
 
@@ -528,7 +529,7 @@
       presentationAt = now;
       if (!live.paused) {
         // Substep accelerated presentation instead of losing time to the 50ms safety clamp.
-        let remaining = Math.min(elapsed, 100) * live.speedMultiplier;
+        let remaining = matchPlaybackElapsed(elapsed,live.speedMultiplier);
         while (remaining > 0) {
           const step = Math.min(remaining, 50);
           advanceBroadcastSimulation(broadcastSimulation, step);
@@ -953,7 +954,7 @@
       <div class="broadcast-pitch">
         <MatchPitch bind:this={pitchView} kits={matchKits} view={cameraView} label={`Live ${live.homeTeam.name} versus ${live.awayTeam.name}. Player movement follows the engine's action sequence.`} />
 
-        {#if goalNotice}
+        {#if goalNotice && (!broadcastFrame?.continuous || ['goal','kickoff','half-time'].includes(broadcastFrame.mode))}
           <div class="goal-takeover" role="status">
             <span>GOAL!</span>
             <strong>{goalNotice.playerName}</strong>

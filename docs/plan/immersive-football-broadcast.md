@@ -52,14 +52,33 @@ an emergency keeper in the result engine and tracking together.
 
 A pass locks its endpoint at release. Distance and the passer's attribute set
 travel duration; acceleration constrains the receiver's planned reach and ground
-passes decelerate towards their destination. The receiver must physically meet
-the ball. Runs are checked
+passes lose some pace while retaining a rolling velocity at the intended first
+touch. Receiver velocity, acceleration and braking jointly constrain the kick
+and receiving run. Active flight intents apply before movement so the formation
+planner cannot briefly steal a receiving run. A late player follows the rolling
+ball along its original release vector; it does not park at a fixed endpoint.
+Planning and integration share the same drag-adjusted kick timing. Ground kicks
+use constant grass drag and softer weight near boundaries to leave collectable
+roll; first-touch movement takes priority over avoidance close to contact. A
+receiver who has run beyond a line returns inside before release.
+The receiver must physically meet the ball. Runs are checked
 against the ball, second-last defender and halfway line at release, with actual
 corner/goal-kick exemptions. An interception ends along the pass lane and belongs
 to the recorded defender before the intended receiver gets a touch. Challenges,
 blocks and goalkeeper catches require contact. Shot endpoints stay fixed; the
 keeper moves/dives towards the attempt, and the score reveals after the goal-line
 crossing. No projected touch adds a new recorded shot, foul or goal.
+
+The attacking/defending blocks travel with play. Nearby support forms triangles,
+the next defender covers the pressing lane and defenders follow nearby forward
+runs. Upcoming actors and blockers begin their movement during build-up. Offside
+checking uses the nearer legal line, rather than an unnecessary halfway retreat;
+the owner carries while that run is checked. Both sides close a contested carry.
+A remote phase-level recovery projects a lost distribution into the named
+recoverer's reachable zone instead of holding the old owner still for a player
+to cross the field. Saved/blocked contact points use reachable participant motion.
+These projections preserve recorded possession, actor, scorer and result; they
+are constructed movement around statistical episodes, not authoritative tracking.
 
 Players walk into goal/half-time/restarter positions; their coordinates are never
 reset during a visible match. Dead-ball collection hides the out-of-play ball
@@ -84,10 +103,15 @@ every-frame drawing; engine episodes advance on readiness instead of one-second
 polling. Clock interpolation and narration follow the visible sequence, with
 future shot/interception results withheld until contact.
 
-Pause and the Tactics room freeze the same timeline;1×/2×/4× change playback rate.
+Pause and the Tactics room freeze the same timeline. Labelled 1×/2×/4× apply
+physical rates 4×/8×/16×: the old 4× pace is the new default 1×. Integration remains
+20 ms and the renderer substeps accelerated time; legacy scheduling uses the same
+rate. The three measured real-squad fixtures take about three minutes at default 1×.
 Large wall-clock gaps are bounded to prevent background-tab fast-forward. Full
 time waits for the final shot/goal hold, then uses the existing atomic result
 commit. Quick Sim and Skip retain that same engine/result/persistence path.
+Goal takeovers clear when open play resumes so accelerated football remains
+visible while the readable goal notification continues.
 
 ## Verification contract
 
@@ -113,3 +137,24 @@ interval 16.7 ms). Tracking stays transient; this initial career used 4.08 MiB.
 The final-model world-week check resolved 90 fixtures in 3.35 s at 4× CPU, drained
 the event queue and advanced once; storage remained 4.08 MiB. Fresh-career setup
 was 13.58 s at 4× CPU. The long-career history/storage codec remains unchanged.
+
+Flow correction evidence on 2026-10-10: two complete native mobile matches on
+production and the previous preview were watched before editing. Three repeatable
+real-squad fixtures previously spent 35–42% of live presentation time with a
+stationary ball, including 7–9 s holds. The corrected fixtures each spent below
+0.5%; a further 40-fixture, six-formation-pair audit measured 0.447% overall.
+Those 40 matches and an extra targeted fixture completed all 120 phases with
+no late receptions or backwards shots. These are movement regression metrics,
+not an empirical validation against real football tracking.
+
+Fresh build, 1,081 Vitest tests, lint, accents and unchanged 3,000/5,000-match
+calibration gates passed. Native inspection of the built assets covered default
+and fastest playback, 320/390/1280 px views, Broadcast/Tactical, pause and the
+Tactics room. Pause preserved both clock and canvas; closing Tactics preserved
+manual pause. Complete Rayo–Madrid 0–3 and Madrid–Barcelona 1–2 matches reached
+full time without Skip; saved scorers and report statistics matched their fixtures.
+A 30 s probe of actual canvas draws at labelled 4× (physical 16×), with 4× CPU
+throttling, measured a 17.1 ms 95th-percentile draw interval while play advanced
+from 13:09 to 66:18. Fresh local career setup took 3.86 s and its first world week
+took 2.93 s at 4× CPU: 90 fixtures resolved once, the pending queue emptied and
+the career advanced to GW2. Browser storage used 8.42 MiB after that week.
