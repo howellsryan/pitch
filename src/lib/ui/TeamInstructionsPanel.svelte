@@ -12,6 +12,7 @@
     rolesById = {},
     onchange = () => {},
     compact = false,
+    collapsible = false,
   } = $props();
 
   const PHASES = [
@@ -21,6 +22,7 @@
     ['shape', 'Shape'],
     ['set_pieces', 'Set pieces'],
   ];
+  let expandedPhases = $state({ in_possession:true });
 
   const normalized = $derived.by(() => normalizeTeamInstructions(instructions));
   const feedback = $derived.by(() => buildTacticalPlanFeedback({
@@ -32,9 +34,40 @@
   function defsFor(phase) {
     return TEAM_INSTRUCTION_DEFS.filter(def => def.phase === phase);
   }
+
+  function phaseSummary(defs) {
+    const changed = defs.filter(def => normalized[def.id] !== DEFAULT_TEAM_INSTRUCTIONS[def.id]);
+    if (!changed.length) return 'Balanced defaults';
+    const labels = changed.slice(0, 2).map(def => def.values.find(([value]) => value === normalized[def.id])?.[1]);
+    return labels.join(' · ') + (changed.length > 2 ? ` +${changed.length - 2}` : '');
+  }
+
+  function rememberPhase(event, phase) {
+    const open = event.currentTarget.open;
+    if (Boolean(expandedPhases[phase]) !== open) expandedPhases[phase] = open;
+  }
 </script>
 
-<div class:compact class="team-instructions-panel">
+{#snippet instructionRows(defs)}
+  <div class="instruction-list">
+    {#each defs as def (def.id)}
+      <div class="instruction-row">
+        <span class="instruction-label">{def.label}</span>
+        <div class="instruction-options" role="group" aria-label={def.label}>
+          {#each def.values as [value, optionLabel] (value)}
+            <button
+              class:active={normalized[def.id] === value}
+              aria-pressed={normalized[def.id] === value}
+              onclick={() => onchange(def.id, value)}
+            >{optionLabel}</button>
+          {/each}
+        </div>
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
+<div class:compact class:collapsible class="team-instructions-panel">
   <section class="plan-fit" aria-label="Tactical plan fit">
     <div class="fit-score">
       <span>XI fit</span>
@@ -57,25 +90,20 @@
   {#each PHASES as [phase, label] (phase)}
     {@const defs = defsFor(phase)}
     {#if defs.length}
-      <section class="instruction-phase">
-        <div class="phase-heading">{label}</div>
-        <div class="instruction-list">
-          {#each defs as def (def.id)}
-            <div class="instruction-row">
-              <span class="instruction-label">{def.label}</span>
-              <div class="instruction-options" role="group" aria-label={def.label}>
-                {#each def.values as [value, optionLabel] (value)}
-                  <button
-                    class:active={normalized[def.id] === value}
-                    aria-pressed={normalized[def.id] === value}
-                    onclick={() => onchange(def.id, value)}
-                  >{optionLabel}</button>
-                {/each}
-              </div>
-            </div>
-          {/each}
-        </div>
-      </section>
+      {#if collapsible}
+        <details class="phase-disclosure" open={Boolean(expandedPhases[phase])} ontoggle={event => rememberPhase(event, phase)}>
+          <summary>
+            <span><strong>{label}</strong><small>{phaseSummary(defs)}</small></span>
+            <svg class="phase-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+          </summary>
+          {@render instructionRows(defs)}
+        </details>
+      {:else}
+        <section class="instruction-phase">
+          <div class="phase-heading">{label}</div>
+          {@render instructionRows(defs)}
+        </section>
+      {/if}
     {/if}
   {/each}
 </div>
@@ -110,9 +138,26 @@
   .compact .instruction-row { padding:7px; }
   .compact .instruction-options button { min-height:31px; font-size:9px; }
 
+  .collapsible { gap:12px; }
+  .collapsible .plan-fit { grid-template-columns:80px minmax(0,1fr); }
+  .collapsible .fit-score span, .collapsible .fit-score small { color:var(--color-tx-2); font-size:11px; }
+  .collapsible .fit-note { font-size:12px; line-height:1.4; }
+  .phase-disclosure { min-width:0; border:1px solid var(--color-line); border-radius:12px; background:var(--color-surface); }
+  .phase-disclosure summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:60px; padding:10px 12px; list-style:none; cursor:pointer; }
+  .phase-disclosure summary::-webkit-details-marker { display:none; }
+  .phase-disclosure summary strong { display:block; color:var(--color-tx); font-size:14px; }
+  .phase-disclosure summary small { display:block; margin-top:4px; color:var(--color-tx-2); font-size:11px; line-height:1.4; }
+  .phase-chevron { flex:0 0 auto; color:var(--color-tx-2); }
+  .phase-disclosure[open] .phase-chevron { transform:rotate(180deg); }
+  .collapsible .instruction-list { padding:0 10px 10px; gap:10px; }
+  .collapsible .instruction-row { padding:0; border:none; border-radius:0; gap:7px; }
+  .collapsible .instruction-label { color:var(--color-tx); font-size:12px; }
+  .collapsible .instruction-options button { min-height:44px; font-size:12px; line-height:1.3; overflow-wrap:anywhere; }
+  .collapsible button:focus-visible, .phase-disclosure summary:focus-visible { outline:2px solid var(--color-live); outline-offset:2px; }
+
   @media (min-width:768px) {
-    .team-instructions-panel:not(.compact) { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
-    .team-instructions-panel:not(.compact) .plan-fit { grid-column:1 / -1; }
-    .team-instructions-panel:not(.compact) .instruction-phase:first-of-type { grid-column:1 / -1; }
+    .team-instructions-panel:not(.compact):not(.collapsible) { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+    .team-instructions-panel:not(.compact):not(.collapsible) .plan-fit { grid-column:1 / -1; }
+    .team-instructions-panel:not(.compact):not(.collapsible) .instruction-phase:first-of-type { grid-column:1 / -1; }
   }
 </style>

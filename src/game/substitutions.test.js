@@ -98,6 +98,18 @@ describe('validateSubstitution', () => {
 });
 
 describe('applySubstitution', () => {
+  it.each([false,true])('transfers current owner identity and active slot when substituting a keeper=%s',keeper=>{
+    const ls=makeLiveState(true);
+    const out=ls.hActive.find(p=>keeper ? p.position==='GK' : p.position!=='GK');
+    const incoming=ls.hBenchLeft.find(p=>keeper ? p.position==='GK' : p.position!=='GK');
+    ls.football={...ls.football,carrierId:out.id,possessionTeamId:'h',restart:keeper?{type:'keeper_ball',teamId:'h'}:null};
+    const {liveState:next}=applySubstitution(ls,true,incoming.id,out.id,60,'h');
+    expect(next.football.carrierId).toBe(incoming.id);
+    expect(next.hActive.find(p=>p.id===incoming.id).matchPosition).toBe(out.matchPosition);
+    const record=simulateMatchSegment({id:'h'},{id:'a'},next,1,1,'h').updatedState.actionLedger[0];
+    expect(record.football.opening.carrierId).toBe(incoming.id);
+    if(keeper) expect(record.football.actions[0]).toMatchObject({type:'pass',actorId:incoming.id});
+  });
   it('moves the player on/off, decrements subsLeft, and records the event', () => {
     const ls = makeLiveState();
     const subIn  = ls.hBenchLeft[0];

@@ -1,4 +1,4 @@
-import { refreshLiveMatchState } from '../modules/matchEngine.js';
+import { assignLiveFormation, refreshLiveMatchState } from '../modules/matchEngine.js';
 import { normalizeTeamInstructions } from '../modules/tactics.js';
 
 /**
@@ -32,7 +32,7 @@ export function applyFormationChange(liveState, userIsHome, newFormation) {
 
   return refreshLiveMatchState({
     ...liveState,
-    [side.active]:newXI,
+    [side.active]:assignLiveFormation(newXI,newFormation),
     [side.bench]:liveState[side.bench],
     [side.formation]:newFormation,
   });

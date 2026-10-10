@@ -22,10 +22,12 @@ implementation details against the current checkout.
   back-fill silently undoes a removal. A named substitute who is injured or
   suspended therefore leaves an empty seat (shown as such on the Squad strip),
   exactly as a real team sheet would.
-- The automatic bench reserves its **last** seat for a goalkeeper. Substitutes
-  are shifted off the *front* and a match can use only three, so this — and the
-  9-cap itself — leaves every AI/background result bit-identical. Do not
-  reorder the bench without re-checking that.
+- The automatic bench includes a reserve goalkeeper, adding one in its last
+  seat when the rating-ranked nine omit one. AI chooses up to three suitable
+  outfield replacements from that named bench and keeps goalkeepers out of
+  outfield slots. User substitutions preserve the outgoing active position.
+  Changing AI choices is an outcome change and requires seeded parity and the
+  unchanged balance gates; no player beyond the named nine may be introduced.
 - `save.bench` is threaded through the same seams as `save.lineup`
   (`gameweek.js` league/cup/European, `cups.js`, `managerTactics.js`'s
   `buildManagedMatchInputs`, `MatchScreen`) via `simulateMatch`'s existing

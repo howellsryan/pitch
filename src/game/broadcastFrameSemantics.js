@@ -8,6 +8,7 @@ export const BROADCAST_FRAME_SEMANTICS_VERSION = 1;
  * geometry, RNG, score, actions or readiness gating.
  */
 export function describeBroadcastFrame(frame, simulation) {
+  if (frame?.continuous) return { phaseLabel:frame.phaseLabel, action:frame.action, detail:frame.detail };
   const fallback = {
     phaseLabel:frame?.phaseLabel ?? 'Kick off',
     action:frame?.action ?? 'TEAMS SET',

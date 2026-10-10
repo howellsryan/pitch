@@ -72,6 +72,13 @@ describe('applyFormationChange', () => {
     expect(after.hBenchLeft.map(player => player.id).sort()).toEqual(benchIds);
     expect(after.hSubsLeft).toBe(3);
   });
+  it('updates authoritative match positions to the new on-field shape',()=>{
+    const after=applyFormationChange(makeLiveState(),true,'4-4-2');
+    expect(after.hActive.filter(p=>p.matchPosition==='ST')).toHaveLength(2);
+    expect(after.hActive.filter(p=>p.matchPosition==='GK')).toHaveLength(1);
+    expect(after.hActive.some(p=>p.matchPosition==='LM')).toBe(true);
+    expect(after.hActive.some(p=>p.matchPosition==='RM')).toBe(true);
+  });
 });
 
 describe('applyMentalityChange', () => {

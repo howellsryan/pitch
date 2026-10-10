@@ -23,6 +23,31 @@ XI needs attention before kickoff. Choose **Sim Instantly** for a result or
 lets you make tactical changes and substitutions. Continue through full time
 to commit the result and see its effect on the table.
 
+The watched match uses a following **Broadcast** camera; tap its camera control
+for the complete **Tactical** overview. Players accelerate, turn and move into
+restart positions on a proportioned pitch. Passes have fixed destinations and
+distance-based travel time; receiving runs have priority over formation movement.
+Carriers keep moving while teammates check runs, and support/cover follows play.
+Interceptions meet the recorded defender and late first touches chase a rolling ball.
+The match clock and commentary follow the visible action, with the score revealed
+when the ball reaches the goal. Pause, speed and the Tactics room control the same
+timeline. Every speed has been halved from the initial continuous broadcast:
+**1×/2×/4×** now run at the original **2×/4×/8×** presentation rates.
+Reduced-motion preferences use the fixed overview and remove stride effects.
+
+Live **Tactics** opens on **Line-up**, with formation, mentality, your XI and the
+bench together. Substitute circles show positions such as **CM** or **GK**;
+select a substitute and the starter to replace. **Team plan** groups readable
+instruction controls into expandable phases. Choices apply immediately, and
+returning to the match preserves your previous pause state.
+
+Quick Sim and Broadcast share the same seeded action/result engine. The engine
+supplies ordered passes, carries, recoveries, shots and restart ownership; the
+watched view projects their movement. It remains an episode-based football model,
+with calibrated route/attribute/tactic probabilities rather than measured tracking
+or a physics-derived xG model. Connecting touches do not add invented shot or pass
+statistics. See the [broadcast engineering decisions](plan/immersive-football-broadcast.md).
+
 Some gameweeks contain multiple events. A league match and a cup tie sharing
 one week require separate Play actions; the week advances after its event
 queue is empty. Every other supported league also progresses through the

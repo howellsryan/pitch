@@ -1,5 +1,5 @@
 <script>
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { flip } from 'svelte/animate';
   import {
     getAllFixtures, getAllTeams, getFixturesByGW, getManager, getPlayersByTeam, getSave, openDB, putSave,
@@ -23,8 +23,10 @@
   import { applyFormationChange, applyMentalityChange, applyTeamInstructionChange } from '../../game/formationChange.js';
   import { generateStubPlayers } from '../../game/opponents.js';
   import { lineupAvailability } from '../../game/matchLineupAvailability.js';
-  import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
+  import { advanceBroadcastSimulation, createBroadcastSimulation, isBroadcastReady, replaceBroadcastLineups, snapshotBroadcastSimulation, updateBroadcastSimulation } from '../../game/broadcastSimulation.js';
   import { describeBroadcastFrame } from '../../game/broadcastFrameSemantics.js';
+  import { footballLineupOptions } from '../../game/footballSimulation.js';
+  import { matchPlaybackElapsed, matchPlaybackRate } from '../../game/matchPlayback.js';
   import { resolveMatchKits } from '../../game/matchKits.js';
   import { fmt, formLabel, navigateTo, playerNationality, posGroup, setMatchNavigationLocked, toast } from '../../ui/helpers.js';
   import { cloudSaveCheckpoint } from '../../cloud/sync.js';
@@ -35,6 +37,7 @@
   import Icon from './kit/Icon.svelte';
   import MatchTacticalAnalysisPanel from './MatchTacticalAnalysisPanel.svelte';
   import TeamInstructionsPanel from './TeamInstructionsPanel.svelte';
+  import MatchPitch from './MatchPitch.svelte';
 
   /**
    * MatchScreen.svelte — the live-match route (Phase 5,
@@ -67,7 +70,11 @@
   let live = $state.raw(null);
   let tickTimer = null;
   let kickoffTimer = null;
-  let broadcastFrame = $state(null);
+  let broadcastFrame = $state.raw(null);
+  let pitchView = $state.raw(null);
+  let cameraView = $state('broadcast');
+  let hudAt = 0;
+  let revealedGoalSerial = 0;
   let broadcastSimulation = null;
   let presentationFrame = null;
   let presentationAt = 0;
@@ -88,6 +95,9 @@
   let tacticsSheetWasPaused  = false;
   let tacticsSubInId         = $state(null);
   let tacticsSubOutId        = $state(null);
+  let tacticsView            = $state('lineup');
+  let tacticsDialog          = $state(null);
+  let tacticsReturnFocus;
 
   function vibrate(pattern) {
     try { window.navigator?.vibrate?.(pattern); } catch { /* not supported */ }
@@ -407,14 +417,14 @@
     setMatchNavigationLocked(true);
     displayHomeGoals = 0;
     displayAwayGoals = 0;
-    presentationPossession = resolved.userIsHome ? live.homeTeam.id : live.awayTeam.id;
+    presentationPossession = live.liveState.football.firstKickoffTeamId;
     broadcastSimulation = createBroadcastSimulation({
-      homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id, ledgerDriven: true,
+      homeTeamId: live.homeTeam.id, awayTeamId: live.awayTeam.id, ledgerDriven: true, continuous:true,
       possessionTeamId: presentationPossession,
-      homeFormation: live.liveState.homeFormation, awayFormation: live.liveState.awayFormation,
-      homePlayers: live.liveState.hActive, awayPlayers: live.liveState.aActive,
+      ...footballLineupOptions(live.liveState),
     });
     broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, 0);
+    revealedGoalSerial = 0;
     startPresentation();
     beat = 'kickoff';
     kickoffTimer = window.setTimeout(() => {
@@ -459,13 +469,18 @@
   }
 
   function scheduleTick(extraDelay = 0) {
-    const delay = Math.round(WATCH_TICK_MS / (live.speedMultiplier || 1));
+    window.clearTimeout(tickTimer);
+    if (broadcastSimulation?.continuous) {
+      tickTimer=window.setTimeout(runTick,extraDelay);
+      return;
+    }
+    const delay = Math.round(WATCH_TICK_MS / matchPlaybackRate(live.speedMultiplier));
     tickTimer = window.setTimeout(runTick, delay + extraDelay);
   }
 
   function runTick() {
     if (!live || live.paused) return;
-    if (!isBroadcastReady(broadcastSimulation)) { scheduleTick(); return; }
+    if (!isBroadcastReady(broadcastSimulation)) { if (!broadcastSimulation?.continuous) scheduleTick(); return; }
     if (live.currentPhase >= TOTAL_PHASES) { finishMatch(); return; }
     const startPhase = live.currentPhase + 1;
     const endPhase   = Math.min(live.currentPhase + WATCH_PHASES_PER_TICK, TOTAL_PHASES);
@@ -478,12 +493,9 @@
     presentationPossession = possessionTeamId;
     presentationEvent = segEvents.find(event => event.type === 'goal') ?? null;
     updateBroadcastSimulation(broadcastSimulation, { phase: endPhase, possessionTeamId, event: presentationEvent, record: updatedState.actionLedger.at(-1) });
-    replaceBroadcastLineups(broadcastSimulation, {
-      homeFormation: updatedState.homeFormation, awayFormation: updatedState.awayFormation,
-      homePlayers: updatedState.hActive, awayPlayers: updatedState.aActive,
-    });
+    replaceBroadcastLineups(broadcastSimulation, footballLineupOptions(updatedState));
     handleNewEvents(segEvents);
-    scheduleTick();
+    if (!broadcastSimulation.continuous) scheduleTick();
   }
 
   function handleNewEvents(segEvents) {
@@ -517,17 +529,21 @@
       presentationFrame = window.requestAnimationFrame(animate);
       if (!broadcastSimulation || !live || beat !== 'live') { presentationAt = now; return; }
       const elapsed = now - presentationAt;
-      if (elapsed < 30) return;
       presentationAt = now;
       if (!live.paused) {
         // Substep accelerated presentation instead of losing time to the 50ms safety clamp.
-        let remaining = Math.min(elapsed, 100) * live.speedMultiplier;
+        let remaining = matchPlaybackElapsed(elapsed,live.speedMultiplier);
         while (remaining > 0) {
           const step = Math.min(remaining, 50);
-          broadcastFrame = advanceBroadcastSimulation(broadcastSimulation, step);
+          advanceBroadcastSimulation(broadcastSimulation, step);
           remaining -= step;
         }
-        if (broadcastFrame.action === 'GOAL') revealGoalNotice();
+        const frame=snapshotBroadcastSimulation(broadcastSimulation);
+        pitchView?.draw(frame,now);
+        const goalRevealed=frame.goalSerial>revealedGoalSerial;
+        if (goalRevealed) { revealedGoalSerial=frame.goalSerial;revealGoalNotice(); }
+        if (now-hudAt>=100||goalRevealed) { broadcastFrame=frame;hudAt=now; }
+        if (isBroadcastReady(broadcastSimulation)) runTick();
       }
     };
     presentationFrame = window.requestAnimationFrame(animate);
@@ -566,6 +582,7 @@
   function finishMatch() {
     window.clearTimeout(tickTimer);
     window.clearTimeout(goalNoticeTimer);
+    goalNotice=null;queuedGoalNotice=null;
     window.cancelAnimationFrame(presentationFrame);
     result = finaliseLiveMatch(live.homeTeam, live.awayTeam, live.liveState, live.allEvents);
     resultCommitted = false;
@@ -594,6 +611,10 @@
   const tacticsSubIn = $derived(tacticsSubInId ? benchList.find(player => player.id === tacticsSubInId) ?? null : null);
   const tacticsSubOut = $derived(tacticsSubOutId ? tacticsActivePlayers.find(player => player.id === tacticsSubOutId) ?? null : null);
   const subOutOptions = $derived(tacticsSubIn && live?.liveState ? eligibleSubOutTargets(live.liveState, live.userIsHome, tacticsSubIn) : []);
+  const tacticsSubHint = $derived(subsLeft <= 0 ? 'All substitutions used.'
+    : tacticsSubIn ? `Select a starter to replace with ${tacticsSubIn.name}.`
+    : tacticsSubOut ? `Select a substitute for ${tacticsSubOut.name}.`
+    : 'Select a substitute and the player to replace.');
 
   function applyTacticsSub(inPlayer, outPlayer) {
     if (!inPlayer || !outPlayer || !live?.liveState) return;
@@ -606,7 +627,7 @@
     const { ok, liveState: newLs, event } = applySubstitution(live.liveState, live.userIsHome, inPlayer.id, outPlayer.id, minute, live.userTeam.id);
     if (ok) {
       live = { ...live, liveState: newLs, allEvents: [...live.allEvents, event] };
-      replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
+      replaceBroadcastLineups(broadcastSimulation, footballLineupOptions(newLs));
       toast(`${event.inName} replaces ${event.outName}`, 'success', 3000);
     }
     tacticsSubInId = null;
@@ -632,19 +653,23 @@
     applyTacticsSub(tacticsSubIn, player);
   }
 
-  function openTacticsSheet() {
+  async function openTacticsSheet() {
+    tacticsReturnFocus = document.activeElement;
     tacticsSheetWasPaused = live.paused;
     if (!live.paused) togglePause();
     tacticsPickerFormation = live.userIsHome ? live.liveState.homeFormation : live.liveState.awayFormation;
     tacticsSubInId = null;
     tacticsSubOutId = null;
+    tacticsView = 'lineup';
     tacticsSheetOpen = true;
+    await tick();
+    tacticsDialog?.querySelector('.match-tactics-close')?.focus();
   }
   function applyTactics(formation) {
     tacticsPickerFormation = formation;
     const newLs = applyFormationChange(live.liveState, live.userIsHome, formation);
     live = { ...live, liveState: newLs };
-    replaceBroadcastLineups(broadcastSimulation, { homeFormation:newLs.homeFormation, awayFormation:newLs.awayFormation, homePlayers:newLs.hActive, awayPlayers:newLs.aActive });
+    replaceBroadcastLineups(broadcastSimulation, footballLineupOptions(newLs));
     toast(`Formation changed to ${formation}`, 'info', 3000);
   }
   async function applyTacticsMentality(mentality) {
@@ -660,6 +685,7 @@
     if (!live?.liveState || !matchCtx) return;
     const newLs = applyTeamInstructionChange(live.liveState, live.userIsHome, instructionId, value);
     live = { ...live, liveState:newLs };
+    replaceBroadcastLineups(broadcastSimulation, footballLineupOptions(newLs));
     const nextInstructions = live.userIsHome ? newLs.homeTactics : newLs.awayTactics;
     const tactics = createUserTacticalPlan(nextInstructions);
     matchCtx = { ...matchCtx, save:{ ...matchCtx.save, tactics } };
@@ -671,6 +697,30 @@
     tacticsSubInId = null;
     tacticsSubOutId = null;
     if (!tacticsSheetWasPaused) togglePause();
+    void tick().then(() => {
+      if (tacticsReturnFocus?.isConnected) tacticsReturnFocus.focus();
+    });
+  }
+
+  function keepTacticsFocus(event) {
+    if (!tacticsSheetOpen) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeTacticsSheet();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const controls = Array.from(tacticsDialog?.querySelectorAll('button:not([disabled]), select:not([disabled]), summary') ?? [])
+      .filter(element => element.getClientRects().length
+        && (element.tagName === 'SUMMARY' || !element.closest('details:not([open])')));
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && (document.activeElement === first || !tacticsDialog?.contains(document.activeElement))) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !tacticsDialog?.contains(document.activeElement))) {
+      event.preventDefault();
+      first?.focus();
+    }
   }
 
   function applyCommitExtras(res) {
@@ -734,6 +784,7 @@
 
   function resetMatchPresentation() {
     window.clearTimeout(goalNoticeTimer);
+    goalNotice=null;queuedGoalNotice=null;
     window.cancelAnimationFrame(presentationFrame);
     active = false;
     setMatchNavigationLocked(false);
@@ -763,6 +814,8 @@
     return MENTALITY_ICONS[mentality] ?? MENTALITY_ICONS.balanced;
   }
 </script>
+
+<svelte:window onkeydown={keepTacticsFocus} />
 
 <div class="match-screen">
   {#if loading && !matchCtx}
@@ -907,8 +960,9 @@
     </div>
 
   {:else if beat === 'live' && live}
-    {@const minute = Math.ceil((live.currentPhase / TOTAL_PHASES) * 90)}
-    {@const homeShare = live.currentPhase ? Math.round((live.liveState.hPhases / Math.max(1, live.liveState.hPhases + live.liveState.aPhases)) * 100) : 50}
+    {@const clockSeconds = Math.min(5400, Math.floor(broadcastFrame?.matchSeconds ?? 0))}
+    {@const completedActions = live.liveState.actionLedger.slice(0, broadcastFrame?.completedPhase ?? 0)}
+    {@const homeShare = completedActions.length ? Math.round(completedActions.filter(a => a.teamId === live.homeTeam.id).length / completedActions.length * 100) : 50}
     <div class="live-wrap">
       <div class="broadcast-label">LIVE · {matchCtx?.compLabel ?? 'MATCHDAY'}</div>
       <div class="score-bug">
@@ -920,7 +974,7 @@
           <div class="sb-score">
             <span>{displayHomeGoals}</span><span class="sb-sep">–</span><span>{displayAwayGoals}</span>
           </div>
-          <div class="sb-clock">{minute}'</div>
+          <div class="sb-clock">{String(Math.floor(clockSeconds / 60)).padStart(2,'0')}:{String(clockSeconds % 60).padStart(2,'0')}</div>
           <div class="sb-status">{live.paused ? 'PAUSED' : broadcastFrame?.mode === 'half-time' ? 'HALF TIME' : broadcastFrame?.half === 2 ? 'SECOND HALF' : 'FIRST HALF'}</div>
         </div>
         <div class="sb-team">
@@ -928,25 +982,16 @@
           <div class="sb-name">{live.awayTeam.name}</div>
         </div>
       </div>
-      <div class="progress-wrap"><div class="progress-bar" style="width:{(live.currentPhase / TOTAL_PHASES) * 100}%"></div></div>
-      <div class="phase-strip"><span class="phase-live">{live.paused ? 'PAUSED' : 'LIVE'}</span><strong>{broadcastPresentation?.phaseLabel ?? 'Kick off'}</strong></div>
-      <div class="broadcast-pitch" role="img" aria-label="Live match pitch. Player movement illustrates the simulated action.">
-        <div class="pitch-stripes"></div><div class="pitch-goal goal-top"></div><div class="pitch-goal goal-bottom"></div><div class="six-yard six-top"></div><div class="six-yard six-bottom"></div><div class="pitch-half"></div><div class="pitch-circle"></div><div class="pitch-box pitch-box-top"></div><div class="pitch-box pitch-box-bottom"></div>
-        {#each broadcastFrame?.markers ?? [] as marker (marker.id)}
-          <div
-            class="broadcast-player {marker.team}"
-            class:carrying={marker.owner}
-            class:moving={marker.moving}
-            class:keeper={marker.position === 'GK'}
-            class:pressing={marker.pressing}
-            class:receiving={marker.receiving}
-            class:rushing={marker.rushing}
-            style="left:{marker.x}%;top:{marker.y}%;--kit:{marker.team === 'home' ? matchKits?.home.color : matchKits?.away.color};color:{marker.team === 'home' ? matchKits?.home.numberColor : matchKits?.away.numberColor}"
-          ><span class="player-head"></span><span class="player-shirt">{marker.shirt}</span><span class="player-legs"></span></div>
-        {/each}
-        {#if broadcastFrame?.ball}<div class="broadcast-ball" class:shooting={broadcastFrame.ball.shooting} style="left:{broadcastFrame.ball.x}%;top:{broadcastFrame.ball.y}%"></div>{/if}
+      <div class="progress-wrap"><div class="progress-bar" style="width:{clockSeconds / 54}%"></div></div>
+      <div class="phase-strip">
+        <span class="phase-live">{live.paused ? 'PAUSED' : 'LIVE'}</span>
+        <strong>{broadcastPresentation?.phaseLabel ?? 'Kick off'}</strong>
+        <button class="camera-control" aria-label={cameraView === 'broadcast' ? 'Switch to full-pitch tactical view' : 'Switch to following broadcast camera'} aria-pressed={cameraView === 'tactical'} onclick={() => cameraView = cameraView === 'broadcast' ? 'tactical' : 'broadcast'}><Icon name="eye" size={13} />{cameraView === 'broadcast' ? 'Broadcast' : 'Tactical'}</button>
+      </div>
+      <div class="broadcast-pitch">
+        <MatchPitch bind:this={pitchView} kits={matchKits} view={cameraView} label={`Live ${live.homeTeam.name} versus ${live.awayTeam.name}. Player movement follows the engine's action sequence.`} />
 
-        {#if goalNotice}
+        {#if goalNotice && (!broadcastFrame?.continuous || ['goal','kickoff','half-time'].includes(broadcastFrame.mode))}
           <div class="goal-takeover" role="status">
             <span>GOAL!</span>
             <strong>{goalNotice.playerName}</strong>
@@ -954,7 +999,7 @@
           </div>
         {/if}
       </div>
-      <div class="match-commentary"><strong>{broadcastPresentation?.action ?? 'TEAMS SET'}</strong><span>{broadcastPresentation?.detail || broadcastFrame?.carrierName || 'Ball in flight'}</span></div>
+      <div class="match-commentary" aria-live="off"><strong>{broadcastPresentation?.action ?? 'TEAMS SET'}</strong><span>{broadcastPresentation?.detail || broadcastFrame?.carrierName || 'Ball in flight'}</span></div>
       <div class="momentum" aria-label={`Match possession: ${homeShare}% ${live.homeTeam.name}`}><span>{homeShare}%</span><div><i style={`width:${homeShare}%`}></i></div><span>{100 - homeShare}%</span></div>
     </div>
 
@@ -1069,79 +1114,100 @@
   {/if}
 
   {#if tacticsSheetOpen && live}
-    <section class="match-tactics" aria-label="Live match tactics">
+    <section class="match-tactics" bind:this={tacticsDialog} role="dialog" aria-modal="true" aria-labelledby="match-tactics-title">
       <header class="match-tactics-header">
-        <div><span>LIVE · PAUSED</span><strong>{live.userTeam.name} Tactics</strong></div>
+        <div><span>LIVE · PAUSED</span><strong id="match-tactics-title">{live.userTeam.name} Tactics</strong></div>
         <button class="match-tactics-close" onclick={closeTacticsSheet} aria-label="Back to match">← Match</button>
       </header>
 
-      <div class="match-tactics-formations" aria-label="Formation">
-        {#each Object.keys(SLOT_LAYOUT) as f (f)}
-          <button class:active={f === tacticsPickerFormation} onclick={() => applyTactics(f)}>{f}</button>
-        {/each}
-      </div>
-
-      <div class="match-tactics-mentalities" aria-label="Mentality">
-        {#each MENTALITIES as mentality (mentality.id)}
-          <button
-            class:active={mentality.id === (live.userIsHome ? live.liveState.homeMentality : live.liveState.awayMentality)}
-            onclick={() => applyTacticsMentality(mentality.id)}
-            aria-label={`${mentality.label} mentality`}
-          >{mentality.label}</button>
-        {/each}
-      </div>
+      <nav class="match-tactics-views" aria-label="Tactics views">
+        <button aria-pressed={tacticsView === 'lineup'} onclick={() => { tacticsView = 'lineup'; }}>Line-up</button>
+        <button aria-pressed={tacticsView === 'plan'} onclick={() => { tacticsView = 'plan'; }}>Team plan</button>
+      </nav>
 
       <div class="match-tactics-scroll">
-        <TeamInstructionsPanel
-          compact
-          instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
-          players={tacticsActivePlayers}
-          rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
-          onchange={applyTacticsInstruction}
-        />
+        {#if tacticsView === 'plan'}
+          <div class="match-tactics-plan">
+            <p class="match-tactics-help">Open a section to adjust your approach. Changes apply immediately.</p>
+            <TeamInstructionsPanel
+              collapsible
+              instructions={live.userIsHome ? live.liveState.homeTactics : live.liveState.awayTactics}
+              players={tacticsActivePlayers}
+              rolesById={live.userIsHome ? live.liveState.homeRoles : live.liveState.awayRoles}
+              onchange={applyTacticsInstruction}
+            />
+          </div>
+        {:else}
+          <div class="match-tactics-settings">
+            <label>
+              <span>Formation</span>
+              <select value={tacticsPickerFormation} onchange={event => applyTactics(event.currentTarget.value)}>
+                {#each Object.keys(SLOT_LAYOUT) as formation (formation)}
+                  <option value={formation}>{formation}</option>
+                {/each}
+              </select>
+            </label>
+            <label>
+              <span>Mentality</span>
+              <select value={live.userIsHome ? live.liveState.homeMentality : live.liveState.awayMentality} onchange={event => applyTacticsMentality(event.currentTarget.value)}>
+                {#each MENTALITIES as mentality (mentality.id)}
+                  <option value={mentality.id}>{mentality.label}</option>
+                {/each}
+              </select>
+            </label>
+          </div>
 
-        <div class="match-tactics-pitch-wrap">
-          <div class="match-tactics-pitch">
-            <div class="mtp-half"></div><div class="mtp-circle"></div>
-            <div class="mtp-box top"></div><div class="mtp-box bottom"></div>
-            {#each tacticsSlots as slot, i (i)}
-              {@const player = tacticsAssignment[i]}
-              {#if player}
-                {@const eligible = !tacticsSubIn || subOutOptions.some(option => option.id === player.id)}
-                <button
-                  class="match-tactics-slot pos-{positionGroup(player.position)}"
-                  class:selected={tacticsSubOutId === player.id}
-                  class:unavailable={!eligible}
-                  style="left:{slot.x}%;top:{slot.y}%"
-                  onclick={() => chooseTacticsStarter(player)}
-                  aria-label="Select {player.name}"
-                >
-                  <span class="mts-rating">{primaryRating(player)}</span>
-                  <span class="mts-pos">{player.position}</span>
-                  <small>{player.name.split(' ').pop()}</small>
-                </button>
-              {/if}
-            {/each}
-          </div>
-        </div>
+          <div class="match-tactics-team">
+            <div class="match-tactics-pitch-wrap">
+              <div class="match-tactics-pitch">
+                <div class="mtp-half"></div><div class="mtp-circle"></div>
+                <div class="mtp-box top"></div><div class="mtp-box bottom"></div>
+                {#each tacticsSlots as slot, i (i)}
+                  {@const player = tacticsAssignment[i]}
+                  {#if player}
+                    {@const eligible = !tacticsSubIn || subOutOptions.some(option => option.id === player.id)}
+                    <button
+                      class="match-tactics-slot pos-{positionGroup(player.position)}"
+                      class:selected={tacticsSubOutId === player.id}
+                      class:unavailable={!eligible}
+                      style="left:{slot.x}%;top:clamp(32px,{slot.y}%,calc(100% - 52px))"
+                      onclick={() => chooseTacticsStarter(player)}
+                      aria-label="Select {player.name}"
+                      aria-pressed={tacticsSubOutId === player.id}
+                    >
+                      <span class="mts-rating">{primaryRating(player)}</span>
+                      <span class="mts-pos">{player.position}</span>
+                      <small>{player.name.split(' ').pop()}</small>
+                    </button>
+                  {/if}
+                {/each}
+              </div>
+            </div>
 
-        <div class="match-tactics-bench">
-          <div class="mtb-heading">
-            <div><span>Bench</span><small>Tap two players — the change applies immediately</small></div>
-            <strong>{subsLeft} left</strong>
+            <div class="match-tactics-bench">
+              <div class="mtb-heading">
+                <div><span>Bench</span><small aria-live="polite">{tacticsSubHint}</small></div>
+                <strong>{subsLeft} left</strong>
+              </div>
+              <div class="match-tactics-bench-row">
+                {#each benchList as player (player.id)}
+                  {@const fit = Math.round(player.fitness ?? 90)}
+                  <button
+                    class:selected={tacticsSubInId === player.id}
+                    disabled={subsLeft <= 0 || player.injured}
+                    aria-pressed={tacticsSubInId === player.id}
+                    aria-label="Select {player.name}, {player.position}, rating {primaryRating(player)}, fitness {fit}%"
+                    onclick={() => chooseTacticsBench(player)}
+                  >
+                    <span class="mtb-avatar pos-{positionGroup(player.position)}">{player.position}</span>
+                    <span class="mtb-name">{player.name.split(' ').pop()}</span>
+                    <span class="mtb-meta">{primaryRating(player)} · {fit}%</span>
+                  </button>
+                {/each}
+              </div>
+            </div>
           </div>
-          <div class="match-tactics-bench-row">
-            {#each benchList as player (player.id)}
-              {@const fit = Math.round(player.fitness ?? 90)}
-              <button class:selected={tacticsSubInId === player.id} onclick={() => chooseTacticsBench(player)}>
-                <span class="mtb-avatar pos-{positionGroup(player.position)}">{player.name.split(' ').map(word => word[0]).join('').slice(0, 2)}</span>
-                <span class="mtb-pos">{player.position}</span>
-                <span class="mtb-name">{player.name.split(' ').pop()}</span>
-                <span class="mtb-meta">{primaryRating(player)} · {fit}%</span>
-              </button>
-            {/each}
-          </div>
-        </div>
+        {/if}
       </div>
     </section>
   {/if}
@@ -1230,32 +1296,15 @@
   .progress-wrap { height: 3px; background: var(--color-raised); border-radius: 2px; margin: 10px 0; overflow: hidden; }
   .progress-bar { height: 100%; background: var(--color-club); transition: width 0.3s linear; }
   .broadcast-pitch { position: relative; flex: 1; min-height: 240px; overflow: hidden; border: 1px solid color-mix(in oklch, var(--color-live) 40%, var(--color-line)); border-radius: 4px; background: #123d32; box-shadow: inset 0 0 48px rgba(0,0,0,.42); }
-  .pitch-stripes { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 10%, transparent 10% 20%); }
-  .pitch-half { position: absolute; top: 50%; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,.35); }
-  .pitch-circle { position: absolute; width: 22%; aspect-ratio: 1; top: 50%; left: 50%; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; transform: translate(-50%,-50%); }
-  .pitch-box { position: absolute; left: 30%; width: 40%; height: 13%; border: 1px solid rgba(255,255,255,.35); }
-  .pitch-box-top { top: 0; border-top: 0; } .pitch-box-bottom { bottom: 0; border-bottom: 0; }
-  .broadcast-player { position: absolute; z-index: 2; width: 22px; height: 28px; transform: translate(-50%,-50%); filter: drop-shadow(1px 3px 1px rgba(0,0,0,.5)); will-change: left, top; }
-  .player-head { position: absolute; top: 0; left: 8px; width: 6px; height: 6px; border-radius: 50%; background: #d6aa84; border-top: 2px solid #342c24; z-index: 2; }
-  .player-shirt { position: absolute; top: 5px; left: 1px; width: 20px; height: 15px; background: var(--kit); clip-path: polygon(25% 0, 75% 0, 100% 25%, 88% 52%, 75% 40%, 75% 100%, 25% 100%, 25% 40%, 12% 52%, 0 25%); display: grid; place-items: center; font: 800 8px var(--font-mono); padding-top: 1px; }
-  .player-legs { position: absolute; left: 6px; top: 19px; width: 4px; height: 8px; background: #eceded; border-bottom: 3px solid #111d1c; box-shadow: 6px 0 0 -0.2px #eceded; }
-  .broadcast-player.keeper .player-shirt { background: #f0c84c; color: #182620; }
-  .broadcast-player.carrying::after, .broadcast-player.receiving::after { content: ''; position: absolute; inset: 15px -3px -3px; border: 1px solid #f2e4b5; border-radius: 50%; opacity: .8; z-index: -1; }
-  .broadcast-player.receiving::after { border-style: dashed; opacity: .35; }
-  .broadcast-player.moving .player-legs { animation: player-stride .32s steps(2) infinite; }
-  @keyframes player-stride { 50% { transform: translateY(-2px) rotate(12deg); } }
-  .phase-strip { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 11px; min-height: 34px; }
+  .phase-strip { display:flex; align-items:center; gap:8px; font-size:10px; min-height:44px; }
+  .phase-strip strong { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .camera-control { display:flex; align-items:center; gap:4px; min-height:44px; padding:0 7px; border:0; background:transparent; color:var(--color-tx-2); font:10px var(--font-mono); cursor:pointer; }
+  .camera-control:focus-visible { outline:2px solid var(--color-live); outline-offset:-2px; }
   .phase-strip strong { font-weight: 500; color: var(--color-tx-2); }
   .phase-live { border-radius: 3px; padding: 3px 5px; background: #173e31; color: #b5efd1; font: 700 9px var(--font-mono); }
   .match-commentary { min-height: 49px; padding: 9px 10px; background: var(--color-raised); border: 1px solid var(--color-line); border-radius: 0 0 7px 7px; display: flex; flex-direction: column; gap: 4px; }
   .match-commentary strong { font: 600 10px var(--font-mono); color: var(--color-tx); }
   .match-commentary span { font-size: 11px; color: var(--color-tx-2); }
-  .pitch-goal { position: absolute; left: 43%; width: 14%; height: 2.5%; border: 2px solid #dfe9dd; background: repeating-linear-gradient(90deg, #ffffff33 0 1px, transparent 1px 5px); }
-  .goal-top { top: 0; } .goal-bottom { bottom: 0; }
-  .six-yard { position: absolute; left: 40%; width: 20%; height: 5%; border: 1px solid #ffffff65; }
-  .six-top { top: 0; border-top: 0; } .six-bottom { bottom: 0; border-bottom: 0; }
-  .broadcast-ball { position: absolute; z-index: 4; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%,-50%); background: #fff; border: 1px solid #222; box-shadow: 0 1px 4px rgba(0,0,0,.8); will-change: left, top; }
-  .broadcast-ball.shooting { width: 9px; height: 9px; box-shadow: 0 0 10px 3px rgba(255,255,255,.52); }
   .goal-takeover { position: absolute; z-index: 6; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; background: rgba(4, 18, 12, .62); color: white; animation: goal-flash 3.2s ease both; pointer-events: none; }
   .goal-takeover span { font: 700 32px var(--font-display); letter-spacing: 4px; color: #ffe357; text-shadow: 0 0 24px rgba(255, 227, 87, .8); }
   .goal-takeover strong { font-size: 17px; } .goal-takeover small { font: 11px var(--font-mono); letter-spacing: 1px; color: rgba(255,255,255,.78); }
@@ -1301,10 +1350,16 @@
     .broadcast-pitch { flex: 1 1 auto; min-height: 220px; max-height: 57dvh; }
     .live-controls { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
   }
+  @media (max-width: 360px) {
+    .live-controls { gap:3px; }
+    .ctrl-btn { font-size:9px; padding:8px 6px; }
+    .speed-wrap { gap:2px; }
+    .speed-btn { min-width:32px; font-size:9px; padding:7px 5px; }
+  }
 
   .ctrl-btn:focus-visible, .speed-btn:focus-visible { outline: 2px solid var(--color-live); outline-offset: 2px; }
-  @media (prefers-reduced-motion: reduce) { .broadcast-player.moving .player-legs, .goal-takeover { animation: none; } .progress-bar, .momentum i { transition: none; } }
-  @media (min-width: 769px) { .live-wrap { width: min(100%, 900px); align-self: center; } .broadcast-pitch { width: min(100%, 640px); align-self: center; } }
+  @media (prefers-reduced-motion: reduce) { .goal-takeover { animation: none; } .progress-bar, .momentum i { transition: none; } }
+  @media (min-width: 769px) { .live-wrap { width: min(100%, 900px); align-self: center; } .broadcast-pitch { width:100%; align-self:center; } }
   .ft-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
   .ft-verdict { font-family: var(--font-display); font-size: 16px; letter-spacing: 2px; }
   .ft-win { color: var(--color-live); }
@@ -1360,22 +1415,20 @@
   }
   .match-tactics-header span { display: block; margin-bottom: 4px; color: var(--color-live); font: 700 9px var(--font-mono); letter-spacing: 1.6px; }
   .match-tactics-header strong { display: block; font: 700 21px var(--font-display); letter-spacing: .4px; }
-  .match-tactics-close { min-width: 88px; height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-raised); color: var(--color-tx); font: 700 11px var(--font-body); cursor: pointer; }
-  .match-tactics-formations {
-    flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px;
-    border-bottom: 1px solid var(--color-line); scrollbar-width: none;
-  }
-  .match-tactics-formations::-webkit-scrollbar, .match-tactics-bench-row::-webkit-scrollbar { display: none; }
-  .match-tactics-formations button {
-    flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line);
-    border-radius: 8px; background: var(--color-raised); color: var(--color-tx-2); font: 600 11px var(--font-mono); cursor: pointer;
-  }
-  .match-tactics-formations button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-mentalities { flex: 0 0 auto; display: flex; gap: 6px; overflow-x: auto; padding: 9px 12px; border-bottom: 1px solid var(--color-line); scrollbar-width: none; }
-  .match-tactics-mentalities::-webkit-scrollbar { display: none; }
-  .match-tactics-mentalities button { flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
-  .match-tactics-mentalities button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; display:grid; gap:14px; }
+  .match-tactics-close { flex:0 0 auto; min-width:88px; min-height:44px; padding:0 14px; border-radius:999px; border:1px solid var(--color-line); background:var(--color-raised); color:var(--color-tx); font:700 12px var(--font-body); cursor:pointer; }
+  .match-tactics-views { flex:0 0 auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; padding:8px 12px; border-bottom:1px solid var(--color-line); }
+  .match-tactics-views button { min-height:44px; border:1px solid var(--color-line); border-radius:9px; background:var(--color-surface); color:var(--color-tx-2); font:700 13px var(--font-body); cursor:pointer; }
+  .match-tactics-views button[aria-pressed="true"] { border-color:var(--color-club); background:var(--color-club); color:var(--color-on-club,#fff); }
+  .match-tactics-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:12px 12px max(16px,env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:14px; }
+  .match-tactics-scroll > * { min-width:0; flex:0 0 auto; }
+  .match-tactics-settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .match-tactics-settings label { display:grid; gap:6px; min-width:0; }
+  .match-tactics-settings label > span { color:var(--color-tx-2); font:700 11px var(--font-body); }
+  .match-tactics-settings select { width:100%; min-width:0; min-height:44px; padding:0 10px; border:1px solid var(--color-line); border-radius:9px; background:var(--color-surface); color:var(--color-tx); font:700 14px var(--font-body); cursor:pointer; }
+  .match-tactics-help { margin:0 0 12px; color:var(--color-tx-2); font-size:12px; line-height:1.5; }
+  .match-tactics-team { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; }
+  .match-tactics-plan { width:100%; max-width:620px; margin:0 auto; }
+  .match-tactics-close:focus-visible, .match-tactics-views button:focus-visible, .match-tactics-settings select:focus-visible, .match-tactics-slot:focus-visible, .match-tactics-bench-row button:focus-visible { outline:2px solid var(--color-live); outline-offset:3px; }
   .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
   .match-tactics-pitch {
     position: relative; width: 100%; aspect-ratio: 68 / 91; overflow: hidden;
@@ -1400,31 +1453,35 @@
   .match-tactics-slot.pos-ATT { border-color: var(--color-bad); }
   .match-tactics-slot.selected { box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-club) 45%, transparent); border-color: var(--color-club); }
   .match-tactics-slot.unavailable { opacity: .35; }
-  .mts-rating { font: 700 14px/1 var(--font-display); }
-  .mts-pos { color: var(--color-tx-3); font: 700 8px/1.3 var(--font-mono); }
+  .mts-rating { font:700 17px/1 var(--font-display); }
+  .mts-pos { color:var(--color-tx-2); font:700 10px/1.5 var(--font-mono); }
   .match-tactics-slot small {
     position: absolute; top: calc(100% + 3px); max-width: 68px; overflow: hidden; text-overflow: ellipsis;
-    padding: 2px 4px; border-radius: 3px; white-space: nowrap; background: rgba(4,12,8,.82); color: white; font: 9px var(--font-body);
+    padding: 2px 4px; border-radius: 3px; white-space: nowrap; background: rgba(4,12,8,.82); color: white; font: 11px var(--font-body);
   }
-  .match-tactics-bench { width: min(100%, 520px); margin: 14px auto 0; }
+  .match-tactics-bench { min-width:0; width:100%; margin:0 auto; }
   .mtb-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 8px; }
   .mtb-heading span { display: block; font: 700 15px var(--font-display); }
-  .mtb-heading small { display: block; margin-top: 2px; color: var(--color-tx-3); font-size: 9px; }
-  .mtb-heading strong { color: var(--color-warn); font: 700 10px var(--font-mono); }
+  .mtb-heading small { display:block; margin-top:4px; color:var(--color-tx-2); font-size:12px; line-height:1.4; }
+  .mtb-heading strong { flex:0 0 auto; color:var(--color-warn); font:700 12px var(--font-mono); }
   .match-tactics-bench-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
   .match-tactics-bench-row button {
-    flex: 0 0 82px; min-height: 104px; display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 8px 5px; border: 1px solid var(--color-line); border-radius: 10px;
+    flex:0 0 96px; min-height:112px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+    padding:10px 6px; border:1px solid var(--color-line); border-radius:10px;
     background: var(--color-surface); color: var(--color-tx); cursor: pointer;
   }
   .match-tactics-bench-row button.selected { border-color: var(--color-club); background: color-mix(in oklch, var(--color-club) 12%, var(--color-surface)); box-shadow: inset 0 0 0 1px var(--color-club); }
-  .mtb-avatar { width: 34px; height: 34px; display: grid; place-items: center; border: 2px solid; border-radius: 50%; font: 700 10px var(--font-mono); }
+  .match-tactics-bench-row button:disabled { opacity:.45; cursor:default; }
+  .match-tactics-bench-row::-webkit-scrollbar { display:none; }
+  .mtb-avatar { width:40px; height:40px; display:grid; place-items:center; border:2px solid; border-radius:50%; font:700 13px var(--font-mono); }
   .mtb-avatar.pos-GK { border-color: #7c83e8; }.mtb-avatar.pos-DEF { border-color: var(--color-live); }.mtb-avatar.pos-MID { border-color: var(--color-warn); }.mtb-avatar.pos-ATT { border-color: var(--color-bad); }
-  .mtb-pos { color: var(--color-tx-3); font: 700 8px var(--font-mono); }
-  .mtb-name { width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 10px; white-space: nowrap; }
-  .mtb-meta { color: var(--color-tx-3); font: 9px var(--font-mono); }
+  .mtb-name { width:100%; overflow:hidden; text-overflow:ellipsis; color:var(--color-tx); font-size:13px; white-space:nowrap; }
+  .mtb-meta { color:var(--color-tx-2); font:11px var(--font-mono); }
 
   @media (min-width: 900px) {
-    .match-tactics { left: 50%; right: auto; width: min(720px, 100vw); transform: translateX(-50%); border-left: 1px solid var(--color-line); border-right: 1px solid var(--color-line); }
+    .match-tactics { left:50%; right:auto; width:min(900px,100vw); transform:translateX(-50%); border-left:1px solid var(--color-line); border-right:1px solid var(--color-line); }
+    .match-tactics-scroll { padding:18px 24px 24px; }
+    .match-tactics-team { grid-template-columns:minmax(0,1fr) minmax(0,320px); align-items:start; gap:24px; }
+    .match-tactics-bench-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:visible; }
   }
 </style>
