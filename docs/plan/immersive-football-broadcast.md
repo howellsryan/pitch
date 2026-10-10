@@ -112,6 +112,9 @@ time waits for the final shot/goal hold, then uses the existing atomic result
 commit. Quick Sim and Skip retain that same engine/result/persistence path.
 Goal takeovers clear when open play resumes so accelerated football remains
 visible while the readable goal notification continues.
+The Tactics room constrains its content grid to the available width; team-plan
+choices remain visible on 320 px phones while formation and bench rows scroll
+independently.
 
 ## Verification contract
 

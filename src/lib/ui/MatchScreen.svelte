@@ -1372,7 +1372,7 @@
   .match-tactics-mentalities::-webkit-scrollbar { display: none; }
   .match-tactics-mentalities button { flex: 0 0 auto; min-height: 36px; padding: 0 11px; border: 1px solid var(--color-line); border-radius: 999px; background: var(--color-raised); color: var(--color-tx-2); font: 600 10px var(--font-body); cursor: pointer; }
   .match-tactics-mentalities button.active { background: var(--color-club); border-color: var(--color-club); color: var(--color-on-club, #fff); }
-  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; display:grid; gap:14px; }
+  .match-tactics-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 14px; display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
   .match-tactics-pitch-wrap { width: min(100%, 360px); margin: 0 auto; }
   .match-tactics-pitch {
     position: relative; width: 100%; aspect-ratio: 68 / 91; overflow: hidden;
